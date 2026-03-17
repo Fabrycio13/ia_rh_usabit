@@ -1,0 +1,599 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Plus, Star, Search, ChevronLeft, ChevronRight,
+  X, Eye, ChevronUp, ChevronDown, Ban
+} from 'lucide-react';
+import { supabase } from '../../core/services/supabase';
+import { useUser } from '../../core/contexts/UserContext';
+import { logScreening, logActivity } from '../../core/services/logger';
+import { CandidatePanel } from '../../features/analysis/CandidatePanel';
+
+const PAGE_SIZE = 10;
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
+}
+
+/** Separa qualquer texto de skills em chips individuais */
+
+function toStr(v: any): string | null {
+  if (!v) return null;
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.join(', ');
+  return String(v);
+}
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  location: string | null;
+  address: string | null;
+  age: string | null;
+  gender: string | null;
+  score: number | null;
+  vagas: string[];
+  interview_eligible: boolean;
+  is_blacklisted: boolean;
+}
+
+interface Application {
+  jobId: string;
+  jobName: string;
+  score: number;
+  appliedAt: string;
+  skills?: string | null;
+  experience?: string | null;
+  education?: string | null;
+  redFlags?: string | null;
+}
+
+interface CandidateDetail extends Candidate {
+  phone: string | null;
+  skills: string | null;
+  experience: string | null;
+  education: string | null;
+  redFlags: string | null;
+  applications: Application[];
+  notes: string | null;
+  enriched: boolean;
+  pipelineCards?: any[];
+}
+
+type SortKey = 'name' | 'location' | 'age' | null;
+type SortDir = 'asc' | 'desc';
+
+// ─── Tipos de Comentário ──────────────────────────────────────────────────────
+
+
+
+
+// ─── Sort indicator ───────────────────────────────────────────────────────────
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (sortKey !== col) return <span style={{ opacity: 0.25, display: 'inline-flex', flexDirection: 'column' }}><ChevronUp size={10} /><ChevronDown size={10} /></span>;
+  return sortDir === 'asc' ? <ChevronUp size={12} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={12} style={{ color: 'var(--primary)' }} />;
+}
+
+// ─── SelectFilter ─────────────────────────────────────────────────────────────
+function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: value ? 'var(--text-main)' : 'var(--text-dim)', fontSize: 12, outline: 'none', cursor: 'pointer', minWidth: 110 }}>
+      <option value="">{placeholder}</option>
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export const CandidateBank = () => {
+  const navigate = useNavigate();
+  const { profile } = useUser();
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [search, setSearch] = useState('');
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<CandidateDetail | null>(null);
+
+  // ─ Sorting
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // ─ Filters
+  const [filterGender, setFilterGender] = useState('');
+  const [filterVaga, setFilterVaga] = useState('');
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  // Load favorites from localStorage (per user)
+  useEffect(() => {
+    if (!profile.userId) return;
+    try {
+      const stored = localStorage.getItem(`fav-${profile.userId}`);
+      if (stored) setFavorites(JSON.parse(stored));
+    } catch { }
+  }, [profile.userId]);
+
+  const toggle = (id: string) => setFavorites(prev => {
+    const next = { ...prev, [id]: !prev[id] };
+    try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { }
+    return next;
+  });
+
+  useEffect(() => {
+    if (!profile.loaded) return;
+    if (!profile.userId) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
+    fetchCandidates(profile.userId).finally(() => clearTimeout(safetyTimer));
+    return () => clearTimeout(safetyTimer);
+  }, [profile.userId, profile.loaded]);
+
+  async function fetchCandidates(userId: string) {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('candidates')
+        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, job_candidates(jobs(name))')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+
+      if (error) {
+        // Fallback
+        const { data: fallback } = await supabase
+          .from('candidates')
+          .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))')
+          .eq('user_id', userId)
+          .order('name', { ascending: true });
+        setCandidates((fallback ?? []).map((c: any) => ({
+          id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
+          age: c.age, gender: c.gender, score: c.score,
+          interview_eligible: false,
+          is_blacklisted: false,
+          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+        })));
+        return;
+      }
+
+      setCandidates((data ?? []).map((c: any) => ({
+        id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
+        age: c.age, gender: c.gender, score: c.score,
+        interview_eligible: c.interview_eligible ?? false,
+        is_blacklisted: c.is_blacklisted ?? false,
+        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+      })));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleToggleBlacklistRow(candidate: Candidate) {
+    const newVal = !candidate.is_blacklisted;
+    try {
+      const { error } = await supabase.from('candidates').update({ is_blacklisted: newVal }).eq('id', candidate.id);
+      if (!error) {
+        setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, is_blacklisted: newVal } : c));
+        if (selected?.id === candidate.id) {
+          setSelected(prev => prev ? { ...prev, is_blacklisted: newVal } : null);
+        }
+      }
+    } catch { }
+  }
+
+  const handleSort = (col: SortKey) => {
+    if (sortKey === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(col); setSortDir('asc'); }
+    setPage(1);
+  };
+
+  const genderOptions = useMemo(() => [...new Set(candidates.map(c => c.gender).filter(Boolean) as string[])].sort(), [candidates]);
+  const vagaOptions = useMemo(() => [...new Set(candidates.flatMap(c => c.vagas))].sort(), [candidates]);
+
+  const processed = useMemo(() => {
+    let list = [...candidates];
+    const q = search.toLowerCase().trim();
+    if (q) list = list.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.location ?? '').toLowerCase().includes(q) ||
+      c.vagas.some(v => v.toLowerCase().includes(q))
+    );
+    if (onlyFavorites) list = list.filter(c => favorites[c.id]);
+    if (filterGender) list = list.filter(c => c.gender === filterGender);
+    if (filterVaga) list = list.filter(c => c.vagas.includes(filterVaga));
+    if (sortKey) {
+      list.sort((a, b) => {
+        let va: any, vb: any;
+        if (sortKey === 'name') { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
+        else if (sortKey === 'location') { va = (a.location ?? '').toLowerCase(); vb = (b.location ?? '').toLowerCase(); }
+        else if (sortKey === 'age') { va = parseFloat(a.age ?? '0'); vb = parseFloat(b.age ?? '0'); }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return list;
+  }, [candidates, search, onlyFavorites, favorites, filterGender, filterVaga, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  const paginated = processed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const goTo = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
+
+  function openCandidate(c: Candidate) {
+    setSelected({ 
+      ...c, 
+      phone: null, skills: null, experience: null, education: null, 
+      redFlags: null, applications: [], notes: null, enriched: false,
+      is_blacklisted: c.is_blacklisted ?? false 
+    } as CandidateDetail);
+    enrichCandidate(c.id);
+  }
+
+  async function enrichCandidate(id: string) {
+    try {
+      const [{ data: cd }, { data: jcData }, { data: pipeData }] = await Promise.all([
+        supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
+        supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+        supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
+      ]);
+
+      const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+
+      setSelected(prev => {
+        if (!prev || prev.id !== id) return prev;
+        const analysis = cd?.analysis ?? {};
+        const rawHistory: any[] = analysis?.history ?? [];
+        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+
+        const pipelineCards = (pipeData ?? []).map((pc: any) => {
+          let jobName = undefined;
+          let jobId = undefined;
+          let score = undefined;
+          try {
+            const parsed = JSON.parse(pc.notes || '');
+            jobName = parsed.selected_job_name;
+            jobId = parsed.selected_job_id;
+            score = parsed.selected_job_score;
+          } catch { }
+          return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
+        });
+
+        return {
+          ...prev,
+          phone: toStr(cd?.phone) ?? null,
+          address: toStr(cd?.address) ?? null,
+          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades),
+          experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia),
+          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao),
+          redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
+          notes: cd?.notes ?? null,
+          is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
+          applications: validHistory.map((h: any) => ({
+            jobId: h.job_id,
+            jobName: h.job_name,
+            score: h.score,
+            appliedAt: h.analyzed_at,
+            skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
+            experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
+            education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
+            redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
+          })),
+          pipelineCards,
+          enriched: true,
+        };
+      });
+    } catch {
+      setSelected(prev => prev ? { ...prev, enriched: true } : prev);
+    }
+  }
+
+  const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : ''].filter(Boolean).length;
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: 40, height: 40, border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Carregando candidatos…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Banco de Candidatos</h1>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>
+            {processed.length} candidato{processed.length !== 1 ? 's' : ''} encontrado{processed.length !== 1 ? 's' : ''}
+            {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
+            <input type="text" placeholder="Buscar candidatos…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
+            />
+          </div>
+          <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <Plus style={{ width: 16, height: 16 }} /> Adicionar
+          </button>
+        </div>
+      </div>
+
+      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar por:</span>
+        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />
+        <SelectFilter value={filterVaga} onChange={v => { setFilterVaga(v); setPage(1); }} options={vagaOptions} placeholder="Vaga aplicada" />
+        <button onClick={() => { setOnlyFavorites(f => !f); setPage(1); }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: onlyFavorites ? 'var(--favorite-bg)' : 'transparent', border: `1px solid ${onlyFavorites ? 'var(--favorite)' : 'var(--border)'}`, borderRadius: 8, padding: '7px 12px', color: onlyFavorites ? 'var(--favorite)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+          <Star style={{ width: 13, height: 13, fill: onlyFavorites ? 'var(--favorite)' : 'none' }} />
+          Apenas favoritos
+        </button>
+        {activeFilters > 0 && (
+          <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setPage(1); }}
+            style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <X style={{ width: 12, height: 12 }} /> Limpar
+          </button>
+        )}
+      </div>
+
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '25%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '8%' }} />
+          </colgroup>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+              {([
+                ['name', 'Nome'],
+                ['location', 'Localização'],
+                ['age', 'Idade'],
+                [null, 'Gênero'],
+                [null, 'Vagas Aplicadas'],
+                [null, 'Favoritos'],
+                [null, 'Blacklist'],
+                [null, 'Visualizar'],
+              ] as [SortKey, string][]).map(([col, label]) => (
+                <th key={label}
+                  onClick={col ? () => handleSort(col) : undefined}
+                  style={{ padding: '14px 16px', textAlign: (label === 'Favoritos' || label === 'Blacklist' || label === 'Visualizar') ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {label}
+                    {col && <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.length === 0 ? (
+              <tr><td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
+                {search || activeFilters > 0 ? 'Nenhum candidato encontrado com os filtros aplicados.' : 'Nenhum candidato cadastrado ainda.'}
+              </td></tr>
+            ) : paginated.map(c => (
+              <tr key={c.id} onClick={() => openCandidate(c)}
+                style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--row-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <td style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{initials(c.name)}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <p style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !['Não informado', 'não informado', '—'].includes(c.age)) ? `${c.age} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px' }}>
+                  {c.vagas.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
+                      {c.vagas.slice(0, 2).map(v => (
+                        <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                          {v}
+                        </span>
+                      ))}
+                      {c.vagas.length > 2 && <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap' }}>+{c.vagas.length - 2}</span>}
+                    </div>
+                  )}
+                </td>
+                <td style={{ padding: '0 16px', height: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: favorites[c.id] ? '#fbbf24' : '#475569', transition: 'color 0.15s' }}>
+                      <Star style={{ width: 16, height: 16, fill: favorites[c.id] ? '#fbbf24' : 'none', strokeWidth: 1.5 }} />
+                    </button>
+                  </div>
+                </td>
+                <td style={{ padding: '0 16px', height: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <button onClick={e => { e.stopPropagation(); handleToggleBlacklistRow(c); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.is_blacklisted ? 'var(--text-error)' : '#475569', transition: 'color 0.15s' }}>
+                      <Ban style={{ width: 16, height: 16 }} />
+                    </button>
+                  </div>
+                </td>
+                <td style={{ padding: '0 16px', height: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Eye style={{ width: 15, height: 15, color: '#475569' }} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {processed.length} candidatos</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                <ChevronLeft style={{ width: 15, height: 15 }} /> Anterior
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                  if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
+                  acc.push(p); return acc;
+                }, [])
+                .map((p, i) => p === '...' ? (
+                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
+                ) : (
+                  <button key={p} onClick={() => goTo(p as number)}
+                    style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
+                ))}
+              <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                Próximo <ChevronRight style={{ width: 15, height: 15 }} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {selected && (
+        <CandidatePanel
+          c={selected}
+          onClose={() => setSelected(null)}
+          navigate={navigate}
+          onNotesChange={(id, notes) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
+            setSelected(prev => prev && prev.id === id ? { ...prev, notes } : prev);
+          }}
+          onEligibleChange={async (id, val, jobInfo, pipelineId) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, interview_eligible: val } : cand));
+            setSelected(prev => prev && prev.id === id ? { ...prev, interview_eligible: val } : prev);
+
+            if (val && jobInfo && profile.userId) {
+              try {
+                let targetPipelineId = pipelineId;
+                let targetPipelineName = '';
+
+                if (!targetPipelineId) {
+                  const { data: pips } = await supabase.from('pipelines')
+                    .select('id, name').eq('user_id', profile.userId).order('created_at').limit(1);
+                  targetPipelineId = pips?.[0]?.id;
+                  targetPipelineName = pips?.[0]?.name || '';
+                } else {
+                  const { data: pip } = await supabase.from('pipelines')
+                    .select('name').eq('id', targetPipelineId).single();
+                  targetPipelineName = pip?.name || '';
+                }
+
+                if (!targetPipelineId) return;
+
+                const { data: cols } = await supabase.from('pipeline_columns')
+                  .select('id, name').eq('pipeline_id', targetPipelineId).order('position').limit(1);
+
+                const colId = cols?.[0]?.id;
+                if (colId) {
+                  const { data: cardsInCol } = await supabase.from('pipeline_cards')
+                    .select('id').eq('column_id', colId);
+                  const pos = cardsInCol?.length || 0;
+
+                  const notesJson = JSON.stringify({
+                    selected_job_id: jobInfo.jobId,
+                    selected_job_name: jobInfo.jobName,
+                    selected_job_score: jobInfo.score
+                  });
+
+                  const { data: newCard } = await supabase.from('pipeline_cards').insert({
+                    user_id: profile.userId,
+                    pipeline_id: targetPipelineId,
+                    column_id: colId,
+                    candidate_id: id,
+                    position: pos,
+                    notes: notesJson
+                  }).select().single();
+
+                  if (newCard) {
+                    await supabase.from('candidates').update({ interview_eligible: true }).eq('id', id);
+                    logScreening(
+                      profile.userId,
+                      id,
+                      'inclusion',
+                      null,
+                      cols?.[0]?.name || 'Triagem',
+                      {
+                        job_id: jobInfo.jobId,
+                        job_name: jobInfo.jobName,
+                        pipeline_id: targetPipelineId,
+                        pipeline_name: targetPipelineName
+                      }
+                    );
+
+                    logActivity(profile.userId, `Adicionou "${selected.name}" ao processo "${targetPipelineName}"`);
+
+                    setSelected(prev => {
+                      if (!prev || prev.id !== id) return prev;
+                      return {
+                        ...prev,
+                        interview_eligible: true,
+                        pipelineCards: [...(prev.pipelineCards || []), {
+                          id: newCard.id,
+                          jobId: jobInfo.jobId,
+                          jobName: jobInfo.jobName,
+                          score: jobInfo.score,
+                          pipelineName: targetPipelineName
+                        }]
+                      };
+                    });
+                  }
+                }
+              } catch (err) {
+                console.error("Error adding to pipeline from bank:", err);
+              }
+            }
+          }}
+          onRemoveCard={async (cardId, candidateId) => {
+            const currentCards = selected?.pipelineCards || [];
+            const card = currentCards.find(pc => pc.id === cardId);
+            await supabase.from('pipeline_cards').delete().eq('id', cardId);
+            if (profile.userId && card) {
+              logActivity(profile.userId, `Removeu "${selected?.name}" do processo "${card.pipelineName || 'Pipeline'}"`);
+            }
+            const filteredCards = currentCards.filter(pc => pc.id !== cardId);
+            const stillInPipeline = filteredCards.length > 0;
+            if (!stillInPipeline) {
+              await supabase.from('candidates').update({ interview_eligible: false }).eq('id', candidateId);
+              setCandidates(curr => curr.map(c => c.id === candidateId ? { ...c, interview_eligible: false } : c));
+            }
+            setSelected(prev => {
+              if (!prev || prev.id !== candidateId) return prev;
+              return {
+                ...prev,
+                interview_eligible: stillInPipeline,
+                pipelineCards: filteredCards
+              };
+            });
+          }}
+          onFieldChange={(id, field, val) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
+            setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
+          }}
+          onBlacklistChange={(id, val) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
+            setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
+          }}
+        />
+      )}
+    </>
+  );
+};

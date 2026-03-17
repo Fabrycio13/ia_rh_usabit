@@ -20,11 +20,15 @@
 }
 
 :root {
+  /* Default Dark Mode (Current Theme) */
   --bg-main: #0f111a;
   --bg-card: #1a1d27;
-  --bg-sidebar: #12141d;
+  --bg-sidebar: #0B0D12;
+  /* Adjusted to be darker for sidebar */
+  --bg-input: #0d0f17;
 
   --primary: #3b82f6;
+  --primary-rgb: 59, 130, 246;
   --primary-hover: #2563eb;
   --secondary: #8b5cf6;
 
@@ -37,6 +41,66 @@
 
   --glass: rgba(26, 29, 39, 0.7);
   --glass-border: rgba(255, 255, 255, 0.05);
+
+  --sidebar-active: rgba(255, 255, 255, 0.08);
+  --sidebar-active-text: #ffffff;
+
+  /* Semantic Colors - Dark */
+  --favorite: #fbbf24;
+  --favorite-bg: rgba(251, 191, 36, 0.1);
+  --primary-light-bg: rgba(59, 130, 246, 0.1);
+  --primary-border: rgba(59, 130, 246, 0.2);
+  --primary-text-light: #a5b4fc;
+  --text-error: #ef4444;
+  --error-border: rgba(239, 68, 68, 0.25);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --row-hover: rgba(99, 102, 241, 0.05);
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --row-hover: rgba(99, 102, 241, 0.05);
+
+  --font-space: 'Space Grotesk', sans-serif;
+}
+
+[data-theme='light'] {
+  --bg-main: #f1f5f9;
+  /* Ligeiramente mais escuro para contraste com cards */
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-input: #ffffff;
+
+  --primary: #2563eb;
+  --primary-rgb: 37, 99, 235;
+  --primary-hover: #1d4ed8;
+  --secondary: #7c3aed;
+
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  /* Escurecido para melhor leitura */
+  --text-dim: #64748b;
+
+  --border: #e2e8f0;
+  --border-focus: rgba(37, 99, 235, 0.5);
+
+  --glass: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.05);
+
+  --sidebar-active: #2563eb;
+  --sidebar-active-text: #ffffff;
+
+  /* Semantic Colors - Light */
+  --favorite: #d97706;
+  --favorite-bg: rgba(217, 119, 6, 0.1);
+  --primary-light-bg: rgba(37, 99, 235, 0.1);
+  --primary-border: rgba(37, 99, 235, 0.2);
+  --primary-text-light: #1d4ed8;
+  --text-error: #dc2626;
+  --error-border: rgba(220, 38, 38, 0.25);
+  --success: #15803d;
+  --success-bg: rgba(21, 128, 61, 0.1);
+  --row-hover: rgba(59, 130, 246, 0.04);
+
+  --font-space: 'Space Grotesk', sans-serif;
 }
 
 html,
@@ -52,6 +116,51 @@ body {
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Fallback para navegadores sem View Transitions API */
+body *,
+body *::before,
+body *::after {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+/* ── View Transitions API (Reveal Inovador) ── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+[data-theme-anim="ltr"]::view-transition-new(root) {
+  animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) ltr-wipe;
+  z-index: 1000;
+}
+
+[data-theme-anim="rtl"]::view-transition-new(root) {
+  animation: 0.5s cubic-bezier(0.4, 0, 0.2, 1) rtl-wipe;
+  z-index: 1000;
+}
+
+@keyframes ltr-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes rtl-wipe {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 /* Glassmorphism Classes */
@@ -79,12 +188,13 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #1f2332;
+  background: var(--border);
+  /* Usar variável de borda */
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #2d3347;
+  background: var(--text-dim);
 }
 
 /* Global Scrollbar */
@@ -97,12 +207,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--text-dim);
   border-radius: 4px;
+  opacity: 0.5;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--text-muted);
 }
 
 /* Hide scrollbar utility */
