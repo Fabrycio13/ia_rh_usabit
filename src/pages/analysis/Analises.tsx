@@ -726,7 +726,7 @@ export const Analises = () => {
                         left: `${(si * 37 + i * 13) % 100}%`, 
                         '--duration': `${1.5 + (si % 4)}s`, 
                         animationDelay: `${si * 0.1}s`, 
-                        opacity: 0.1 + (si % 5) * 0.1 
+                        opacity: (si % 5) * 0.1 
                       } as any} 
                     />
                   ))}
@@ -739,7 +739,7 @@ export const Analises = () => {
                       width: 60, 
                       height: 60, 
                       borderRadius: '50%', 
-                      background: `black`, // Solid base
+                      background: `transparent`, // Transparent base
                       backgroundImage: p.color, // Planet texture
                       right: -15, 
                       bottom: -15, 
@@ -769,7 +769,7 @@ export const Analises = () => {
             type="date"
             value={startDate}
             onChange={e => { setStartDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', colorScheme: 'dark', transition: 'border-color 0.2s' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           />
@@ -780,7 +780,7 @@ export const Analises = () => {
             type="date"
             value={endDate}
             onChange={e => { setEndDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', colorScheme: 'dark', transition: 'border-color 0.2s' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           />

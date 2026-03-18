@@ -484,6 +484,10 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         console.error(`Erro ao processar/salvar candidato ${idx}:`, innerErr);
                         toast.error(`Atenção: Erro ao tratar candidato ${idx + 1}: ${innerErr.message || 'Erro desconhecido'}`);
                     }
+                },
+                (err, idx) => {
+                    console.error(`[Analysis] Erro no currículo ${idx + 1}:`, err);
+                    toast.error(`Erro no currículo ${idx + 1}: ${err}`, { duration: 6000, id: `err-${idx}` });
                 }
             );
 

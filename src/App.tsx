@@ -17,6 +17,9 @@ import { AdminDashboard } from './pages/dashboard/AdminDashboard';
 import { AdminLogs } from './pages/dashboard/AdminLogs';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Chat } from './pages/support/Chat';
+import { Register } from './pages/auth/Register';
+import { ConfirmEmail } from './pages/auth/ConfirmEmail';
+import { TrialExpired } from './pages/auth/TrialExpired';
 import { Toaster } from 'react-hot-toast';
 
 const JobDetailRoute = () => {
@@ -27,6 +30,28 @@ const JobDetailRoute = () => {
 
 const AppContent = ({ session }: { session: any }) => {
     const { profile } = useUser();
+
+    // Helper to check if trial expired
+    const isTrialExpired = () => {
+        if (!profile.trial_ends_at) return false;
+        if (profile.account_type === 'lifetime' || profile.user_role === 'admin') return false;
+        return new Date(profile.trial_ends_at) < new Date();
+    };
+
+    if (session) {
+        // 1. Wait for profile to load
+        if (!profile.loaded) return <div style={{ height: '100vh', background: '#0B1020' }} />;
+
+        // 2. Email confirmation (skip for lifetime)
+        if (!session.user.confirmed_at && profile.account_type !== 'lifetime') {
+            return <ConfirmEmail />;
+        }
+
+        // 3. Trial Expiry
+        if (profile.account_type === 'trial' && isTrialExpired()) {
+            return <TrialExpired />;
+        }
+    }
 
     return (
         <HashRouter>
@@ -41,6 +66,7 @@ const AppContent = ({ session }: { session: any }) => {
             <Routes>
                 <Route path="/" element={!session ? <LandingPage /> : <Navigate to="/dashboard" />} />
                 <Route path="/login" element={!session ? <Login /> : <Navigate to="/dashboard" />} />
+                <Route path="/registro" element={!session ? <Register /> : <Navigate to="/dashboard" />} />
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
@@ -51,8 +77,8 @@ const AppContent = ({ session }: { session: any }) => {
                     <Route path="/analise/:jobId" element={<JobDetailRoute />} />
                     <Route path="/configuracoes" element={<Configuracoes />} />
                     <Route path="/ajuda" element={<Ajuda />} />
-                    <Route path="/pipeline" element={<Pipeline />} />
-                    <Route path="/chat" element={<Chat />} />
+                    <Route path="/pipeline" element={profile.isPremium ? <Pipeline /> : <Navigate to="/dashboard" />} />
+                    <Route path="/chat" element={profile.isPremium ? <Chat /> : <Navigate to="/dashboard" />} />
 
                     {/* Admin Routes */}
                     {profile.user_role === 'admin' && (
