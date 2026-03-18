@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, Rocket, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database } from 'lucide-react';
+import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
@@ -11,7 +11,7 @@ import { useAnalysis } from '../core/contexts/AnalysisContext';
 const SpaceLogo = ({ size = 48 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, filter: 'drop-shadow(0 4px 12px rgba(20, 184, 166, 0.25))' }}>
         {/* Document Icon */}
-        <g style={{ animation: 'float 3s ease-in-out infinite' }}>
+        <g>
             <path d="M12 6C12 4.89543 12.8954 4 14 4H30L38 12V42C38 43.1046 37.1046 44 36 44H14C12.8954 44 12 43.1046 12 42V6Z" 
                   fill="#0B1C36" stroke="url(#grad1)" strokeWidth="1.5" />
             <path d="M30 4H30.5L38 11.5V12H30V4Z" fill="#14b8a6" opacity="0.6" />
@@ -34,8 +34,7 @@ const SpaceLogo = ({ size = 48 }: { size?: number }) => (
         </g>
 
         <style>{`
-            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-            @keyframes pulse { 0%, 100% { transform: translate(12px, 20px) scale(1); } 50% { transform: translate(12px, 20px) scale(1.05); } }
+            @keyframes pulse { 0%, 100% { transform: translate(12px, 20px) scale(1); } 50% { transform: translate(12px, 20px) scale(1.02); } }
             @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         `}</style>
     </svg>
@@ -44,13 +43,8 @@ const SpaceLogo = ({ size = 48 }: { size?: number }) => (
 /* ─── CSS ───────────────────────────────────────────────────────────────────── */
 const css = `
 @keyframes iconBounce { 0%{transform:scale(1)} 40%{transform:scale(1.3) rotate(-8deg)} 70%{transform:scale(1.15) rotate(4deg)} 100%{transform:scale(1)} }
-@keyframes rocketLaunch { 0%{transform:translateY(0)} 20%{transform:translateY(2px)} 100%{transform:translateY(-100px);opacity:0} }
-@keyframes rocketFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
-@keyframes rocketWait { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.08) translateY(-1px); } }
 .nav-lnk:hover .sbico { animation: iconBounce 0.4s ease forwards; }
-.rocket-icon { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-.tog-btn:hover .rocket-icon { animation: rocketFloat 1.5s ease-in-out infinite; }
-.tog-btn.is-collapsed .rocket-icon { animation: rocketWait 2s ease-in-out infinite; }
+
 .nav-lnk { display:flex; align-items:center; gap:10px; padding:10px 14px; margin-bottom:4px; border-radius:10px; text-decoration:none; font-size:14px; font-weight:500; transition: background 0.18s, color 0.18s; color:var(--text-muted); overflow:hidden; white-space:nowrap; position:relative; }
 .nav-lnk:hover { background:var(--bg-card) !important; color:var(--text-main) !important; }
 .nav-lnk.active { background:var(--sidebar-active); color:var(--sidebar-active-text); }
@@ -141,18 +135,11 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <stop offset="0%" stopColor="#3b82f6" />
                         <stop offset="100%" stopColor="#8b5cf6" />
                     </linearGradient>
-                    <linearGradient id="rocket-grad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#60a5fa" />
-                    </linearGradient>
                     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="1.5" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
-                    <filter id="rocket-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2.5" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
+
                 </defs>
             </svg>
             <aside style={{ width: W, minWidth: W, background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)', overflow: 'hidden' }}>
@@ -168,8 +155,8 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                     minWidth: 0 
                 }}>
                     {!collapsed && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, overflow: 'hidden' }}>
-                            <SpaceLogo size={60} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                            <SpaceLogo size={50} />
                             <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                 <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Space Talent</p>
                                 <p style={{ color: 'var(--primary)', fontSize: '10px', fontWeight: 700, margin: '1px 0 0', whiteSpace: 'nowrap', letterSpacing: '0.1em', opacity: 0.9, fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>IA RECRUITMENT</p>
@@ -195,16 +182,14 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                             boxShadow: collapsed ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none'
                         }}
                     >
-                        <Rocket 
-                            className="rocket-icon"
+                        <PanelLeft 
                             style={{ 
                                 width: 22, 
                                 height: 22, 
-                                transform: collapsed ? 'rotate(45deg)' : 'rotate(-90deg)',
-                                transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                stroke: 'url(#grad2)',
-                                strokeWidth: 2.5,
-                                filter: 'drop-shadow(0 0 5px rgba(59, 130, 246, 0.5))'
+                                transform: collapsed ? 'rotate(180deg)' : 'none',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                color: 'var(--primary)',
+                                strokeWidth: 2
                             }} 
                         />
                     </button>

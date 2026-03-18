@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Mail, Phone, MapPin, Calendar, Briefcase, History, Sparkles, Search, ChevronLeft, ChevronRight, X, Ban } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Mail, Phone, MapPin, Calendar, Search, ChevronLeft, ChevronRight, X, Ban } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -679,28 +679,77 @@ export const Analises = () => {
       {recent.length > 0 && (
         <>
           <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-4">Acessados recentemente</p>
-          <div className="flex gap-3 mb-10 flex-wrap">
+            <div className="flex gap-3 mb-10 flex-wrap">
             {recent.map((j, i) => {
-              const icons = [
-                <History size={18} className="animate-[pulse_2s_infinite]" />,
-                <Briefcase size={18} className="hover:scale-110 transition-transform" />,
-                <Sparkles size={18} className="animate-[bounce_3s_infinite]" />
+              // Cycle through planets for variety
+              const planetVariants = [
+                { name: 'Saturn', color: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #d97706 40%, #78350f 100%)', shadow: 'rgba(217,119,6,0.15)', ring: true },
+                { name: 'Jupiter', color: 'radial-gradient(circle at 30% 30%, #fff7ed 0%, #f59e0b 35%, #7c2d12 100%)', shadow: 'rgba(124,45,18,0.2)' },
+                { name: 'Earth', color: 'radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 50%, #1e3a8a 100%)', shadow: 'rgba(37,99,235,0.2)' },
+                { name: 'Moon', color: 'radial-gradient(circle at 30% 30%, #f3f4f6 0%, #9ca3af 50%, #374151 100%)', shadow: 'rgba(156,163,175,0.15)' }
               ];
-              const gradients = [
-                'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                'linear-gradient(135deg, #10b981, #3b82f6)',
-                'linear-gradient(135deg, #f59e0b, #ef4444)'
-              ];
+              const p = planetVariants[i % planetVariants.length];
+
               return (
                 <div
                   key={j.id}
                   onClick={() => navigate(`/analise/${j.id}`)}
-                  className="flex items-center gap-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl px-5 py-4 cursor-pointer hover:border-[var(--primary)] transition-all hover:translate-y-[-4px] hover:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] group min-w-[220px]"
+                  className="d-card group"
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    padding: '16px 20px', 
+                    cursor: 'pointer', 
+                    width: '220px',
+                    flex: '0 0 auto',
+                    minWidth: '220px'
+                  }}
+                  onMouseEnter={e => { 
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; 
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.3)'; 
+                  }}
+                  onMouseLeave={e => { 
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; 
+                  }}
                 >
-                  <div style={{ background: gradients[i % gradients.length], boxShadow: '0 8px 16px -4px rgba(0,0,0,0.2)' }} className="w-12 h-12 rounded-2xl flex items-center justify-center text-white flex-shrink-0 transition-transform group-hover:rotate-6">
-                    {icons[i % icons.length]}
-                  </div>
-                  <div>
+                  {/* Stars Background - Full Coverage */}
+                  {[...Array(25)].map((_, si) => (
+                    <div 
+                      key={si} 
+                      className="star" 
+                      style={{ 
+                        width: si % 7 === 0 ? 2 : 1, 
+                        height: si % 7 === 0 ? 2 : 1, 
+                        top: `${(si * 17) % 100}%`, 
+                        left: `${(si * 37 + i * 13) % 100}%`, 
+                        '--duration': `${1.5 + (si % 4)}s`, 
+                        animationDelay: `${si * 0.1}s`, 
+                        opacity: 0.1 + (si % 5) * 0.1 
+                      } as any} 
+                    />
+                  ))}
+
+                  {/* Mini Planet Segment - Solid to hide stars */}
+                  <div 
+                    className="mini-planet" 
+                    style={{ 
+                      position: 'absolute', 
+                      width: 60, 
+                      height: 60, 
+                      borderRadius: '50%', 
+                      background: `black`, // Solid base
+                      backgroundImage: p.color, // Planet texture
+                      right: -15, 
+                      bottom: -15, 
+                      opacity: 0.9, 
+                      boxShadow: `inset -5px -5px 15px rgba(0,0,0,0.5), 0 0 15px ${p.shadow}`, 
+                      zIndex: 2 // Higher than stars
+                    } as any} 
+                  />
+
+                  <div style={{ position: 'relative', zIndex: 3 }}>
                     <p className="font-bold text-sm text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">{j.name}</p>
                     <p className="text-[10px] text-[var(--text-dim)] mt-1 font-bold uppercase tracking-widest opacity-70">{new Date(j.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
