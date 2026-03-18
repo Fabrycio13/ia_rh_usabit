@@ -127,7 +127,7 @@ export function Chat() {
                 .chat-input::placeholder { color: var(--text-dim); }
                 .chat-input:focus { outline:none; border-color:var(--border-focus) !important; }
                 .conv-row {
-                    background: #161821;
+                    background: var(--bg-card);
                     border: 1px solid var(--border);
                     border-radius: 12px;
                     margin-bottom: 10px;
@@ -172,7 +172,7 @@ export function Chat() {
                         {/* Busca — mesma estética dos inputs do Pipeline */}
                         <div style={{
                             display: 'flex', alignItems: 'center', gap: '8px',
-                            background: '#161821',           /* mesmo dos pipe-cards */
+                            background: 'var(--bg-card)',           /* mesmo dos pipe-cards */
                             border: '1px solid var(--border)',
                             borderRadius: '10px',
                             padding: '8px 12px',
@@ -353,7 +353,7 @@ export function Chat() {
                                         <div style={{
                                             padding: '10px 16px', borderRadius: '16px',
                                             fontSize: '13px', lineHeight: '1.55',
-                                            background: m.from === 'me' ? activeConv.color : '#1e2130',
+                                            background: m.from === 'me' ? activeConv.color : 'var(--bg-main)',
                                             color: m.from === 'me' ? '#ffffff' : 'var(--text-main)',
                                             border: 'none',
                                             borderBottomRightRadius: m.from === 'me' ? '4px' : '16px',

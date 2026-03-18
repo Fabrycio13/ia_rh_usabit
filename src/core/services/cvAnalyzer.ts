@@ -9,8 +9,11 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const openai = new OpenAI({
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true
+    dangerouslyAllowBrowser: true,
 });
+if (!import.meta.env.VITE_OPENAI_API_KEY) {
+    console.error('OpenAI API Key não encontrada no ambiente (.env.local)!');
+}
 
 export interface AnalysisResult {
     name: string;
@@ -78,14 +81,16 @@ async function extractTextFromPDF(file: File): Promise<string> {
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
 
-        for (let i = 1; i <= pdf.numPages; i++) {
+        // Limitar a análise a no máximo 5 páginas (igual à visão)
+        const pagesToProcess = Math.min(pdf.numPages, 5);
+        for (let i = 1; i <= pagesToProcess; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
             const pageText = textContent.items.map((item: any) => item.str).join(' ');
             fullText += pageText + '\n';
         }
 
-        return fullText.trim();
+        return fullText.trim().slice(0, 30000);
     } catch (err: any) {
         console.error('Erro na extração de PDF:', err);
         throw new Error(`Falha ao ler PDF "${file.name}": ${err.message}`);
@@ -290,7 +295,8 @@ export async function processFiles(
     jobDescription: string,
     uploadMode: 'pdf' | 'excel',
     onProgress?: (current: number, total: number) => void,
-    onCandidateProcessed?: (result: AnalysisResult, index: number) => Promise<void>
+    onCandidateProcessed?: (result: AnalysisResult, index: number) => Promise<void>,
+    onCandidateError?: (error: string, index: number) => void
 ): Promise<{ candidates: AnalysisResult[], errors: string[] }> {
     const results: AnalysisResult[] = [];
     const errors: string[] = [];
@@ -323,7 +329,9 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
                         await onCandidateProcessed(res, i);
                     }
                 } catch (e: any) {
-                    errors.push(`Linha ${i + 1}: ${e.message}`);
+                    const msg = e.message || 'Erro desconhecido';
+                    errors.push(`Linha ${i + 1}: ${msg}`);
+                    if (onCandidateError) onCandidateError(msg, i);
                 }
                 if (onProgress) onProgress(i + 1, total);
             }
@@ -342,18 +350,18 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
                     const images = await pdfToImages(files[i]);
                     res = await analyzeCV(jobTitle, jobDescription, i + 1, total, undefined, images);
                 } else {
-                    console.log(`[cvAnalyzer] Analisando PDF "${files[i].name}" (${i + 1}/${total}) via texto (${text.length} chars)...`);
                     res = await analyzeCV(jobTitle, jobDescription, i + 1, total, text);
                 }
 
                 results.push(res);
                 if (onCandidateProcessed) {
-                    console.log(`[cvAnalyzer] Chamando callback para PDF ${files[i].name}`);
                     await onCandidateProcessed(res, i);
                 }
             } catch (err: any) {
                 console.error(`Erro no arquivo ${files[i].name}:`, err);
-                errors.push(`${files[i].name}: ${err.message}`);
+                const msg = err.message || 'Erro desconhecido';
+                errors.push(`${files[i].name}: ${msg}`);
+                if (onCandidateError) onCandidateError(msg, i);
             }
             if (onProgress) onProgress(i + 1, total);
         }

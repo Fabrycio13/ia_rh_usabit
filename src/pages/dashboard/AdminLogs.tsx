@@ -135,7 +135,7 @@ export const AdminLogs = () => {
                                 type="date" 
                                 value={startDate} 
                                 onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', colorScheme: 'dark' }}
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
                             />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -144,7 +144,7 @@ export const AdminLogs = () => {
                                 type="date" 
                                 value={endDate} 
                                 onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', colorScheme: 'dark' }}
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
                             />
                         </div>
                     </div>

@@ -520,7 +520,7 @@ export function CandidatePanel({
                                             >
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                        <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>{pc.jobName || 'Vaga'}</p>
+                                                        <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>{pc.jobName || 'Vaga'}</p>
                                                         {pc.pipelineName && (
                                                             <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', padding: '2px 8px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)' }}>
                                                                 {pc.pipelineName}
@@ -605,7 +605,7 @@ export function CandidatePanel({
                                             borderRadius: 8,
                                             padding: '5px 14px',
                                             fontSize: 12,
-                                            color: '#fff',
+                                            color: 'var(--text-main)',
                                             fontWeight: 600,
                                             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                         }}>{s}</span>

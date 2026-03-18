@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate as _useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
@@ -650,11 +651,33 @@ export const AnaliseNova = () => {
             if (ctxJobName) setJobName(ctxJobName);
             if (ctxJobDesc) setJobDesc(ctxJobDesc);
         } else if (!ctxJobName && !ctxJobDesc) {
-            // Se o contexto foi resetado, reseta o local também
             setJobName('');
             setJobDesc('');
         }
     }, [ctxJobName, ctxJobDesc, analyzing, result]);
+
+    // Monthly Analysis Limit Check
+    const [monthlyJobCount, setMonthlyJobCount] = useState(0);
+    useEffect(() => {
+        const checkMonthlyLimit = async () => {
+            if (profile.account_type !== 'trial' || !profile.userId) return;
+            
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+
+            const { count, error } = await supabase
+                .from('jobs')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', profile.userId)
+                .gte('created_at', startOfMonth.toISOString());
+
+            if (!error && count !== null) {
+                setMonthlyJobCount(count);
+            }
+        };
+        checkMonthlyLimit();
+    }, [profile.account_type, profile.userId]);
 
     // Local validation error (different from context error)
     const [formError, setFormError] = useState<string | null>(null);
@@ -663,21 +686,39 @@ export const AnaliseNova = () => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
+        const maxFiles = profile.isPremium ? 200 : 5;
+
         if (uploadMode === 'pdf') {
             const pdfs = dropped.filter(f => f.type === 'application/pdf');
-            setFiles(prev => [...prev, ...pdfs].slice(0, 200));
+            if (!profile.isPremium && (files.length + pdfs.length) > 5) {
+                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            }
+            setFiles(prev => [...prev, ...pdfs].slice(0, maxFiles));
         } else {
+            if (!profile.isPremium) {
+                toast.error('Análise via Excel não está disponível no plano Trial.');
+                return;
+            }
             const xlsx = dropped.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
-    }, [uploadMode]);
+    }, [uploadMode, files.length, profile.account_type]);
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const picked = Array.from(e.target.files);
+        const maxFiles = profile.isPremium ? 200 : 5;
+
         if (uploadMode === 'pdf') {
-            setFiles(prev => [...prev, ...picked].slice(0, 200));
+            if (!profile.isPremium && (files.length + picked.length) > 5) {
+                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            }
+            setFiles(prev => [...prev, ...picked].slice(0, maxFiles));
         } else {
+            if (!profile.isPremium) {
+                toast.error('Análise via Excel não está disponível no plano Trial.');
+                return;
+            }
             setFiles([picked[0]]);
         }
         e.target.value = '';
@@ -803,8 +844,6 @@ export const AnaliseNova = () => {
                                 onBlur={e => (e.target.style.borderColor = 'var(--border)')}
                             />
                         </div>
-
-                        {/* Descrição da Vaga */}
                         <div style={{ padding: '0 24px 16px' }}>
                             <label style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 8 }}>Descrição da Vaga</label>
                             <textarea
@@ -834,23 +873,35 @@ export const AnaliseNova = () => {
 
                             {/* Mode Tabs */}
                             <div style={{ display: 'flex', marginBottom: 16, background: 'var(--bg-main)', borderRadius: 8, padding: 4 }}>
-                                {(['pdf', 'excel'] as const).map(m => (
-                                    <button
-                                        key={m}
-                                        onClick={() => { if (!analyzing) { setUploadMode(m); setFiles([]); } }}
-                                        style={{
-                                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                            padding: '8px 0', borderRadius: 6, border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500,
-                                            background: uploadMode === m ? 'var(--bg-card)' : 'transparent',
-                                            color: uploadMode === m ? 'var(--text-main)' : 'var(--text-muted)',
-                                            transition: 'all 0.15s',
-                                            opacity: analyzing ? 0.5 : 1
-                                        }}
-                                    >
-                                        {m === 'pdf' ? <FileText size={14} /> : <FileSpreadsheet size={14} />}
-                                        {m === 'pdf' ? 'PDF' : 'Excel'}
-                                    </button>
-                                ))}
+                                {(['pdf', 'excel'] as const).map(m => {
+                                    const isExcelTrial = m === 'excel' && !profile.isPremium;
+                                    return (
+                                        <button
+                                            key={m}
+                                            onClick={() => { 
+                                                if (isExcelTrial) {
+                                                    toast.error('Análise via Excel é exclusiva para planos Premium.');
+                                                    return;
+                                                }
+                                                if (!analyzing) { setUploadMode(m); setFiles([]); } 
+                                            }}
+                                            style={{
+                                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                                padding: '8px 0', borderRadius: 6, border: 'none', 
+                                                cursor: (analyzing || isExcelTrial) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 500,
+                                                background: (uploadMode === m && !isExcelTrial) ? 'var(--bg-card)' : 'transparent',
+                                                color: (uploadMode === m && !isExcelTrial) ? 'var(--text-main)' : 'var(--text-muted)',
+                                                transition: 'all 0.15s',
+                                                opacity: (analyzing || isExcelTrial) ? 0.5 : 1,
+                                                position: 'relative'
+                                            }}
+                                        >
+                                            {m === 'pdf' ? <FileText size={14} /> : <FileSpreadsheet size={14} />}
+                                            {m === 'pdf' ? 'PDF' : 'Excel'}
+                                            {isExcelTrial && <Zap size={8} style={{ position: 'absolute', top: 4, right: 6, color: '#f59e0b' }} fill="#f59e0b" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             {/* Excel Instructions */}
@@ -881,8 +932,13 @@ export const AnaliseNova = () => {
 
                             {/* File count */}
                             {uploadMode === 'pdf' && (
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                                    <span style={{ fontSize: 11, color: '#64748b' }}>{files.length}/200 arquivos</span>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    {!profile.isPremium && (
+                                        <span style={{ fontSize: 10, background: '#f59e0b22', color: '#f59e0b', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>TRIAL</span>
+                                    )}
+                                    <span style={{ fontSize: 11, color: (!profile.isPremium && files.length >= 5) ? '#ef4444' : '#64748b' }}>
+                                        {files.length}/{!profile.isPremium ? 5 : 200} arquivos
+                                    </span>
                                 </div>
                             )}
 
@@ -904,7 +960,9 @@ export const AnaliseNova = () => {
                                     Clique para fazer upload ou arraste os arquivos aqui
                                 </p>
                                 <p style={{ fontSize: 11, color: '#64748b' }}>
-                                    {uploadMode === 'pdf' ? 'Aceita arquivos PDF (máx. 200 arquivos)' : 'Aceita apenas 1 arquivo Excel (.xlsx ou .xls)'}
+                                    {uploadMode === 'pdf' 
+                                        ? `Aceita arquivos PDF (máx. ${!profile.isPremium ? 5 : 200} arquivos)` 
+                                        : 'Aceita apenas 1 arquivo Excel (.xlsx ou .xls)'}
                                 </p>
                                 <input
                                     ref={fileInputRef}
@@ -953,21 +1011,32 @@ export const AnaliseNova = () => {
                                 </div>
                             )}
 
+                            {/* Monthly Limit Warning */}
+                            {!profile.isPremium && monthlyJobCount >= 20 && (
+                                <div style={{ marginTop: 12, padding: '10px', background: '#f59e0b15', borderRadius: 8, border: '1px solid #f59e0b33', color: '#f59e0b', fontSize: 12, textAlign: 'left' }}>
+                                    ⚠️ <strong>Limite atingido:</strong> Você já realizou 20 análises este mês. Faça upgrade para continuar analisando sem limites.
+                                </div>
+                            )}
+
                             {/* Analyze Button */}
                             <button
                                 onClick={handleAnalyze}
-                                disabled={analyzing}
+                                disabled={analyzing || (!profile.isPremium && monthlyJobCount >= 20)}
                                 style={{
                                     width: '100%', marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    gap: 8, padding: '12px 0', borderRadius: 10, border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer',
-                                    background: analyzing ? '#3730a3' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                    color: '#fff', fontSize: 14, fontWeight: 600, transition: 'opacity 0.15s',
+                                    gap: 8, padding: '12px 0', borderRadius: 10, border: 'none', 
+                                    cursor: (analyzing || (!profile.isPremium && monthlyJobCount >= 20)) ? 'not-allowed' : 'pointer',
+                                    background: analyzing ? '#3730a3' : (!profile.isPremium && monthlyJobCount >= 20) ? '#1f2332' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                    color: (!profile.isPremium && monthlyJobCount >= 20) ? '#475569' : '#fff', 
+                                    fontSize: 14, fontWeight: 600, transition: 'opacity 0.15s',
                                     opacity: analyzing ? 0.7 : 1,
                                 }}
                             >
                                 {analyzing ? (
                                     <><div style={{ width: 16, height: 16, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                                         Analisando {progress.total > 0 ? `${progress.current} de ${progress.total}` : '...'}</>
+                                ) : (!profile.isPremium && monthlyJobCount >= 20) ? (
+                                    <><Trophy size={16} /> Limite Mensal Atingido</>
                                 ) : (
                                     <><Zap size={16} />Analisar</>
                                 )}
@@ -1088,7 +1157,7 @@ export const AnaliseNova = () => {
             {/* Candidate Detail Panel */}
             {selectedCandidate && (
                 <CandidatePanel
-                    candidate={selectedCandidate}
+                    candidate={selectedCandidate as Candidate}
                     onClose={() => setSelectedCandidate(null)}
                 />
             )}

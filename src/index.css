@@ -60,6 +60,12 @@
   --row-hover: rgba(99, 102, 241, 0.05);
 
   --font-space: 'Space Grotesk', sans-serif;
+  --star-opacity: 0.6;
+
+  /* Logo Colors - Dark */
+  --logo-doc-fill: #0B1C36;
+  --logo-ai-fill: rgba(11, 28, 54, 0.95);
+  --logo-line: #ffffff;
 }
 
 [data-theme='light'] {
@@ -101,6 +107,12 @@
   --row-hover: rgba(59, 130, 246, 0.04);
 
   --font-space: 'Space Grotesk', sans-serif;
+  --star-opacity: 0;
+
+  /* Logo Colors - Light */
+  --logo-doc-fill: #f8fafc;
+  --logo-ai-fill: var(--primary);
+  --logo-line: var(--primary);
 }
 
 html,
@@ -234,7 +246,7 @@ body *::after {
 @keyframes planet-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration, 3s) ease-in-out infinite; opacity: 0.6; }
+.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration, 3s) ease-in-out infinite; opacity: var(--star-opacity); }
 .planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
 .planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
 
