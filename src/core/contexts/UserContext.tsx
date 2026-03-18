@@ -12,13 +12,17 @@ interface UserProfile {
     notificationsEnabled: boolean;
     user_role: 'admin' | 'user';
     status: 'active' | 'inactive';
+    account_type: 'trial' | 'active' | 'lifetime';
+    trial_ends_at: string | null;
     loaded: boolean; // true once the first load completed
+    isPremium: boolean;
 }
 
 const defaultProfile: UserProfile = {
     userId: '', userName: '', firstName: '', avatarUrl: '',
     plan: 'trial', email: '', initials: '', notificationsEnabled: false,
-    user_role: 'user', status: 'active', loaded: false,
+    user_role: 'user', status: 'active', account_type: 'trial', trial_ends_at: null, loaded: false,
+    isPremium: false,
 };
 
 const UserContext = createContext<{ profile: UserProfile; refetch: () => void }>({
@@ -44,6 +48,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const name = user.user_metadata?.full_name || user.email || '';
         const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
+        const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || user.user_metadata?.user_role?.toLowerCase() === 'admin';
+
         // Optimistic update with what we already know from the session
         setProfile(prev => ({
             ...prev,
@@ -52,18 +58,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             userName: name,
             firstName: name.split(' ')[0],
             initials,
+            isPremium: isPremiumOptimistic,
             loaded: true,
         }));
 
         // Then enrich with Supabase profile data (avatarUrl, role etc.)
         const { data } = await supabase
             .from('profiles')
-            .select('name, avatar_url, notifications_enabled, user_role, status')
+            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at')
             .eq('id', user.id)
             .maybeSingle();
 
         if (data) {
-            const profileName = data.name || name;
+            const profileName = (data.name && !data.name.includes('@')) 
+                ? data.name 
+                : (user.user_metadata?.full_name || user.user_metadata?.name || data.name || name);
             const profileInitials = profileName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
             setProfile(prev => ({
                 ...prev,
@@ -76,8 +85,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 notificationsEnabled: data.notifications_enabled ?? false,
                 user_role: (data.user_role as 'admin' | 'user') || 'user',
                 status: (data.status as 'active' | 'inactive') || 'active',
+                account_type: (data.account_type as any) || 'trial',
+                plan: (data.account_type as any) || 'trial',
+                trial_ends_at: data.trial_ends_at || null,
+                isPremium: data.account_type === 'lifetime' || 
+                           data.user_role?.toLowerCase() === 'admin' || 
+                           user.user_metadata?.user_role?.toLowerCase() === 'admin',
                 loaded: true,
             }));
+            
+            if (data.user_role === 'admin') console.log('[UserContext] Admin detectado:', data);
         }
     };
 

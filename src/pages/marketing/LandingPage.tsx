@@ -21,35 +21,47 @@ export const LandingPage = () => {
     canvas.width = width;
     canvas.height = height;
 
-    const NUM_STARS = 280;
+    const NUM_STARS = 450;
     const stars = Array.from({ length: NUM_STARS }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      r: Math.random() * 1.8 + 0.3,
+      r: Math.random() * 2 + 0.4,
       speed: Math.random() * 0.008 + 0.003,
-      parallax: Math.random() * 0.04 + 0.01,
+      baseOpacity: Math.random() * 0.8 + 0.2,
+      twinkleSpeed: Math.random() * 0.04 + 0.015,
+      phase: Math.random() * Math.PI * 2
     }));
 
+    let scrollY = window.scrollY;
     let t = 0;
     const draw = () => {
       t += 0.012;
+      scrollY = window.scrollY;
       ctx.clearRect(0, 0, width, height);
+
+      // Deep Space Gradient
       const bg = ctx.createLinearGradient(0, 0, 0, height);
-      bg.addColorStop(0, '#07090f');
-      bg.addColorStop(1, '#0d1020');
+      bg.addColorStop(0, '#04050a');
+      bg.addColorStop(1, '#080a18');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, width, height);
 
+      // Draw Stars
       stars.forEach((s) => {
-        const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * s.speed * 80));
+        const sy = (s.y - scrollY * 0.08) % height;
+        const twinkle = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(t * s.twinkleSpeed * 65 + s.phase));
+        
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${tw * 0.9})`;
-        ctx.shadowBlur = s.r > 1.2 ? 5 : 0;
-        ctx.shadowColor = 'white';
+        ctx.arc(s.x, sy < 0 ? sy + height : sy, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${s.baseOpacity * twinkle})`;
+        if (s.r > 1.2) {
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = 'white';
+        }
         ctx.fill();
+        ctx.shadowBlur = 0;
       });
-      ctx.shadowBlur = 0;
+
       animRef.current = requestAnimationFrame(draw);
     };
     draw();
@@ -71,12 +83,12 @@ export const LandingPage = () => {
   ];
 
   const reviews = [
-    { name: 'Mariana Costa', role: 'Head of People, TechCorp Brasil', bg: '6366f1', text: '"O Space Talent revolucionou nosso processo de recrutamento. Conseguimos reduzir o tempo de triagem em 80% e a qualidade das contratações melhorou muito."' },
+    { name: 'Mariana Costa', role: 'Head of People, TechCorp Brasil', bg: '3b82f6', text: '"O Space Talent revolucionou nosso processo de recrutamento. Conseguimos reduzir o tempo de triagem em 80% e a qualidade das contratações melhorou muito."' },
     { name: 'Rafael Santos', role: 'Gerente de RH, StartupXYZ', bg: '0284c7', text: '"Interface incrível e a IA é muito precisa. Nossa equipe adotou a ferramenta em questão de dias e hoje não consegue imaginar o processo sem ela."' },
     { name: 'Ana Beatriz Lima', role: 'Diretora de Operações, MegaCorp', bg: '10b981', text: '"Escalabilidade impressionante. Analisamos mais de 500 currículos por mês sem nenhum problema. O suporte é excepcional e sempre presente."' },
-    { name: 'Pedro Alves', role: 'Talent Acquisition, ScaleUp', bg: 'f59e0b', text: '"O chat com a IA é um diferencial enorme. Consigo tirar dúvidas sobre qualquer candidato em segundos. Produto top de linha!"' },
-    { name: 'Camila Ferreira', role: 'People Business Partner, FinTech SA', bg: 'ec4899', text: '"O pipeline Kanban integrado com a IA mudou nossa forma de trabalhar. Agora priorizamos candidatos com muito mais inteligência e eficiência."' },
-    { name: 'Lucas Mendes', role: 'CEO, Agência Digital Marte', bg: '8b5cf6', text: '"Recomendo para qualquer empresa que queira modernizar o RH. ROI muito alto desde o primeiro mês. A melhor decisão que tomamos!"' },
+    { name: 'Pedro Alves', role: 'Talent Acquisition, ScaleUp', bg: '0ea5e9', text: '"O chat com a IA é um diferencial enorme. Consigo tirar dúvidas sobre qualquer candidato em segundos. Produto top de linha!"' },
+    { name: 'Camila Ferreira', role: 'People Business Partner, FinTech SA', bg: '06b6d4', text: '"O pipeline Kanban integrado com a IA mudou nossa forma de trabalhar. Agora priorizamos candidatos com muito mais inteligência e eficiência."' },
+    { name: 'Lucas Mendes', role: 'CEO, Agência Digital Marte', bg: '2563eb', text: '"Recomendo para qualquer empresa que queira modernizar o RH. ROI muito alto desde o primeiro mês. A melhor decisão que tomamos!"' },
   ];
 
   return (
@@ -85,7 +97,7 @@ export const LandingPage = () => {
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .lp-root { font-family: 'Space Grotesk', sans-serif; background: #07090f; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; }
+        .lp-root { font-family: 'Space Grotesk', sans-serif; background: transparent; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; }
         .lp-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
         /* ── NAV ── */
@@ -97,20 +109,20 @@ export const LandingPage = () => {
         .lp-nav-actions { display: flex; align-items: center; gap: 10px; }
         .btn-ghost { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.12); padding: 9px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: color 0.2s, background 0.2s; }
         .btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.06); }
-        .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; padding: 10px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(99,102,241,0.35); }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.5); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 10px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59,130,246,0.5); }
 
         /* ── HERO ── */
         .lp-hero { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 140px 40px 80px; text-align: center; }
-        .lp-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 600; color: #a5b4fc; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 28px; animation: fadeSlideIn 0.8s both; }
-        .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; animation: pulse-badge 2s infinite; }
+        .lp-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 600; color: #93c5fd; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 28px; animation: fadeSlideIn 0.8s both; }
+        .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; animation: pulse-badge 2s infinite; }
         @keyframes pulse-badge { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
         .lp-title { font-size: clamp(42px,6vw,84px); font-weight: 800; line-height: 1.06; letter-spacing: -2.5px; margin-bottom: 24px; animation: fadeSlideIn 0.9s 0.1s both; background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .lp-title-accent { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lp-title-accent { background: linear-gradient(135deg, #3b82f6, #0ea5e9, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .lp-sub { font-size: clamp(16px,2vw,20px); color: rgba(255,255,255,0.5); max-width: 560px; line-height: 1.7; margin-bottom: 44px; animation: fadeSlideIn 1s 0.2s both; }
         .lp-hero-btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; animation: fadeSlideIn 1s 0.3s both; }
-        .btn-hero-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 6px 30px rgba(99,102,241,0.4); display: flex; align-items: center; gap: 10px; }
-        .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(99,102,241,0.55); }
+        .btn-hero-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 6px 30px rgba(59,130,246,0.4); display: flex; align-items: center; gap: 10px; }
+        .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(59,130,246,0.55); }
         .btn-hero-ghost { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.2s; backdrop-filter: blur(10px); }
         .btn-hero-ghost:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
 
@@ -118,19 +130,19 @@ export const LandingPage = () => {
         .lp-stats { position: relative; z-index: 1; display: flex; justify-content: center; padding: 0 40px 100px; flex-wrap: wrap; }
         .lp-stat { padding: 28px 50px; text-align: center; border-right: 1px solid rgba(255,255,255,0.07); }
         .lp-stat:last-child { border-right: none; }
-        .lp-stat-num { font-size: 42px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lp-stat-num { font-size: 42px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #3b82f6, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .lp-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); margin-top: 4px; }
 
         /* ── COMMON SECTION ── */
         .lp-section { position: relative; z-index: 1; padding: 100px 80px 120px; max-width: 1400px; margin: 0 auto; width: 100%; }
-        .lp-section-tag { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #6366f1; margin-bottom: 14px; }
+        .lp-section-tag { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #3b82f6; margin-bottom: 14px; }
         .lp-section-title { text-align: center; font-size: clamp(30px,4vw,48px); font-weight: 800; letter-spacing: -1.5px; margin-bottom: 14px; color: #fff; }
         .lp-section-sub { text-align: center; font-size: 17px; color: rgba(255,255,255,0.45); max-width: 580px; margin: 0 auto 64px; line-height: 1.7; }
 
         /* ── FEATURES ── */
         .lp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
         .lp-feature-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 40px 36px; transition: border-color 0.3s, transform 0.3s, background 0.3s; }
-        .lp-feature-card:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.05); transform: translateY(-5px); }
+        .lp-feature-card:hover { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); transform: translateY(-5px); }
         .lp-feature-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 22px; }
         .lp-feature-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px; }
         .lp-feature-desc { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.5); }
@@ -138,8 +150,8 @@ export const LandingPage = () => {
         /* ── AI INSIGHTS ── */
         .lp-insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
         .lp-insight-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 26px; transition: border-color 0.3s, transform 0.3s; }
-        .lp-insight-card:hover { border-color: rgba(99,102,241,0.35); transform: translateY(-3px); }
-        .lp-insight-ico { width: 42px; height: 42px; border-radius: 12px; background: rgba(99,102,241,0.18); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 14px; }
+        .lp-insight-card:hover { border-color: rgba(59,130,246,0.35); transform: translateY(-3px); }
+        .lp-insight-ico { width: 42px; height: 42px; border-radius: 12px; background: rgba(59,130,246,0.18); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 14px; }
         .lp-insight-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
         .lp-insight-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; margin-bottom: 16px; }
         .lp-insight-stat { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #6ee7b7; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.15); border-radius: 8px; padding: 8px 14px; }
@@ -149,25 +161,25 @@ export const LandingPage = () => {
         .lp-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: stretch; }
         .lp-price-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 40px 36px; position: relative; transition: transform 0.3s, border-color 0.3s; display: flex; flex-direction: column; }
         .lp-price-card:hover { transform: translateY(-4px); }
-        .lp-price-card.popular { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.06); }
-        .lp-price-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 18px; border-radius: 100px; white-space: nowrap; }
+        .lp-price-card.popular { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.06); }
+        .lp-price-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#3b82f6,#2563eb); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 18px; border-radius: 100px; white-space: nowrap; }
         .lp-price-name { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 8px; }
         .lp-price-value { font-size: 50px; font-weight: 800; color: #fff; letter-spacing: -2px; line-height: 1; display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
         .lp-price-value span { font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.4); letter-spacing: 0; line-height: 1.4; }
         .lp-price-desc { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 28px; margin-top: 8px; }
         .lp-price-features { list-style: none; display: flex; flex-direction: column; gap: 13px; margin-bottom: 32px; flex: 1; }
         .lp-price-features li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(255,255,255,0.7); }
-        .lp-price-features li::before { content: '✓'; color: #6366f1; font-weight: 700; flex-shrink: 0; font-size: 15px; }
+        .lp-price-features li::before { content: '✓'; color: #3b82f6; font-weight: 700; flex-shrink: 0; font-size: 15px; }
         .btn-price { width: 100%; padding: 15px; border-radius: 13px; font-size: 15px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; margin-top: auto; }
-        .btn-price-main { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; box-shadow: 0 4px 20px rgba(99,102,241,0.35); }
-        .btn-price-main:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.5); }
+        .btn-price-main { background: linear-gradient(135deg,#3b82f6,#2563eb); color: #fff; box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
+        .btn-price-main:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59,130,246,0.5); }
         .btn-price-ghost { background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.12) !important; }
         .btn-price-ghost:hover { background: rgba(255,255,255,0.04); color: #fff; }
 
         /* ── TESTIMONIALS ── */
         .lp-reviews-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
         .lp-review-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; padding: 32px; transition: border-color 0.3s, transform 0.3s; display: flex; flex-direction: column; }
-        .lp-review-card:hover { border-color: rgba(99,102,241,0.25); transform: translateY(-3px); }
+        .lp-review-card:hover { border-color: rgba(59,130,246,0.25); transform: translateY(-3px); }
         .lp-review-stars { color: #f59e0b; font-size: 17px; margin-bottom: 16px; letter-spacing: 3px; }
         .lp-review-text { font-size: 15px; color: rgba(255,255,255,0.7); line-height: 1.75; font-style: italic; margin-bottom: 24px; flex: 1; }
         .lp-review-footer { display: flex; align-items: center; gap: 12px; }
@@ -178,16 +190,18 @@ export const LandingPage = () => {
         /* ── CTA ── */
         .lp-cta { position: relative; z-index: 1; padding: 80px 40px 140px; }
         .lp-cta-card { 
-          background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.1)); 
-          border: 1px solid rgba(99,102,241,0.28); 
+          background: rgba(255,255,255,0.03); 
+          border: 1px solid rgba(255,255,255,0.08); 
           border-radius: 32px; 
           padding: 90px 100px; 
           text-align: center;
-          backdrop-filter: blur(20px);
+          backdrop-filter: blur(24px);
           max-width: 1100px;
           margin: 0 auto;
           width: 100%;
+          transition: border-color 0.3s, background 0.3s;
         }
+        .lp-cta-card:hover { border-color: rgba(59,130,246,0.25); background: rgba(255,255,255,0.05); }
         .lp-cta-title { font-size: clamp(32px,4.5vw,56px); font-weight: 800; color: #fff; letter-spacing: -1.5px; margin-bottom: 16px; }
         .lp-cta-sub { font-size: 18px; color: rgba(255,255,255,0.5); margin-bottom: 44px; max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.6; }
         .lp-cta-hint { font-size: 13px; color: rgba(255,255,255,0.25); margin-top: 18px; }
@@ -235,7 +249,7 @@ export const LandingPage = () => {
 
           <div className="lp-nav-actions">
             <button className="btn-ghost" onClick={() => navigate('/login')}>Entrar</button>
-            <button className="btn-primary" onClick={() => navigate('/login')}>Começar Grátis</button>
+            <button className="btn-primary" onClick={() => navigate('/registro')}>Começar Grátis</button>
           </div>
         </nav>
 
@@ -247,7 +261,7 @@ export const LandingPage = () => {
           </h1>
           <p className="lp-sub">Analise currículos com IA de ponta, encontre os melhores talentos em segundos e construa o time dos seus sonhos.</p>
           <div className="lp-hero-btns">
-            <button className="btn-hero-primary" onClick={() => navigate('/login')}>🚀 Começar Grátis</button>
+            <button className="btn-hero-primary" onClick={() => navigate('/registro')}>🚀 Começar Grátis</button>
             <button className="btn-hero-ghost" onClick={() => navigate('/login')}>Entrar na conta</button>
           </div>
         </section>
@@ -273,10 +287,10 @@ export const LandingPage = () => {
           <p className="lp-section-sub">Da triagem ao pipeline, nossa IA cuida de todo o processo seletivo com precisão e agilidade excepcional.</p>
           <div className="lp-grid-3">
             {[
-              { icon: '🤖', bg: 'rgba(99,102,241,0.15)', title: 'IA de Análise Avançada', desc: 'Nosso modelo lê e pontua cada currículo em segundos, identificando o candidato ideal para sua vaga com altíssima precisão.' },
+              { icon: '🤖', bg: 'rgba(59,130,246,0.15)', title: 'IA de Análise Avançada', desc: 'Nosso modelo lê e pontua cada currículo em segundos, identificando o candidato ideal para sua vaga com altíssima precisão.' },
               { icon: '🪐', bg: 'rgba(16,185,129,0.12)', title: 'Dashboard Espacial', desc: 'Visualize métricas, candidatos avaliados e aprovações em um painel imersivo com dados em tempo real e gráficos interativos.' },
               { icon: '🌌', bg: 'rgba(245,158,11,0.12)', title: 'Pipeline de Recrutamento', desc: 'Gerencie candidatos em cada etapa do processo seletivo com um Kanban intuitivo de arrastar e soltar.' },
-              { icon: '💬', bg: 'rgba(139,92,246,0.15)', title: 'Chat com IA', desc: 'Converse com a IA para obter insights detalhados sobre cada candidato, comparar perfis e tirar dúvidas em segundos.' },
+              { icon: '💬', bg: 'rgba(14,165,233,0.15)', title: 'Chat com IA', desc: 'Converse com a IA para obter insights detalhados sobre cada candidato, comparar perfis e tirar dúvidas em segundos.' },
               { icon: '📊', bg: 'rgba(239,68,68,0.1)', title: 'Banco de Talentos', desc: 'Centralize todos os candidatos com histórico completo, comentários da equipe e avaliações por estrelas.' },
               { icon: '⚡', bg: 'rgba(59,130,246,0.12)', title: 'Integração Simples', desc: 'Importe currículos em PDF com um clique e tenha resultados completos em segundos, sem configuração complexa.' },
             ].map((f) => (
@@ -290,7 +304,7 @@ export const LandingPage = () => {
         </section>
 
         {/* ── AI INSIGHTS ── */}
-        <div style={{ background: 'rgba(99,102,241,0.04)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative', zIndex: 1 }}>
+        <div style={{ background: 'rgba(59,130,246,0.04)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative', zIndex: 1 }}>
           <section id="ia-insights" className="lp-section">
             <h2 className="lp-section-title">Insights de IA que <span className="lp-title-accent">transformam decisões</span></h2>
             <p className="lp-section-sub">Nossa IA avançada analisa padrões, prevê o fit cultural e otimiza o processo para entregar resultados excepcionais.</p>
@@ -305,7 +319,7 @@ export const LandingPage = () => {
               ))}
             </div>
             <div className="lp-insights-cta">
-              <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/login')}>
+              <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/registro')}>
                 🧠 Experimentar a IA Grátis →
               </button>
             </div>
@@ -328,7 +342,7 @@ export const LandingPage = () => {
                 <li>Dashboard de métricas</li>
                 <li>Suporte por e-mail</li>
               </ul>
-              <button className="btn-price btn-price-ghost" onClick={() => navigate('/login')}>Começar Grátis</button>
+              <button className="btn-price btn-price-ghost" onClick={() => navigate('/registro')}>Começar Grátis</button>
             </div>
 
             <div className="lp-price-card popular">
@@ -345,7 +359,7 @@ export const LandingPage = () => {
                 <li>Relatórios detalhados</li>
                 <li>Suporte prioritário</li>
               </ul>
-              <button className="btn-price btn-price-main" onClick={() => navigate('/login')}>Teste Grátis 14 Dias</button>
+              <button className="btn-price btn-price-main" onClick={() => navigate('/registro')}>Teste Grátis 14 Dias</button>
             </div>
 
             <div className="lp-price-card">
@@ -362,7 +376,7 @@ export const LandingPage = () => {
                 <li>Suporte dedicado 24/7</li>
                 <li>API personalizada</li>
               </ul>
-              <button className="btn-price btn-price-ghost" onClick={() => navigate('/login')}>Falar com Vendas</button>
+              <button className="btn-price btn-price-ghost" onClick={() => {}}>Falar com Vendas</button>
             </div>
           </div>
         </section>
@@ -401,7 +415,7 @@ export const LandingPage = () => {
             <p className="lp-cta-sub">
               Junte-se a milhares de recrutadores que já transformaram seu processo com IA. Configuração em menos de 5 minutos.
             </p>
-            <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/login')}>
+            <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/registro')}>
               🚀 Começar Teste Grátis Agora →
             </button>
             <p className="lp-cta-hint">Sem cartão de crédito · Cancele quando quiser · Configuração em 5 minutos</p>

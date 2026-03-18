@@ -9,32 +9,34 @@ import { useAnalysis } from '../core/contexts/AnalysisContext';
 
 /* ─── Animated Space Talent Logo ────────────────────────────────────────── */
 const SpaceLogo = ({ size = 48 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, filter: 'drop-shadow(0 4px 12px rgba(20, 184, 166, 0.25))' }}>
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
         {/* Document Icon */}
         <g>
             <path d="M12 6C12 4.89543 12.8954 4 14 4H30L38 12V42C38 43.1046 37.1046 44 36 44H14C12.8954 44 12 43.1046 12 42V6Z" 
-                  fill="#0B1C36" stroke="url(#grad1)" strokeWidth="1.5" />
+                  fill="var(--logo-doc-fill)" stroke="url(#grad1)" strokeWidth="1.5" />
             <path d="M30 4H30.5L38 11.5V12H30V4Z" fill="#14b8a6" opacity="0.6" />
-            <line x1="18" y1="16" x2="32" y2="16" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-            <line x1="18" y1="22" x2="32" y2="22" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-            <line x1="18" y1="28" x2="26" y2="28" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+            <line x1="18" y1="16" x2="32" y2="16" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+            <line x1="18" y1="22" x2="32" y2="22" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
+            <line x1="18" y1="28" x2="26" y2="28" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
         </g>
 
         {/* AI Network Circular Symbol */}
-        <g transform="translate(10, 18)" style={{ animation: 'pulse 2s ease-in-out infinite' }}>
-            <circle cx="0" cy="0" r="10" fill="rgba(11, 28, 54, 0.95)" stroke="url(#grad2)" strokeWidth="1.2" filter="url(#glow)" />
-            <text x="0" y="3.5" textAnchor="middle" fill="white" fontSize="7" fontWeight="900" style={{ letterSpacing: '0.2px' }}>IA</text>
-            
-            {/* Orbital Nodes */}
-            <g style={{ animation: 'rotate 10s linear infinite' }}>
-                <circle cx="10" cy="0" r="1.5" fill="#14b8a6" />
-                <circle cx="-7" cy="7" r="1.5" fill="#3b82f6" />
-                <circle cx="-7" cy="-7" r="1.5" fill="#8b5cf6" />
+        <g transform="translate(12, 22)">
+            <g style={{ animation: 'pulse 2s ease-in-out infinite' }}>
+                <circle cx="0" cy="0" r="10" fill="var(--logo-ai-fill)" stroke="url(#grad2)" strokeWidth="1.2" filter="url(#glow)" />
+                <text x="0" y="3.5" textAnchor="middle" fill="white" fontSize="7" fontWeight="900" style={{ letterSpacing: '0.2px' }}>IA</text>
+                
+                {/* Orbital Nodes */}
+                <g style={{ animation: 'rotate 10s linear infinite' }}>
+                    <circle cx="10" cy="0" r="1.5" fill="#14b8a6" />
+                    <circle cx="-7" cy="7" r="1.5" fill="#3b82f6" />
+                    <circle cx="-7" cy="-7" r="1.5" fill="#8b5cf6" />
+                </g>
             </g>
         </g>
 
         <style>{`
-            @keyframes pulse { 0%, 100% { transform: translate(12px, 20px) scale(1); } 50% { transform: translate(12px, 20px) scale(1.02); } }
+            @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
             @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         `}</style>
     </svg>
@@ -55,8 +57,28 @@ const css = `
 .tog-btn:hover { color:var(--text-main) !important; background:var(--bg-card) !important; }
 `;
 
-interface NI { to: string; icon: any; label: string; collapsed: boolean; end?: boolean; }
-const NavItem = ({ to, icon: Icon, label, collapsed, end }: NI) => {
+interface NI { to: string; icon: any; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
+const NavItem = ({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
+    if (disabled) {
+        return (
+            <div title={collapsed ? `${label} (Premium)` : undefined}
+                className="nav-lnk"
+                style={{ 
+                    justifyContent: collapsed ? 'center' : 'flex-start', 
+                    padding: collapsed ? '10px' : '10px 14px',
+                    opacity: 0.5,
+                    cursor: 'not-allowed'
+                }}>
+                <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: 'gray' }} />
+                {!collapsed && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <span style={{ fontSize: '13px' }}>{label}</span>
+                        <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />
+                    </div>
+                )}
+            </div>
+        );
+    }
     return (
         <NavLink to={to} end={end} title={collapsed ? label : undefined}
             className={({ isActive }) => `nav-lnk${isActive ? ' active' : ''}`}
@@ -207,9 +229,8 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                     <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
                     <NavItem to="/candidatos" icon={Users} label={t('candidateBank')} collapsed={collapsed} />
 
-                    <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} />
-
-                    <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} />
+                    <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} disabled={!profile.isPremium} />
+                    <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} disabled={!profile.isPremium} />
 
                     {profile.user_role === 'admin' && (
                         <>
@@ -269,7 +290,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
 
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
                     <button
-                        onClick={onToggleChat}
+                        onClick={profile.isPremium ? onToggleChat : undefined}
                         className="nav-lnk"
                         style={{
                             width: '100%',
@@ -277,11 +298,17 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                             padding: collapsed ? '10px' : '10px 14px',
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: profile.isPremium ? 'pointer' : 'not-allowed',
+                            opacity: profile.isPremium ? 1 : 0.6
                         }}
                     >
-                        <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: '#22c55e' }} />
-                        {!collapsed && <span style={{ color: '#22c55e', fontWeight: 600 }}>Assistente IA</span>}
+                        <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: profile.isPremium ? '#22c55e' : 'var(--text-dim)' }} />
+                        {!collapsed && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                                <span style={{ color: profile.isPremium ? '#22c55e' : 'var(--text-dim)', fontWeight: 600 }}>Assistente IA</span>
+                                {!profile.isPremium && <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />}
+                            </div>
+                        )}
                     </button>
                 </div>
 

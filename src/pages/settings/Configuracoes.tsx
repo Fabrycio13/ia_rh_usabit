@@ -289,6 +289,11 @@ export const Configuracoes = () => {
         <>
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes pulse {
+                    0% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                    70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+                    100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+                }
                 @keyframes slideIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
                 .field-input:focus { border-color: #6366f1 !important; }
                 .save-btn:hover:not(:disabled) { background: #4f46e5 !important; }
@@ -531,9 +536,9 @@ export const Configuracoes = () => {
                         </button>
                     </div>
 
-                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.6 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 2s infinite' }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 500 }}>Interface Ativa</span>
+                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />
+                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Interface Ativa</span>
                     </div>
                 </div>
 
@@ -623,9 +628,9 @@ export const Configuracoes = () => {
                         </p>
                     </div>
 
-                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.6 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: notificationsEnabled ? '#10b981' : 'var(--text-dim)' }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 500 }}>
+                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: notificationsEnabled ? '#10b981' : 'var(--text-dim)', animation: notificationsEnabled ? 'pulse 2s infinite' : 'none' }} />
+                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>
                             {notificationsEnabled ? 'Notificações Ativas' : 'Desativado'}
                         </span>
                     </div>
