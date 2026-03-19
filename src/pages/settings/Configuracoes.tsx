@@ -144,6 +144,11 @@ export const Configuracoes = () => {
     const [savingPassword, setSavingPassword] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
 
+    // Evolution API States
+    const [evoUrl, setEvoUrl] = useState('');
+    const [evoKey, setEvoKey] = useState('');
+    const [evoInstance, setEvoInstance] = useState('');
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const showToast = (type: 'success' | 'error', msg: string) => {
@@ -164,6 +169,9 @@ export const Configuracoes = () => {
                 setAddress(profileData.address ?? '');
                 setNotificationsEnabled(profileData.notifications_enabled ?? false);
                 setAvatarUrl(profileData.avatar_url ?? '');
+                setEvoUrl(profileData.evolution_api_url ?? '');
+                setEvoKey(profileData.evolution_api_key ?? '');
+                setEvoInstance(profileData.evolution_instance ?? '');
                 if (profileData.avatar_url) setAvatarPreview(profileData.avatar_url);
             }
             setDataLoaded(true);
@@ -207,6 +215,9 @@ export const Configuracoes = () => {
                 address,
                 notifications_enabled: notificationsEnabled,
                 avatar_url: avatarUrl,
+                evolution_api_url: evoUrl,
+                evolution_api_key: evoKey,
+                evolution_instance: evoInstance,
                 updated_at: new Date().toISOString()
             })
             .eq('id', userId);
@@ -633,6 +644,57 @@ export const Configuracoes = () => {
                         <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>
                             {notificationsEnabled ? 'Notificações Ativas' : 'Desativado'}
                         </span>
+                    </div>
+                </div>
+
+                {/* Evolution API Integration */}
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', gridColumn: 'span 3' }}>
+                    <div style={{ marginBottom: '20px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Integração Evolution API (WhatsApp)</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Configure as credenciais para ativar o chat com candidatos</p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
+                        <div>
+                            <label style={labelStyle}>Server URL</label>
+                            <div style={fieldWrapStyle}>
+                                <ShieldCheck style={iconFieldStyle} />
+                                <input
+                                    className="field-input"
+                                    style={inputStyle}
+                                    placeholder="https://evolution.seuservidor.com"
+                                    value={evoUrl}
+                                    onChange={e => setEvoUrl(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>API Key</label>
+                            <div style={fieldWrapStyle}>
+                                <Lock style={iconFieldStyle} />
+                                <input
+                                    className="field-input"
+                                    type="password"
+                                    style={inputStyle}
+                                    placeholder="Sua Global API Key"
+                                    value={evoKey}
+                                    onChange={e => setEvoKey(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Nome da Instância</label>
+                            <div style={fieldWrapStyle}>
+                                <Zap style={iconFieldStyle} />
+                                <input
+                                    className="field-input"
+                                    style={inputStyle}
+                                    placeholder="agente-rh"
+                                    value={evoInstance}
+                                    onChange={e => setEvoInstance(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

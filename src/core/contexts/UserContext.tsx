@@ -16,6 +16,9 @@ interface UserProfile {
     trial_ends_at: string | null;
     loaded: boolean; // true once the first load completed
     isPremium: boolean;
+    evolution_api_url?: string;
+    evolution_api_key?: string;
+    evolution_instance?: string;
 }
 
 const defaultProfile: UserProfile = {
@@ -65,7 +68,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         // Then enrich with Supabase profile data (avatarUrl, role etc.)
         const { data } = await supabase
             .from('profiles')
-            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at')
+            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at, evolution_api_url, evolution_api_key, evolution_instance')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -91,6 +94,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 isPremium: data.account_type === 'lifetime' || 
                            data.user_role?.toLowerCase() === 'admin' || 
                            user.user_metadata?.user_role?.toLowerCase() === 'admin',
+                evolution_api_url: data.evolution_api_url || '',
+                evolution_api_key: data.evolution_api_key || '',
+                evolution_instance: data.evolution_instance || '',
                 loaded: true,
             }));
             

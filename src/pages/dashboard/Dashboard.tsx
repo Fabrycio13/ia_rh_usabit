@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight } from 'lucide-react';
+import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,6 +86,80 @@ const css = `
 .planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
 `;
 
+// ─── Planet Details ───────────────────────────────────────────────────────────
+const PlanetOverlay = ({ type }: { type: string }) => {
+  switch (type) {
+    case 'Jupiter':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(124,45,18,0.25) 12px, rgba(124,45,18,0.25) 24px)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 18px, rgba(254,243,199,0.15) 18px, rgba(254,243,199,0.15) 36px)' }} />
+          <div style={{ position: 'absolute', top: '65%', left: '15%', width: '25%', height: '12%', borderRadius: '50%', background: 'rgba(124,45,18,0.45)', filter: 'blur(2px)', transform: 'rotate(-3deg)' }} />
+          <div style={{ position: 'absolute', top: '30%', left: '55%', width: '28%', height: '6%', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', filter: 'blur(1px)' }} />
+        </div>
+      );
+    case 'Earth':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, 
+            backgroundImage: `
+              radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
+              radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
+              radial-gradient(ellipse 18px 12px at 45% 45%, #3f6212 0%, transparent 100%),
+              radial-gradient(ellipse 12px 08px at 80% 20%, #14532d 0%, transparent 100%),
+              radial-gradient(circle 7px at 22% 72%, #166534 0%, transparent 100%)
+            `,
+            opacity: 0.85, filter: 'blur(1px)'
+          }} />
+          <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
+          <div style={{ position: 'absolute', inset: 0, 
+            backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
+            filter: 'blur(2px)', animation: 'float 30s linear infinite'
+          }} />
+        </div>
+      );
+    case 'Moon':
+      return (
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.7 }}>
+          <div style={{ position: 'absolute', top: '15%', left: '25%', width: '18%', height: '18%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
+          <div style={{ position: 'absolute', top: '45%', left: '60%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 3px rgba(0,0,0,0.3)' }} />
+          <div style={{ position: 'absolute', top: '70%', left: '30%', width: '22%', height: '22%', borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.25)' }} />
+        </div>
+      );
+    case 'Mars':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '15%', left: '15%', width: '35%', height: '15%', background: 'rgba(69,10,10,0.35)', filter: 'blur(4px)', transform: 'rotate(-5deg)' }} />
+          <div style={{ position: 'absolute', top: '65%', left: '50%', width: '25%', height: '15%', background: 'rgba(69,10,10,0.3)', filter: 'blur(3px)', transform: 'rotate(10deg)' }} />
+          <div style={{ position: 'absolute', top: '35%', left: '55%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(69,10,10,0.2)', boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.3)' }} />
+        </div>
+      );
+    case 'Neptune':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(160deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px)', filter: 'blur(1.5px)', animation: 'float 45s linear infinite' }} />
+          <div style={{ position: 'absolute', top: '40%', left: '10%', width: '80%', height: '4%', background: 'rgba(255,255,255,0.15)', filter: 'blur(3px)' }} />
+        </div>
+      );
+    case 'Venus':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.12) 0%, transparent 60%)', filter: 'blur(2px)' }} />
+          <div style={{ position: 'absolute', inset: -10, background: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.05) 12px, rgba(0,0,0,0.05) 24px)', filter: 'blur(4px)', opacity: 0.4 }} />
+        </div>
+      );
+    case 'Saturn':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
+          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
+        </div>
+      );
+    default:
+      return null;
+  }
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard = () => {
   const { profile } = useUser();
@@ -100,6 +174,18 @@ export const Dashboard = () => {
   const [calMonth, setCalMonth] = useState(today.getMonth()); // 0-based
   const [rangeStart, setRangeStart] = useState<string | null>(null); // 'YYYY-MM-DD'
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);   // 'YYYY-MM-DD'
+  
+  // Layout customization state
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const [layout, setLayout] = useState(() => {
+    const saved = localStorage.getItem(`dash-layout-${profile.userId}`);
+    return saved ? JSON.parse(saved) : { calendarPos: 'right', rankingPos: 'right' };
+  });
+
+  const saveLayout = (newLayout: typeof layout) => {
+    setLayout(newLayout);
+    localStorage.setItem(`dash-layout-${profile.userId}`, JSON.stringify(newLayout));
+  };
 
   const totalVagas = jobs.length;
   const totalAvaliados = jobs.reduce((s, j) => s + j.totalCandidates, 0);
@@ -237,9 +323,26 @@ export const Dashboard = () => {
           <p style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Visão geral</p>
           <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Dashboard</h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 14px' }}>
-          <div className="live-dot" />
-          <span style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>Tempo real</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button 
+            onClick={() => setIsCustomizing(!isCustomizing)}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, 
+              background: 'var(--primary)', 
+              border: 'none', 
+              borderRadius: 12, padding: '8px 16px',
+              color: '#fff',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(99,102,241,0.25)'
+            }}
+          >
+            {isCustomizing ? <Check style={{ width: 15, height: 15 }} /> : <Settings2 style={{ width: 15, height: 15 }} />}
+            {isCustomizing ? 'Concluir' : 'Customizar'}
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 14px' }}>
+            <div className="live-dot" />
+            <span style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>Tempo real</span>
+          </div>
         </div>
       </div>
 
@@ -250,7 +353,7 @@ export const Dashboard = () => {
             label: 'Vagas Analisadas', value: totalVagas, suffix: '', icon: Briefcase, 
             orb: '#6366f1', 
             planet: { 
-              name: 'Saturno', size: 90, 
+              name: 'Saturn', size: 90, 
               color: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #d97706 40%, #78350f 100%)', 
               right: -10, bottom: -15, ring: true,
               style: { boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(217,119,6,0.15)' }
@@ -260,73 +363,32 @@ export const Dashboard = () => {
             label: 'Candidatos Avaliados', value: totalAvaliados, suffix: '', icon: Users, 
             orb: '#0ea5e9', 
             planet: { 
-              name: 'Júpiter', size: 105, 
+              name: 'Jupiter', size: 105, 
               color: 'radial-gradient(circle at 30% 30%, #fff7ed 0%, #f59e0b 35%, #7c2d12 100%)', 
               right: -5, bottom: 15, ring: false, 
-              style: { boxShadow: 'inset -25px -25px 50px rgba(0,0,0,0.5)', opacity: 0.9 },
-              overlay: (
-                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(124,45,18,0.25) 12px, rgba(124,45,18,0.25) 24px)' }} />
-                  <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 18px, rgba(254,243,199,0.15) 18px, rgba(254,243,199,0.15) 36px)' }} />
-                  <div style={{ position: 'absolute', top: '65%', left: '15%', width: 28, height: 14, borderRadius: '50%', background: 'rgba(124,45,18,0.45)', filter: 'blur(3px)', transform: 'rotate(-3deg)' }} />
-                  <div style={{ position: 'absolute', top: '30%', left: '55%', width: 30, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', filter: 'blur(2px)' }} />
-                </div>
-              )
+              style: { boxShadow: 'inset -25px -25px 50px rgba(0,0,0,0.5)', opacity: 0.9 }
             } 
           },
           { 
             label: 'Melhores Candidatos', value: totalMelhores, suffix: '', icon: Award, 
             orb: '#2563eb', 
             planet: { 
-              name: 'Terra', size: 85, 
+              name: 'Earth', size: 85, 
               color: 'radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 50%, #1e3a8a 100%)', 
               right: 15, bottom: 5, ring: false, 
-              style: { boxShadow: 'inset -15px -15px 35px rgba(0,0,0,0.6), 0 0 25px rgba(37,99,235,0.25)' },
-              overlay: (
-                <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-                  {/* Detailed Landmasses using layered gradients/masks */}
-                  <div style={{ position: 'absolute', inset: 0, 
-                    backgroundImage: `
-                      radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
-                      radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
-                      radial-gradient(ellipse 18px 12px at 45% 45%, #3f6212 0%, transparent 100%),
-                      radial-gradient(ellipse 12px 08px at 80% 20%, #14532d 0%, transparent 100%),
-                      radial-gradient(circle 7px at 22% 72%, #166534 0%, transparent 100%)
-                    `,
-                    opacity: 0.85, filter: 'blur(1px)'
-                  }} />
-                  {/* Specular Highlight */}
-                  <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
-                  {/* Clouds - Improved texture */}
-                  <div style={{ position: 'absolute', inset: 0, 
-                    backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.1) 0deg, transparent 45deg, rgba(255,255,255,0.1) 90deg)',
-                    filter: 'blur(3px)', animation: 'float 35s linear infinite'
-                  }} />
-                  <div style={{ position: 'absolute', inset: 0, 
-                    backgroundImage: 'radial-gradient(ellipse at 50% 10%, rgba(255,255,255,0.2) 0%, transparent 55%)',
-                    filter: 'blur(4px)', animation: 'float 25s linear infinite reverse'
-                  }} />
-                </div>
-              )
+              style: { boxShadow: 'inset -15px -15px 35px rgba(0,0,0,0.6), 0 0 25px rgba(37,99,235,0.25)' }
             } 
           },
           { 
-            label: 'Taxa de Aprovação', value: taxaAprovacao, suffix: '%', icon: TrendingUp, 
+            label: 'Taxa de Aprovação', 
+            value: taxaAprovacao, 
+            suffix: '%', icon: TrendingUp, 
             orb: '#22c55e', 
             planet: { 
-              name: 'Lua', size: 75, 
+              name: 'Moon', size: 75, 
               color: 'radial-gradient(circle at 30% 30%, #f3f4f6 0%, #9ca3af 50%, #374151 100%)', 
               right: 20, bottom: -5, ring: false, 
-              style: { opacity: 0.85, boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.5)' },
-              overlay: (
-                <div style={{ position: 'absolute', inset: 0, opacity: 0.7 }}>
-                  <div style={{ position: 'absolute', top: '15%', left: '25%', width: 15, height: 15, borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.3)' }} />
-                  <div style={{ position: 'absolute', top: '45%', left: '60%', width: 12, height: 12, borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 3px 3px 5px rgba(0,0,0,0.3)' }} />
-                  <div style={{ position: 'absolute', top: '70%', left: '30%', width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.25)' }} />
-                  <div style={{ position: 'absolute', top: '35%', left: '10%', width: 8, height: 8, borderRadius: '50%', background: 'rgba(0,0,0,0.18)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
-                  <div style={{ position: 'absolute', top: '55%', left: '75%', width: 7, height: 7, borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.2)' }} />
-                </div>
-              )
+              style: { opacity: 0.85, boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.5)' }
             } 
           },
         ].map((k, idx) => {
@@ -368,7 +430,7 @@ export const Dashboard = () => {
                   ...(k.planet.style || {})
                 } as any}
               >
-                {k.planet.overlay}
+                <PlanetOverlay type={k.planet.name} />
                 {k.planet.ring && (
                   <div className="planet-ring" style={{ 
                     width: k.planet.size * 2.4, 
@@ -409,11 +471,19 @@ export const Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* ── Row 1: Area Chart + Pie ── */}
-          <div className="anim-3" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 16 }}>
+          {/* ── Row 1: Area Chart + Calendar ── */}
+          <div className="anim-3" style={{ position: 'relative', display: 'flex', flexDirection: layout.calendarPos === 'right' ? 'row' : 'row-reverse', gap: 16, marginBottom: 16 }}>
+            {isCustomizing && (
+              <div 
+                onClick={() => saveLayout({ ...layout, calendarPos: layout.calendarPos === 'right' ? 'left' : 'right' })}
+                style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'var(--primary)', color: '#fff', borderRadius: 20, padding: '4px 12px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 4px 12px rgba(99,102,241,0.4)' }}
+              >
+                <RefreshCw style={{ width: 12, height: 12 }} /> Inverter Posição
+              </div>
+            )}
 
             {/* Area Chart */}
-            <div className="d-card" style={{ padding: '24px 20px 16px' }}>
+            <div className="d-card" style={{ flex: 1, padding: '24px 20px 16px', minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
                   <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Evolução por Vaga</p>
@@ -459,7 +529,7 @@ export const Dashboard = () => {
             </div>
 
             {/* Calendar */}
-            <div className="d-card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
+            <div className="d-card" style={{ width: 360, padding: 20, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
@@ -531,10 +601,18 @@ export const Dashboard = () => {
           </div>
 
           {/* ── Row 2: Bar chart + Top Jobs table ── */}
-          <div className="anim-4" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 16 }}>
+          <div className="anim-4" style={{ display: 'flex', flexDirection: layout.rankingPos === 'right' ? 'row' : 'row-reverse', gap: 16, marginBottom: 16, position: 'relative' }}>
+            {isCustomizing && (
+              <div 
+                onClick={() => saveLayout({ ...layout, rankingPos: layout.rankingPos === 'right' ? 'left' : 'right' })}
+                style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'var(--primary)', color: '#fff', borderRadius: 20, padding: '4px 12px', fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 4px 12px rgba(99,102,241,0.4)' }}
+              >
+                <RefreshCw style={{ width: 12, height: 12 }} /> Inverter Posição
+              </div>
+            )}
 
             {/* Bar Chart */}
-            <div className="d-card" style={{ padding: '24px 20px 16px' }}>
+            <div className="d-card" style={{ flex: 1, padding: '24px 20px 16px', minWidth: 0 }}>
               <div style={{ marginBottom: 24 }}>
                 <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Comparativo</p>
                 <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>Candidatos por Vaga</p>
@@ -554,7 +632,7 @@ export const Dashboard = () => {
             </div>
 
             {/* Top Jobs Table */}
-            <div className="d-card" style={{ padding: 24, display: 'flex', flexDirection: 'column' }}>
+            <div className="d-card" style={{ width: 360, padding: 24, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <div>
                   <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Ranking</p>
@@ -602,8 +680,8 @@ export const Dashboard = () => {
                 Ver todas <ChevronRight style={{ width: 14, height: 14 }} />
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-              {jobs.slice(0, 6).map((j, idx) => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              {jobs.slice(0, 8).map((j, i) => {
                 const pct = j.totalCandidates > 0 ? Math.round((j.topCandidates / j.totalCandidates) * 100) : 0;
                 const date = new Date(j.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
                 
@@ -612,49 +690,56 @@ export const Dashboard = () => {
                   { name: 'Saturn', color: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #d97706 40%, #78350f 100%)', shadow: 'rgba(217,119,6,0.15)', ring: true },
                   { name: 'Jupiter', color: 'radial-gradient(circle at 30% 30%, #fff7ed 0%, #f59e0b 35%, #7c2d12 100%)', shadow: 'rgba(124,45,18,0.2)' },
                   { name: 'Earth', color: 'radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 50%, #1e3a8a 100%)', shadow: 'rgba(37,99,235,0.2)' },
+                  { name: 'Mars', color: 'radial-gradient(circle at 35% 35%, #f87171 0%, #b91c1c 50%, #450a0a 100%)', shadow: 'rgba(185,28,28,0.15)' },
+                  { name: 'Neptune', color: 'radial-gradient(circle at 35% 35%, #38bdf8 0%, #1d4ed8 50%, #1e3a8a 100%)', shadow: 'rgba(29,78,216,0.2)' },
+                  { name: 'Venus', color: 'radial-gradient(circle at 35% 35%, #fde68a 0%, #d97706 50%, #78350f 100%)', shadow: 'rgba(217,119,6,0.15)' },
                   { name: 'Moon', color: 'radial-gradient(circle at 30% 30%, #f3f4f6 0%, #9ca3af 50%, #374151 100%)', shadow: 'rgba(156,163,175,0.15)' }
                 ];
-                const p = planetVariants[idx % planetVariants.length];
+                const p = planetVariants[j.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % planetVariants.length];
 
                 return (
                   <div key={j.id} onClick={() => navigate('/analises')} 
                     className="d-card"
-                    style={{ position: 'relative', overflow: 'hidden', padding: '16px 18px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid var(--border)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)'; }}
+                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid var(--border)', minHeight: 125, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 40px rgba(0,0,0,0.35)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}>
                     
                     {/* Stars Background */}
-                    {[...Array(15)].map((_, i) => (
-                      <div key={i} className="star" style={{ width: 1, height: 1, top: `${(i * 17) % 95}%`, left: `${(i * 29) % 95}%`, '--duration': `${2 + (i % 3)}s`, animationDelay: `${i * 0.1}s`, opacity: 0.2 } as any} />
+                    {[...Array(12)].map((_, si) => (
+                      <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as any} />
                     ))}
 
-                    {/* Mini Planet Segment */}
-                    <div className="planet" style={{ position: 'absolute', width: 80, height: 80, borderRadius: '50%', background: p.color, right: -25, bottom: -25, opacity: 0.6, boxShadow: `inset -10px -10px 20px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease' } as any}>
-                      {p.ring && <div style={{ position: 'absolute', top: '50%', left: '50%', width: 140, height: 20, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                    <div style={{ position: 'relative', zIndex: 3 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 700, flex: 1, marginRight: 4, lineHeight: 1.2, letterSpacing: '-0.01em', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{j.name}</p>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 10, whiteSpace: 'nowrap', fontWeight: 600 }}>{date}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                        <div>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Aval.</p>
+                          <p style={{ color: 'var(--text-main)', fontSize: 14, fontWeight: 800 }}>{j.totalCandidates}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Aprov.</p>
+                          <p style={{ color: '#22c55e', fontSize: 14, fontWeight: 800 }}>{j.topCandidates}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Taxa</p>
+                          <p style={{ color: pct >= 50 ? '#22c55e' : pct >= 25 ? '#f59e0b' : '#ef4444', fontSize: 14, fontWeight: 800 }}>{pct}%</p>
+                        </div>
+                      </div>
                     </div>
-
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                        <p style={{ color: 'var(--text-main)', fontSize: 14, fontWeight: 700, flex: 1, marginRight: 8, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{j.name}</p>
-                        <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap', marginTop: 1, fontWeight: 600 }}>{date}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                        <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Avaliados</p>
-                          <p style={{ color: 'var(--text-main)', fontSize: 16, fontWeight: 800 }}>{j.totalCandidates}</p>
-                        </div>
-                        <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Aprovados</p>
-                          <p style={{ color: '#22c55e', fontSize: 16, fontWeight: 800 }}>{j.topCandidates}</p>
-                        </div>
-                        <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Taxa</p>
-                          <p style={{ color: pct >= 50 ? '#22c55e' : pct >= 25 ? '#f59e0b' : '#ef4444', fontSize: 16, fontWeight: 800 }}>{pct}%</p>
-                        </div>
-                      </div>
-                      <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                    
+                    <div style={{ position: 'relative', zIndex: 1, marginTop: 2, marginRight: 75 }}>
+                      <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: pct >= 50 ? 'linear-gradient(90deg,#6366f1,#4ade80)' : pct >= 25 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : '#ef4444', borderRadius: 4, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} />
                       </div>
+                    </div>
+
+                    {/* Mini Planet Segment - Compact */}
+                    <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as any}>
+                      <PlanetOverlay type={p.name} />
+                      {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
                     </div>
                   </div>
                 );
