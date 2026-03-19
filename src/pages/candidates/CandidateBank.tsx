@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban
+  X, Eye, ChevronUp, ChevronDown, Ban, Phone
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -37,6 +37,9 @@ interface Candidate {
   vagas: string[];
   interview_eligible: boolean;
   is_blacklisted: boolean;
+  resume_url?: string | null;
+  phone?: string | null;
+  conversations?: any[];
 }
 
 interface Application {
@@ -135,7 +138,7 @@ export const CandidateBank = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, job_candidates(jobs(name))')
+        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
         .eq('user_id', userId)
         .order('name', { ascending: true });
 
@@ -143,7 +146,7 @@ export const CandidateBank = () => {
         // Fallback
         const { data: fallback } = await supabase
           .from('candidates')
-          .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))')
+          .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
           .eq('user_id', userId)
           .order('name', { ascending: true });
         setCandidates((fallback ?? []).map((c: any) => ({
@@ -151,6 +154,8 @@ export const CandidateBank = () => {
           age: c.age, gender: c.gender, score: c.score,
           interview_eligible: false,
           is_blacklisted: false,
+          phone: c.phone,
+          conversations: c.conversations,
           vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
         })));
         return;
@@ -161,6 +166,9 @@ export const CandidateBank = () => {
         age: c.age, gender: c.gender, score: c.score,
         interview_eligible: c.interview_eligible ?? false,
         is_blacklisted: c.is_blacklisted ?? false,
+        resume_url: c.resume_url,
+        phone: c.phone,
+        conversations: c.conversations,
         vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
       })));
     } finally {
@@ -231,10 +239,11 @@ export const CandidateBank = () => {
 
   async function enrichCandidate(id: string) {
     try {
-      const [{ data: cd }, { data: jcData }, { data: pipeData }] = await Promise.all([
+      const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
         supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
+        supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
       const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
@@ -280,6 +289,7 @@ export const CandidateBank = () => {
           })),
           pipelineCards,
           enriched: true,
+          conversations: convData || []
         };
       });
     } catch {
@@ -342,13 +352,14 @@ export const CandidateBank = () => {
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '25%' }} />
+            <col style={{ width: '22%' }} />
             <col style={{ width: '13%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '20%' }} />
             <col style={{ width: '7%' }} />
-            <col style={{ width: '7%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
             <col style={{ width: '8%' }} />
           </colgroup>
           <thead>
@@ -361,11 +372,12 @@ export const CandidateBank = () => {
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
+                [null, 'Chat'],
                 [null, 'Visualizar'],
               ] as [SortKey, string][]).map(([col, label]) => (
                 <th key={label}
                   onClick={col ? () => handleSort(col) : undefined}
-                  style={{ padding: '14px 16px', textAlign: (label === 'Favoritos' || label === 'Blacklist' || label === 'Visualizar') ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                  style={{ padding: '14px 16px', textAlign: (['Favoritos', 'Blacklist', 'Chat', 'Visualizar'].includes(label)) ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {label}
                     {col && <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />}
@@ -427,6 +439,18 @@ export const CandidateBank = () => {
                       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.is_blacklisted ? 'var(--text-error)' : '#475569', transition: 'color 0.15s' }}>
                       <Ban style={{ width: 16, height: 16 }} />
                     </button>
+                  </div>
+                </td>
+                <td style={{ padding: '0 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div
+                      title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
+                      style={{ 
+                        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
+                      }}>
+                      <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                    </div>
                   </div>
                 </td>
                 <td style={{ padding: '0 16px', height: '100%' }}>

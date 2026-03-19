@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -35,6 +35,8 @@ interface PipelineCard {
     display_job_score?: number;
     job_id?: string;
     is_blacklisted?: boolean;
+    candidate_phone?: string | null;
+    candidate_conversations?: any[];
 }
 
 interface EligibleCandidate {
@@ -44,6 +46,8 @@ interface EligibleCandidate {
     vagas: string[];
     already_in_pipeline: boolean;
     is_blacklisted?: boolean;
+    phone?: string | null;
+    conversations?: any[];
 }
 
 // ─── Default columns ──────────────────────────────────────────────────────────
@@ -389,7 +393,7 @@ export const Pipeline = () => {
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, job_candidates(jobs(name)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -420,6 +424,8 @@ export const Pipeline = () => {
                     display_job_score: displayJobScore,
                     job_id: jobId,
                     is_blacklisted: c.candidates?.is_blacklisted,
+                    candidate_phone: c.candidates?.phone,
+                    candidate_conversations: c.candidates?.conversations,
                 };
             }));
             await loadEligibles(userId, cardData ?? []);
@@ -431,7 +437,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: any[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, job_candidates(jobs(name))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -445,15 +451,18 @@ export const Pipeline = () => {
             vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
             already_in_pipeline: inPipeline.has(c.id),
             is_blacklisted: c.is_blacklisted,
+            phone: c.phone,
+            conversations: c.conversations,
         })));
     }
 
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
     async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
-        const [{ data: cand }, { data: jcData }, { data: pipeData }] = await Promise.all([
+        const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
             supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
+            supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
 
         if (!cand) return { enriched: true };
@@ -501,7 +510,8 @@ export const Pipeline = () => {
             })),
             pipelineCards,
             resume_url: cand.resume_url,
-            enriched: true
+            enriched: true,
+            conversations: convData || []
         };
     }
 
@@ -683,6 +693,8 @@ export const Pipeline = () => {
 
     function handleFieldChange(id: string, field: string, val: any) {
         if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val } : c));
+        if (field === 'conversations') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_conversations: val } : c));
+        if (field === 'phone') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_phone: val } : c));
         if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, [field]: val } : null);
     }
 
@@ -1029,6 +1041,11 @@ export const Pipeline = () => {
                                                 <p style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{card.candidate_name}</p>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                                                     {card.is_blacklisted && <Ban size={13} color="#ef4444" />}
+                                                    {(card.candidate_conversations?.length ?? 0) > 0 && (
+                                                        <div title="Chat Ativo">
+                                                            <Phone size={13} color="#22c55e" fill="#22c55e22" />
+                                                        </div>
+                                                    )}
                                                     <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); removeCard(card.id, card.candidate_id); }} title="Remover do pipeline" style={{ color: '#ef4444' }}>
                                                         <X size={13} />
                                                     </button>
