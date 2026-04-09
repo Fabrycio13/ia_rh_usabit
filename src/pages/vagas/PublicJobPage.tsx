@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import {
-    Briefcase, MapPin, DollarSign, Clock, Building2, Star, Target,
+    MapPin, DollarSign, Clock, Star, Target,
     Award, Info, ArrowRight, CheckCircle, AlertCircle
 } from 'lucide-react';
 
