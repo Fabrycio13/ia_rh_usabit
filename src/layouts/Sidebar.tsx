@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database } from 'lucide-react';
+import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
@@ -226,6 +226,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 {/* Nav items */}
                 <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
                     <NavItem to="/dashboard" icon={LayoutGrid} label={t('dashboard')} collapsed={collapsed} end />
+                    <NavItem to="/vagas" icon={Briefcase} label={t('vagas')} collapsed={collapsed} />
                     <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
                     <NavItem to="/candidatos" icon={Users} label={t('candidateBank')} collapsed={collapsed} />
 
