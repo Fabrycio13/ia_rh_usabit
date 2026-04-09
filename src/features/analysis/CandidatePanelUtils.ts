@@ -35,6 +35,7 @@ export interface CandidateDetail extends Candidate {
     notes: string | null;
     resume_url?: string | null;
     enriched: boolean;
+    conversations?: any[];
 }
 
 export interface Comment {

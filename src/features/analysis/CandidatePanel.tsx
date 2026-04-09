@@ -56,6 +56,9 @@ export function CandidatePanel({
     const activeJobIds = new Set(c.pipelineCards?.map((pc: any) => pc.jobId).filter(Boolean));
     const availableJobs = c.applications.filter(app => !activeJobIds.has(app.jobId));
     const [togglingBlacklist, setTogglingBlacklist] = useState(false);
+    const [activatingChat, setActivatingChat] = useState(false);
+    const [phoneError, setPhoneError] = useState<string | null>(null);
+    const [chatActive, setChatActive] = useState(!!c.conversations?.length);
 
     async function toggleBlacklist() {
         if (togglingBlacklist) return;
@@ -70,9 +73,89 @@ export function CandidatePanel({
         } finally { setTogglingBlacklist(false); }
     }
 
+    async function handleActivateChat() {
+        if (activatingChat) return;
+        setPhoneError(null);
+        
+        if (!localC.phone) {
+            setPhoneError('Telefone não cadastrado. Adicione um número para habilitar.');
+            return;
+        }
+
+        const digits = localC.phone.replace(/\D/g, '');
+        
+        if (!digits.startsWith('55') || digits.length < 12 || digits.length > 13) {
+            setPhoneError('Formato inválido. Use o padrão: 5521999999999 (País + DDD + Número).');
+            return;
+        }
+
+        if (localC.phone !== digits) {
+            // Se o usuário tem um número formatado com + ou (), mas os dígitos estão corretos, 
+            // opcionalmente podemos normalizar aqui, mas o usuário pediu o padrão 55...
+            // Vamos apenas garantir que ao salvar, usamos os dígitos se necessário, 
+            // mas a validação de dígitos é o que importa para a API.
+        }
+
+        setActivatingChat(true);
+        try {
+            const { error } = await supabase
+                .from('candidate_conversations')
+                .upsert({
+                    candidate_id: c.id,
+                    user_id: profile.userId,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'candidate_id, user_id' });
+
+            if (error) throw error;
+            
+            // Persistir o telefone na tabela de candidatos
+            await supabase
+                .from('candidates')
+                .update({ phone: digits })
+                .eq('id', c.id);
+
+            logActivity(profile.userId, `Habilitou chat WhatsApp para o candidato "${c.name}"`, c.id);
+            setChatActive(true);
+            if (onFieldChange) {
+                onFieldChange(c.id, 'phone', digits);
+                onFieldChange(c.id, 'conversations', [{ candidate_id: c.id }]);
+            }
+        } catch (err: any) {
+            console.error('[Chat] Erro ao ativar:', err);
+            setPhoneError('Erro ao habilitar o chat. Verifique a conexão.');
+        } finally {
+            setActivatingChat(false);
+        }
+    }
+
+    async function handleDeactivateChat() {
+        setActivatingChat(true);
+        try {
+            const { error } = await supabase
+                .from('candidate_conversations')
+                .delete()
+                .eq('candidate_id', c.id)
+                .eq('user_id', profile.userId);
+
+            if (error) throw error;
+            setChatActive(false);
+            if (onFieldChange) onFieldChange(c.id, 'conversations', []);
+            // window.location.reload();
+        } catch (err) {
+            console.error('[Chat] Erro ao desativar:', err);
+        } finally {
+            setActivatingChat(false);
+        }
+    }
+
     useEffect(() => {
         setLocalC({ email: c.email, phone: c.phone, location: c.location, address: c.address, age: c.age, gender: c.gender });
-    }, [c.email, c.phone, c.location, c.address, c.age, c.gender]);
+        setChatActive(!!c.conversations?.length);
+    }, [c.email, c.phone, c.location, c.address, c.age, c.gender, c.conversations]);
+
+    useEffect(() => {
+        setPhoneError(null);
+    }, [localC.phone]);
 
     useEffect(() => {
         async function loadPipelines() {
@@ -381,7 +464,11 @@ export function CandidatePanel({
                                                     style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-dim)', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>✕</button>
                                             </div>
                                         ) : (
-                                            <span style={{ fontSize: 14, fontWeight: 600, color: value ? 'var(--text-main)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ?? 'Não informado'}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                <span style={{ fontSize: 14, fontWeight: 600, color: value ? 'var(--text-main)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {value ?? 'Não informado'}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
                                 ))}
@@ -546,6 +633,76 @@ export function CandidatePanel({
                                     </div>
                                 </div>
                             )}
+                        </section>
+
+                        {/* WhatsApp Integration Section */}
+                        <section style={{ 
+                            border: `1px solid ${chatActive ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`, 
+                            borderRadius: 16, 
+                            padding: '16px 20px', 
+                            background: chatActive ? 'rgba(34,197,94,0.03)' : 'rgba(99,102,241,0.02)', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between', 
+                            gap: 14,
+                            transition: 'all 0.3s'
+                        }}>
+                            <div>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: chatActive ? '#22c55e' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Phone size={14} color={chatActive ? '#22c55e' : 'var(--text-dim)'} /> 
+                                    CONVERSA WHATSAPP
+                                </p>
+                                <p style={{ 
+                                    fontSize: 12, 
+                                    color: phoneError ? '#ef4444' : (chatActive ? '#22c55e' : 'var(--text-dim)'), 
+                                    fontWeight: chatActive ? 700 : 400,
+                                    margin: 0, 
+                                    maxWidth: '300px' 
+                                }}>
+                                    {phoneError || (chatActive 
+                                        ? 'Chat habilitado ! ✅' 
+                                        : 'Habilite o candidato para iniciar conversas em tempo real via Chat.'
+                                    )}
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={chatActive ? handleDeactivateChat : handleActivateChat}
+                                disabled={activatingChat}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    background: chatActive ? 'rgba(239,68,68,0.05)' : 'transparent',
+                                    border: `1px solid ${chatActive ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
+                                    borderRadius: 12, padding: '10px 20px',
+                                    color: chatActive ? '#ef4444' : 'var(--text-dim)',
+                                    fontSize: 13, fontWeight: 700,
+                                    cursor: activatingChat ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                }}
+                                onMouseEnter={e => {
+                                    if (chatActive) {
+                                        e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+                                        e.currentTarget.style.borderColor = '#ef4444';
+                                    } else if (!activatingChat) {
+                                        e.currentTarget.style.background = 'rgba(99,102,241,0.05)';
+                                        e.currentTarget.style.borderColor = 'var(--primary)';
+                                        e.currentTarget.style.color = 'var(--primary)';
+                                    }
+                                }}
+                                onMouseLeave={e => {
+                                    if (chatActive) {
+                                        e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                                        e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
+                                    } else if (!activatingChat) {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                        e.currentTarget.style.color = 'var(--text-dim)';
+                                    }
+                                }}
+                            >
+                                {activatingChat ? <Loader size={16} className="spin" /> : (chatActive ? <X size={15} /> : <Zap size={15} />)}
+                                {chatActive ? 'Desativar Chat' : 'Habilitar Chat'}
+                            </button>
                         </section>
 
                         {/* Blacklist Section */}
@@ -875,6 +1032,7 @@ export function CandidatePanel({
                         </section>
                     </div>
                 )}
+
             </div>
         </>
     );

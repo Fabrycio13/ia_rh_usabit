@@ -20,6 +20,10 @@ import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
 import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 import { TrialExpired } from './pages/auth/TrialExpired';
+import { Vagas } from './pages/vagas/Vagas';
+import { VagaForm } from './pages/vagas/VagaForm';
+import { PublicJobPage } from './pages/vagas/PublicJobPage';
+import { JobApplication } from './pages/vagas/JobApplication';
 import { Toaster } from 'react-hot-toast';
 
 const JobDetailRoute = () => {
@@ -67,10 +71,16 @@ const AppContent = ({ session }: { session: any }) => {
                 <Route path="/" element={!session ? <LandingPage /> : <Navigate to="/dashboard" />} />
                 <Route path="/login" element={!session ? <Login /> : <Navigate to="/dashboard" />} />
                 <Route path="/registro" element={!session ? <Register /> : <Navigate to="/dashboard" />} />
+                
+                {/* Public Routes (no auth required) */}
+                <Route path="/v/:hash" element={<PublicJobPage />} />
+                <Route path="/v/:hash/candidatar" element={<JobApplication />} />
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/vagas" element={<Vagas />} />
+                    <Route path="/vagas/nova" element={<VagaForm />} />
                     <Route path="/analises" element={<Analises />} />
                     <Route path="/candidatos" element={<CandidateBank />} />
                     <Route path="/analise/nova" element={<AnaliseNova />} />

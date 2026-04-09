@@ -66,6 +66,8 @@
   --logo-doc-fill: #0B1C36;
   --logo-ai-fill: rgba(11, 28, 54, 0.95);
   --logo-line: #ffffff;
+  
+  --calendar-icon-invert: 1;
 }
 
 [data-theme='light'] {
@@ -113,6 +115,8 @@
   --logo-doc-fill: #f8fafc;
   --logo-ai-fill: var(--primary);
   --logo-line: var(--primary);
+  
+  --calendar-icon-invert: 0;
 }
 
 html,
