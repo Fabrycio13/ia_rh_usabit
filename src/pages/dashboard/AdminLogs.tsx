@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database } from 'lucide-react';
 
 interface LogEntry {
     id: string;
@@ -114,10 +114,15 @@ export const AdminLogs = () => {
 
     return (
         <div style={{ width: '100%', margin: '0' }}>
-            <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '300px' }}>
-                    <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Logs de atividade</h1>
-                    <p style={{ color: 'var(--primary)', fontSize: 14, marginTop: 6, fontWeight: 500 }}>
+            <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <Database size={32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            Logs de Atividade
+                        </h1>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
                         {filteredLogs.length} log{filteredLogs.length !== 1 ? 's' : ''} encontrado{filteredLogs.length !== 1 ? 's' : ''}
                     </p>
                 </div>

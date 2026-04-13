@@ -1,9 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
+
+type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano';
+
+interface TabItem {
+    key: TabKey;
+    label: string;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+const allTabs: TabItem[] = [
+    { key: 'perfil', label: 'Perfil', icon: User },
+    { key: 'seguranca', label: 'Segurança', icon: Lock },
+    { key: 'perfis', label: 'Perfis', icon: Users },
+    { key: 'api', label: 'API', icon: Key },
+    { key: 'plano', label: 'Plano', icon: CreditCard },
+];
+
+// Abas visíveis para cada perfil
+const getVisibleTabs = (userRole: string): TabItem[] => {
+    const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis'].includes(tab.key));
+    if (userRole === 'admin') {
+        return [...baseTabs, ...allTabs.filter(tab => ['api', 'plano'].includes(tab.key))];
+    }
+    return baseTabs;
+};
 
 const themeBtnCss = `
     .theme-switch-container {
@@ -120,9 +145,68 @@ const plans = [
     },
 ];
 
+const roleDefinitions = [
+    {
+        key: 'admin',
+        label: 'Administrador',
+        icon: ShieldCheck,
+        color: '#ef4444',
+        description: 'Acesso total ao sistema, incluindo gestão de usuários, configurações avançadas e relatórios completos.',
+        permissions: [
+            'Criar e gerenciar usuários',
+            'Alterar perfis de acesso',
+            'Acessar todas as funcionalidades',
+            'Configurar integrações',
+            'Visualizar relatórios avançados',
+            'Gerenciar planos e assinaturas'
+        ]
+    },
+    {
+        key: 'rh',
+        label: 'RH',
+        icon: Users,
+        color: '#6366f1',
+        description: 'Perfil focado em recrutamento e seleção, com acesso às análises de candidatos e gestão de vagas.',
+        permissions: [
+            'Criar e editar vagas',
+            'Analisar candidatos',
+            'Visualizar relatórios de análise',
+            'Gerenciar banco de candidatos',
+            'Enviar comunicações via WhatsApp'
+        ]
+    },
+    {
+        key: 'gestor',
+        label: 'Gestor',
+        icon: Briefcase,
+        color: '#f59e0b',
+        description: 'Perfil com visão gerencial para acompanhar resultados e métricas da equipe de RH.',
+        permissions: [
+            'Visualizar relatórios',
+            'Acompanhar métricas da equipe',
+            'Acessar dashboard gerencial',
+            'Visualizar análises consolidadas',
+            'Exportar relatórios'
+        ]
+    },
+    {
+        key: 'convidado',
+        label: 'Convidado',
+        icon: User,
+        color: '#10b981',
+        description: 'Acesso limitado para visualização pontual de relatórios específicos.',
+        permissions: [
+            'Visualizar relatórios compartilhados',
+            'Acessar links públicos de vagas',
+            'Visualizar dados básicos'
+        ]
+    },
+];
+
 export const Configuracoes = () => {
     const { profile, refetch } = useUser();
     const { theme, toggleTheme } = useTheme();
+    const [activeTab, setActiveTab] = useState<TabKey>('perfil');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -148,6 +232,13 @@ export const Configuracoes = () => {
     const [evoUrl, setEvoUrl] = useState('');
     const [evoKey, setEvoKey] = useState('');
     const [evoInstance, setEvoInstance] = useState('');
+
+    // Perfis state
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh' });
+    const [creatingUser, setCreatingUser] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -179,6 +270,22 @@ export const Configuracoes = () => {
         };
         load();
     }, [userId, profile.loaded, dataLoaded]);
+
+    // Carregar usuários quando entrar na aba Perfis (somente admin)
+    useEffect(() => {
+        if (activeTab === 'perfis' && profile.user_role === 'admin') {
+            loadUsers();
+        }
+    }, [activeTab, profile.user_role]);
+
+    // Redirecionar para aba "perfil" se tentar acessar aba restrita sem permissão
+    useEffect(() => {
+        const visibleTabs = getVisibleTabs(profile.user_role);
+        const isTabVisible = visibleTabs.some(tab => tab.key === activeTab);
+        if (!isTabVisible && profile.loaded) {
+            setActiveTab('perfil');
+        }
+    }, [activeTab, profile.user_role, profile.loaded]);
 
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -286,6 +393,149 @@ export const Configuracoes = () => {
         return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
     };
 
+    // Carregar usuários (somente admin)
+    const loadUsers = async () => {
+        if (profile.user_role !== 'admin') return;
+        setLoadingUsers(true);
+        const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (data) setAllUsers(data);
+        setLoadingUsers(false);
+    };
+
+    // Criar novo usuário (somente admin)
+    const handleCreateUser = async () => {
+        if (!newUser.name || !newUser.email || !newUser.password) {
+            showToast('error', 'Preencha todos os campos.');
+            return;
+        }
+        if (newUser.password.length < 6) {
+            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
+            return;
+        }
+        setCreatingUser(true);
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: newUser.email,
+            password: newUser.password,
+            options: {
+                data: {
+                    full_name: newUser.name,
+                },
+            },
+        });
+
+        if (authError) {
+            showToast('error', `Erro ao criar usuário: ${authError.message}`);
+            setCreatingUser(false);
+            return;
+        }
+
+        if (authData.user) {
+            // Tentar criar profile com INSERT
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .insert({
+                    id: authData.user.id,
+                    email: newUser.email,
+                    name: newUser.name,
+                    user_role: newUser.user_role,
+                    status: 'active',
+                    account_type: 'active',
+                });
+
+            if (profileError) {
+                console.error('[Configuracoes] Erro ao criar profile, tentando update:', profileError);
+                // Tentar UPDATE caso já exista (upsert manual)
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update({
+                        name: newUser.name,
+                        user_role: newUser.user_role,
+                        status: 'active',
+                        account_type: 'active',
+                    })
+                    .eq('id', authData.user.id);
+
+                if (updateError) {
+                    showToast('error', `Conta criada mas erro ao salvar perfil: ${updateError.message}`);
+                    setCreatingUser(false);
+                    return;
+                }
+            }
+
+            // Enviar email de convite via Edge Function
+            try {
+                const { data: functionData, error: functionError } = await supabase.functions.invoke('send-invite-email', {
+                    body: {
+                        userId: authData.user.id,
+                        email: newUser.email,
+                        name: newUser.name,
+                        role: newUser.user_role,
+                        createdBy: profile.userName || 'Administrador',
+                    },
+                });
+
+                if (functionError) {
+                    console.error('[Configuracoes] Erro ao enviar email:', functionError);
+                    showToast('success', `Usuário ${newUser.name} criado! (Email não enviado)`);
+                } else {
+                    showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
+                }
+            } catch (err) {
+                console.error('[Configuracoes] Erro ao chamar edge function:', err);
+                showToast('success', `Usuário ${newUser.name} criado! (Configure edge function para emails)`);
+            }
+
+            logActivity(userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
+            setNewUser({ name: '', email: '', password: '', user_role: 'rh' });
+            setShowCreateModal(false);
+            loadUsers();
+        }
+        setCreatingUser(false);
+    };
+
+    // Atualizar perfil de usuário
+    const handleUpdateUserRole = async (userId: string, newRole: string) => {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ user_role: newRole })
+            .eq('id', userId);
+
+        if (error) {
+            showToast('error', `Erro ao atualizar perfil: ${error.message}`);
+        } else {
+            showToast('success', 'Perfil atualizado com sucesso!');
+            logActivity(userId, 'Atualizou perfil de usuário', { usuarioId: userId, novoPerfil: newRole });
+            
+            // Se o usuário alterado for o próprio usuário logado, recarrega o perfil
+            if (userId === profile.userId) {
+                await refetch();
+                showToast('success', `Seu perfil foi alterado para: ${roleDefinitions.find(r => r.key === newRole)?.label || newRole}`);
+            }
+            
+            loadUsers();
+        }
+    };
+
+    // Toggle status do usuário
+    const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        const { error } = await supabase
+            .from('profiles')
+            .update({ status: newStatus })
+            .eq('id', userId);
+
+        if (error) {
+            showToast('error', `Erro ao atualizar status: ${error.message}`);
+        } else {
+            showToast('success', `Usuário ${newStatus === 'active' ? 'ativado' : 'desativado'}!`);
+            loadUsers();
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -333,323 +583,718 @@ export const Configuracoes = () => {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
                 <div>
-                    <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Configurações</h1>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>Gerencie seu perfil e tema</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <Settings size={32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            Configurações
+                        </h1>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+                        Gerencie seu perfil e tema
+                    </p>
                 </div>
             </div>
 
-            {/* ── Seção Perfil ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '24px' }}>
-
-                {/* Card avatar */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', height: '100%' }}>
-                    <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
-                        {avatarPreview ? (
-                            <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
-                        ) : (
-                            <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
-                        )}
-                        <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
-                        </div>
-                    </div>
-                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
-
-                    <div style={{ textAlign: 'center' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '5px 0 0' }}>{role || 'Cargo não definido'}</p>
-                    </div>
-
-
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="save-btn"
-                        style={{
-                            marginTop: 'auto',
-                            width: '100%',
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            background: 'var(--primary)',
-                            color: '#fff',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
-                        }}
-                    >
-                        <Camera style={{ width: 14, height: 14 }} />
-                        Trocar foto
-                    </button>
-                </div>
-
-                {/* Card formulário */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
-                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Informações Pessoais</p>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                        {/* Nome */}
-                        <div>
-                            <label style={labelStyle}>Nome completo</label>
-                            <div style={fieldWrapStyle}>
-                                <User style={iconFieldStyle} />
-                                <input className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* Endereço */}
-                        <div>
-                            <label style={labelStyle}>Endereço</label>
-                            <div style={fieldWrapStyle}>
-                                <MapPin style={iconFieldStyle} />
-                                <input className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* Telefone */}
-                        <div>
-                            <label style={labelStyle}>Telefone</label>
-                            <div style={fieldWrapStyle}>
-                                <Phone style={iconFieldStyle} />
-                                <input className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
-                            </div>
-                        </div>
-
-                        {/* Cargo */}
-                        <div>
-                            <label style={labelStyle}>Cargo</label>
-                            <div style={fieldWrapStyle}>
-                                <Briefcase style={iconFieldStyle} />
-                                <input className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* Empresa */}
-                        <div>
-                            <label style={labelStyle}>Empresa</label>
-                            <div style={fieldWrapStyle}>
-                                <Building2 style={iconFieldStyle} />
-                                <input className="field-input" style={inputStyle} placeholder="Nome da empresa" value={company} onChange={e => setCompany(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* Email readonly */}
-                        <div>
-                            <label style={labelStyle}>E-mail</label>
-                            <div style={fieldWrapStyle}>
-                                <Mail style={iconFieldStyle} />
-                                <input style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+            {/* ── Abas ── */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+                {getVisibleTabs(profile.user_role).map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.key;
+                    return (
                         <button
-                            className="save-btn"
-                            onClick={handleSave}
-                            disabled={saving}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}
-                        >
-                            {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
-                            {saving ? 'Salvando...' : 'Salvar alterações'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Seções Segurança, Aparência e Notificações (Grid 1:1:1) ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-
-                {/* Segurança */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
-                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Segurança</p>
-                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '0 0 20px' }}>Senha de acesso</p>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', flex: 1 }}>
-                        <div>
-                            <label style={labelStyle}>Nova Senha</label>
-                            <div style={fieldWrapStyle}>
-                                <Lock style={iconFieldStyle} />
-                                <input
-                                    className="field-input"
-                                    type="password"
-                                    style={inputStyle}
-                                    placeholder="Nova senha"
-                                    value={newPassword}
-                                    onChange={e => setNewPassword(e.target.value)}
-                                    autoComplete="new-password"
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Confirmar</label>
-                            <div style={fieldWrapStyle}>
-                                <ShieldCheck style={iconFieldStyle} />
-                                <input
-                                    className="field-input"
-                                    type="password"
-                                    style={inputStyle}
-                                    placeholder="Repita"
-                                    value={confirmPassword}
-                                    onChange={e => setConfirmPassword(e.target.value)}
-                                    autoComplete="new-password"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start' }}>
-                        <button
-                            className="save-btn"
-                            onClick={handleChangePassword}
-                            disabled={savingPassword}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: savingPassword ? 'not-allowed' : 'pointer', opacity: savingPassword ? 0.7 : 1, transition: 'background 0.15s' }}
-                        >
-                            {savingPassword && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
-                            {savingPassword ? 'Atualizando...' : 'Alterar Senha'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Aparência */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-                    <style>{themeBtnCss}</style>
-
-                    <div style={{ marginBottom: '20px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Aparência</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Tema da interface</p>
-                    </div>
-
-                    <div className="theme-switch-container" style={{ marginTop: '10px' }}>
-                        <div className="theme-switch-slider" style={{
-                            transform: theme === 'light' ? 'translateX(0)' : 'translateX(calc(100% + 4px))'
-                        }} />
-
-                        <button
-                            className={`theme-switch-option ${theme === 'light' ? 'active' : ''}`}
-                            onClick={() => theme === 'dark' && toggleTheme()}
-                        >
-                            <Sun className="theme-icon-anim" size={16} />
-                            Claro
-                        </button>
-
-                        <button
-                            className={`theme-switch-option ${theme === 'dark' ? 'active' : ''}`}
-                            onClick={() => theme === 'light' && toggleTheme()}
-                        >
-                            <Moon className="theme-icon-anim" size={16} />
-                            Escuro
-                        </button>
-                    </div>
-
-                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Interface Ativa</span>
-                    </div>
-                </div>
-
-                {/* Notificações */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Notificações</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Alertas de sistema</p>
-                    </div>
-
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div
-                            onClick={async () => {
-                                let newState = !notificationsEnabled;
-                                if (newState && Notification.permission !== 'granted') {
-                                    const permission = await Notification.requestPermission();
-                                    if (permission !== 'granted') return;
-                                }
-                                setNotificationsEnabled(newState);
-                                // Salva imediatamente no banco
-                                if (userId) {
-                                    const { error } = await supabase
-                                        .from('profiles')
-                                        .update({ notifications_enabled: newState })
-                                        .eq('id', userId);
-                                    if (error) {
-                                        console.error('Erro ao salvar preferência de notificação:', error);
-                                        showToast('error', 'Erro ao salvar preferência');
-                                    } else {
-                                        showToast('success', newState ? 'Notificações ativadas!' : 'Notificações desativadas!');
-                                        refetch();
-                                    }
-                                }
-                            }}
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 16px',
-                                borderRadius: '12px',
-                                background: 'var(--bg-card-alt)',
-                                border: '1px solid var(--border)',
+                                gap: '8px',
+                                padding: '12px 20px',
+                                borderRadius: '10px 10px 0 0',
+                                border: 'none',
+                                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                                background: isActive ? 'var(--bg-card)' : 'transparent',
+                                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                                fontSize: '14px',
+                                fontWeight: isActive ? 600 : 500,
                                 cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                marginBottom: '-1px',
+                                position: 'relative',
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isActive) {
+                                    (e.target as HTMLElement).style.color = 'var(--text-main)';
+                                    (e.target as HTMLElement).style.background = 'var(--bg-card)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isActive) {
+                                    (e.target as HTMLElement).style.color = 'var(--text-muted)';
+                                    (e.target as HTMLElement).style.background = 'transparent';
+                                }
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '8px',
-                                    background: notificationsEnabled ? 'rgba(79, 70, 229, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: notificationsEnabled ? 'var(--primary)' : 'var(--text-dim)'
-                                }}>
-                                    <Bell size={18} />
+                            <Icon size={16} />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ── Conteúdo das Abas ── */}
+            
+            {/* ABA 1: PERFIL */}
+            {activeTab === 'perfil' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '24px' }}>
+
+                    {/* Card avatar */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', height: '100%' }}>
+                        <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
+                            {avatarPreview ? (
+                                <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
+                            ) : (
+                                <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                            )}
+                            <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
+                            </div>
+                        </div>
+                        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '5px 0 0' }}>{role || 'Cargo não definido'}</p>
+                        </div>
+
+
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="save-btn"
+                            style={{
+                                marginTop: 'auto',
+                                width: '100%',
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: 'var(--primary)',
+                                color: '#fff',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
+                            }}
+                        >
+                            <Camera style={{ width: 14, height: 14 }} />
+                            Trocar foto
+                        </button>
+                    </div>
+
+                    {/* Card formulário */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Informações Pessoais</p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                            {/* Nome */}
+                            <div>
+                                <label style={labelStyle}>Nome completo</label>
+                                <div style={fieldWrapStyle}>
+                                    <User style={iconFieldStyle} />
+                                    <input className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
                                 </div>
-                                <span style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500 }}>Análise finalizada</span>
                             </div>
 
-                            <div style={{
-                                width: '36px',
-                                height: '20px',
-                                borderRadius: '10px',
-                                background: notificationsEnabled ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
-                                position: 'relative',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                            }}>
-                                <div style={{
-                                    width: '14px',
-                                    height: '14px',
-                                    borderRadius: '50%',
-                                    background: '#fff',
-                                    position: 'absolute',
-                                    top: '3px',
-                                    left: notificationsEnabled ? '19px' : '3px',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                }} />
+                            {/* Endereço */}
+                            <div>
+                                <label style={labelStyle}>Endereço</label>
+                                <div style={fieldWrapStyle}>
+                                    <MapPin style={iconFieldStyle} />
+                                    <input className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Telefone */}
+                            <div>
+                                <label style={labelStyle}>Telefone</label>
+                                <div style={fieldWrapStyle}>
+                                    <Phone style={iconFieldStyle} />
+                                    <input className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
+                                </div>
+                            </div>
+
+                            {/* Cargo */}
+                            <div>
+                                <label style={labelStyle}>Cargo</label>
+                                <div style={fieldWrapStyle}>
+                                    <Briefcase style={iconFieldStyle} />
+                                    <input className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Empresa */}
+                            <div>
+                                <label style={labelStyle}>Empresa</label>
+                                <div style={fieldWrapStyle}>
+                                    <Building2 style={iconFieldStyle} />
+                                    <input className="field-input" style={inputStyle} placeholder="Nome da empresa" value={company} onChange={e => setCompany(e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* Email readonly */}
+                            <div>
+                                <label style={labelStyle}>E-mail</label>
+                                <div style={fieldWrapStyle}>
+                                    <Mail style={iconFieldStyle} />
+                                    <input style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
+                                </div>
                             </div>
                         </div>
 
-                        <p style={{ color: 'var(--text-dim)', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                            Seja notificado quando a Análise terminar. Mais útil para tarefas de longa duração.
-                        </p>
-                    </div>
-
-                    <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: notificationsEnabled ? '#10b981' : 'var(--text-dim)', animation: notificationsEnabled ? 'pulse 2s infinite' : 'none' }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>
-                            {notificationsEnabled ? 'Notificações Ativas' : 'Desativado'}
-                        </span>
+                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                className="save-btn"
+                                onClick={handleSave}
+                                disabled={saving}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}
+                            >
+                                {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
+                                {saving ? 'Salvando...' : 'Salvar alterações'}
+                            </button>
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* Evolution API Integration */}
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', gridColumn: 'span 3' }}>
-                    <div style={{ marginBottom: '20px' }}>
+            {/* ABA 2: SEGURANÇA (Senha, Aparência e Notificações) */}
+            {activeTab === 'seguranca' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+
+                    {/* Segurança */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Segurança</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '0 0 20px' }}>Senha de acesso</p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', flex: 1 }}>
+                            <div>
+                                <label style={labelStyle}>Nova Senha</label>
+                                <div style={fieldWrapStyle}>
+                                    <Lock style={iconFieldStyle} />
+                                    <input
+                                        className="field-input"
+                                        type="password"
+                                        style={inputStyle}
+                                        placeholder="Nova senha"
+                                        value={newPassword}
+                                        onChange={e => setNewPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Confirmar</label>
+                                <div style={fieldWrapStyle}>
+                                    <ShieldCheck style={iconFieldStyle} />
+                                    <input
+                                        className="field-input"
+                                        type="password"
+                                        style={inputStyle}
+                                        placeholder="Repita"
+                                        value={confirmPassword}
+                                        onChange={e => setConfirmPassword(e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start' }}>
+                            <button
+                                className="save-btn"
+                                onClick={handleChangePassword}
+                                disabled={savingPassword}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 18px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: savingPassword ? 'not-allowed' : 'pointer', opacity: savingPassword ? 0.7 : 1, transition: 'background 0.15s' }}
+                            >
+                                {savingPassword && <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />}
+                                {savingPassword ? 'Atualizando...' : 'Alterar Senha'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Aparência */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+                        <style>{themeBtnCss}</style>
+
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Aparência</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Tema da interface</p>
+                        </div>
+
+                        <div className="theme-switch-container" style={{ marginTop: '10px' }}>
+                            <div className="theme-switch-slider" style={{
+                                transform: theme === 'light' ? 'translateX(0)' : 'translateX(calc(100% + 4px))'
+                            }} />
+
+                            <button
+                                className={`theme-switch-option ${theme === 'light' ? 'active' : ''}`}
+                                onClick={() => theme === 'dark' && toggleTheme()}
+                            >
+                                <Sun className="theme-icon-anim" size={16} />
+                                Claro
+                            </button>
+
+                            <button
+                                className={`theme-switch-option ${theme === 'dark' ? 'active' : ''}`}
+                                onClick={() => theme === 'light' && toggleTheme()}
+                            >
+                                <Moon className="theme-icon-anim" size={16} />
+                                Escuro
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Interface Ativa</span>
+                        </div>
+                    </div>
+
+                    {/* Notificações */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Notificações</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Alertas de sistema</p>
+                        </div>
+
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div
+                                onClick={async () => {
+                                    let newState = !notificationsEnabled;
+                                    if (newState && Notification.permission !== 'granted') {
+                                        const permission = await Notification.requestPermission();
+                                        if (permission !== 'granted') return;
+                                    }
+                                    setNotificationsEnabled(newState);
+                                    // Salva imediatamente no banco
+                                    if (userId) {
+                                        const { error } = await supabase
+                                            .from('profiles')
+                                            .update({ notifications_enabled: newState })
+                                            .eq('id', userId);
+                                        if (error) {
+                                            console.error('Erro ao salvar preferência de notificação:', error);
+                                            showToast('error', 'Erro ao salvar preferência');
+                                        } else {
+                                            showToast('success', newState ? 'Notificações ativadas!' : 'Notificações desativadas!');
+                                            refetch();
+                                        }
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    background: 'var(--bg-card-alt)',
+                                    border: '1px solid var(--border)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '8px',
+                                        background: notificationsEnabled ? 'rgba(79, 70, 229, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: notificationsEnabled ? 'var(--primary)' : 'var(--text-dim)'
+                                    }}>
+                                        <Bell size={18} />
+                                    </div>
+                                    <span style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500 }}>Análise finalizada</span>
+                                </div>
+
+                                <div style={{
+                                    width: '36px',
+                                    height: '20px',
+                                    borderRadius: '10px',
+                                    background: notificationsEnabled ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
+                                    position: 'relative',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                }}>
+                                    <div style={{
+                                        width: '14px',
+                                        height: '14px',
+                                        borderRadius: '50%',
+                                        background: '#fff',
+                                        position: 'absolute',
+                                        top: '3px',
+                                        left: notificationsEnabled ? '19px' : '3px',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                    }} />
+                                </div>
+                            </div>
+
+                            <p style={{ color: 'var(--text-dim)', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                                Seja notificado quando a Análise terminar. Mais útil para tarefas de longa duração.
+                            </p>
+                        </div>
+
+                        <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: notificationsEnabled ? '#10b981' : 'var(--text-dim)', animation: notificationsEnabled ? 'pulse 2s infinite' : 'none' }} />
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>
+                                {notificationsEnabled ? 'Notificações Ativas' : 'Desativado'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ABA 3: PERFIS */}
+            {activeTab === 'perfis' && (
+                <>
+                    {/* Card do perfil atual do usuário */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
+                        
+                        {(() => {
+                            const currentUserRole = roleDefinitions.find(r => r.key === profile.user_role) || roleDefinitions[1];
+                            const RoleIcon = currentUserRole.icon;
+                            return (
+                                <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    {/* Info do perfil */}
+                                    <div style={{ flex: 1, minWidth: '280px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <RoleIcon style={{ width: 24, height: 24, color: currentUserRole.color }} />
+                                            </div>
+                                            <div>
+                                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '18px', margin: 0 }}>{currentUserRole.label}</p>
+                                                <p style={{ color: currentUserRole.color, fontSize: '12px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
+                                            </div>
+                                        </div>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                                            {currentUserRole.description}
+                                        </p>
+                                    </div>
+
+                                    {/* Permissões */}
+                                    <div style={{ flex: 1, minWidth: '280px' }}>
+                                        <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+                                            Suas Atribuições
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {currentUserRole.permissions.map(permission => (
+                                                <div key={permission} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0 }} />
+                                                    <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    {/* Seção administrativa (somente Admin) */}
+                    {profile.user_role === 'admin' && (
+                        <>
+                            {/* Header de gestão */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <div>
+                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Gestão de Usuários e Perfis</p>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>Criar, editar e gerenciar perfis de acesso</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowCreateModal(true);
+                                        loadUsers();
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        padding: '10px 20px',
+                                        borderRadius: '10px',
+                                        border: 'none',
+                                        background: 'var(--primary)',
+                                        color: '#fff',
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
+                                    }}
+                                >
+                                    <Users size={16} />
+                                    Criar Novo Usuário
+                                </button>
+                            </div>
+
+                            {/* Lista de usuários */}
+                            {loadingUsers ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                                    <Loader2 style={{ width: 32, height: 32, color: 'var(--primary)', animation: 'spin 1s linear infinite' }} />
+                                </div>
+                            ) : (
+                                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left' }}>Usuário</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Perfil</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Status</th>
+                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allUsers.map(user => {
+                                                const userRole = roleDefinitions.find(r => r.key === user.user_role) || roleDefinitions[1];
+                                                const RoleIcon = userRole.icon;
+                                                return (
+                                                    <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                        <td style={{ padding: '14px 16px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `${userRole.color}20`, color: userRole.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
+                                                                    {(user.name || user.email).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: '13px', margin: 0 }}>
+                                                                        {user.name || user.email.split('@')[0]}
+                                                                    </p>
+                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>{user.email}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                            <select
+                                                                value={user.user_role || 'rh'}
+                                                                onChange={e => handleUpdateUserRole(user.id, e.target.value)}
+                                                                style={{
+                                                                    background: 'var(--bg-input)',
+                                                                    border: `1px solid ${userRole.color}40`,
+                                                                    borderRadius: '8px',
+                                                                    padding: '6px 12px',
+                                                                    color: userRole.color,
+                                                                    fontSize: '12px',
+                                                                    fontWeight: 600,
+                                                                    cursor: 'pointer',
+                                                                    outline: 'none'
+                                                                }}
+                                                            >
+                                                                {roleDefinitions.map(role => (
+                                                                    <option key={role.key} value={role.key}>{role.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                                <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : '#ef4444' }}>
+                                                                    {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                            <button
+                                                                onClick={() => handleToggleUserStatus(user.id, user.status)}
+                                                                style={{
+                                                                    padding: '6px 12px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: 'var(--bg-main)',
+                                                                    color: user.status === 'active' ? '#ef4444' : '#10b981',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: 600,
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
+                                                                }}
+                                                            >
+                                                                {user.status === 'active' ? 'Desativar' : 'Ativar'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* Mensagem para não-admin */}
+                    {profile.user_role !== 'admin' && (
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
+                            <Lock size={48} style={{ color: 'var(--text-dim)', marginBottom: '16px' }} />
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: '0 0 8px' }}>Acesso Restrito</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', margin: 0 }}>
+                                Apenas administradores podem gerenciar usuários e perfis.
+                            </p>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Modal Criar Usuário */}
+            {showCreateModal && profile.user_role === 'admin' && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                }} onClick={() => setShowCreateModal(false)}>
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '28px',
+                        width: '100%',
+                        maxWidth: '480px',
+                        maxHeight: '90vh',
+                        overflow: 'auto'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <div>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Criar Novo Usuário</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Defina o perfil de acesso</p>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {/* Nome */}
+                            <div>
+                                <label style={labelStyle}>Nome completo</label>
+                                <div style={fieldWrapStyle}>
+                                    <User style={iconFieldStyle} />
+                                    <input
+                                        className="field-input"
+                                        style={inputStyle}
+                                        placeholder="Nome do usuário"
+                                        value={newUser.name}
+                                        onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label style={labelStyle}>E-mail</label>
+                                <div style={fieldWrapStyle}>
+                                    <Mail style={iconFieldStyle} />
+                                    <input
+                                        className="field-input"
+                                        style={inputStyle}
+                                        placeholder="email@empresa.com"
+                                        value={newUser.email}
+                                        onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Senha */}
+                            <div>
+                                <label style={labelStyle}>Senha temporária</label>
+                                <div style={fieldWrapStyle}>
+                                    <Lock style={iconFieldStyle} />
+                                    <input
+                                        className="field-input"
+                                        type="password"
+                                        style={inputStyle}
+                                        placeholder="Senha inicial (min. 6 caracteres)"
+                                        value={newUser.password}
+                                        onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Perfil */}
+                            <div>
+                                <label style={labelStyle}>Perfil de Acesso</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                    {roleDefinitions.map(role => {
+                                        const RoleIcon = role.icon;
+                                        const isSelected = newUser.user_role === role.key;
+                                        return (
+                                            <button
+                                                key={role.key}
+                                                onClick={() => setNewUser(prev => ({ ...prev, user_role: role.key }))}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    padding: '12px',
+                                                    borderRadius: '10px',
+                                                    border: `2px solid ${isSelected ? role.color : 'var(--border)'}`,
+                                                    background: isSelected ? `${role.color}10` : 'var(--bg-input)',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${role.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <RoleIcon style={{ width: 16, height: 16, color: role.color }} />
+                                                </div>
+                                                <div style={{ textAlign: 'left' }}>
+                                                    <p style={{ color: isSelected ? role.color : 'var(--text-main)', fontWeight: 600, fontSize: '13px', margin: 0 }}>{role.label}</p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Botão criar */}
+                            <button
+                                onClick={handleCreateUser}
+                                disabled={creatingUser}
+                                style={{
+                                    marginTop: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: creatingUser ? 'var(--text-dim)' : 'var(--primary)',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    cursor: creatingUser ? 'not-allowed' : 'pointer',
+                                    transition: 'background 0.2s'
+                                }}
+                            >
+                                {creatingUser && <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />}
+                                {creatingUser ? 'Criando...' : 'Criar Usuário'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ABA 4: API (Integrações) */}
+            {activeTab === 'api' && (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                    <div style={{ marginBottom: '24px' }}>
                         <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Integração Evolution API (WhatsApp)</p>
                         <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Configure as credenciais para ativar o chat com candidatos</p>
                     </div>
@@ -696,85 +1341,99 @@ export const Configuracoes = () => {
                             </div>
                         </div>
                     </div>
+
+                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                            className="save-btn"
+                            onClick={handleSave}
+                            disabled={saving}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}
+                        >
+                            {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
+                            {saving ? 'Salvando...' : 'Salvar configurações da API'}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* ── Seção Planos ── */}
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
-                <div style={{ marginBottom: '20px' }}>
-                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: 0 }}>Plano Atual</p>
-                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
-                </div>
+            {/* ABA 5: PLANO (Pagamento) */}
+            {activeTab === 'plano' && (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                    <div style={{ marginBottom: '20px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: 0 }}>Plano Atual</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                    {plans.map(plan => {
-                        const PlanIcon = plan.icon;
-                        const isActive = currentPlan === plan.key;
-                        return (
-                            <div
-                                key={plan.key}
-                                className="plan-card"
-                                style={{
-                                    position: 'relative',
-                                    background: isActive ? `${plan.color}10` : 'var(--bg-main)',
-                                    border: `1px solid ${isActive ? plan.color : 'var(--border)'}`,
-                                    borderRadius: '14px',
-                                    padding: '20px',
-                                }}
-                            >
-                                {plan.popular && (
-                                    <div style={{ position: 'absolute', top: '-11px', left: '50%', transform: 'translateX(-50%)', background: '#6366f1', color: '#fff', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: '20px' }}>
-                                        Mais popular
-                                    </div>
-                                )}
-                                {isActive && (
-                                    <div style={{ position: 'absolute', top: '12px', right: '12px', background: `${plan.color}20`, color: plan.color, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${plan.color}40` }}>
-                                        Ativo
-                                    </div>
-                                )}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                        {plans.map(plan => {
+                            const PlanIcon = plan.icon;
+                            const isActive = currentPlan === plan.key;
+                            return (
+                                <div
+                                    key={plan.key}
+                                    className="plan-card"
+                                    style={{
+                                        position: 'relative',
+                                        background: isActive ? `${plan.color}10` : 'var(--bg-main)',
+                                        border: `1px solid ${isActive ? plan.color : 'var(--border)'}`,
+                                        borderRadius: '14px',
+                                        padding: '20px',
+                                    }}
+                                >
+                                    {plan.popular && (
+                                        <div style={{ position: 'absolute', top: '-11px', left: '50%', transform: 'translateX(-50%)', background: '#6366f1', color: '#fff', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: '20px' }}>
+                                            Mais popular
+                                        </div>
+                                    )}
+                                    {isActive && (
+                                        <div style={{ position: 'absolute', top: '12px', right: '12px', background: `${plan.color}20`, color: plan.color, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${plan.color}40` }}>
+                                            Ativo
+                                        </div>
+                                    )}
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${plan.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <PlanIcon style={{ width: 18, height: 18, color: plan.color }} />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${plan.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <PlanIcon style={{ width: 18, height: 18, color: plan.color }} />
+                                        </div>
+                                        <div>
+                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{plan.name}</p>
+                                            <p style={{ color: plan.color, fontWeight: 700, fontSize: '13px', margin: 0 }}>
+                                                {plan.price}<span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: '11px' }}>{plan.period}</span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{plan.name}</p>
-                                        <p style={{ color: plan.color, fontWeight: 700, fontSize: '13px', margin: 0 }}>
-                                            {plan.price}<span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: '11px' }}>{plan.period}</span>
-                                        </p>
-                                    </div>
+
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {plan.features.map(f => (
+                                            <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                                                <Check style={{ width: 13, height: 13, color: plan.color, flexShrink: 0 }} />
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    {isActive ? (
+                                        <div style={{ textAlign: 'center', padding: '8px', borderRadius: '8px', border: `1px solid ${plan.color}30`, color: plan.color, fontSize: '13px', fontWeight: 600 }}>
+                                            Plano atual
+                                        </div>
+                                    ) : (
+                                        <button
+                                            className="upgrade-btn"
+                                            onClick={() => {
+                                                showToast('error', 'Em breve! Sistema de pagamento em construção.');
+                                                logActivity(userId, 'Fez alterações na forma de pagamento', { plano: plan.name });
+                                            }}
+                                            style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: plan.color, color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }}
+                                        >
+                                            {plan.key === 'enterprise' ? 'Falar com vendas' : 'Fazer upgrade'}
+                                        </button>
+                                    )}
                                 </div>
-
-                                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {plan.features.map(f => (
-                                        <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                                            <Check style={{ width: 13, height: 13, color: plan.color, flexShrink: 0 }} />
-                                            {f}
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                {isActive ? (
-                                    <div style={{ textAlign: 'center', padding: '8px', borderRadius: '8px', border: `1px solid ${plan.color}30`, color: plan.color, fontSize: '13px', fontWeight: 600 }}>
-                                        Plano atual
-                                    </div>
-                                ) : (
-                                    <button
-                                        className="upgrade-btn"
-                                        onClick={() => {
-                                            showToast('error', 'Em breve! Sistema de pagamento em construção.');
-                                            logActivity(userId, 'Fez alterações na forma de pagamento', { plano: plan.name });
-                                        }}
-                                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: plan.color, color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }}
-                                    >
-                                        {plan.key === 'enterprise' ? 'Falar com vendas' : 'Fazer upgrade'}
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+            )}
         </>
     );
 };

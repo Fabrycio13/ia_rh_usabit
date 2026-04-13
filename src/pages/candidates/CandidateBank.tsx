@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban, Phone
+  X, Eye, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -111,6 +111,7 @@ export const CandidateBank = () => {
   const [filterGender, setFilterGender] = useState('');
   const [filterVaga, setFilterVaga] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [activeTab, setActiveTab] = useState<'todos' | 'candidatos' | 'blacklist'>('todos');
 
   // Load favorites from localStorage (per user)
   useEffect(() => {
@@ -211,6 +212,15 @@ export const CandidateBank = () => {
     if (onlyFavorites) list = list.filter(c => favorites[c.id]);
     if (filterGender) list = list.filter(c => c.gender === filterGender);
     if (filterVaga) list = list.filter(c => c.vagas.includes(filterVaga));
+
+    // Tab filtering
+    if (activeTab === 'blacklist') {
+      list = list.filter(c => c.is_blacklisted);
+    } else if (activeTab === 'candidatos') {
+      list = list.filter(c => !c.is_blacklisted);
+    }
+    // 'todos' shows all
+
     if (sortKey) {
       list.sort((a, b) => {
         let va: any, vb: any;
@@ -223,7 +233,7 @@ export const CandidateBank = () => {
       });
     }
     return list;
-  }, [candidates, search, onlyFavorites, favorites, filterGender, filterVaga, sortKey, sortDir]);
+  }, [candidates, search, onlyFavorites, favorites, filterGender, filterVaga, sortKey, sortDir, activeTab]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const paginated = processed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -299,7 +309,7 @@ export const CandidateBank = () => {
     }
   }
 
-  const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : ''].filter(Boolean).length;
+  const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : '', activeTab !== 'todos' ? 'tab' : ''].filter(Boolean).length;
 
   if (loading) {
     return (
@@ -314,10 +324,16 @@ export const CandidateBank = () => {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Banco de Candidatos</h1>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>
-            {processed.length} candidato{processed.length !== 1 ? 's' : ''} encontrado{processed.length !== 1 ? 's' : ''}
+        <div style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <Users size={32} style={{ color: 'var(--primary)' }} />
+            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+              Banco de Talentos
+            </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+            {processed.length} candidato{processed.length !== 1 ? 's' : ''}
+            {activeTab === 'blacklist' ? ' na blacklist' : activeTab === 'candidatos' ? ' ativos' : ' encontrado'}{processed.length !== 1 && activeTab === 'todos' ? 's' : ''}
             {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
           </p>
         </div>
@@ -347,11 +363,48 @@ export const CandidateBank = () => {
           Apenas favoritos
         </button>
         {activeFilters > 0 && (
-          <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setPage(1); }}
+          <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setActiveTab('todos'); setPage(1); }}
             style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
             <X style={{ width: 12, height: 12 }} /> Limpar
           </button>
         )}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        {([
+          { key: 'todos' as const, label: 'Todos', icon: Users },
+          { key: 'candidatos' as const, label: 'Candidatos', icon: UserCheck },
+          { key: 'blacklist' as const, label: 'Blacklist', icon: Ban },
+        ]).map(tab => {
+          const isActive = activeTab === tab.key;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setPage(1); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                background: isActive ? 'var(--bg-card)' : 'transparent',
+                border: 'none',
+                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                borderRadius: '8px 8px 0 0',
+                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: '-1px'
+              }}
+            >
+              <Icon size={16} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
@@ -394,7 +447,13 @@ export const CandidateBank = () => {
           <tbody>
             {paginated.length === 0 ? (
               <tr><td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
-                {search || activeFilters > 0 ? 'Nenhum candidato encontrado com os filtros aplicados.' : 'Nenhum candidato cadastrado ainda.'}
+                {activeTab === 'blacklist'
+                  ? 'Nenhum candidato na blacklist.'
+                  : activeTab === 'candidatos'
+                    ? 'Nenhum candidato ativo encontrado.'
+                    : search || activeFilters > 0
+                      ? 'Nenhum candidato encontrado com os filtros aplicados.'
+                      : 'Nenhum candidato cadastrado ainda.'}
               </td></tr>
             ) : paginated.map(c => (
               <tr key={c.id} onClick={() => openCandidate(c)}

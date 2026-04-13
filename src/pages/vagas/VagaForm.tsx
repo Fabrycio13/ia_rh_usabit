@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '../../core/services/supabase';
+import toast from 'react-hot-toast';
 import { ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, DollarSign, MapPin, Building2, Clock } from 'lucide-react';
 import { StepIndicator } from './components/StepIndicator';
 import { ToggleField } from './components/ToggleField';
@@ -44,15 +46,100 @@ const initialFormData: VagaFormData = {
 
 export const VagaForm = () => {
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditMode = !!id;
+    
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<VagaFormData>(initialFormData);
     const [saving, setSaving] = useState(false);
+    const [loading, setLoading] = useState(isEditMode);
+
+    // Carregar dados da vaga se estiver editando
+    useEffect(() => {
+        if (!isEditMode || !id) return;
+
+        const fetchVaga = async () => {
+            try {
+                console.log('Buscando vaga com ID:', id);
+                
+                const { data, error } = await supabase
+                    .from('vagas_white_label')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) {
+                    console.error('Erro ao buscar vaga:', error);
+                    throw error;
+                }
+                if (!data) {
+                    toast.error('Vaga não encontrada');
+                    navigate('/vagas');
+                    return;
+                }
+
+                console.log('Dados da vaga carregados:', data);
+
+                setFormData({
+                    title: data.title || '',
+                    description: data.description || '',
+                    hasSalaryRange: data.has_salary_range || false,
+                    salaryMin: data.salary_min ? data.salary_min.toString() : '',
+                    salaryMax: data.salary_max ? data.salary_max.toString() : '',
+                    contractType: data.contract_type || '',
+                    hasLocation: data.has_location || false,
+                    location: data.location || '',
+                    workModel: data.work_model || '',
+                    responsibilities: data.responsibilities || '',
+                    requirements: data.requirements || '',
+                    differentials: data.differentials || '',
+                    additionalInfo: data.additional_info || '',
+                });
+            } catch (err) {
+                console.error('Erro ao carregar vaga:', err);
+                toast.error('Erro ao carregar vaga');
+                navigate('/vagas');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchVaga();
+    }, [id, isEditMode, navigate]);
 
     const updateField = <K extends keyof VagaFormData>(field: K, value: VagaFormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleNext = () => {
+        // Validação Step 1
+        if (currentStep === 1) {
+            if (!formData.title.trim()) {
+                toast.error('Preencha o título da vaga.');
+                return;
+            }
+        }
+
+        // Validação Step 2
+        if (currentStep === 2) {
+            if (!formData.contractType) {
+                toast.error('Selecione o tipo de contrato.');
+                return;
+            }
+        }
+
+        // Validação Step 3
+        if (currentStep === 3) {
+            if (!formData.responsibilities.trim()) {
+                toast.error('Preencha as responsabilidades da vaga.');
+                return;
+            }
+            if (!formData.requirements.trim()) {
+                toast.error('Preencha os requisitos da vaga.');
+                return;
+            }
+        }
+
         if (currentStep < 3) {
             setCurrentStep(currentStep + 1);
         }
@@ -66,21 +153,81 @@ export const VagaForm = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
+        // Validações finais antes de enviar
         if (!formData.title.trim()) {
-            alert('Por favor, preencha o título da vaga.');
+            toast.error('Por favor, preencha o título da vaga.');
+            return;
+        }
+        if (!formData.contractType) {
+            toast.error('Selecione o tipo de contrato.');
+            return;
+        }
+        if (!formData.responsibilities.trim()) {
+            toast.error('Preencha as responsabilidades da vaga.');
+            setCurrentStep(3);
+            return;
+        }
+        if (!formData.requirements.trim()) {
+            toast.error('Preencha os requisitos da vaga.');
+            setCurrentStep(3);
             return;
         }
 
         setSaving(true);
         
         try {
-            // TODO: Save to Supabase
-            console.log('Saving vaga:', formData);
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                toast.error('Usuário não autenticado');
+                return;
+            }
+
+            const vagaData = {
+                user_id: user.id,
+                title: formData.title.trim(),
+                description: formData.description.trim() || null,
+                has_salary_range: formData.hasSalaryRange,
+                salary_min: formData.hasSalaryRange && formData.salaryMin ? parseFloat(formData.salaryMin.replace(/[^\d,]/g, '').replace(',', '.')) : null,
+                salary_max: formData.hasSalaryRange && formData.salaryMax ? parseFloat(formData.salaryMax.replace(/[^\d,]/g, '').replace(',', '.')) : null,
+                contract_type: formData.contractType || null,
+                has_location: formData.hasLocation,
+                location: formData.hasLocation && formData.location ? formData.location.trim() : null,
+                work_model: formData.hasLocation && formData.workModel ? formData.workModel : null,
+                responsibilities: formData.responsibilities.trim() || null,
+                requirements: formData.requirements.trim() || null,
+                differentials: formData.differentials.trim() || null,
+                additional_info: formData.additionalInfo.trim() || null,
+            };
+
+            let error;
+
+            if (isEditMode) {
+                // Atualizar vaga existente
+                const { error: updateError } = await supabase
+                    .from('vagas_white_label')
+                    .update(vagaData)
+                    .eq('id', id);
+                error = updateError;
+            } else {
+                // Criar nova vaga
+                const { error: insertError } = await supabase
+                    .from('vagas_white_label')
+                    .insert({
+                        ...vagaData,
+                        published_at: new Date().toISOString(),
+                    });
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            toast.success(isEditMode ? 'Vaga atualizada com sucesso!' : 'Vaga publicada com sucesso!');
             navigate('/vagas');
         } catch (error) {
-            console.error('Error saving vaga:', error);
-            alert('Erro ao salvar a vaga. Tente novamente.');
+            console.error('Erro ao salvar vaga:', error);
+            toast.error('Erro ao salvar a vaga. Tente novamente.');
         } finally {
             setSaving(false);
         }
@@ -112,6 +259,14 @@ export const VagaForm = () => {
         { number: 2, title: 'Detalhes do Cargo' },
         { number: 3, title: 'Conteúdo da Vaga' },
     ];
+
+    if (loading) {
+        return (
+            <div style={{ minHeight: '100vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <p style={{ color: 'var(--text-muted)' }}>Carregando vaga...</p>
+            </div>
+        );
+    }
 
     return (
         <div style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
@@ -186,10 +341,10 @@ export const VagaForm = () => {
                         </div>
                         <div>
                             <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#fff', margin: 0 }}>
-                                Criar Nova Vaga
+                                {isEditMode ? 'Editar Vaga' : 'Criar Nova Vaga'}
                             </h1>
                             <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '14px', margin: '4px 0 0' }}>
-                                Preencha as informações para publicar uma nova oportunidade
+                                {isEditMode ? 'Atualize as informações da vaga' : 'Preencha as informações para publicar uma nova oportunidade'}
                             </p>
                         </div>
                     </div>
@@ -399,7 +554,7 @@ export const VagaForm = () => {
                                     </div>
                                     <div>
                                         <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
-                                            Tipo de Contrato
+                                            Tipo de Contrato *
                                         </h2>
                                         <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
                                             Selecione o modelo de contratação
@@ -571,7 +726,7 @@ export const VagaForm = () => {
                                     </div>
                                     <div>
                                         <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
-                                            Responsabilidades
+                                            Responsabilidades *
                                         </h2>
                                         <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
                                             Liste as principais responsabilidades do cargo
@@ -611,7 +766,7 @@ export const VagaForm = () => {
                                     </div>
                                     <div>
                                         <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
-                                            Requisitos
+                                            Requisitos *
                                         </h2>
                                         <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
                                             Liste os requisitos obrigatórios
@@ -805,7 +960,7 @@ export const VagaForm = () => {
                                         }}
                                     >
                                         <Save size={16} />
-                                        {saving ? 'Salvando...' : 'Publicar Vaga'}
+                                        {saving ? 'Salvando...' : (isEditMode ? 'Atualizar Vaga' : 'Publicar Vaga')}
                                     </button>
                                 </div>
                             </div>

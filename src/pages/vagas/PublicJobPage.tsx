@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import {
     MapPin, DollarSign, Clock, Star, Target,
-    Award, Info, ArrowRight, CheckCircle, AlertCircle
+    Award, Info, ArrowRight, CheckCircle, AlertCircle, ArrowLeft
 } from 'lucide-react';
 
 interface Job {
@@ -48,14 +48,15 @@ export const PublicJobPage = () => {
 
             try {
                 const { data, error: err } = await supabase
-                    .from('jobs')
+                    .from('vagas_white_label')
                     .select('*')
                     .eq('public_hash', hash)
                     .eq('is_active', true)
+                    .eq('is_accepting_applications', true)
                     .single();
 
                 if (err) {
-                    setError('Vaga não encontrada ou expirada');
+                    setError('Vaga não encontrada, pausada ou encerrada');
                     return;
                 }
 
@@ -183,6 +184,38 @@ export const PublicJobPage = () => {
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
             `}</style>
+
+            {/* Back Button */}
+            <div style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                zIndex: 10
+            }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                >
+                    <ArrowLeft size={16} />
+                    Voltar
+                </button>
+            </div>
 
             {/* Header with company info or gradient */}
             <div style={{

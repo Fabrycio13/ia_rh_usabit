@@ -4,6 +4,7 @@ import { supabase } from './core/services/supabase';
 import { useUser, UserProvider } from './core/contexts/UserContext';
 import { LangProvider } from './core/contexts/LangContext';
 import { AnalysisProvider } from './core/contexts/AnalysisContext';
+import { hasPermission } from './core/config/permissions';
 import { Login } from './pages/auth/Login';
 import { LandingPage } from './pages/marketing/LandingPage';
 import { Dashboard } from './pages/dashboard/Dashboard';
@@ -22,6 +23,7 @@ import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 import { TrialExpired } from './pages/auth/TrialExpired';
 import { Vagas } from './pages/vagas/Vagas';
 import { VagaForm } from './pages/vagas/VagaForm';
+import { VagaCandidatos } from './pages/vagas/VagaCandidatos';
 import { PublicJobPage } from './pages/vagas/PublicJobPage';
 import { JobApplication } from './pages/vagas/JobApplication';
 import { Toaster } from 'react-hot-toast';
@@ -38,7 +40,7 @@ const AppContent = ({ session }: { session: any }) => {
     // Helper to check if trial expired
     const isTrialExpired = () => {
         if (!profile.trial_ends_at) return false;
-        if (profile.account_type === 'lifetime' || profile.user_role === 'admin') return false;
+        if (profile.account_type === 'lifetime' || profile.user_role === 'admin' || profile.user_role === 'rh') return false;
         return new Date(profile.trial_ends_at) < new Date();
     };
 
@@ -51,10 +53,10 @@ const AppContent = ({ session }: { session: any }) => {
             return <ConfirmEmail />;
         }
 
-        // 3. Trial Expiry
-        if (profile.account_type === 'trial' && isTrialExpired()) {
-            return <TrialExpired />;
-        }
+        // 3. Trial Expiry - DESATIVADO POR ENQUANTO (uso interno)
+        // if (profile.account_type === 'trial' && isTrialExpired()) {
+        //     return <TrialExpired />;
+        // }
     }
 
     return (
@@ -68,9 +70,9 @@ const AppContent = ({ session }: { session: any }) => {
                 }}
             />
             <Routes>
-                <Route path="/" element={!session ? <LandingPage /> : <Navigate to="/dashboard" />} />
-                <Route path="/login" element={!session ? <Login /> : <Navigate to="/dashboard" />} />
-                <Route path="/registro" element={!session ? <Register /> : <Navigate to="/dashboard" />} />
+                <Route path="/" element={!session ? <LandingPage /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
+                <Route path="/login" element={!session ? <Login /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
+                <Route path="/registro" element={!session ? <Register /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
                 
                 {/* Public Routes (no auth required) */}
                 <Route path="/v/:hash" element={<PublicJobPage />} />
@@ -78,20 +80,22 @@ const AppContent = ({ session }: { session: any }) => {
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/vagas" element={<Vagas />} />
-                    <Route path="/vagas/nova" element={<VagaForm />} />
-                    <Route path="/analises" element={<Analises />} />
-                    <Route path="/candidatos" element={<CandidateBank />} />
-                    <Route path="/analise/nova" element={<AnaliseNova />} />
-                    <Route path="/analise/:jobId" element={<JobDetailRoute />} />
+                    <Route path="/dashboard" element={hasPermission(profile.user_role, 'dashboard') ? <Dashboard /> : <Navigate to="/vagas" />} />
+                    <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <Vagas /> : <Navigate to="/dashboard" />} />
+                    <Route path="/vagas/nova" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
+                    <Route path="/vagas/editar/:id" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
+                    <Route path="/vagas/:id/candidatos" element={hasPermission(profile.user_role, 'vagas') ? <VagaCandidatos /> : <Navigate to="/dashboard" />} />
+                    <Route path="/analises" element={hasPermission(profile.user_role, 'analises') ? <Analises /> : <Navigate to="/dashboard" />} />
+                    <Route path="/candidatos" element={hasPermission(profile.user_role, 'candidatos') ? <CandidateBank /> : <Navigate to="/dashboard" />} />
+                    <Route path="/analise/nova" element={hasPermission(profile.user_role, 'analises') ? <AnaliseNova /> : <Navigate to="/dashboard" />} />
+                    <Route path="/analise/:jobId" element={hasPermission(profile.user_role, 'analises') ? <JobDetailRoute /> : <Navigate to="/dashboard" />} />
                     <Route path="/configuracoes" element={<Configuracoes />} />
                     <Route path="/ajuda" element={<Ajuda />} />
-                    <Route path="/pipeline" element={profile.isPremium ? <Pipeline /> : <Navigate to="/dashboard" />} />
-                    <Route path="/chat" element={profile.isPremium ? <Chat /> : <Navigate to="/dashboard" />} />
+                    <Route path="/pipeline" element={hasPermission(profile.user_role, 'pipeline') && profile.isPremium ? <Pipeline /> : <Navigate to="/dashboard" />} />
+                    <Route path="/chat" element={hasPermission(profile.user_role, 'chat') && profile.isPremium ? <Chat /> : <Navigate to="/dashboard" />} />
 
                     {/* Admin Routes */}
-                    {profile.user_role === 'admin' && (
+                    {hasPermission(profile.user_role, 'admin') && (
                         <>
                             <Route path="/admin" element={<AdminDashboard />} />
                             <Route path="/admin/logs" element={<AdminLogs />} />

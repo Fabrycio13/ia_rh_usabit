@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -318,10 +318,15 @@ export const Dashboard = () => {
       <style>{css}</style>
 
       {/* ── Header ── */}
-      <div className="anim-1" style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="anim-1" style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <p style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Visão geral</p>
-          <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Dashboard</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+              <LayoutGrid size={32} style={{ color: 'var(--primary)' }} />
+              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Dashboard
+              </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Visão geral</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button 

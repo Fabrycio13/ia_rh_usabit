@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, ChevronLeft, ChevronRight, X, Ban, Phone } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, ChevronLeft, ChevronRight, X, Ban, Phone, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -828,8 +828,15 @@ export const Analises = () => {
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
-          <p className="text-[var(--text-dim)] text-sm mb-1">Bem-vindo à</p>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">IA Análise de Currículos</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <Activity size={32} style={{ color: 'var(--primary)' }} />
+            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+              IA Análise de Currículos
+            </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+            Gerencie e analise currículos de forma inteligente.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div style={{ position: 'relative' }}>

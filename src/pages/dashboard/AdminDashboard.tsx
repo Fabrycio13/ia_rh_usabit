@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X } from 'lucide-react';
+import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck } from 'lucide-react';
 import { 
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
@@ -179,9 +179,16 @@ export const AdminDashboard = () => {
     return (
         <div style={{ width: '100%', margin: '0' }}>
             <style>{css}</style>
-            <div style={{ marginBottom: 24 }}>
-                <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Painel Administrador</h1>
-                <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>Gerencie usuários e monitore o status das contas.</p>
+            <div style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                    <ShieldCheck size={32} style={{ color: 'var(--primary)' }} />
+                    <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        Painel Administrador
+                    </h1>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+                    Gerencie usuários e monitore o status das contas.
+                </p>
             </div>
 
             {/* Stats */}
@@ -360,14 +367,16 @@ export const AdminDashboard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Cargo:</span>
-                        <select 
+                        <select
                             value={roleFilter}
                             onChange={e => setRoleFilter(e.target.value)}
                             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 13, outline: 'none', cursor: 'pointer', minWidth: '140px' }}
                         >
                             <option value="">Todos</option>
                             <option value="admin">Administrador</option>
-                            <option value="user">Recrutador</option>
+                            <option value="rh">RH</option>
+                            <option value="gestor">Gestor</option>
+                            <option value="convidado">Convidado</option>
                         </select>
                     </div>
 
@@ -435,7 +444,7 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: '16px', textAlign: 'center' }}>
                                         <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: user.user_role === 'admin' ? '#ef444420' : '#3b82f620', color: user.user_role === 'admin' ? '#ef4444' : '#3b82f6', textTransform: 'uppercase' }}>
-                                            {user.user_role === 'admin' ? 'ADMIN' : 'RECRUTADOR'}
+                                            {user.user_role === 'admin' ? 'ADMIN' : user.user_role === 'rh' ? 'RH' : user.user_role === 'gestor' ? 'GESTOR' : 'CONVIDADO'}
                                         </span>
                                     </td>
                                     <td style={{ padding: '16px' }}>
