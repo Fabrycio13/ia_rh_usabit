@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -886,13 +886,16 @@ export const Pipeline = () => {
         <>
             <style>{css}</style>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
                 {/* Left side: Title and Count */}
                 <div>
-                    <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
-                        Pipeline de Recrutamento
-                    </h1>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <Kanban size={32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            Pipeline de Recrutamento
+                        </h1>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
                         {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
                     </p>
                 </div>

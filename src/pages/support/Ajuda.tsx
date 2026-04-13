@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, LifeBuoy } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle } from 'lucide-react';
 
 const faqs = [
     {
@@ -107,14 +107,16 @@ export const Ajuda = () => {
             `}</style>
 
             {/* Header */}
-            <div style={{ marginBottom: '28px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-light-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <LifeBuoy style={{ width: 18, height: 18, color: 'var(--primary)' }} />
-                    </div>
-                    <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Central de Ajuda</h1>
+            <div style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                    <HelpCircle size={32} style={{ color: 'var(--primary)' }} />
+                    <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        Central de Ajuda
+                    </h1>
                 </div>
-                <p style={{ color: 'var(--text-dim)', fontSize: '14px', margin: '0 0 0 48px' }}>Encontre respostas rápidas ou fale com nosso suporte</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+                    Encontre respostas rápidas ou fale com nosso suporte
+                </p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px', alignItems: 'start' }}>

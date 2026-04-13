@@ -10,7 +10,7 @@ interface UserProfile {
     email: string;
     initials: string;
     notificationsEnabled: boolean;
-    user_role: 'admin' | 'user';
+    user_role: 'admin' | 'rh' | 'gestor' | 'convidado';
     status: 'active' | 'inactive';
     account_type: 'trial' | 'active' | 'lifetime';
     trial_ends_at: string | null;
@@ -24,7 +24,7 @@ interface UserProfile {
 const defaultProfile: UserProfile = {
     userId: '', userName: '', firstName: '', avatarUrl: '',
     plan: 'trial', email: '', initials: '', notificationsEnabled: false,
-    user_role: 'user', status: 'active', account_type: 'trial', trial_ends_at: null, loaded: false,
+    user_role: 'rh', status: 'active', account_type: 'trial', trial_ends_at: null, loaded: false,
     isPremium: false,
 };
 
@@ -51,7 +51,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const name = user.user_metadata?.full_name || user.email || '';
         const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
-        const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || user.user_metadata?.user_role?.toLowerCase() === 'admin';
+        const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || 
+                                    user.user_metadata?.user_role?.toLowerCase() === 'admin' ||
+                                    user.user_metadata?.user_role?.toLowerCase() === 'rh';
 
         // Optimistic update with what we already know from the session
         setProfile(prev => ({
@@ -86,14 +88,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 avatarUrl: data.avatar_url || '',
                 initials: profileInitials,
                 notificationsEnabled: data.notifications_enabled ?? false,
-                user_role: (data.user_role as 'admin' | 'user') || 'user',
+                user_role: (data.user_role as 'admin' | 'rh' | 'gestor' | 'convidado') || 'rh',
                 status: (data.status as 'active' | 'inactive') || 'active',
                 account_type: (data.account_type as any) || 'trial',
                 plan: (data.account_type as any) || 'trial',
                 trial_ends_at: data.trial_ends_at || null,
-                isPremium: data.account_type === 'lifetime' || 
-                           data.user_role?.toLowerCase() === 'admin' || 
-                           user.user_metadata?.user_role?.toLowerCase() === 'admin',
+                isPremium: data.account_type === 'lifetime' ||
+                           data.user_role?.toLowerCase() === 'admin' ||
+                           data.user_role?.toLowerCase() === 'rh' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'admin' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'rh',
                 evolution_api_url: data.evolution_api_url || '',
                 evolution_api_key: data.evolution_api_key || '',
                 evolution_instance: data.evolution_instance || '',
@@ -113,7 +117,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 loadProfile();
             }
         });
-        return () => subscription.unsubscribe();
+
+        // Subscription realtime para detectar mudanças no perfil
+        const { data: profileSubscription } = supabase
+            .channel('profile-changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles',
+                },
+                (payload) => {
+                    // Se o perfil atualizado for o do usuário logado, recarrega
+                    if (payload.new.id === profile.userId) {
+                        console.log('[UserContext] Perfil atualizado em realtime:', payload.new);
+                        loadProfile();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+            supabase.removeChannel(profileSubscription);
+        };
     }, []);
 
     return (

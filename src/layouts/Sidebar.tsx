@@ -5,6 +5,7 @@ import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
 import { useAnalysis } from '../core/contexts/AnalysisContext';
+import { hasPermission } from '../core/config/permissions';
 
 
 /* ─── Animated Space Talent Logo ────────────────────────────────────────── */
@@ -225,15 +226,38 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
 
                 {/* Nav items */}
                 <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
-                    <NavItem to="/dashboard" icon={LayoutGrid} label={t('dashboard')} collapsed={collapsed} end />
-                    <NavItem to="/vagas" icon={Briefcase} label={t('vagas')} collapsed={collapsed} />
-                    <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
-                    <NavItem to="/candidatos" icon={Users} label={t('candidateBank')} collapsed={collapsed} />
+                    {/* Dashboard - todos os perfis exceto convidado */}
+                    {hasPermission(profile.user_role, 'dashboard') && (
+                        <NavItem to="/dashboard" icon={LayoutGrid} label={t('dashboard')} collapsed={collapsed} end />
+                    )}
+                    
+                    {/* Vagas - apenas admin e rh */}
+                    {hasPermission(profile.user_role, 'vagas') && (
+                        <NavItem to="/vagas" icon={Briefcase} label={t('vagas')} collapsed={collapsed} />
+                    )}
+                    
+                    {/* Análises - admin, rh e gestor */}
+                    {hasPermission(profile.user_role, 'analises') && (
+                        <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
+                    )}
+                    
+                    {/* Candidatos - admin, rh e gestor */}
+                    {hasPermission(profile.user_role, 'candidatos') && (
+                        <NavItem to="/candidatos" icon={Users} label={t('candidateBank')} collapsed={collapsed} />
+                    )}
 
-                    <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} disabled={!profile.isPremium} />
-                    <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} disabled={!profile.isPremium} />
+                    {/* Pipeline - premium feature, mas com permissão por perfil */}
+                    {hasPermission(profile.user_role, 'pipeline') && (
+                        <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} disabled={!profile.isPremium} />
+                    )}
+                    
+                    {/* Chat - apenas admin e gestor (premium) */}
+                    {hasPermission(profile.user_role, 'chat') && (
+                        <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} disabled={!profile.isPremium} />
+                    )}
 
-                    {profile.user_role === 'admin' && (
+                    {/* Admin section - apenas admin */}
+                    {hasPermission(profile.user_role, 'admin') && (
                         <>
                             <div style={{ height: '1px', background: 'var(--border)', margin: '20px 8px 12px' }} />
                             {!collapsed && (
@@ -290,27 +314,29 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 )}
 
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
-                    <button
-                        onClick={profile.isPremium ? onToggleChat : undefined}
-                        className="nav-lnk"
-                        style={{
-                            width: '100%',
-                            justifyContent: collapsed ? 'center' : 'flex-start',
-                            padding: collapsed ? '10px' : '10px 14px',
-                            background: 'none',
-                            border: 'none',
-                            cursor: profile.isPremium ? 'pointer' : 'not-allowed',
-                            opacity: profile.isPremium ? 1 : 0.6
-                        }}
-                    >
-                        <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: profile.isPremium ? '#22c55e' : 'var(--text-dim)' }} />
-                        {!collapsed && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                                <span style={{ color: profile.isPremium ? '#22c55e' : 'var(--text-dim)', fontWeight: 600 }}>Assistente IA</span>
-                                {!profile.isPremium && <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />}
-                            </div>
-                        )}
-                    </button>
+                    {hasPermission(profile.user_role, 'chat') && (
+                        <button
+                            onClick={profile.isPremium ? onToggleChat : undefined}
+                            className="nav-lnk"
+                            style={{
+                                width: '100%',
+                                justifyContent: collapsed ? 'center' : 'flex-start',
+                                padding: collapsed ? '10px' : '10px 14px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: profile.isPremium ? 'pointer' : 'not-allowed',
+                                opacity: profile.isPremium ? 1 : 0.6
+                            }}
+                        >
+                            <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: profile.isPremium ? '#22c55e' : 'var(--text-dim)' }} />
+                            {!collapsed && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                                    <span style={{ color: profile.isPremium ? '#22c55e' : 'var(--text-dim)', fontWeight: 600 }}>Assistente IA</span>
+                                    {!profile.isPremium && <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />}
+                                </div>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 {/* Bottom */}
