@@ -8,6 +8,7 @@ import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
+import { AddCandidateModal } from '../../common/components/AddCandidateModal';
 
 const PAGE_SIZE = 10;
 
@@ -100,6 +101,7 @@ export const CandidateBank = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // ─ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -326,7 +328,10 @@ export const CandidateBank = () => {
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
             />
           </div>
-          <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
             <Plus style={{ width: 16, height: 16 }} /> Adicionar
           </button>
         </div>
@@ -618,6 +623,19 @@ export const CandidateBank = () => {
           }}
         />
       )}
+
+      <AddCandidateModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => {
+          if (profile.userId) fetchCandidates(profile.userId);
+        }}
+        onViewCandidate={async (candidateId) => {
+          setShowAddModal(false);
+          // Abre o painel do candidato existente com dados já carregados
+          openCandidate(candidates.find(c => c.id === candidateId)!);
+        }}
+      />
     </>
   );
 };
