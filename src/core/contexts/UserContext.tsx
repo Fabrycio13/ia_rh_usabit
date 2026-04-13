@@ -119,7 +119,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         // Subscription realtime para detectar mudanças no perfil
-        const { data: profileSubscription } = supabase
+        const profileSubscription = supabase
             .channel('profile-changes')
             .on(
                 'postgres_changes',

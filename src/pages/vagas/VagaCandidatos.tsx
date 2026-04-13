@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { ArrowLeft, User, Mail, Phone, MapPin, FileText, Star, ExternalLink, TrendingUp, Clock, ChevronDown } from 'lucide-react';
+import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Vaga {

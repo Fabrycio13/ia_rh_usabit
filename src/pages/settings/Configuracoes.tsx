@@ -468,7 +468,7 @@ export const Configuracoes = () => {
 
             // Enviar email de convite via Edge Function
             try {
-                const { data: functionData, error: functionError } = await supabase.functions.invoke('send-invite-email', {
+                const { error: functionError } = await supabase.functions.invoke('send-invite-email', {
                     body: {
                         userId: authData.user.id,
                         email: newUser.email,
@@ -1058,7 +1058,7 @@ export const Configuracoes = () => {
                                         <tbody>
                                             {allUsers.map(user => {
                                                 const userRole = roleDefinitions.find(r => r.key === user.user_role) || roleDefinitions[1];
-                                                const RoleIcon = userRole.icon;
+                                                // const RoleIcon = userRole.icon;
                                                 return (
                                                     <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                                         <td style={{ padding: '14px 16px' }}>
