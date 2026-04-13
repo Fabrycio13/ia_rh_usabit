@@ -683,7 +683,7 @@ export const AnaliseNova = () => {
     // Local validation error (different from context error)
     const [formError, setFormError] = useState<string | null>(null);
 
-    const handleDrop = useCallback((e: React.DropEvent) => {
+    const handleDrop = useCallback((e: any) => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
@@ -691,7 +691,7 @@ export const AnaliseNova = () => {
         const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            const pdfs = dropped.filter(f => f.type === 'application/pdf');
+            const pdfs: File[] = dropped.filter((f: any) => f.type === 'application/pdf') as File[];
             // Trial check desativado
             // if (!profile.isPremium && (files.length + pdfs.length) > 5) {
             //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
@@ -703,7 +703,7 @@ export const AnaliseNova = () => {
             //     toast.error('Análise via Excel não está disponível no plano Trial.');
             //     return;
             // }
-            const xlsx = dropped.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+            const xlsx: File[] = dropped.filter((f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
     }, [uploadMode, files.length]);
