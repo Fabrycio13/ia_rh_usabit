@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
 import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
 
@@ -71,8 +72,10 @@ export const Vagas = () => {
     const [userRole, setUserRole] = useState<string>('');
     const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState<string>('');
-    const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('');
-    const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     
     // Controlled Selects state
     const [isOrgSelectOpen, setIsOrgSelectOpen] = useState(false);
@@ -111,11 +114,26 @@ export const Vagas = () => {
 
                 // 2. Se for Owner, buscar organizações
                 if (role === 'owner') {
-                    const { data: orgs } = await supabase
-                        .from('organizations')
-                        .select('id, name')
-                        .order('name');
-                    setOrganizations(orgs || []);
+                    // Buscar organizações que possuem usuários ativos
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('organization_id, organization_name')
+                        .eq('status', 'active')
+                        .not('organization_id', 'is', null);
+                    
+                    if (profilesData) {
+                        const uniqueOrgs = profilesData.reduce((acc: {id: string, name: string}[], curr) => {
+                            if (curr.organization_id && !acc.find(o => o.id === curr.organization_id)) {
+                                acc.push({
+                                    id: curr.organization_id,
+                                    name: curr.organization_name || 'Nova Organização'
+                                });
+                            }
+                            return acc;
+                        }, []);
+                        
+                        setOrganizations(uniqueOrgs.sort((a, b) => a.name.localeCompare(b.name)));
+                    }
                 }
 
                 // 3. Buscar Vagas
@@ -270,20 +288,27 @@ export const Vagas = () => {
         const matchesOrg = !selectedOrgId || vaga.organization_id === selectedOrgId;
 
         // 3. Filtro por Status
-        const matchesStatus = !selectedStatusFilter || vaga.status === selectedStatusFilter;
+        const currentStatus = getStatusFromVaga(vaga);
+        const matchesStatus = !selectedStatusFilter || currentStatus === selectedStatusFilter;
 
         // 4. Filtro por Cargo (Role)
         const matchesRole = !selectedRoleFilter || vaga.title === selectedRoleFilter;
 
-        return matchesSearch && matchesOrg && matchesStatus && matchesRole;
+        // 5. Filtro por Data (Criada em)
+        const vagaDate = vaga.created_at.slice(0, 10); // YYYY-MM-DD
+        const matchesStart = !startDate || vagaDate >= startDate;
+        const matchesEnd = !endDate || vagaDate <= endDate;
+
+        return matchesSearch && matchesOrg && matchesRole && matchesStatus && matchesStart && matchesEnd;
     });
 
     // Lista de cargos únicos para o filtro
     const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
 
     return (
-        <div className="text-[var(--text-main)]">
+        <div style={{ padding: '0 40px 40px' }}>
             <style>{css}</style>
+            
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
@@ -436,6 +461,54 @@ export const Vagas = () => {
                                 </div>
                             ))}
                         </div>
+                    )}
+                </div>
+                
+                {/* Period Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                        <DatePicker 
+                            value={startDate} 
+                            onChange={val => setStartDate(val)} 
+                        />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                        <DatePicker 
+                            value={endDate} 
+                            onChange={val => setEndDate(val)} 
+                        />
+                    </div>
+
+                    {/* Clear Filters */}
+                    {(searchTerm || selectedOrgId || selectedStatusFilter || selectedRoleFilter || startDate || endDate) && (
+                        <button
+                            onClick={() => {
+                                setSearchTerm('');
+                                setSelectedOrgId('');
+                                setSelectedStatusFilter('');
+                                setSelectedRoleFilter('');
+                                setStartDate('');
+                                setEndDate('');
+                            }}
+                            style={{ 
+                                background: 'transparent', 
+                                border: '1px solid var(--error-border)', 
+                                borderRadius: '8px', 
+                                padding: '8px 14px', 
+                                color: 'var(--text-error)', 
+                                fontSize: '12px', 
+                                fontWeight: 600, 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '6px' 
+                            }}
+                        >
+                            <X size={14} /> Limpar
+                        </button>
                     )}
                 </div>
 

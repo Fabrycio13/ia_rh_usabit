@@ -169,7 +169,20 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
 
                 </defs>
             </svg>
-            <aside style={{ width: W, minWidth: W, background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0, transition: 'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)', overflow: 'hidden' }}>
+            <aside style={{ 
+                width: W, 
+                minWidth: W, 
+                background: 'var(--bg-sidebar)', 
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRight: '1px solid var(--border)', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                height: '100vh', 
+                flexShrink: 0, 
+                transition: 'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)', 
+                overflow: 'hidden' 
+            }}>
 
                 {/* Logo + Toggle */}
                 <div style={{ 

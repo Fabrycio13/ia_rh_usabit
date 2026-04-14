@@ -8,6 +8,15 @@ import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
 import { RadioGroup } from './components/RadioGroup';
 
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const css = `
+@keyframes dashFadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
+.planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
+`;
+
 interface VagaFormData {
     // Step 1: Basic Info
     title: string;
@@ -296,90 +305,82 @@ export const VagaForm = () => {
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
-            {/* Header with gradient */}
+        <div>
+            <style>{css}</style>
+
+            {/* Header / Banner with Glassmorphism */}
             <div style={{
-                background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
-                padding: '40px',
-                marginBottom: '32px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(12px)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '40px 40px 50px',
+                marginBottom: '40px',
                 position: 'relative',
-                overflow: 'hidden'
+                zIndex: 10
             }}>
-                {/* Decorative circles */}
-                <div style={{
-                    position: 'absolute',
-                    top: '-50px',
-                    right: '-50px',
-                    width: '200px',
-                    height: '200px',
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.1)'
-                }} />
-                <div style={{
-                    position: 'absolute',
-                    bottom: '-80px',
-                    left: '10%',
-                    width: '300px',
-                    height: '300px',
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.05)'
-                }} />
-                
-                <div style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto' }}>
-                    <button
-                        onClick={() => navigate('/vagas')}
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px 16px',
-                            background: 'rgba(255, 255, 255, 0.15)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            borderRadius: '8px',
-                            color: '#fff',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            marginBottom: '20px',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                        }}
-                    >
-                        <ArrowLeft size={16} />
-                        Voltar para Vagas
-                    </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
                         <div style={{
-                            width: '56px',
-                            height: '56px',
-                            borderRadius: '12px',
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            backdropFilter: 'blur(10px)',
+                            width: '72px',
+                            height: '72px',
+                            borderRadius: '20px',
+                            background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            boxShadow: '0 12px 40px rgba(99, 102, 241, 0.25)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)'
                         }}>
-                            <Briefcase size={28} style={{ color: '#fff' }} />
+                            <Briefcase size={36} style={{ color: '#fff' }} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                            <h1 style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>
                                 {isEditMode ? 'Editar Vaga' : 'Criar Nova Vaga'}
                             </h1>
-                            <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '14px', margin: '4px 0 0' }}>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '16px', margin: '8px 0 0', maxWidth: '600px' }}>
                                 {isEditMode ? 'Atualize as informações da vaga' : 'Preencha as informações para publicar uma nova oportunidade'}
                             </p>
                         </div>
+                    </div>
+
+                    {/* Compact Back Button at Bottom Left of Banner */}
+                    <div style={{ alignSelf: 'flex-start', marginTop: '40px' }}>
+                        <button
+                            onClick={() => navigate('/vagas')}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 16px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '12px',
+                                color: 'var(--text-main)',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                        >
+                            <ArrowLeft size={14} />
+                            Voltar para Vagas
+                        </button>
                     </div>
                 </div>
             </div>
 
             {/* Form Content */}
-            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 40px 40px' }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 40px 40px', position: 'relative', zIndex: 1 }}>
                 {/* Step Indicator */}
                 <StepIndicator steps={steps} currentStep={currentStep} />
 
@@ -647,7 +648,7 @@ export const VagaForm = () => {
                                         width: '40px',
                                         height: '40px',
                                         borderRadius: '10px',
-                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                        background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
