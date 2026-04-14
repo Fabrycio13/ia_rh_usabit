@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, DollarSign, MapPin, Building2, Clock } from 'lucide-react';
+import { ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, DollarSign, MapPin, Building2, Clock, Kanban } from 'lucide-react';
 import { StepIndicator } from './components/StepIndicator';
 import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
@@ -31,7 +31,8 @@ interface VagaFormData {
     location: string;
     workModel: string;
     workRegime: string;
-    
+    isPcd: boolean;
+
     // Step 3: Content
     responsibilities: string;
     requirements: string;
@@ -50,6 +51,7 @@ const initialFormData: VagaFormData = {
     location: '',
     workModel: '',
     workRegime: '',
+    isPcd: false,
     responsibilities: '',
     requirements: '',
     differentials: '',
@@ -65,6 +67,9 @@ export const VagaForm = () => {
     const [formData, setFormData] = useState<VagaFormData>(initialFormData);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(isEditMode);
+    const [showPipelineModal, setShowPipelineModal] = useState(false);
+    const [createdVagaId, setCreatedVagaId] = useState<string | null>(null);
+    const [creatingPipeline, setCreatingPipeline] = useState(false);
 
     // Carregar dados da vaga se estiver editando
     useEffect(() => {
@@ -103,6 +108,7 @@ export const VagaForm = () => {
                     location: data.location || '',
                     workModel: data.work_model || '',
                     workRegime: data.work_regime || '',
+                    isPcd: data.is_pcd || false,
                     responsibilities: data.responsibilities || '',
                     requirements: data.requirements || '',
                     differentials: data.differentials || '',
@@ -214,6 +220,7 @@ export const VagaForm = () => {
                 title: formData.title.trim(),
                 description: formData.description.trim() || null,
                 work_regime: formData.workRegime || null,
+                is_pcd: formData.isPcd,
                 has_salary_range: formData.hasSalaryRange,
                 salary_min: formData.hasSalaryRange && formData.salaryMin ? parseFloat(formData.salaryMin.replace(/[^\d,]/g, '').replace(',', '.')) : null,
                 salary_max: formData.hasSalaryRange && formData.salaryMax ? parseFloat(formData.salaryMax.replace(/[^\d,]/g, '').replace(',', '.')) : null,
@@ -249,24 +256,117 @@ export const VagaForm = () => {
             }
 
             if (error) throw error;
-            
+
             // Log de auditoria
             if (isEditMode) {
                 logActivity(user.id, `Editou a vaga: "${formData.title}"`).catch(console.error);
+                toast.success('Vaga atualizada com sucesso!');
+                navigate('/vagas');
             } else {
                 logActivity(user.id, `Publicou nova vaga: "${formData.title}"`).catch(console.error);
-            }
-            
-            if (error) throw error;
+                
+                // Obter ID da vaga criada
+                const { data: vagaData } = await supabase
+                    .from('vagas_white_label')
+                    .select('id, title')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
 
-            toast.success(isEditMode ? 'Vaga atualizada com sucesso!' : 'Vaga publicada com sucesso!');
-            navigate('/vagas');
+                if (vagaData) {
+                    setCreatedVagaId(vagaData.id);
+                    setShowPipelineModal(true);
+                } else {
+                    toast.success('Vaga publicada com sucesso!');
+                    navigate('/vagas');
+                }
+            }
         } catch (error) {
             console.error('Erro ao salvar vaga:', error);
             toast.error('Erro ao salvar a vaga. Tente novamente.');
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleCreatePipeline = async () => {
+        if (!createdVagaId) return;
+        setCreatingPipeline(true);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Usuário não autenticado');
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('organization_id')
+                .eq('id', user.id)
+                .single();
+
+            const { data: vaga } = await supabase
+                .from('vagas_white_label')
+                .select('title')
+                .eq('id', createdVagaId)
+                .single();
+
+            if (!vaga) throw new Error('Vaga não encontrada');
+
+            const DEFAULT_COLUMNS = [
+                { name: 'Triagem', color: '#6366f1', position: 0 },
+                { name: 'Entrevista', color: '#0ea5e9', position: 1 },
+                { name: 'Proposta', color: '#f59e0b', position: 2 },
+                { name: 'Aprovado', color: '#22c55e', position: 3 },
+                { name: 'Reprovado', color: '#ef4444', position: 4 },
+            ];
+
+            const { data: pipeline, error: pipelineError } = await supabase
+                .from('pipelines')
+                .insert({
+                    user_id: user.id,
+                    organization_id: profile?.organization_id,
+                    name: vaga.title,
+                    vaga_id: createdVagaId,
+                    is_active: true,
+                })
+                .select('id')
+                .single();
+
+            if (pipelineError) throw pipelineError;
+
+            const columnsToInsert = DEFAULT_COLUMNS.map(col => ({
+                user_id: user.id,
+                organization_id: profile?.organization_id,
+                pipeline_id: pipeline.id,
+                vaga_id: createdVagaId,
+                name: col.name,
+                color: col.color,
+                position: col.position,
+            }));
+
+            const { error: columnsError } = await supabase
+                .from('pipeline_columns')
+                .insert(columnsToInsert);
+
+            if (columnsError) throw columnsError;
+
+            toast.success('Pipeline criado com sucesso!');
+            setShowPipelineModal(false);
+            navigate('/vagas');
+        } catch (error) {
+            console.error('Erro ao criar pipeline:', error);
+            const errMsg = error instanceof Error ? error.message : (error as any)?.message || 'Erro desconhecido';
+            toast.error(`Erro ao criar pipeline: ${errMsg}`);
+            setShowPipelineModal(false);
+            navigate('/vagas');
+        } finally {
+            setCreatingPipeline(false);
+        }
+    };
+
+    const handleSkipPipeline = () => {
+        setShowPipelineModal(false);
+        navigate('/vagas');
     };
 
     const inputStyle: React.CSSProperties = {
@@ -641,6 +741,46 @@ export const VagaForm = () => {
                                     value={formData.workRegime}
                                     onChange={(value) => updateField('workRegime', value)}
                                     columns={3}
+                                />
+                            </div>
+
+                            {/* PcD - Pessoa com Deficiência */}
+                            <div style={sectionStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                    <div style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        borderRadius: '10px',
+                                        background: 'linear-gradient(135deg, #ec4899, #db2777)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                            <circle cx="10" cy="4" r="2.5" />
+                                            <path d="M10 6.5 L10 11 L13 11" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                            <path d="M10 8 L13 10" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                            <circle cx="12" cy="14" r="5" stroke="white" strokeWidth="2" fill="none" />
+                                            <path d="M8 11 L14 11" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                            <path d="M8 11 L8 8" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                            <path d="M14 11 L16 13 L15 14" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+                                            Vaga PcD
+                                        </h2>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
+                                            Pessoa com Deficiência
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <ToggleField
+                                    label="Esta vaga é para PcD?"
+                                    description="Ative se a vaga for destinada a pessoas com deficiência"
+                                    value={formData.isPcd}
+                                    onChange={(value) => updateField('isPcd', value)}
                                 />
                             </div>
 
@@ -1048,6 +1188,192 @@ export const VagaForm = () => {
                     to { opacity: 1; max-height: 1000px; }
                 }
             `}</style>
+
+            {/* Pipeline Creation Modal */}
+            {showPipelineModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999,
+                    animation: 'fadeIn 0.2s ease-out'
+                }}>
+                    <div style={{
+                        background: '#1a1c2d',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border)',
+                        padding: '40px',
+                        maxWidth: '520px',
+                        width: '90%',
+                        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                        animation: 'fadeIn 0.3s ease-out'
+                    }}>
+                        {/* Icon */}
+                        <div style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '16px',
+                            background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 24px',
+                            boxShadow: '0 12px 40px rgba(99, 102, 241, 0.3)'
+                        }}>
+                            <Kanban size={32} style={{ color: '#fff' }} />
+                        </div>
+
+                        {/* Title */}
+                        <h2 style={{
+                            color: 'var(--text-main)',
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            margin: '0 0 12px'
+                        }}>
+                            Vaga Publicada com Sucesso! 🎉
+                        </h2>
+
+                        {/* Subtitle */}
+                        <p style={{
+                            color: 'var(--text-muted)',
+                            fontSize: '15px',
+                            textAlign: 'center',
+                            margin: '0 0 32px',
+                            lineHeight: 1.6
+                        }}>
+                            Deseja criar um Pipeline Kanban para gerenciar os candidatos desta vaga?
+                        </p>
+
+                        {/* Info Box */}
+                        <div style={{
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            marginBottom: '32px'
+                        }}>
+                            <p style={{
+                                color: 'var(--text-main)',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                margin: '0 0 12px'
+                            }}>
+                                O Pipeline incluirá:
+                            </p>
+                            <div style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '8px'
+                            }}>
+                                {['Triagem', 'Entrevista', 'Proposta', 'Aprovado', 'Reprovado'].map((col, idx) => (
+                                    <span key={idx} style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 12px',
+                                        background: 'rgba(99, 102, 241, 0.15)',
+                                        borderRadius: '8px',
+                                        color: 'var(--primary)',
+                                        fontSize: '13px',
+                                        fontWeight: 500
+                                    }}>
+                                        <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            background: ['#6366f1', '#0ea5e9', '#f59e0b', '#22c55e', '#ef4444'][idx]
+                                        }} />
+                                        {col}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                        }}>
+                            <button
+                                onClick={handleCreatePipeline}
+                                disabled={creatingPipeline}
+                                style={{
+                                    width: '100%',
+                                    padding: '16px',
+                                    background: creatingPipeline ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--primary), #7c3aed)',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    color: '#fff',
+                                    cursor: creatingPipeline ? 'not-allowed' : 'pointer',
+                                    fontSize: '16px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '10px',
+                                    opacity: creatingPipeline ? 0.6 : 1,
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!creatingPipeline) {
+                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(99, 102, 241, 0.4)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!creatingPipeline) {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(99, 102, 241, 0.3)';
+                                    }
+                                }}
+                            >
+                                <Kanban size={20} />
+                                {creatingPipeline ? 'Criando Pipeline...' : 'Sim, Criar Pipeline'}
+                            </button>
+
+                            <button
+                                onClick={handleSkipPipeline}
+                                disabled={creatingPipeline}
+                                style={{
+                                    width: '100%',
+                                    padding: '16px',
+                                    background: 'transparent',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '12px',
+                                    color: 'var(--text-muted)',
+                                    cursor: creatingPipeline ? 'not-allowed' : 'pointer',
+                                    fontSize: '15px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!creatingPipeline) {
+                                        e.currentTarget.style.background = 'var(--bg-card)';
+                                        e.currentTarget.style.color = 'var(--text-main)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!creatingPipeline) {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'var(--text-muted)';
+                                    }
+                                }}
+                            >
+                                Não, depois eu crio manualmente
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
