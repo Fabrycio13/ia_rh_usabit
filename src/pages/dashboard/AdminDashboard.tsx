@@ -119,18 +119,19 @@ export const AdminDashboard = () => {
         if (userData) {
             setUsers(userData as UserProfile[]);
             
-            // Extrair organizações únicas para o filtro
+            // Extrair organizações únicas para o filtro (Apenas usuários ativos)
             const orgs = userData
-                .filter(u => u.organization_id)
+                .filter(u => u.organization_id && u.status === 'active')
                 .reduce((acc: {id: string, name: string}[], u) => {
                     if (!acc.find(o => o.id === u.organization_id)) {
                         acc.push({ 
                             id: u.organization_id, 
-                            name: u.organization_name || `Org: ${u.organization_id.slice(0, 5)}`
+                            name: u.organization_name || 'Nova Organização'
                         });
                     }
                     return acc;
-                }, []);
+                }, [])
+                .sort((a, b) => a.name.localeCompare(b.name));
             setOrganizations(orgs);
         }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database, ChevronDown } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
 
 interface LogEntry {
     id: string;
@@ -201,20 +202,16 @@ export const AdminLogs = () => {
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                            <input 
-                                type="date" 
+                            <DatePicker 
                                 value={startDate} 
-                                onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
+                                onChange={val => { setStartDate(val); setCurrentPage(1); }}
                             />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                            <input 
-                                type="date" 
+                            <DatePicker 
                                 value={endDate} 
-                                onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
+                                onChange={val => { setEndDate(val); setCurrentPage(1); }}
                             />
                         </div>
                     </div>

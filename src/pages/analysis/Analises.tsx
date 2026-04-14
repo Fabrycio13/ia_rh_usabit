@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, ChevronLeft, ChevronRight, X, Ban, Phone, Activity } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -25,10 +26,6 @@ const planetCss = `
 .star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
 .planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
 .planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  filter: invert(var(--calendar-icon-invert, 1));
-}
 `;
 
 // ─── Planet Details ───────────────────────────────────────────────────────────
@@ -970,24 +967,16 @@ export const Analises = () => {
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar período:</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => { setStartDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+          <DatePicker 
+            value={startDate} 
+            onChange={val => { setStartDate(val); setPage(1); }} 
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+          <DatePicker 
+            value={endDate} 
+            onChange={val => { setEndDate(val); setPage(1); }} 
           />
         </div>
         {(startDate || endDate || (search && !paginated.length)) && (

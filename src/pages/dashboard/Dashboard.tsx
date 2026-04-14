@@ -78,15 +78,9 @@ const css = `
 .cal-nav:hover { background:var(--bg-main); color:var(--text-main); }
 .cal-range { background:rgba(99,102,241,0.15) !important; color:var(--text-main) !important; border-radius:0 !important; }
 .cal-range-start { border-radius:8px 0 0 8px !important; }
-@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
-@keyframes planet-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
-.planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
-.planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
 `;
 
-// ─── Planet Details ───────────────────────────────────────────────────────────
+// ─── Planet Overlay Component ─────────────────────────────────────────────────
 const PlanetOverlay = ({ type }: { type: string }) => {
   switch (type) {
     case 'Jupiter':
@@ -101,7 +95,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
     case 'Earth':
       return (
         <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, 
+          <div style={{ position: 'absolute', inset: 0,
             backgroundImage: `
               radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
               radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
@@ -112,7 +106,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
             opacity: 0.85, filter: 'blur(1px)'
           }} />
           <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
-          <div style={{ position: 'absolute', inset: 0, 
+          <div style={{ position: 'absolute', inset: 0,
             backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
             filter: 'blur(2px)', animation: 'float 30s linear infinite'
           }} />
