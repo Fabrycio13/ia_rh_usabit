@@ -58,6 +58,7 @@ interface UserProfile {
     name: string;
     user_role: string;
     status: string;
+    organization_id?: string;
     created_at: string;
 }
 

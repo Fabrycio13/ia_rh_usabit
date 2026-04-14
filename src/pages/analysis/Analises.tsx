@@ -154,15 +154,14 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         let jobQuery = supabase
           .from('jobs')
           .select('id, name, created_at, organization_id')
-          .eq('id', jobId)
-          .single();
+          .eq('id', jobId);
 
         // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização
         if (profile.user_role !== 'owner' && profile.organization_id) {
           jobQuery = jobQuery.eq('organization_id', profile.organization_id);
         }
 
-        const { data: jobData, error: jobErr } = await jobQuery;
+        const { data: jobData, error: jobErr } = await jobQuery.single();
 
         if (jobErr) throw jobErr;
         setJob(jobData);

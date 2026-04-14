@@ -239,7 +239,6 @@ export const Configuracoes = () => {
 
     // Perfis state
     const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [loadingUsers, setLoadingUsers] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
@@ -405,7 +404,6 @@ export const Configuracoes = () => {
     const loadUsers = async () => {
         const role = profile.user_role;
         if (role !== 'owner' && role !== 'gestor') return;
-        setLoadingUsers(true);
         let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
         // Gestor só vê usuários da sua organização
         if (role === 'gestor' && profile.organization_id) {
@@ -413,7 +411,6 @@ export const Configuracoes = () => {
         }
         const { data } = await query;
         if (data) setAllUsers(data);
-        setLoadingUsers(false);
     };
 
     // Criar novo usuário (somente admin/gestor) - Hierarquia Multi Talent
@@ -564,21 +561,7 @@ export const Configuracoes = () => {
         }
     };
 
-    // Toggle status do usuário
-    const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-        const { error } = await supabase
-            .from('profiles')
-            .update({ status: newStatus })
-            .eq('id', userId);
 
-        if (error) {
-            showToast('error', `Erro ao atualizar status: ${error.message}`);
-        } else {
-            showToast('success', `Usuário ${newStatus === 'active' ? 'ativado' : 'desativado'}!`);
-            loadUsers();
-        }
-    };
 
     // Toggle status da ORGANIZAÇÃO (afeta todos os membros)
     const handleToggleOrgStatus = async (orgId: string, currentStatus: string) => {
@@ -1177,7 +1160,6 @@ export const Configuracoes = () => {
 
                                                 return displayOrgs.map(org => {
                                                     const gestor = org.gestor || org.members[0];
-                                                    const gestorRole = roleDefinitions.find(r => r.key === 'gestor')!;
 
                                                     return (
                                                         <tr key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>

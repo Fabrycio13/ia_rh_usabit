@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Building2, X, ChevronRight, Briefcase, Users, Kanban, Zap, ArrowRight, CheckCircle2, Loader2, Layout } from 'lucide-react';
+import { useState } from 'react';
+import { Building2, ChevronRight, Briefcase, Users, Kanban, Zap, ArrowRight, CheckCircle2, Loader2, Layout } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import toast from 'react-hot-toast';
@@ -9,7 +9,7 @@ export const OnboardingModal = () => {
     const [step, setStep] = useState(1);
     const [orgName, setOrgName] = useState('');
     const [saving, setSaving] = useState(false);
-    const [hasCompleted, setHasCompleted] = useState(false);
+    const [hasCompleted] = useState(false);
 
     // Tipos de Onboarding: 
     // - 'setup': Para Gestores/Owners (precisam criar a org)
@@ -128,11 +128,7 @@ export const OnboardingModal = () => {
         }
     };
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
-        window.location.href = '#/login';
-        window.location.reload();
-    };
+
 
     return (
         <div style={{
