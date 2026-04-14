@@ -342,41 +342,44 @@ export const VagaForm = () => {
                             </p>
                         </div>
                     </div>
-
-                    {/* Compact Back Button at Bottom Left of Banner */}
-                    <div style={{ alignSelf: 'flex-start', marginTop: '40px' }}>
-                        <button
-                            onClick={() => navigate('/vagas')}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '8px 16px',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: '12px',
-                                color: 'var(--text-main)',
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                transition: 'all 0.2s',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                        >
-                            <ArrowLeft size={14} />
-                            Voltar para Vagas
-                        </button>
-                    </div>
                 </div>
+                
+                {/* Compact Back Button at Bottom Left of Banner */}
+                <button
+                    onClick={() => navigate('/vagas')}
+                    style={{
+                        position: 'absolute',
+                        bottom: '24px',
+                        left: '40px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 18px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '12px',
+                        color: 'var(--text-main)',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        transition: 'all 0.2s',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 20
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    }}
+                >
+                    <ArrowLeft size={16} /> Voltar para Vagas
+                </button>
             </div>
 
             {/* Form Content */}
