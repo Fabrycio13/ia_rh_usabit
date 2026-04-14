@@ -106,7 +106,7 @@ export const Register = () => {
                 data: {
                     full_name: name,
                     name: name,
-                    company: '',
+                    organization_name: '',
                 },
                 emailRedirectTo: window.location.origin + window.location.pathname.split('#')[0] + '#/login',
             }

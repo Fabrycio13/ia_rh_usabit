@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
+import { OwnerAdminApiPanel, OwnerAdminPlanPanel } from './OwnerPanels';
 
 type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano';
 
@@ -24,7 +25,8 @@ const allTabs: TabItem[] = [
 // Abas visíveis para cada perfil
 const getVisibleTabs = (userRole: string): TabItem[] => {
     const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis'].includes(tab.key));
-    if (userRole === 'admin') {
+    // Owner e Gestor veem API e Plano
+    if (userRole === 'owner' || userRole === 'gestor') {
         return [...baseTabs, ...allTabs.filter(tab => ['api', 'plano'].includes(tab.key))];
     }
     return baseTabs;
@@ -147,32 +149,18 @@ const plans = [
 
 const roleDefinitions = [
     {
-        key: 'admin',
-        label: 'Administrador',
+        key: 'owner',
+        label: 'Owner',
         icon: ShieldCheck,
-        color: '#ef4444',
-        description: 'Acesso total ao sistema, incluindo gestão de usuários, configurações avançadas e relatórios completos.',
+        color: '#dc2626',
+        description: 'Super-admin da plataforma. Vê e gerencia todas as organizações.',
         permissions: [
-            'Criar e gerenciar usuários',
-            'Alterar perfis de acesso',
-            'Acessar todas as funcionalidades',
-            'Configurar integrações',
-            'Visualizar relatórios avançados',
-            'Gerenciar planos e assinaturas'
-        ]
-    },
-    {
-        key: 'rh',
-        label: 'RH',
-        icon: Users,
-        color: '#6366f1',
-        description: 'Perfil focado em recrutamento e seleção, com acesso às análises de candidatos e gestão de vagas.',
-        permissions: [
-            'Criar e editar vagas',
-            'Analisar candidatos',
-            'Visualizar relatórios de análise',
-            'Gerenciar banco de candidatos',
-            'Enviar comunicações via WhatsApp'
+            'Criar e gerenciar gestores',
+            'Acesso total a todas as funcionalidades',
+            'Visão de todas as organizações',
+            'Configurações globais do sistema',
+            'Gerenciar planos e assinaturas',
+            'Acesso a logs e auditoria completa'
         ]
     },
     {
@@ -180,13 +168,28 @@ const roleDefinitions = [
         label: 'Gestor',
         icon: Briefcase,
         color: '#f59e0b',
-        description: 'Perfil com visão gerencial para acompanhar resultados e métricas da equipe de RH.',
+        description: 'Admin da organização cliente. Acesso total dentro da sua org. Cria e gerencia RH e Convidados.',
         permissions: [
-            'Visualizar relatórios',
-            'Acompanhar métricas da equipe',
-            'Acessar dashboard gerencial',
-            'Visualizar análises consolidadas',
-            'Exportar relatórios'
+            'Acesso total à sua organização',
+            'Criar e gerenciar RH e Convidados',
+            'Gerenciar vagas, análises e candidatos',
+            'Pipeline e chat com candidatos',
+            'Configurar integrações da organização',
+            'Acesso a logs de atividade'
+        ]
+    },
+    {
+        key: 'rh',
+        label: 'RH',
+        icon: Users,
+        color: '#6366f1',
+        description: 'Focado em recrutamento e seleção. Acesso operacional completo à organização.',
+        permissions: [
+            'Criar e editar vagas',
+            'Analisar candidatos',
+            'Gerenciar banco de candidatos',
+            'Pipeline de candidatos',
+            'Visualizar relatórios de análise'
         ]
     },
     {
@@ -194,9 +197,9 @@ const roleDefinitions = [
         label: 'Convidado',
         icon: User,
         color: '#10b981',
-        description: 'Acesso limitado para visualização pontual de relatórios específicos.',
+        description: 'Acesso somente leitura às vagas da organização.',
         permissions: [
-            'Visualizar relatórios compartilhados',
+            'Visualizar vagas publicadas',
             'Acessar links públicos de vagas',
             'Visualizar dados básicos'
         ]
@@ -217,7 +220,7 @@ export const Configuracoes = () => {
     const email = profile.email;
     const [name, setName] = useState('');
     const [role, setRole] = useState('');
-    const [company, setCompany] = useState('');
+    const [orgName, setOrgName] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -232,12 +235,13 @@ export const Configuracoes = () => {
     const [evoUrl, setEvoUrl] = useState('');
     const [evoKey, setEvoKey] = useState('');
     const [evoInstance, setEvoInstance] = useState('');
+    const [showEvoConfig, setShowEvoConfig] = useState(false);
 
     // Perfis state
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -255,7 +259,7 @@ export const Configuracoes = () => {
             if (profileData) {
                 setName(profileData.name ?? '');
                 setRole(profileData.role ?? '');
-                setCompany(profileData.company ?? '');
+                setOrgName(profileData.organization_name ?? '');
                 setPhone(profileData.phone ?? '');
                 setAddress(profileData.address ?? '');
                 setNotificationsEnabled(profileData.notifications_enabled ?? false);
@@ -271,9 +275,13 @@ export const Configuracoes = () => {
         load();
     }, [userId, profile.loaded, dataLoaded]);
 
-    // Carregar usuários quando entrar na aba Perfis (somente admin)
+    // Carregar usuários quando entrar nas abas que dependem da lista de usuários
     useEffect(() => {
-        if (activeTab === 'perfis' && profile.user_role === 'admin') {
+        const isOwner = profile.user_role === 'owner';
+        const isGestor = profile.user_role === 'gestor';
+        const needsUsers = activeTab === 'perfis' || (isOwner && (activeTab === 'api' || activeTab === 'plano'));
+
+        if (needsUsers && (isOwner || isGestor)) {
             loadUsers();
         }
     }, [activeTab, profile.user_role]);
@@ -317,7 +325,7 @@ export const Configuracoes = () => {
             .update({
                 name,
                 role,
-                company,
+                organization_name: orgName,
                 phone,
                 address,
                 notifications_enabled: notificationsEnabled,
@@ -336,7 +344,7 @@ export const Configuracoes = () => {
                 email,
                 name,
                 role,
-                company,
+                organization_name: orgName,
                 phone,
                 address,
                 notifications_enabled: notificationsEnabled,
@@ -346,16 +354,16 @@ export const Configuracoes = () => {
             if (insertError) { 
                 console.error('[Configuracoes] erro ao inserir perfil:', insertError); 
                 showToast('error', `Erro: ${insertError.message}`); 
-                logActivity(userId, 'Fez alterações no perfil', { name, role, company }, insertError.message);
+                logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName }, insertError.message);
             }
             else {
                 showToast('success', 'Perfil salvo com sucesso!');
-                logActivity(userId, 'Fez alterações no perfil', { name, role, company });
+                logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
             }
         } else {
             setSaving(false);
             showToast('success', 'Perfil salvo com sucesso!');
-            logActivity(userId, 'Fez alterações no perfil', { name, role, company });
+            logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
         }
     };
 
@@ -393,19 +401,22 @@ export const Configuracoes = () => {
         return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
     };
 
-    // Carregar usuários (somente admin)
+    // Carregar usuários (owner vê todos; gestor vê sua org)
     const loadUsers = async () => {
-        if (profile.user_role !== 'admin') return;
+        const role = profile.user_role;
+        if (role !== 'owner' && role !== 'gestor') return;
         setLoadingUsers(true);
-        const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
+        let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        // Gestor só vê usuários da sua organização
+        if (role === 'gestor' && profile.organization_id) {
+            query = query.eq('organization_id', profile.organization_id);
+        }
+        const { data } = await query;
         if (data) setAllUsers(data);
         setLoadingUsers(false);
     };
 
-    // Criar novo usuário (somente admin)
+    // Criar novo usuário (somente admin/gestor) - Hierarquia Multi Talent
     const handleCreateUser = async () => {
         if (!newUser.name || !newUser.email || !newUser.password) {
             showToast('error', 'Preencha todos os campos.');
@@ -415,86 +426,119 @@ export const Configuracoes = () => {
             showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
             return;
         }
-        setCreatingUser(true);
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: newUser.email,
-            password: newUser.password,
-            options: {
-                data: {
-                    full_name: newUser.name,
-                },
-            },
-        });
+        const canCreate = (creatorRole: string, targetRole: string): boolean => {
+            if (creatorRole === 'owner') return targetRole === 'gestor';
+            if (creatorRole === 'gestor') return ['rh', 'convidado'].includes(targetRole);
+            return false;
+        };
 
-        if (authError) {
-            showToast('error', `Erro ao criar usuário: ${authError.message}`);
-            setCreatingUser(false);
+        if (!canCreate(profile.user_role, newUser.user_role)) {
+            const allowed = profile.user_role === 'owner' ? 'Gestor' : 'RH ou Convidado';
+            showToast('error', `Seu perfil só pode criar: ${allowed}`);
             return;
         }
 
-        if (authData.user) {
-            // Tentar criar profile com INSERT
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert({
-                    id: authData.user.id,
-                    email: newUser.email,
-                    name: newUser.name,
-                    user_role: newUser.user_role,
-                    status: 'active',
-                    account_type: 'active',
-                });
+        setCreatingUser(true);
 
-            if (profileError) {
-                console.error('[Configuracoes] Erro ao criar profile, tentando update:', profileError);
-                // Tentar UPDATE caso já exista (upsert manual)
-                const { error: updateError } = await supabase
-                    .from('profiles')
-                    .update({
-                        name: newUser.name,
+        // Definir campos de organização com base na hierarquia ANTES do signUp para enviar via metadados
+        const isCreatingGestor = newUser.user_role === 'gestor';
+        const creatorIsOwner = profile.user_role === 'owner';
+
+        let organizationId: string | null = null;
+        let organizationName: string | null = null;
+
+        if (creatorIsOwner && isCreatingGestor) {
+            // Owner criando Gestor: Org começa zerada para o Gestor configurar no tutorial
+            organizationId = null;
+            organizationName = null;
+        } else {
+            // Gestor criando RH/Convidado: Herda a org do Gestor
+            // Garantir que não enviamos string vazia para o banco (deve ser UUID válido ou NULL)
+            organizationId = profile.organization_id || null;
+            organizationName = profile.organization_name || null;
+        }
+
+        try {
+            // CRIAR UM CLIENTE TEMPORÁRIO QUE NÃO PERSISTE SESSÃO
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            
+            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+                auth: { persistSession: false, autoRefreshToken: false }
+            });
+
+            // Enviar metadados completos para o Trigger handle_new_user()
+            const { data: authData, error: authError } = await tempClient.auth.signUp({
+                email: newUser.email,
+                password: newUser.password,
+                options: { 
+                    data: { 
+                        full_name: newUser.name,
                         user_role: newUser.user_role,
-                        status: 'active',
-                        account_type: 'active',
-                    })
-                    .eq('id', authData.user.id);
+                        organization_id: organizationId,
+                        organization_name: organizationName
+                    } 
+                },
+            });
 
-                if (updateError) {
-                    showToast('error', `Conta criada mas erro ao salvar perfil: ${updateError.message}`);
-                    setCreatingUser(false);
-                    return;
-                }
+            if (authError) {
+                showToast('error', `Erro ao criar usuário: ${authError.message}`);
+                setCreatingUser(false);
+                return;
             }
 
-            // Enviar email de convite via Edge Function
-            try {
-                const { error: functionError } = await supabase.functions.invoke('send-invite-email', {
-                    body: {
-                        userId: authData.user.id,
+            if (authData.user) {
+
+                // USAR UPSERT: Evita erro se o Trigger do banco for mais rápido que o frontend
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: authData.user.id,
                         email: newUser.email,
                         name: newUser.name,
-                        role: newUser.user_role,
-                        createdBy: profile.userName || 'Administrador',
-                    },
-                });
+                        user_role: newUser.user_role as any,
+                        status: 'active',
+                        account_type: 'active',
+                        organization_id: organizationId,
+                        organization_name: organizationName,
+                        onboarding_completed: false,
+                    }, { onConflict: 'id' });
 
-                if (functionError) {
-                    console.error('[Configuracoes] Erro ao enviar email:', functionError);
-                    showToast('success', `Usuário ${newUser.name} criado! (Email não enviado)`);
-                } else {
-                    showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
+                if (profileError) {
+                    showToast('error', `Conta criada mas erro ao salvar perfil: ${profileError.message}`);
+                    return;
                 }
-            } catch (err) {
-                console.error('[Configuracoes] Erro ao chamar edge function:', err);
-                showToast('success', `Usuário ${newUser.name} criado! (Configure edge function para emails)`);
-            }
 
-            logActivity(userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
-            setNewUser({ name: '', email: '', password: '', user_role: 'rh' });
-            setShowCreateModal(false);
-            loadUsers();
+                // Enviar email de convite via Edge Function
+                try {
+                    await supabase.functions.invoke('send-invite-email', {
+                        body: {
+                            userId: authData.user.id,
+                            email: newUser.email,
+                            name: newUser.name,
+                            role: newUser.user_role,
+                            createdBy: profile.userName || 'Administrador',
+                        },
+                    });
+                    showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
+                } catch (e) {
+                    console.warn('[Configuracoes] Erro ao enviar email (ignorado):', e);
+                    showToast('success', `Usuário ${newUser.name} criado!`);
+                }
+
+                logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
+                setNewUser({ name: '', email: '', password: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
+                setShowCreateModal(false);
+                loadUsers();
+            }
+        } catch (err: any) {
+            console.error('[Configuracoes] Erro fatal:', err);
+            showToast('error', `Ocorreu um erro inesperado: ${err.message}`);
+        } finally {
+            setCreatingUser(false);
         }
-        setCreatingUser(false);
     };
 
     // Atualizar perfil de usuário
@@ -532,6 +576,27 @@ export const Configuracoes = () => {
             showToast('error', `Erro ao atualizar status: ${error.message}`);
         } else {
             showToast('success', `Usuário ${newStatus === 'active' ? 'ativado' : 'desativado'}!`);
+            loadUsers();
+        }
+    };
+
+    // Toggle status da ORGANIZAÇÃO (afeta todos os membros)
+    const handleToggleOrgStatus = async (orgId: string, currentStatus: string) => {
+        if (orgId === 'sem-org') {
+            showToast('error', 'Não é possível desativar usuários sem organização definida.');
+            return;
+        }
+        
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        const { error } = await supabase
+            .from('profiles')
+            .update({ status: newStatus })
+            .eq('organization_id', orgId);
+
+        if (error) {
+            showToast('error', `Erro ao atualizar organização: ${error.message}`);
+        } else {
+            showToast('success', `Organização ${newStatus === 'active' ? 'ativada' : 'desativada'} com sucesso!`);
             loadUsers();
         }
     };
@@ -663,7 +728,17 @@ export const Configuracoes = () => {
 
                         <div style={{ textAlign: 'center' }}>
                             <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '5px 0 0' }}>{role || 'Cargo não definido'}</p>
+                            <p style={{ 
+                                color: (roleDefinitions.find(r => r.key === profile.user_role)?.color || 'var(--text-dim)'), 
+                                fontSize: '12px', 
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                margin: '5px 0 0',
+                                letterSpacing: '0.5px'
+                            }}>
+                                {roleDefinitions.find(r => r.key === profile.user_role)?.label || profile.user_role}
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
                         </div>
 
 
@@ -735,12 +810,12 @@ export const Configuracoes = () => {
                                 </div>
                             </div>
 
-                            {/* Empresa */}
+                            {/* Organização */}
                             <div>
-                                <label style={labelStyle}>Empresa</label>
+                                <label style={labelStyle}>Organização</label>
                                 <div style={fieldWrapStyle}>
                                     <Building2 style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Nome da empresa" value={company} onChange={e => setCompany(e.target.value)} />
+                                    <input className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
                                 </div>
                             </div>
 
@@ -1004,110 +1079,252 @@ export const Configuracoes = () => {
                         })()}
                     </div>
 
-                    {/* Seção administrativa (somente Admin) */}
-                    {profile.user_role === 'admin' && (
+                    {/* Seção de gestão (Owner, Admin e Gestor) */}
+                    {(profile.user_role === 'owner' || profile.user_role === 'gestor') && (
                         <>
                             {/* Header de gestão */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                 <div>
-                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Gestão de Usuários e Perfis</p>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0' }}>Criar, editar e gerenciar perfis de acesso</p>
+                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>
+                                        {profile.user_role === 'owner' ? 'Gestão de Organizações' : 'Minha Equipe'}
+                                    </p>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>
+                                        {profile.user_role === 'owner' ? 'Gerencie as empresas e seus respectivos gestores' : 'Gerenciar RH e Convidados'}
+                                    </p>
                                 </div>
                                 <button
                                     onClick={() => {
++                                       setCreatingUser(false); // Garante que o botão não comece em "Criando"
+                                        setNewUser({
+                                            name: '',
+                                            email: '',
+                                            password: '',
+                                            user_role: profile.user_role === 'owner' ? 'gestor' : 'rh',
+                                            organization_name: ''
+                                        });
                                         setShowCreateModal(true);
-                                        loadUsers();
                                     }}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px',
                                         padding: '10px 20px',
-                                        borderRadius: '10px',
-                                        border: 'none',
                                         background: 'var(--primary)',
                                         color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '10px',
                                         fontSize: '14px',
                                         fontWeight: 600,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s',
-                                        boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
+                                        cursor: 'pointer'
                                     }}
                                 >
-                                    <Users size={16} />
-                                    Criar Novo Usuário
+                                    <Plus size={18} />
+                                    {profile.user_role === 'owner' ? 'Nova Organização' : 'Novo Membro'}
                                 </button>
                             </div>
 
-                            {/* Lista de usuários */}
-                            {loadingUsers ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                                    <Loader2 style={{ width: 32, height: 32, color: 'var(--primary)', animation: 'spin 1s linear infinite' }} />
-                                </div>
-                            ) : (
-                                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left' }}>Usuário</th>
-                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Perfil</th>
-                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Status</th>
-                                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {allUsers.map(user => {
+                            {/* Tabela de usuários/organizações */}
+                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead style={{ background: 'var(--bg-main)' }}>
+                                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
+                                                {profile.user_role === 'owner' ? 'Organização / Empresa' : 'Usuário'}
+                                            </th>
+                                            <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
+                                                {profile.user_role === 'owner' ? 'Gestor Principal' : 'Cargo'}
+                                            </th>
+                                            {profile.user_role === 'owner' && (
+                                                <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
+                                                    Membros
+                                                </th>
+                                            )}
+                                            <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</th>
+                                            <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(() => {
+                                            // Se for Owner, mostramos Organizações agrupadas
+                                            if (profile.user_role === 'owner') {
+                                                const orgsMap = new Map();
+                                                
+                                                allUsers.forEach(u => {
+                                                    // Ignorar o próprio Owner da lista de organizações cliente
+                                                    if (u.user_role === 'owner') return;
+
+                                                    const orgId = u.organization_id || 'sem-org';
+                                                    if (!orgsMap.has(orgId)) {
+                                                        orgsMap.set(orgId, {
+                                                            id: orgId,
+                                                            name: u.organization_name || 'Empresa s/ Nome',
+                                                            gestor: null,
+                                                            members: [],
+                                                            status: u.status
+                                                        });
+                                                    }
+                                                    
+                                                    const org = orgsMap.get(orgId);
+                                                    org.members.push(u);
+                                                    // Define o gestor como o contato principal
+                                                    if (u.user_role === 'gestor') {
+                                                        org.gestor = u;
+                                                        org.name = u.organization_name || org.name;
+                                                    }
+                                                });
+
+                                                const displayOrgs = Array.from(orgsMap.values());
+
+                                                return displayOrgs.map(org => {
+                                                    const gestor = org.gestor || org.members[0];
+                                                    const gestorRole = roleDefinitions.find(r => r.key === 'gestor')!;
+
+                                                    return (
+                                                        <tr key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                    <div style={{
+                                                                        width: '36px',
+                                                                        height: '36px',
+                                                                        borderRadius: '8px',
+                                                                        background: 'var(--primary-bg)',
+                                                                        color: 'var(--primary)',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: 700
+                                                                    }}>
+                                                                        <Building2 size={18} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
+                                                                            {org.name}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <div>
+                                                                    <p style={{ color: 'var(--text-main)', fontSize: '13px', margin: 0, fontWeight: 500 }}>{gestor?.name || 'Incompleto'}</p>
+                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: 0 }}>{gestor?.email}</p>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 600 }}>
+                                                                    {org.members.length}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: org.status === 'active' ? 'var(--success)' : 'var(--text-dim)' }} />
+                                                                    <span style={{ fontSize: '12px', color: 'var(--text-main)', textTransform: 'capitalize' }}>{org.status === 'active' ? 'Ativa' : 'Inativa'}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                                    <button 
+                                                                        onClick={() => handleToggleOrgStatus(org.id, org.status)}
+                                                                        style={{ 
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px',
+                                                                            padding: '8px 16px', 
+                                                                            borderRadius: '8px', 
+                                                                            border: '1px solid var(--border)', 
+                                                                            background: org.status === 'active' ? 'transparent' : 'var(--success-bg)', 
+                                                                            color: org.status === 'active' ? '#f43f5e' : 'var(--success)', 
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '11px',
+                                                                            fontWeight: 600,
+                                                                            transition: 'all 0.2s'
+                                                                        }} 
+                                                                        title={org.status === 'active' ? "Bloquear Acesso da Empresa" : "Liberar Acesso da Empresa"}
+                                                                    >
+                                                                        <AlertCircle size={14} />
+                                                                        {org.status === 'active' ? 'SUSPENDER' : 'REATIVAR'}
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
+                                            }
+
+                                            // Comportamento normal para Gestores (ver equipe)
+                                            const displayUsers = allUsers.filter(u => u.user_role !== 'owner' && u.user_role !== 'gestor');
+
+                                            return displayUsers.map(user => {
                                                 const userRole = roleDefinitions.find(r => r.key === user.user_role) || roleDefinitions[1];
-                                                // const RoleIcon = userRole.icon;
+                                                const memberCount = 0;
+
                                                 return (
                                                     <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                                         <td style={{ padding: '14px 16px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `${userRole.color}20`, color: userRole.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
-                                                                    {(user.name || user.email).split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                <div style={{
+                                                                    width: '36px',
+                                                                    height: '36px',
+                                                                    borderRadius: '8px',
+                                                                    background: `${userRole.color}20`,
+                                                                    color: userRole.color,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: 700
+                                                                }}>
+                                                                    {(user.organization_name || user.name || user.email)[0].toUpperCase()}
                                                                 </div>
                                                                 <div>
-                                                                    <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: '13px', margin: 0 }}>
-                                                                        {user.name || user.email.split('@')[0]}
+                                                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
+                                                                        {profile.user_role === 'owner' ? (user.organization_name || 'Empresa s/ Nome') : user.name}
                                                                     </p>
-                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>{user.email}</p>
+                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>
+                                                                        {profile.user_role === 'owner' ? (user.organization_id?.slice(0, 8) || 'ID Pendente') : user.email}
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                            <select
-                                                                value={user.user_role || 'rh'}
-                                                                onChange={e => handleUpdateUserRole(user.id, e.target.value)}
-                                                                style={{
-                                                                    background: 'var(--bg-input)',
-                                                                    border: `1px solid ${userRole.color}40`,
-                                                                    borderRadius: '8px',
-                                                                    padding: '6px 12px',
+                                                        <td style={{ padding: '14px 16px' }}>
+                                                            {profile.user_role === 'owner' ? (
+                                                                <div>
+                                                                    <p style={{ color: 'var(--text-main)', fontSize: '13px', margin: 0 }}>{user.name}</p>
+                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: 0 }}>{user.email}</p>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{
+                                                                    padding: '4px 10px',
+                                                                    borderRadius: '20px',
+                                                                    background: `${userRole.color}15`,
                                                                     color: userRole.color,
-                                                                    fontSize: '12px',
+                                                                    fontSize: '11px',
                                                                     fontWeight: 600,
-                                                                    cursor: 'pointer',
-                                                                    outline: 'none'
-                                                                }}
-                                                            >
-                                                                {roleDefinitions.map(role => (
-                                                                    <option key={role.key} value={role.key}>{role.label}</option>
-                                                                ))}
-                                                            </select>
+                                                                    border: `1px solid ${userRole.color}30`
+                                                                }}>
+                                                                    {userRole.label}
+                                                                </span>
+                                                            )}
                                                         </td>
+                                                        {profile.user_role === 'owner' && (
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600 }}>{memberCount}</span>
+                                                                <span style={{ color: 'var(--text-dim)', fontSize: '12px' }}> membros</span>
+                                                            </td>
+                                                        )}
                                                         <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                                                <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : '#ef4444' }}>
+                                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                                <span style={{ fontSize: '12px', color: user.status === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
                                                                     {user.status === 'active' ? 'Ativo' : 'Inativo'}
                                                                 </span>
                                                             </div>
                                                         </td>
                                                         <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                                                             <button
-                                                                onClick={() => handleToggleUserStatus(user.id, user.status)}
+                                                                onClick={() => handleUpdateUserRole(user.id, user.status === 'active' ? 'inactive' : 'active')}
                                                                 style={{
-                                                                    padding: '6px 12px',
+                                                                    padding: '6px 14px',
                                                                     borderRadius: '8px',
                                                                     border: '1px solid var(--border)',
                                                                     background: 'var(--bg-main)',
@@ -1115,9 +1332,7 @@ export const Configuracoes = () => {
                                                                     fontSize: '12px',
                                                                     fontWeight: 600,
                                                                     cursor: 'pointer',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px'
+                                                                    transition: 'all 0.2s'
                                                                 }}
                                                             >
                                                                 {user.status === 'active' ? 'Desativar' : 'Ativar'}
@@ -1125,29 +1340,28 @@ export const Configuracoes = () => {
                                                         </td>
                                                     </tr>
                                                 );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                                            });
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
                         </>
                     )}
 
-                    {/* Mensagem para não-admin */}
-                    {profile.user_role !== 'admin' && (
+                    {/* Mensagem para roles sem acesso ao painel */}
+                    {profile.user_role !== 'owner' && profile.user_role !== 'gestor' && (
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
                             <Lock size={48} style={{ color: 'var(--text-dim)', marginBottom: '16px' }} />
                             <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: '0 0 8px' }}>Acesso Restrito</p>
                             <p style={{ color: 'var(--text-dim)', fontSize: '14px', margin: 0 }}>
-                                Apenas administradores podem gerenciar usuários e perfis.
+                                Apenas o Gestor da organização pode gerenciar usuários e perfis.
                             </p>
                         </div>
                     )}
                 </>
             )}
 
-            {/* Modal Criar Usuário */}
-            {showCreateModal && profile.user_role === 'admin' && (
+            {showCreateModal && (profile.user_role === 'owner' || profile.user_role === 'gestor') && (
                 <div style={{
                     position: 'fixed',
                     inset: 0,
@@ -1170,7 +1384,10 @@ export const Configuracoes = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                             <div>
                                 <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Criar Novo Usuário</p>
-                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Defina o perfil de acesso</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>
+                                    {profile.user_role === 'owner' ? 'Criar novo Gestor'
+                                    : 'Criar RH ou Convidado'}
+                                </p>
                             </div>
                             <button
                                 onClick={() => setShowCreateModal(false)}
@@ -1179,6 +1396,7 @@ export const Configuracoes = () => {
                                 <X size={20} />
                             </button>
                         </div>
+
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Nome */}
@@ -1227,38 +1445,46 @@ export const Configuracoes = () => {
                                 </div>
                             </div>
 
-                            {/* Perfil */}
+                            {/* Perfil - filtrado por hierarquia */}
                             <div>
                                 <label style={labelStyle}>Perfil de Acesso</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    {roleDefinitions.map(role => {
-                                        const RoleIcon = role.icon;
-                                        const isSelected = newUser.user_role === role.key;
-                                        return (
-                                            <button
-                                                key={role.key}
-                                                onClick={() => setNewUser(prev => ({ ...prev, user_role: role.key }))}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '10px',
-                                                    padding: '12px',
-                                                    borderRadius: '10px',
-                                                    border: `2px solid ${isSelected ? role.color : 'var(--border)'}`,
-                                                    background: isSelected ? `${role.color}10` : 'var(--bg-input)',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                            >
-                                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${role.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <RoleIcon style={{ width: 16, height: 16, color: role.color }} />
-                                                </div>
-                                                <div style={{ textAlign: 'left' }}>
-                                                    <p style={{ color: isSelected ? role.color : 'var(--text-main)', fontWeight: 600, fontSize: '13px', margin: 0 }}>{role.label}</p>
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
+                                    {roleDefinitions
+                                        .filter(role => {
+                                            // Owner só pode criar Gestor
+                                            if (profile.user_role === 'owner') return role.key === 'gestor';
+                                            // Gestor só pode criar RH e Convidado
+                                            if (profile.user_role === 'gestor') return ['rh', 'convidado'].includes(role.key);
+                                            return false;
+                                        })
+                                        .map(role => {
+                                            const RoleIcon = role.icon;
+                                            const isSelected = newUser.user_role === role.key;
+                                            return (
+                                                <button
+                                                    key={role.key}
+                                                    onClick={() => setNewUser(prev => ({ ...prev, user_role: role.key }))}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '10px',
+                                                        padding: '12px',
+                                                        borderRadius: '10px',
+                                                        border: `2px solid ${isSelected ? role.color : 'var(--border)'}`,
+                                                        background: isSelected ? `${role.color}10` : 'var(--bg-input)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                >
+                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${role.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <RoleIcon style={{ width: 16, height: 16, color: role.color }} />
+                                                    </div>
+                                                    <div style={{ textAlign: 'left' }}>
+                                                        <p style={{ color: isSelected ? role.color : 'var(--text-main)', fontWeight: 600, fontSize: '13px', margin: 0 }}>{role.label}</p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                 </div>
                             </div>
 
@@ -1293,146 +1519,134 @@ export const Configuracoes = () => {
 
             {/* ABA 4: API (Integrações) */}
             {activeTab === 'api' && (
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
-                    <div style={{ marginBottom: '24px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Integração Evolution API (WhatsApp)</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Configure as credenciais para ativar o chat com candidatos</p>
-                    </div>
+                <>
+                    {/* Visão Owner: todos os admins */}
+                    {profile.user_role === 'owner' && (
+                        <OwnerAdminApiPanel
+                            allUsers={allUsers}
+                            labelStyle={labelStyle}
+                            fieldWrapStyle={fieldWrapStyle}
+                            iconFieldStyle={iconFieldStyle}
+                            inputStyle={inputStyle}
+                        />
+                    )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
-                        <div>
-                            <label style={labelStyle}>Server URL</label>
-                            <div style={fieldWrapStyle}>
-                                <ShieldCheck style={iconFieldStyle} />
-                                <input
-                                    className="field-input"
-                                    style={inputStyle}
-                                    placeholder="https://evolution.seuservidor.com"
-                                    value={evoUrl}
-                                    onChange={e => setEvoUrl(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>API Key</label>
-                            <div style={fieldWrapStyle}>
-                                <Lock style={iconFieldStyle} />
-                                <input
-                                    className="field-input"
-                                    type="password"
-                                    style={inputStyle}
-                                    placeholder="Sua Global API Key"
-                                    value={evoKey}
-                                    onChange={e => setEvoKey(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Nome da Instância</label>
-                            <div style={fieldWrapStyle}>
-                                <Zap style={iconFieldStyle} />
-                                <input
-                                    className="field-input"
-                                    style={inputStyle}
-                                    placeholder="agente-rh"
-                                    value={evoInstance}
-                                    onChange={e => setEvoInstance(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                    {/* Visão Admin/Gestor: suas próprias configs */}
+                    {profile.user_role !== 'owner' && (
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
+                            <button 
+                                onClick={() => setShowEvoConfig(!showEvoConfig)}
+                                style={{ 
+                                    width: '100%', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between', 
+                                    padding: '24px 28px', 
+                                    background: 'none', 
+                                    border: 'none', 
+                                    cursor: 'pointer',
+                                    textAlign: 'left'
+                                }}
+                            >
+                                <div>
+                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Integração Evolution API (WhatsApp)</p>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Configure as credenciais para ativar o chat com candidatos</p>
+                                </div>
+                                <div style={{ color: 'var(--text-dim)' }}>
+                                    {showEvoConfig ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                </div>
+                            </button>
 
-                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                            className="save-btn"
-                            onClick={handleSave}
-                            disabled={saving}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}
-                        >
-                            {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
-                            {saving ? 'Salvando...' : 'Salvar configurações da API'}
-                        </button>
-                    </div>
-                </div>
+                            {showEvoConfig && (
+                                <div style={{ padding: '0 28px 24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
+                                        <div>
+                                            <label style={labelStyle}>Server URL</label>
+                                            <div style={fieldWrapStyle}>
+                                                <ShieldCheck style={iconFieldStyle} />
+                                                <input className="field-input" style={inputStyle} placeholder="https://evolution.seuservidor.com" value={evoUrl} onChange={e => setEvoUrl(e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>API Key</label>
+                                            <div style={fieldWrapStyle}>
+                                                <Lock style={iconFieldStyle} />
+                                                <input className="field-input" type="password" style={inputStyle} placeholder="Sua Global API Key" value={evoKey} onChange={e => setEvoKey(e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle}>Nome da Instância</label>
+                                            <div style={fieldWrapStyle}>
+                                                <Zap style={iconFieldStyle} />
+                                                <input className="field-input" style={inputStyle} placeholder="agente-rh" value={evoInstance} onChange={e => setEvoInstance(e.target.value)} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button className="save-btn" onClick={handleSave} disabled={saving}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}>
+                                            {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
+                                            {saving ? 'Salvando...' : 'Salvar configurações da API'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </>
             )}
 
             {/* ABA 5: PLANO (Pagamento) */}
             {activeTab === 'plano' && (
-                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: 0 }}>Plano Atual</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
-                    </div>
+                <>
+                    {/* Visão Owner: todos os admins e seus planos */}
+                    {profile.user_role === 'owner' && (
+                        <OwnerAdminPlanPanel allUsers={allUsers} plans={plans} />
+                    )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                        {plans.map(plan => {
-                            const PlanIcon = plan.icon;
-                            const isActive = currentPlan === plan.key;
-                            return (
-                                <div
-                                    key={plan.key}
-                                    className="plan-card"
-                                    style={{
-                                        position: 'relative',
-                                        background: isActive ? `${plan.color}10` : 'var(--bg-main)',
-                                        border: `1px solid ${isActive ? plan.color : 'var(--border)'}`,
-                                        borderRadius: '14px',
-                                        padding: '20px',
-                                    }}
-                                >
-                                    {plan.popular && (
-                                        <div style={{ position: 'absolute', top: '-11px', left: '50%', transform: 'translateX(-50%)', background: '#6366f1', color: '#fff', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: '20px' }}>
-                                            Mais popular
-                                        </div>
-                                    )}
-                                    {isActive && (
-                                        <div style={{ position: 'absolute', top: '12px', right: '12px', background: `${plan.color}20`, color: plan.color, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${plan.color}40` }}>
-                                            Ativo
-                                        </div>
-                                    )}
+                    {/* Visão Admin: seu próprio plano */}
+                    {profile.user_role !== 'owner' && (
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                            <div style={{ marginBottom: '20px' }}>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: 0 }}>Plano Atual</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
+                            </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${plan.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <PlanIcon style={{ width: 18, height: 18, color: plan.color }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                                {plans.map(plan => {
+                                    const PlanIcon = plan.icon;
+                                    const isActive = currentPlan === plan.key;
+                                    return (
+                                        <div key={plan.key} className="plan-card" style={{ position: 'relative', background: isActive ? `${plan.color}10` : 'var(--bg-main)', border: `1px solid ${isActive ? plan.color : 'var(--border)'}`, borderRadius: '14px', padding: '20px' }}>
+                                            {plan.popular && (<div style={{ position: 'absolute', top: '-11px', left: '50%', transform: 'translateX(-50%)', background: '#6366f1', color: '#fff', fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: '20px' }}>Mais popular</div>)}
+                                            {isActive && (<div style={{ position: 'absolute', top: '12px', right: '12px', background: `${plan.color}20`, color: plan.color, fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', border: `1px solid ${plan.color}40` }}>Ativo</div>)}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${plan.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <PlanIcon style={{ width: 18, height: 18, color: plan.color }} />
+                                                </div>
+                                                <div>
+                                                    <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{plan.name}</p>
+                                                    <p style={{ color: plan.color, fontWeight: 700, fontSize: '13px', margin: 0 }}>{plan.price}<span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: '11px' }}>{plan.period}</span></p>
+                                                </div>
+                                            </div>
+                                            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                {plan.features.map(f => (<li key={f} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-muted)', fontSize: '12px' }}><Check style={{ width: 13, height: 13, color: plan.color, flexShrink: 0 }} />{f}</li>))}
+                                            </ul>
+                                            {isActive ? (
+                                                <div style={{ textAlign: 'center', padding: '8px', borderRadius: '8px', border: `1px solid ${plan.color}30`, color: plan.color, fontSize: '13px', fontWeight: 600 }}>Plano atual</div>
+                                            ) : (
+                                                <button className="upgrade-btn" onClick={() => { showToast('error', 'Em breve! Sistema de pagamento em construção.'); logActivity(userId, 'Fez alterações na forma de pagamento', { plano: plan.name }); }} style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: plan.color, color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }}>
+                                                    {plan.key === 'enterprise' ? 'Falar com vendas' : 'Fazer upgrade'}
+                                                </button>
+                                            )}
                                         </div>
-                                        <div>
-                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{plan.name}</p>
-                                            <p style={{ color: plan.color, fontWeight: 700, fontSize: '13px', margin: 0 }}>
-                                                {plan.price}<span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: '11px' }}>{plan.period}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        {plan.features.map(f => (
-                                            <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                                                <Check style={{ width: 13, height: 13, color: plan.color, flexShrink: 0 }} />
-                                                {f}
-                                            </li>
-                                        ))}
-                                    </ul>
-
-                                    {isActive ? (
-                                        <div style={{ textAlign: 'center', padding: '8px', borderRadius: '8px', border: `1px solid ${plan.color}30`, color: plan.color, fontSize: '13px', fontWeight: 600 }}>
-                                            Plano atual
-                                        </div>
-                                    ) : (
-                                        <button
-                                            className="upgrade-btn"
-                                            onClick={() => {
-                                                showToast('error', 'Em breve! Sistema de pagamento em construção.');
-                                                logActivity(userId, 'Fez alterações na forma de pagamento', { plano: plan.name });
-                                            }}
-                                            style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', background: plan.color, color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.15s' }}
-                                        >
-                                            {plan.key === 'enterprise' ? 'Falar com vendas' : 'Fazer upgrade'}
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </>
     );

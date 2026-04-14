@@ -4,6 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, DollarSign, MapPin, Building2, Clock } from 'lucide-react';
 import { StepIndicator } from './components/StepIndicator';
+import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
 import { RadioGroup } from './components/RadioGroup';
 
@@ -20,6 +21,7 @@ interface VagaFormData {
     hasLocation: boolean;
     location: string;
     workModel: string;
+    workRegime: string;
     
     // Step 3: Content
     responsibilities: string;
@@ -38,6 +40,7 @@ const initialFormData: VagaFormData = {
     hasLocation: false,
     location: '',
     workModel: '',
+    workRegime: '',
     responsibilities: '',
     requirements: '',
     differentials: '',
@@ -90,6 +93,7 @@ export const VagaForm = () => {
                     hasLocation: data.has_location || false,
                     location: data.location || '',
                     workModel: data.work_model || '',
+                    workRegime: data.work_regime || '',
                     responsibilities: data.responsibilities || '',
                     requirements: data.requirements || '',
                     differentials: data.differentials || '',
@@ -124,6 +128,10 @@ export const VagaForm = () => {
         if (currentStep === 2) {
             if (!formData.contractType) {
                 toast.error('Selecione o tipo de contrato.');
+                return;
+            }
+            if (!formData.workRegime) {
+                toast.error('Selecione o regime de trabalho.');
                 return;
             }
         }
@@ -184,10 +192,19 @@ export const VagaForm = () => {
                 return;
             }
 
+            // Buscar perfil para pegar organization_id
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('organization_id')
+                .eq('id', user.id)
+                .single();
+
             const vagaData = {
                 user_id: user.id,
+                organization_id: profile?.organization_id,
                 title: formData.title.trim(),
                 description: formData.description.trim() || null,
+                work_regime: formData.workRegime || null,
                 has_salary_range: formData.hasSalaryRange,
                 salary_min: formData.hasSalaryRange && formData.salaryMin ? parseFloat(formData.salaryMin.replace(/[^\d,]/g, '').replace(',', '.')) : null,
                 salary_max: formData.hasSalaryRange && formData.salaryMax ? parseFloat(formData.salaryMax.replace(/[^\d,]/g, '').replace(',', '.')) : null,
@@ -216,11 +233,21 @@ export const VagaForm = () => {
                     .from('vagas_white_label')
                     .insert({
                         ...vagaData,
+                        status: 'aberta',
                         published_at: new Date().toISOString(),
                     });
                 error = insertError;
             }
 
+            if (error) throw error;
+            
+            // Log de auditoria
+            if (isEditMode) {
+                logActivity(user.id, `Editou a vaga: "${formData.title}"`).catch(console.error);
+            } else {
+                logActivity(user.id, `Publicou nova vaga: "${formData.title}"`).catch(console.error);
+            }
+            
             if (error) throw error;
 
             toast.success(isEditMode ? 'Vaga atualizada com sucesso!' : 'Vaga publicada com sucesso!');
@@ -573,6 +600,43 @@ export const VagaForm = () => {
                                     value={formData.contractType}
                                     onChange={(value) => updateField('contractType', value)}
                                     columns={4}
+                                />
+                            </div>
+
+                            {/* Work Regime */}
+                            <div style={sectionStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                    <div style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        borderRadius: '10px',
+                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Clock size={20} style={{ color: '#fff' }} />
+                                    </div>
+                                    <div>
+                                        <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+                                            Regime de Trabalho *
+                                        </h2>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
+                                            Selecione a carga horária
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <RadioGroup
+                                    label="Regime de trabalho"
+                                    options={[
+                                        { value: 'full-time', label: 'Tempo Integral', description: 'Full-time' },
+                                        { value: 'part-time', label: 'Meio Período', description: 'Part-time' },
+                                        { value: 'hourly', label: 'Por hora', description: 'Hourly / Horista' },
+                                    ]}
+                                    value={formData.workRegime}
+                                    onChange={(value) => updateField('workRegime', value)}
+                                    columns={3}
                                 />
                             </div>
 

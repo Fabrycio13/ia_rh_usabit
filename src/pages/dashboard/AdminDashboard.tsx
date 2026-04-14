@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck } from 'lucide-react';
+import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown } from 'lucide-react';
 import { 
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
@@ -18,6 +18,35 @@ const css = `
 .cal-range { background:rgba(99,102,241,0.15) !important; color:var(--text-main) !important; border-radius:0 !important; }
 .cal-range-start { border-radius:8px 0 0 8px !important; }
 .cal-range-end { border-radius:0 8px 8px 0 !important; }
+
+/* Custom Select CSS */
+.cs-container { position: relative; width: 320px; display: flex; align-items: center; gap: 12px; }
+.cs-trigger { 
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 16px; color: var(--text-main);
+    font-size: 14px; cursor: pointer; transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    white-space: nowrap;
+    flex: 1;
+}
+.cs-trigger:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.06); }
+.cs-dropdown {
+    position: absolute; top: calc(100% + 8px); left: 0; min-width: 100%;
+    background: #1a1f2e; border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px; padding: 8px; z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(16px); animation: csSlideUp 0.2s ease-out;
+}
+.cs-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; color: var(--text-dim);
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.cs-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+.cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+.cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
 const initials = (name: string) =>
@@ -46,6 +75,8 @@ export const AdminDashboard = () => {
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [jobDateSet, setJobDateSet] = useState<Set<string>>(new Set());
+    const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+    const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
 
     // Calendar state
     const today = new Date();
@@ -57,10 +88,28 @@ export const AdminDashboard = () => {
     const activeStart = rangeStart && rangeEnd ? (rangeStart < rangeEnd ? rangeStart : rangeEnd) : rangeStart;
     const activeEnd = rangeStart && rangeEnd ? (rangeStart < rangeEnd ? rangeEnd : rangeStart) : rangeStart;
 
+    // Dropdown states
+    const [isOrgOpen, setIsOrgOpen] = useState(false);
+    const [isRoleOpen, setIsRoleOpen] = useState(false);
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
+    
+    const orgRef = useRef<HTMLDivElement>(null);
+    const roleRef = useRef<HTMLDivElement>(null);
+    const statusRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (orgRef.current && !orgRef.current.contains(event.target as Node)) setIsOrgOpen(false);
+            if (roleRef.current && !roleRef.current.contains(event.target as Node)) setIsRoleOpen(false);
+            if (statusRef.current && !statusRef.current.contains(event.target as Node)) setIsStatusOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const fetchDashboardData = async () => {
         setLoading(true);
         
-        // Fetch Users
         const { data: userData } = await supabase
             .from('profiles')
             .select('*')
@@ -68,6 +117,20 @@ export const AdminDashboard = () => {
         
         if (userData) {
             setUsers(userData as UserProfile[]);
+            
+            // Extrair organizações únicas para o filtro
+            const orgs = userData
+                .filter(u => u.organization_id)
+                .reduce((acc: {id: string, name: string}[], u) => {
+                    if (!acc.find(o => o.id === u.organization_id)) {
+                        acc.push({ 
+                            id: u.organization_id, 
+                            name: u.organization_name || `Org: ${u.organization_id.slice(0, 5)}`
+                        });
+                    }
+                    return acc;
+                }, []);
+            setOrganizations(orgs);
         }
 
         // Fetch Analyses (Jobs) for the selected range or last 7 days
@@ -75,11 +138,17 @@ export const AdminDashboard = () => {
         const start = activeStart ? new Date(activeStart) : new Date();
         if (!activeStart) start.setDate(end.getDate() - 7);
         
-        const { data: jobData } = await supabase
+        let jobQuery = supabase
             .from('jobs')
             .select('created_at')
             .gte('created_at', start.toISOString())
             .lte('created_at', end.toISOString());
+
+        if (selectedOrgId) {
+            jobQuery = jobQuery.eq('organization_id', selectedOrgId);
+        }
+
+        const { data: jobData } = await jobQuery;
 
         if (jobData) {
             setJobDateSet(new Set(jobData.map(j => j.created_at.slice(0, 10))));
@@ -112,7 +181,7 @@ export const AdminDashboard = () => {
 
     useEffect(() => {
         fetchDashboardData();
-    }, [activeStart, activeEnd]);
+    }, [activeStart, activeEnd, selectedOrgId]);
 
     // Calendar helpers
     const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -159,13 +228,18 @@ export const AdminDashboard = () => {
                                u.email?.toLowerCase().includes(search.toLowerCase()));
         const matchesRole = !roleFilter || u.user_role === roleFilter;
         const matchesStatus = !statusFilter || u.status === statusFilter;
-        return matchesSearch && matchesRole && matchesStatus;
+        const matchesOrg = !selectedOrgId || u.organization_id === selectedOrgId;
+        return matchesSearch && matchesRole && matchesStatus && matchesOrg;
     });
 
+    const displayUsersForStats = selectedOrgId 
+        ? users.filter(u => u.organization_id === selectedOrgId)
+        : users;
+
     const stats = {
-        total: users.length,
-        active: users.filter(u => u.status === 'active').length,
-        inactive: users.filter(u => u.status === 'inactive').length,
+        total: displayUsersForStats.length,
+        active: displayUsersForStats.filter(u => u.status === 'active').length,
+        inactive: displayUsersForStats.filter(u => u.status === 'inactive').length,
     };
 
     if (loading) {
@@ -189,6 +263,46 @@ export const AdminDashboard = () => {
                 <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
                     Gerencie usuários e monitore o status das contas.
                 </p>
+                
+                {/* Organization Selection Filter - CUSTOM PREMIUM SELECT */}
+                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>Filtrar Dashboard por Organização:</span>
+                    
+                    <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '320px', flexShrink: 0 }}>
+                        <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, overflow: 'hidden' }}>
+                                <Database size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações (Visão Global)'}
+                                </span>
+                            </div>
+                            <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none' }} />
+                        </div>
+
+                        {isOrgOpen && (
+                            <div className="cs-dropdown">
+                                <div 
+                                    className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
+                                    onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); }}
+                                >
+                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                    Visão Global (Todas)
+                                </div>
+                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                                {organizations.map(org => (
+                                    <div 
+                                        key={org.id} 
+                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: '#10b981' }} />
+                                        {org.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Stats */}
@@ -367,30 +481,41 @@ export const AdminDashboard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Cargo:</span>
-                        <select
-                            value={roleFilter}
-                            onChange={e => setRoleFilter(e.target.value)}
-                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 13, outline: 'none', cursor: 'pointer', minWidth: '140px' }}
-                        >
-                            <option value="">Todos</option>
-                            <option value="admin">Administrador</option>
-                            <option value="rh">RH</option>
-                            <option value="gestor">Gestor</option>
-                            <option value="convidado">Convidado</option>
-                        </select>
+                        <div className="cs-container" ref={roleRef} style={{ width: '160px' }}>
+                            <div className="cs-trigger" onClick={() => setIsRoleOpen(!isRoleOpen)}>
+                                <span>{roleFilter === '' ? 'Todos' : roleFilter.toUpperCase()}</span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isRoleOpen ? 'rotate(180deg)' : 'none' }} />
+                            </div>
+                            {isRoleOpen && (
+                                <div className="cs-dropdown">
+                                    <div className={`cs-item ${roleFilter === '' ? 'active' : ''}`} onClick={() => { setRoleFilter(''); setIsRoleOpen(false); }}>Todos</div>
+                                    <div className={`cs-item ${roleFilter === 'rh' ? 'active' : ''}`} onClick={() => { setRoleFilter('rh'); setIsRoleOpen(false); }}>RH</div>
+                                    <div className={`cs-item ${roleFilter === 'gestor' ? 'active' : ''}`} onClick={() => { setRoleFilter('gestor'); setIsRoleOpen(false); }}>GESTOR</div>
+                                    <div className={`cs-item ${roleFilter === 'convidado' ? 'active' : ''}`} onClick={() => { setRoleFilter('convidado'); setIsRoleOpen(false); }}>CONVIDADO</div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Status:</span>
-                        <select 
-                            value={statusFilter}
-                            onChange={e => setStatusFilter(e.target.value)}
-                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-main)', fontSize: 13, outline: 'none', cursor: 'pointer', minWidth: '140px' }}
-                        >
-                            <option value="">Todos</option>
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
-                        </select>
+                        <div className="cs-container" ref={statusRef} style={{ width: '160px' }}>
+                            <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
+                                <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : 'Inativo'}</span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'none' }} />
+                            </div>
+                            {isStatusOpen && (
+                                <div className="cs-dropdown">
+                                    <div className={`cs-item ${statusFilter === '' ? 'active' : ''}`} onClick={() => { setStatusFilter(''); setIsStatusOpen(false); }}>Todos</div>
+                                    <div className={`cs-item ${statusFilter === 'active' ? 'active' : ''}`} onClick={() => { setStatusFilter('active'); setIsStatusOpen(false); }}>
+                                        <div className="cs-dot" style={{ background: '#10b981' }} /> Ativo
+                                    </div>
+                                    <div className={`cs-item ${statusFilter === 'inactive' ? 'active' : ''}`} onClick={() => { setStatusFilter('inactive'); setIsStatusOpen(false); }}>
+                                        <div className="cs-dot" style={{ background: '#ef4444' }} /> Inativo
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -406,30 +531,46 @@ export const AdminDashboard = () => {
 
             {/* User List */}
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-
-
-                <div style={{ overflowX: 'auto' }}>
+                <div style={{ width: '100%' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                         <colgroup>
-                            <col style={{ width: '40%' }} />
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '28%' }} />
+                            <col style={{ width: '22%' }} />
+                            <col style={{ width: '16%' }} />
+                            <col style={{ width: '16%' }} />
+                            <col style={{ width: '18%' }} />
                         </colgroup>
                         <thead>
                             <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
                                 <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Usuário</th>
+                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Organização</th>
                                 <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Cargo</th>
                                 <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Status</th>
                                 <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredUsers.map(user => (
+                            {filteredUsers.map(user => {
+                                const roleLabel = user.user_role?.toUpperCase();
+                                const isOwner = user.user_role === 'owner';
+
+                                return (
                                 <tr key={user.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                            <div style={{ 
+                                                width: 32, 
+                                                height: 32, 
+                                                borderRadius: '50%', 
+                                                background: isOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
+                                                color: isOwner ? '#ef4444' : '#3b82f6', 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center', 
+                                                fontSize: 11, 
+                                                fontWeight: 700, 
+                                                flexShrink: 0 
+                                            }}>
                                                 {initials(user.name)}
                                             </div>
                                             <div style={{ minWidth: 0 }}>
@@ -442,9 +583,22 @@ export const AdminDashboard = () => {
                                             </div>
                                         </div>
                                     </td>
+                                    <td style={{ padding: '16px' }}>
+                                        <p style={{ color: 'var(--text-main)', fontSize: 13, margin: 0, fontWeight: 500 }}>
+                                            {(user as any).organization_name || 'Sem Organização'}
+                                        </p>
+                                    </td>
                                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                                        <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, background: user.user_role === 'admin' ? '#ef444420' : '#3b82f620', color: user.user_role === 'admin' ? '#ef4444' : '#3b82f6', textTransform: 'uppercase' }}>
-                                            {user.user_role === 'admin' ? 'ADMIN' : user.user_role === 'rh' ? 'RH' : user.user_role === 'gestor' ? 'GESTOR' : 'CONVIDADO'}
+                                        <span style={{ 
+                                            padding: '4px 8px', 
+                                            borderRadius: '6px', 
+                                            fontSize: '11px', 
+                                            fontWeight: 700, 
+                                            background: isOwner ? 'rgba(239, 68, 68, 0.1)' : '#3b82f620', 
+                                            color: isOwner ? '#ef4444' : '#3b82f6', 
+                                            textTransform: 'uppercase' 
+                                        }}>
+                                            {roleLabel}
                                         </span>
                                     </td>
                                     <td style={{ padding: '16px' }}>
@@ -481,7 +635,8 @@ export const AdminDashboard = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

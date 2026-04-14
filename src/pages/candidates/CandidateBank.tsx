@@ -132,26 +132,47 @@ export const CandidateBank = () => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const safetyTimer = setTimeout(() => setLoading(false), 8000);
-    fetchCandidates(profile.userId).finally(() => clearTimeout(safetyTimer));
+    fetchCandidates(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
     return () => clearTimeout(safetyTimer);
-  }, [profile.userId, profile.loaded]);
+  }, [profile.userId, profile.loaded, profile.user_role]);
 
-  async function fetchCandidates(userId: string) {
+  async function fetchCandidates(userId: string, userRole?: string) {
+    // Owner vê TODOS; gestor/rh veem sua org; outros filtram por user_id
+    const isGlobalViewer = userRole === 'owner';
+    const isOrgMember = userRole === 'gestor' || userRole === 'rh';
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('candidates')
         .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
-        .eq('user_id', userId)
         .order('name', { ascending: true });
 
+      if (!isGlobalViewer) {
+        if (isOrgMember && profile.organization_id) {
+          // Gestor/RH veem candidatos da sua organização
+          query = query.eq('organization_id', profile.organization_id);
+        } else {
+          // Convidado ou sem org — só vê os próprios
+          query = query.eq('user_id', userId);
+        }
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        // Fallback
-        const { data: fallback } = await supabase
+        // Fallback sem join
+        let fallbackQuery = supabase
           .from('candidates')
           .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
-          .eq('user_id', userId)
           .order('name', { ascending: true });
+        if (!isGlobalViewer) {
+          if (isOrgMember && profile.organization_id) {
+            fallbackQuery = fallbackQuery.eq('organization_id', profile.organization_id);
+          } else {
+            fallbackQuery = fallbackQuery.eq('user_id', userId);
+          }
+        }
+        const { data: fallback } = await fallbackQuery;
         setCandidates((fallback ?? []).map((c: any) => ({
           id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
           age: c.age, gender: c.gender, score: c.score,

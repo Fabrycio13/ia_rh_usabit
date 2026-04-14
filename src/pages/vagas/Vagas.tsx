@@ -4,19 +4,55 @@ import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
 import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logActivity } from '../../core/services/logger';
 
-type VagaStatus = 'aberta' | 'fechada' | 'pausada';
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const css = `
+/* Custom Select CSS */
+.cs-container { position: relative; width: 220px; display: flex; align-items: center; gap: 12px; }
+.cs-trigger { 
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px; color: var(--text-main);
+    font-size: 14px; cursor: pointer; transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    white-space: nowrap;
+    flex: 1;
+    height: 44px;
+}
+.cs-trigger:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.06); }
+.cs-dropdown {
+    position: absolute; top: calc(100% + 8px); left: 0; min-width: 100%;
+    background: #1a1f2e; border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px; padding: 8px; z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(16px); animation: csSlideUp 0.2s ease-out;
+}
+.cs-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; color: var(--text-dim);
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+}
+.cs-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+.cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+.cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+`;
+
+type VagaStatus = 'aberta' | 'fechada' | 'pausada' | 'cancelada';
 
 interface Vaga {
     id: string;
     title: string;
     public_hash: string;
+    status: VagaStatus;
     is_active: boolean;
     is_accepting_applications: boolean;
     location: string | null;
     contract_type: string | null;
     application_count: number;
     created_at: string;
+    organization_id: string | null;
 }
 
 export const Vagas = () => {
@@ -30,28 +66,92 @@ export const Vagas = () => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [vagaToDelete, setVagaToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    
+    // Filtros Avançados
+    const [userRole, setUserRole] = useState<string>('');
+    const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
+    const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('');
+    
+    // Controlled Selects state
+    const [isOrgSelectOpen, setIsOrgSelectOpen] = useState(false);
+    const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
+    const [isRoleSelectOpen, setIsRoleSelectOpen] = useState(false);
+    
+    const orgRef = useRef<HTMLDivElement>(null);
+    const statusRef = useRef<HTMLDivElement>(null);
+    const roleRef = useRef<HTMLDivElement>(null);
     const statusBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
+    // Cores para status
+    const statusConfigMap: Record<VagaStatus, { bg: string; color: string; label: string }> = {
+        aberta: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', label: 'Aberta' },
+        fechada: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', label: 'Fechada' },
+        pausada: { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', label: 'Pausada' },
+        cancelada: { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b', label: 'Cancelada' }
+    };
+
     useEffect(() => {
-        const fetchVagas = async () => {
+        const fetchInitialData = async () => {
             try {
-                const { data, error } = await supabase
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                // 1. Buscar Perfil/Role
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('user_role, organization_id')
+                    .eq('id', user.id)
+                    .single();
+                
+                const role = profile?.user_role || 'rh';
+                const userOrgId = profile?.organization_id;
+                setUserRole(role);
+
+                // 2. Se for Owner, buscar organizações
+                if (role === 'owner') {
+                    const { data: orgs } = await supabase
+                        .from('organizations')
+                        .select('id, name')
+                        .order('name');
+                    setOrganizations(orgs || []);
+                }
+
+                // 3. Buscar Vagas
+                let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, is_active, is_accepting_applications, location, contract_type, application_count, created_at')
-                    .eq('is_active', true)
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id')
                     .order('created_at', { ascending: false });
 
+                // ISOLAMENTO: Usuários que não são Owners só veem vagas da sua organização
+                if (role !== 'owner' && userOrgId) {
+                    query = query.eq('organization_id', userOrgId);
+                }
+                
+                const { data, error } = await query;
                 if (error) throw error;
                 setVagas(data || []);
             } catch (err) {
-                console.error('Erro ao buscar vagas:', err);
-                toast.error('Erro ao carregar vagas');
+                console.error('Erro ao buscar dados iniciais:', err);
+                toast.error('Erro ao carregar informações');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchVagas();
+        fetchInitialData();
+    }, []);
+
+    // Fechar selects ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (orgRef.current && !orgRef.current.contains(event.target as Node)) setIsOrgSelectOpen(false);
+            if (statusRef.current && !statusRef.current.contains(event.target as Node)) setIsStatusSelectOpen(false);
+            if (roleRef.current && !roleRef.current.contains(event.target as Node)) setIsRoleSelectOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const openDeleteModal = (id: string) => {
@@ -74,6 +174,13 @@ export const Vagas = () => {
 
             setVagas(prev => prev.filter(v => v.id !== vagaToDelete));
             toast.success('Vaga desativada com sucesso');
+            
+            // Log de desativação
+            const vaga = vagas.find(v => v.id === vagaToDelete);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && vaga) {
+                logActivity(user.id, `Desativou a vaga: "${vaga.title}"`).catch(console.error);
+            }
         } catch (err) {
             console.error('Erro ao desativar vaga:', err);
             toast.error('Erro ao desativar vaga');
@@ -91,8 +198,10 @@ export const Vagas = () => {
 
     const updateVagaStatus = async (id: string, status: VagaStatus) => {
         try {
+            // Sincronizar booleanos legados com o novo status
             const updates = {
-                is_active: status !== 'pausada',
+                status,
+                is_active: status !== 'pausada' && status !== 'cancelada',
                 is_accepting_applications: status === 'aberta',
             };
 
@@ -107,9 +216,16 @@ export const Vagas = () => {
                 v.id === id ? { ...v, ...updates } : v
             ));
 
-            const statusLabels = { aberta: 'Aberta', fechada: 'Fechada', pausada: 'Pausada' };
+            const statusLabels = { aberta: 'Aberta', fechada: 'Fechada', pausada: 'Pausada', cancelada: 'Cancelada' };
             toast.success(`Status alterado para "${statusLabels[status]}"`);
             setOpenStatusId(null);
+
+            // Log de alteração de status
+            const vaga = vagas.find(v => v.id === id);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && vaga) {
+                logActivity(user.id, `Alterou status da vaga para "${statusLabels[status]}": "${vaga.title}"`).catch(console.error);
+            }
         } catch (err) {
             console.error('Erro ao atualizar status:', err);
             toast.error('Erro ao atualizar status');
@@ -117,20 +233,11 @@ export const Vagas = () => {
     };
 
     const getStatusFromVaga = (vaga: Vaga): VagaStatus => {
-        if (!vaga.is_active) return 'pausada';
-        if (!vaga.is_accepting_applications) return 'fechada';
-        return 'aberta';
+        return vaga.status || 'aberta';
     };
 
     const getStatusConfig = (status: VagaStatus) => {
-        switch (status) {
-            case 'aberta':
-                return { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', label: 'Aberta' };
-            case 'fechada':
-                return { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', label: 'Fechada' };
-            case 'pausada':
-                return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', label: 'Pausada' };
-        }
+        return statusConfigMap[status] || statusConfigMap.aberta;
     };
 
     const getContractTypeLabel = (type: string | null) => {
@@ -149,14 +256,34 @@ export const Vagas = () => {
         toast.success('Link copiado!');
     };
 
-    const filteredVagas = vagas.filter(vaga =>
-        vaga.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (vaga.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (vaga.contract_type || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Lógica de Filtragem Avançada
+    const filteredVagas = vagas.filter(vaga => {
+        // 1. Busca por texto
+        const searchUpper = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || 
+            vaga.title.toLowerCase().includes(searchUpper) ||
+            (vaga.location || '').toLowerCase().includes(searchUpper) ||
+            (vaga.contract_type || '').toLowerCase().includes(searchUpper);
+
+        // 2. Filtro por Organização (Owner only)
+        // Se selecionado, filtra pelo ID. Se não selecionado ("Todas"), mostra todas.
+        const matchesOrg = !selectedOrgId || vaga.organization_id === selectedOrgId;
+
+        // 3. Filtro por Status
+        const matchesStatus = !selectedStatusFilter || vaga.status === selectedStatusFilter;
+
+        // 4. Filtro por Cargo (Role)
+        const matchesRole = !selectedRoleFilter || vaga.title === selectedRoleFilter;
+
+        return matchesSearch && matchesOrg && matchesStatus && matchesRole;
+    });
+
+    // Lista de cargos únicos para o filtro
+    const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
 
     return (
         <div className="text-[var(--text-main)]">
+            <style>{css}</style>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
@@ -208,23 +335,109 @@ export const Vagas = () => {
                     />
                 </div>
 
-                {/* Filter Button */}
-                <button style={{
-                    padding: '12px 20px',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px',
-                    color: 'var(--text-main)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500
-                }}>
-                    <Filter size={16} />
-                    Filtros
-                </button>
+                {/* Organização Filter (Only for Owner) */}
+                {userRole === 'owner' && (
+                    <div className="cs-container" ref={orgRef}>
+                        <div className="cs-trigger" onClick={() => setIsOrgSelectOpen(!isOrgSelectOpen)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                <Users size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {selectedOrgId ? organizations.find(o => o.id === selectedOrgId)?.name : 'Todas Organizações'}
+                                </span>
+                            </div>
+                            <ChevronDown size={14} style={{ transform: isOrgSelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                        </div>
+                        {isOrgSelectOpen && (
+                            <div className="cs-dropdown">
+                                <div 
+                                    className={`cs-item ${!selectedOrgId ? 'active' : ''}`}
+                                    onClick={() => { setSelectedOrgId(''); setIsOrgSelectOpen(false); }}
+                                >
+                                    <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
+                                    Todas Organizações
+                                </div>
+                                {organizations.map(org => (
+                                    <div 
+                                        key={org.id}
+                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgSelectOpen(false); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                        {org.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Cargo Filter */}
+                <div className="cs-container" ref={roleRef} style={{ width: '200px' }}>
+                    <div className="cs-trigger" onClick={() => setIsRoleSelectOpen(!isRoleSelectOpen)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            <Briefcase size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {selectedRoleFilter || 'Todos Cargos'}
+                            </span>
+                        </div>
+                        <ChevronDown size={14} style={{ transform: isRoleSelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                    </div>
+                    {isRoleSelectOpen && (
+                        <div className="cs-dropdown">
+                            <div 
+                                className={`cs-item ${!selectedRoleFilter ? 'active' : ''}`}
+                                onClick={() => { setSelectedRoleFilter(''); setIsRoleSelectOpen(false); }}
+                            >
+                                <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
+                                Todos Cargos
+                            </div>
+                            {uniqueRoles.map(role => (
+                                <div 
+                                    key={role}
+                                    className={`cs-item ${selectedRoleFilter === role ? 'active' : ''}`}
+                                    onClick={() => { setSelectedRoleFilter(role); setIsRoleSelectOpen(false); }}
+                                >
+                                    <div className="cs-dot" style={{ background: '#3b82f6' }} />
+                                    {role}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Status Filter */}
+                <div className="cs-container" ref={statusRef} style={{ width: '180px' }}>
+                    <div className="cs-trigger" onClick={() => setIsStatusSelectOpen(!isStatusSelectOpen)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Filter size={16} style={{ color: '#10b981' }} />
+                            <span>
+                                {selectedStatusFilter ? statusConfigMap[selectedStatusFilter as VagaStatus].label : 'Todos Status'}
+                            </span>
+                        </div>
+                        <ChevronDown size={14} style={{ transform: isStatusSelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                    </div>
+                    {isStatusSelectOpen && (
+                        <div className="cs-dropdown">
+                            <div 
+                                className={`cs-item ${!selectedStatusFilter ? 'active' : ''}`}
+                                onClick={() => { setSelectedStatusFilter(''); setIsStatusSelectOpen(false); }}
+                            >
+                                <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
+                                Todos Status
+                            </div>
+                            {(Object.keys(statusConfigMap) as VagaStatus[]).map(status => (
+                                <div 
+                                    key={status}
+                                    className={`cs-item ${selectedStatusFilter === status ? 'active' : ''}`}
+                                    onClick={() => { setSelectedStatusFilter(status); setIsStatusSelectOpen(false); }}
+                                >
+                                    <div className="cs-dot" style={{ background: statusConfigMap[status].color }} />
+                                    {statusConfigMap[status].label}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Create New Vaga */}
                 <button
@@ -277,7 +490,7 @@ export const Vagas = () => {
                         {/* Table Header */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 160px',
+                            gridTemplateColumns: '2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.8fr 0.6fr 160px',
                             padding: '16px 24px',
                             borderBottom: '1px solid var(--border)',
                             color: 'var(--text-muted)',
@@ -288,6 +501,7 @@ export const Vagas = () => {
                         }}>
                             <div>Título</div>
                             <div>Localização</div>
+                            <div style={{ textAlign: 'center' }}>Criada em</div>
                             <div style={{ textAlign: 'center' }}>Tipo</div>
                             <div style={{ textAlign: 'center' }}>Candidaturas</div>
                             <div style={{ textAlign: 'center' }}>Status</div>
@@ -306,7 +520,7 @@ export const Vagas = () => {
                                     key={vaga.id}
                                     style={{
                                         display: 'grid',
-                                        gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 160px',
+                                        gridTemplateColumns: '2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.8fr 0.6fr 160px',
                                         padding: '16px 24px',
                                         borderBottom: '1px solid var(--border)',
                                         alignItems: 'center',
@@ -320,6 +534,9 @@ export const Vagas = () => {
                                     </div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                                         {vaga.location || '-'}
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>
+                                        {new Date(vaga.created_at).toLocaleDateString('pt-BR')}
                                     </div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center' }}>
                                         {getContractTypeLabel(vaga.contract_type)}
@@ -494,7 +711,7 @@ export const Vagas = () => {
                             minWidth: '140px',
                             boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.5)'
                         }}>
-                            {(['aberta', 'fechada', 'pausada'] as VagaStatus[]).map((status) => {
+                            {(['aberta', 'fechada', 'pausada', 'cancelada'] as VagaStatus[]).map((status) => {
                                 const config = getStatusConfig(status);
                                 return (
                                     <button

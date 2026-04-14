@@ -183,7 +183,9 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             const batchId = crypto.randomUUID();
             console.log(`[Analysis] Iniciando análise de lote: ${batchId}`);
-            await logActivity(session.user.id, `Iniciou análise para vaga ${name}`, { mode, files_count: files.length });
+            
+            // Log de início - sem await para não travar a UI se o logger demorar
+            logActivity(session.user.id, `Criou e iniciou análise da vaga: "${name}"`, { mode, files_count: files.length }).catch(console.error);
 
             // 1. Criar a vaga IMEDIATAMENTE antes de começar o processamento
             const { data: jobData, error: jobError } = await supabase
@@ -515,7 +517,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }).eq('id', jobData.id);
 
                 console.log(`[Analysis] Job atualizado: ${savedCount} candidatos salvos, ${bestCount} melhores.`);
-                await logActivity(session.user.id, `Fez análise para vaga ${name}`, { total: savedCount, best: bestCount });
+                await logActivity(session.user.id, `Concluiu análise para vaga "${name}"`, { 
+                    job_id: jobData.id, 
+                    total_candidates: savedCount, 
+                    best_candidates: bestCount 
+                });
             } catch (e) {
                 console.error('[Analysis] Erro ao atualizar contagem do job:', e);
             }

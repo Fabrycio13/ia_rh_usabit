@@ -151,11 +151,18 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     async function load() {
       try {
         // Load job info
-        const { data: jobData, error: jobErr } = await supabase
+        let jobQuery = supabase
           .from('jobs')
-          .select('name, created_at')
+          .select('id, name, created_at, organization_id')
           .eq('id', jobId)
           .single();
+
+        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização
+        if (profile.user_role !== 'owner' && profile.organization_id) {
+          jobQuery = jobQuery.eq('organization_id', profile.organization_id);
+        }
+
+        const { data: jobData, error: jobErr } = await jobQuery;
 
         if (jobErr) throw jobErr;
         setJob(jobData);
@@ -769,6 +776,9 @@ export const Analises = () => {
 
       toast.success('Análise excluída com sucesso');
       setJobs(prev => prev.filter(j => j.id !== jId));
+      if (profile.userId) {
+        logActivity(profile.userId, `Excluiu a análise: "${jName}"`);
+      }
     } catch (err) {
       console.error('Erro ao excluir análise:', err);
       toast.error('Ocorreu um erro ao excluir a análise.');
