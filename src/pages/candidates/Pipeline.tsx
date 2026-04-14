@@ -39,6 +39,7 @@ interface PipelineCard {
     is_blacklisted?: boolean;
     candidate_phone?: string | null;
     candidate_conversations?: any[];
+    vaga_id?: string | null;
 }
 
 interface EligibleCandidate {
@@ -1183,26 +1184,30 @@ export const Pipeline = () => {
                                                 </div>
                                             </div>
                                             {/* Linha 2: badge da vaga recuada para alinhar com o nome */}
-                                            {(card.display_job_name || (card.candidate_vagas && card.candidate_vagas.length > 0)) && (
-                                                <div style={{ paddingLeft: 44, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    {getVagaStatusBadge(card.vaga_id)}
-                                                    <span style={{ 
-                                                        fontSize: 9, 
-                                                        fontWeight: 800, 
-                                                        padding: '3px 8px', 
-                                                        borderRadius: 12, 
-                                                        background: 'rgba(99,102,241,0.1)', 
-                                                        border: '1px solid rgba(99,102,241,0.2)', 
-                                                        color: 'var(--primary)', 
-                                                        whiteSpace: 'nowrap', 
-                                                        overflow: 'hidden', 
-                                                        textOverflow: 'ellipsis', 
-                                                        maxWidth: 'calc(100% - 20px)'
-                                                    }}>
-                                                        {(card.display_job_name || card.candidate_vagas[0]).toUpperCase()}
-                                                    </span>
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                const p = pipelines.find(pipe => pipe.id === card.pipeline_id);
+                                                const vId = card.vaga_id || p?.vaga_id;
+                                                return (card.display_job_name || (card.candidate_vagas && card.candidate_vagas.length > 0)) && (
+                                                    <div style={{ paddingLeft: 44, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        {getVagaStatusBadge(vId)}
+                                                        <span style={{ 
+                                                            fontSize: 9, 
+                                                            fontWeight: 800, 
+                                                            padding: '3px 8px', 
+                                                            borderRadius: 12, 
+                                                            background: 'rgba(99,102,241,0.1)', 
+                                                            border: '1px solid rgba(99,102,241,0.2)', 
+                                                            color: 'var(--primary)', 
+                                                            whiteSpace: 'nowrap', 
+                                                            overflow: 'hidden', 
+                                                            textOverflow: 'ellipsis', 
+                                                            maxWidth: 'calc(100% - 20px)'
+                                                        }}>
+                                                            {(card.display_job_name || card.candidate_vagas[0]).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

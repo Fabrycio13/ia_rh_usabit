@@ -30,6 +30,7 @@ interface Job {
     work_regime: string | null;
     application_deadline: string | null;
     created_at: string;
+    is_pcd: boolean;
 }
 
 export const PublicJobPage = () => {
@@ -279,6 +280,31 @@ export const PublicJobPage = () => {
                             }}>
                                 <Clock size={14} />
                                 {getWorkRegimeLabel(job.work_regime)}
+                            </div>
+                        )}
+                        {job.is_pcd && (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                background: 'rgba(236, 72, 153, 0.35)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '20px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 600
+                            }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="10" cy="4" r="2.5" />
+                                    <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                    <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+                                    <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                Vaga PcD
                             </div>
                         )}
                         {job.has_location && job.location && (
