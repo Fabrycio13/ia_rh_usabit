@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 // ─── CSS Animations ──────────────────────────────────────────────────────────
 const css = `

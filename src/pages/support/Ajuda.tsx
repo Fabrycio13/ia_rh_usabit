@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, ExternalLink, Zap, Users, Briefcase, LayoutGrid, FileText, Settings, Database, Star, CheckCircle2, ArrowRight, Video } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight } from 'lucide-react';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
