@@ -31,8 +31,10 @@ const translations = {
         popular: 'Mais popular',
         manageProfile: 'Gerencie seu perfil e plano',
         planTrial: 'Plano Trial',
+        planActive: 'Plano Ativo',
         planPro: 'Plano Pro',
         planEnterprise: 'Enterprise',
+        planLifetime: 'Plano Vitalício',
     },
     en: {
         settings: 'Settings',
@@ -62,8 +64,10 @@ const translations = {
         popular: 'Most popular',
         manageProfile: 'Manage your profile and plan',
         planTrial: 'Trial Plan',
+        planActive: 'Active Plan',
         planPro: 'Pro Plan',
         planEnterprise: 'Enterprise',
+        planLifetime: 'Lifetime Plan',
     },
 } as const;
 

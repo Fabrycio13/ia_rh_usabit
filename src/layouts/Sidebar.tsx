@@ -138,7 +138,11 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
     }, []);
 
     const planLabels: Record<string, string> = {
-        trial: t('planTrial'), pro: t('planPro'), enterprise: t('planEnterprise'),
+        trial: t('planTrial'), 
+        active: t('planActive'),
+        pro: t('planPro'), 
+        enterprise: t('planEnterprise'),
+        lifetime: t('planLifetime'),
     };
 
     const W = collapsed ? '68px' : '260px';
@@ -246,9 +250,9 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <NavItem to="/candidatos" icon={Users} label={t('candidateBank')} collapsed={collapsed} />
                     )}
 
-                    {/* Pipeline - premium feature, mas com permissão por perfil */}
+                    {/* Pipeline - habilitado para todos os cargos que possuem a permissão explicitamente */}
                     {hasPermission(profile.user_role, 'pipeline') && (
-                        <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} disabled={!profile.isPremium} />
+                        <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} />
                     )}
                     
                     {/* Chat - apenas admin e gestor (premium) */}

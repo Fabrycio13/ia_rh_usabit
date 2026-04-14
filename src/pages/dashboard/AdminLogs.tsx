@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database } from 'lucide-react';
+import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database, ChevronDown } from 'lucide-react';
 
 interface LogEntry {
     id: string;
@@ -12,6 +12,8 @@ interface LogEntry {
     profiles?: {
         name: string;
         email: string;
+        organization_id: string | null;
+        organization_name: string | null;
     };
 }
 
@@ -20,11 +22,28 @@ export const AdminLogs = () => {
     const [loading, setLoading] = useState(true);
     
     const [searchUser, setSearchUser] = useState('');
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+    const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // Dropdown states
+    const [isOrgOpen, setIsOrgOpen] = useState(false);
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const orgRef = useRef<HTMLDivElement>(null);
+    const statusRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (orgRef.current && !orgRef.current.contains(event.target as Node)) setIsOrgOpen(false);
+            if (statusRef.current && !statusRef.current.contains(event.target as Node)) setIsStatusOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -33,7 +52,7 @@ export const AdminLogs = () => {
             .from('activity_logs')
             .select(`
                 *,
-                profiles (name, email)
+                profiles (name, email, organization_id, organization_name)
             `)
             .order('created_at', { ascending: false })
             .limit(500); // Aumentado para suportar paginação local em mais dados
@@ -47,7 +66,23 @@ export const AdminLogs = () => {
         }
         
         if (result.data) {
-            setLogs(result.data as LogEntry[]);
+            const data = result.data as LogEntry[];
+            setLogs(data);
+
+            // Extrair organizações únicas
+            const orgs = data
+                .filter(l => l.profiles?.organization_id)
+                .reduce((acc: {id: string, name: string}[], l) => {
+                    const orgId = l.profiles!.organization_id!;
+                    if (!acc.find(o => o.id === orgId)) {
+                        acc.push({
+                            id: orgId,
+                            name: l.profiles!.organization_name || `Org: ${orgId.slice(0, 5)}`
+                        });
+                    }
+                    return acc;
+                }, []);
+            setOrganizations(orgs);
         }
         setLoading(false);
     };
@@ -59,7 +94,7 @@ export const AdminLogs = () => {
     // Reset page when filtering
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchUser, startDate, endDate, statusFilter]);
+    }, [searchUser, selectedOrgId, startDate, endDate, statusFilter]);
 
     const formatDate = (iso: string) => {
         return new Date(iso).toLocaleString('pt-BR', {
@@ -75,6 +110,7 @@ export const AdminLogs = () => {
         setStartDate('');
         setEndDate('');
         setSearchUser('');
+        setSelectedOrgId('');
         setStatusFilter('');
         setCurrentPage(1);
     };
@@ -87,6 +123,8 @@ export const AdminLogs = () => {
             (l.profiles?.name || '').toLowerCase().includes(searchUser.toLowerCase()) || 
             (l.profiles?.email || '').toLowerCase().includes(searchUser.toLowerCase());
         
+        const matchesOrg = !selectedOrgId || l.profiles?.organization_id === selectedOrgId;
+        
         // Filtro de Status
         const matchesStatus = statusFilter === '' || 
             (statusFilter === 'success' && !l.error) || 
@@ -97,7 +135,7 @@ export const AdminLogs = () => {
         const matchesStart = !startDate || logDate >= startDate;
         const matchesEnd = !endDate || logDate <= endDate;
 
-        return matchesUser && matchesStatus && matchesStart && matchesEnd;
+        return matchesUser && matchesOrg && matchesStatus && matchesStart && matchesEnd;
     });
 
     // Pagination logic
@@ -114,6 +152,33 @@ export const AdminLogs = () => {
 
     return (
         <div style={{ width: '100%', margin: '0' }}>
+            <style>{`
+                .cs-container { position: relative; }
+                .cs-trigger { 
+                    display: flex; align-items: center; justify-content: space-between;
+                    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+                    border-radius: 12px; padding: 8px 14px; color: var(--text-main);
+                    font-size: 13px; cursor: pointer; transition: all 0.2s ease;
+                }
+                .cs-trigger:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.06); }
+                .cs-dropdown {
+                    position: absolute; top: calc(100% + 8px); left: 0; right: 0;
+                    background: #1a1f2e; border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 12px; padding: 6px; z-index: 1000;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                    backdrop-filter: blur(16px); animation: csSlideUp 0.15s ease-out;
+                    min-width: 200px;
+                }
+                .cs-item {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 8px 12px; border-radius: 8px; color: var(--text-dim);
+                    font-size: 13px; cursor: pointer; transition: all 0.15s;
+                }
+                .cs-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+                .cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+                .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+                @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            `}</style>
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
@@ -158,6 +223,42 @@ export const AdminLogs = () => {
 
                     <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Filtrar por:</span>
                     
+                    {/* Organization Selector - CUSTOM PREMIUM SELECT */}
+                    <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
+                        <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                                <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações'}
+                                </span>
+                            </div>
+                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none', opacity: 0.6, flexShrink: 0 }} />
+                        </div>
+
+                        {isOrgOpen && (
+                            <div className="cs-dropdown">
+                                <div 
+                                    className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
+                                    onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
+                                >
+                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                    Todas as Organizações
+                                </div>
+                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                                {organizations.map(org => (
+                                    <div 
+                                        key={org.id} 
+                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); setCurrentPage(1); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: '#10b981' }} />
+                                        {org.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* User Search */}
                     <div style={{ position: 'relative', width: '200px' }}>
                         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
@@ -170,46 +271,51 @@ export const AdminLogs = () => {
                         />
                     </div>
 
-                    {/* Status Filter */}
-                    <div style={{ position: 'relative', width: '150px' }}>
-                        <AlertCircle 
-                            size={14} 
-                            style={{ 
-                                position: 'absolute', 
-                                left: '12px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)', 
-                                color: statusFilter === 'success' ? '#10b981' : statusFilter === 'error' ? '#ef4444' : '#3b82f6',
-                                transition: 'color 0.2s'
-                            }} 
-                        />
-                        <select 
-                            value={statusFilter} 
-                            onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                            style={{ 
-                                width: '100%', 
-                                padding: '8px 12px 8px 34px', 
-                                background: 'var(--bg-card)', 
-                                border: '1px solid var(--border)', 
-                                borderRadius: '8px', 
-                                color: statusFilter === 'success' ? '#10b981' : statusFilter === 'error' ? '#ef4444' : '#3b82f6', 
-                                fontSize: '13px', 
-                                fontWeight: 600,
-                                outline: 'none', 
-                                appearance: 'none', 
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <option value="" style={{ color: '#3b82f6' }}>Todos status</option>
-                            <option value="success" style={{ color: '#10b981' }}>Sucesso</option>
-                            <option value="error" style={{ color: '#ef4444' }}>Erro</option>
-                        </select>
+                    {/* Status Filter - CUSTOM PREMIUM SELECT */}
+                    <div className="cs-container" ref={statusRef} style={{ width: '160px' }}>
+                        <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <AlertCircle 
+                                    size={14} 
+                                    style={{ 
+                                        color: statusFilter === 'success' ? '#10b981' : statusFilter === 'error' ? '#ef4444' : '#3b82f6',
+                                    }} 
+                                />
+                                <span>{statusFilter === 'success' ? 'Sucesso' : statusFilter === 'error' ? 'Erro' : 'Todos status'}</span>
+                            </div>
+                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'none', opacity: 0.6 }} />
+                        </div>
+
+                        {isStatusOpen && (
+                            <div className="cs-dropdown" style={{ minWidth: '150px' }}>
+                                <div 
+                                    className={`cs-item ${statusFilter === '' ? 'active' : ''}`}
+                                    onClick={() => { setStatusFilter(''); setIsStatusOpen(false); setCurrentPage(1); }}
+                                >
+                                    <div className="cs-dot" style={{ background: '#3b82f6' }} />
+                                    Todos status
+                                </div>
+                                <div 
+                                    className={`cs-item ${statusFilter === 'success' ? 'active' : ''}`}
+                                    onClick={() => { setStatusFilter('success'); setIsStatusOpen(false); setCurrentPage(1); }}
+                                >
+                                    <div className="cs-dot" style={{ background: '#10b981' }} />
+                                    Sucesso
+                                </div>
+                                <div 
+                                    className={`cs-item ${statusFilter === 'error' ? 'active' : ''}`}
+                                    onClick={() => { setStatusFilter('error'); setIsStatusOpen(false); setCurrentPage(1); }}
+                                >
+                                    <div className="cs-dot" style={{ background: '#ef4444' }} />
+                                    Erro
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                    {(searchUser || statusFilter || startDate || endDate) && (
+                    {(searchUser || selectedOrgId || statusFilter || startDate || endDate) && (
                         <button 
                             onClick={clearFilters}
                             style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}

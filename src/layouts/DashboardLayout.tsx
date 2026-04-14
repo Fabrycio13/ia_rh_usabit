@@ -2,8 +2,11 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ChatWidget } from './ChatWidget';
+import { useUser } from '../core/contexts/UserContext';
+import { hasPermission } from '../core/config/permissions';
 
 export const DashboardLayout = () => {
+    const { profile } = useUser();
     const [isChatOpen, setIsChatOpen] = React.useState(false);
 
     return (
@@ -15,7 +18,9 @@ export const DashboardLayout = () => {
                         <Outlet />
                     </div>
                 </main>
-                <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+                {hasPermission(profile.user_role, 'chat') && (
+                    <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+                )}
             </div>
         </div>
     );

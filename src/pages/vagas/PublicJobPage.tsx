@@ -27,6 +27,7 @@ interface Job {
     company_logo: string | null;
     application_count: number;
     is_accepting_applications: boolean;
+    work_regime: string | null;
     application_deadline: string | null;
     created_at: string;
 }
@@ -56,7 +57,7 @@ export const PublicJobPage = () => {
                     .single();
 
                 if (err) {
-                    setError('Vaga não encontrada, pausada ou encerrada');
+                    setError('Vaga não encontrada');
                     return;
                 }
 
@@ -96,6 +97,15 @@ export const PublicJobPage = () => {
         return model ? labels[model] || model : '';
     };
 
+    const getWorkRegimeLabel = (regime: string | null) => {
+        const labels: Record<string, string> = {
+            'full-time': 'Tempo Integral',
+            'part-time': 'Meio Período',
+            'hourly': 'Horista'
+        };
+        return regime ? labels[regime] || regime : '';
+    };
+
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString('pt-BR', {
             day: '2-digit',
@@ -129,13 +139,13 @@ export const PublicJobPage = () => {
         );
     }
 
-    if (error || !job) {
+    if (error || !job || !job.is_accepting_applications) {
         return (
             <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
                 <div style={{ textAlign: 'center', maxWidth: '500px' }}>
                     <AlertCircle size={64} style={{ color: '#ef4444', margin: '0 auto 24px' }} />
                     <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 700, marginBottom: '12px' }}>
-                        {error || 'Vaga não encontrada'}
+                        Vaga não encontrada
                     </h1>
                     <p style={{ color: '#94a3b8', fontSize: '16px', marginBottom: '32px' }}>
                         Esta vaga pode ter sido removida ou o link pode estar inválido.
@@ -155,22 +165,6 @@ export const PublicJobPage = () => {
                     >
                         Voltar ao início
                     </button>
-                </div>
-            </div>
-        );
-    }
-
-    if (!job.is_accepting_applications) {
-        return (
-            <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-                <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-                    <CheckCircle size={64} style={{ color: '#f59e0b', margin: '0 auto 24px' }} />
-                    <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 700, marginBottom: '12px' }}>
-                        Vaga encerrada
-                    </h1>
-                    <p style={{ color: '#94a3b8', fontSize: '16px' }}>
-                        Esta vaga não está mais aceitando candidaturas.
-                    </p>
                 </div>
             </div>
         );
@@ -268,6 +262,23 @@ export const PublicJobPage = () => {
                             }}>
                                 <Clock size={14} />
                                 {getContractTypeLabel(job.contract_type)}
+                            </div>
+                        )}
+                        {job.work_regime && (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                background: 'rgba(59, 130, 246, 0.25)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '20px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 500
+                            }}>
+                                <Clock size={14} />
+                                {getWorkRegimeLabel(job.work_regime)}
                             </div>
                         )}
                         {job.has_location && job.location && (

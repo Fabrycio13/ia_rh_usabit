@@ -27,6 +27,7 @@ import { VagaCandidatos } from './pages/vagas/VagaCandidatos';
 import { PublicJobPage } from './pages/vagas/PublicJobPage';
 import { JobApplication } from './pages/vagas/JobApplication';
 import { Toaster } from 'react-hot-toast';
+import { OnboardingModal } from './common/components/OnboardingModal';
 
 const JobDetailRoute = () => {
     const { jobId } = useParams<{ jobId: string }>();
@@ -48,10 +49,10 @@ const AppContent = ({ session }: { session: any }) => {
         // 1. Wait for profile to load
         if (!profile.loaded) return <div style={{ height: '100vh', background: '#0B1020' }} />;
 
-        // 2. Email confirmation (skip for lifetime)
-        if (!session.user.confirmed_at && profile.account_type !== 'lifetime') {
-            return <ConfirmEmail />;
-        }
+        // 2. Email confirmation - DESATIVADO PARA NÃO TRAVAR O OWNER NO CONVITE
+        // if (!session.user.confirmed_at && profile.account_type !== 'lifetime') {
+        //     return <ConfirmEmail />;
+        // }
 
         // 3. Trial Expiry - DESATIVADO POR ENQUANTO (uso interno)
         // if (profile.account_type === 'trial' && isTrialExpired()) {
@@ -61,6 +62,8 @@ const AppContent = ({ session }: { session: any }) => {
 
     return (
         <HashRouter>
+            {/* Onboarding Modal - Só abre se não estiver completo no banco E não houver trava local */}
+            {session && <OnboardingModal />}
             <Toaster
                 position="bottom-right"
                 toastOptions={{
@@ -91,7 +94,7 @@ const AppContent = ({ session }: { session: any }) => {
                     <Route path="/analise/:jobId" element={hasPermission(profile.user_role, 'analises') ? <JobDetailRoute /> : <Navigate to="/dashboard" />} />
                     <Route path="/configuracoes" element={<Configuracoes />} />
                     <Route path="/ajuda" element={<Ajuda />} />
-                    <Route path="/pipeline" element={hasPermission(profile.user_role, 'pipeline') && profile.isPremium ? <Pipeline /> : <Navigate to="/dashboard" />} />
+                    <Route path="/pipeline" element={hasPermission(profile.user_role, 'pipeline') ? <Pipeline /> : <Navigate to="/dashboard" />} />
                     <Route path="/chat" element={hasPermission(profile.user_role, 'chat') && profile.isPremium ? <Chat /> : <Navigate to="/dashboard" />} />
 
                     {/* Admin Routes */}
