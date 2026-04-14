@@ -116,7 +116,7 @@ export const PublicJobPage = () => {
 
     const handleApply = () => {
         if (job) {
-            navigate(`/vagas/${hash}/candidatar`);
+            navigate(`/v/${hash}/candidatar`);
         }
     };
 

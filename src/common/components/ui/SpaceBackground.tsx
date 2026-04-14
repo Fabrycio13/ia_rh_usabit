@@ -51,44 +51,24 @@ const PlanetOverlay = ({ type }: { type: string }) => {
     case 'Neptune':
       return (
         <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(160deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px)', filter: 'blur(1.5px)', animation: 'float 45s linear infinite' }} />
-          <div style={{ position: 'absolute', top: '40%', left: '10%', width: '80%', height: '4%', background: 'rgba(255,255,255,0.15)', filter: 'blur(3px)' }} />
+          {/* Efeito 3D esférico extra (luz e sombra) */}
+          <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.6), inset 10px 10px 20px rgba(255,255,255,0.1)', zIndex: 10 }} />
+          
+          {/* Bandas curvas simulando a curvatura de um planeta gasoso */}
+          <div style={{ position: 'absolute', inset: '-50%', background: 'radial-gradient(ellipse 80% 50% at 50% 120%, transparent 40%, rgba(255,255,255,0.15) 45%, transparent 55%, rgba(255,255,255,0.08) 60%, transparent 70%)', filter: 'blur(4px)', transform: 'rotate(-15deg)', animation: 'float 40s infinite linear' }} />
+          <div style={{ position: 'absolute', inset: '-50%', background: 'radial-gradient(ellipse 80% 50% at 50% -20%, transparent 40%, rgba(255,255,255,0.12) 45%, transparent 55%, rgba(255,255,255,0.05) 60%, transparent 70%)', filter: 'blur(3px)', transform: 'rotate(-15deg)', animation: 'float 30s infinite reverse linear' }} />
+          
+          {/* Uma "mancha" suave como a grande mancha escura de Netuno real */}
+          <div style={{ position: 'absolute', top: '55%', left: '30%', width: '40%', height: '20%', background: 'rgba(30,27,75,0.4)', borderRadius: '50%', filter: 'blur(4px)', transform: 'rotate(-10deg)', zIndex: 5 }} />
+          <div style={{ position: 'absolute', top: '57%', left: '35%', width: '25%', height: '10%', background: 'rgba(255,255,255,0.1)', borderRadius: '50%', filter: 'blur(2px)', transform: 'rotate(-10deg)', zIndex: 5 }} />
         </div>
       );
     case 'Saturn':
       return (
-        <>
-          {/* Main Planet Body */}
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', zIndex: 2, background: 'inherit' }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(175deg, transparent, transparent 6px, rgba(161,98,7,0.1) 6px, rgba(161,98,7,0.1) 12px)' }} />
-            <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(175deg, transparent, transparent 10px, rgba(254,243,199,0.05) 10px, rgba(254,243,199,0.05) 20px)' }} />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 40%, rgba(0,0,0,0.2) 100%)' }} />
-          </div>
-          {/* Rings */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: '240%',
-            height: '15%',
-            borderRadius: '50%',
-            border: '8px solid rgba(217, 119, 6, 0.15)',
-            transform: 'translate(-50%, -50%) rotate(-15deg)',
-            zIndex: 1,
-            boxShadow: '0 0 10px rgba(217, 119, 6, 0.1)'
-          }} />
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: '210%',
-            height: '10%',
-            borderRadius: '50%',
-            border: '4px solid rgba(254, 243, 199, 0.2)',
-            transform: 'translate(-50%, -50%) rotate(-15deg)',
-            zIndex: 1
-          }} />
-        </>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
+          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
+        </div>
       );
     default:
       return null;
@@ -130,14 +110,7 @@ export const SpaceBackground = () => {
                 <PlanetOverlay type="Jupiter" />
             </div>
 
-            <div className="planet" style={{ 
-                width: 100, 
-                height: 100, 
-                right: '15%', 
-                bottom: '20%', 
-                background: 'radial-gradient(circle at 35% 35%, #f59e0b 0%, #78350f 100%)', 
-                opacity: 0.4 
-            }}>
+            <div className="planet" style={{ width: 110, height: 110, right: '12%', bottom: '15%', background: 'radial-gradient(circle at 35% 35%, #3b82f6 0%, #172554 100%)', opacity: 0.35 }}>
                 <PlanetOverlay type="Saturn" />
             </div>
             
