@@ -54,6 +54,7 @@ interface Vaga {
     application_count: number;
     created_at: string;
     organization_id: string | null;
+    is_pcd: boolean;
 }
 
 export const Vagas = () => {
@@ -139,7 +140,7 @@ export const Vagas = () => {
                 // 3. Buscar Vagas
                 let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id')
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd')
                     .order('created_at', { ascending: false });
 
                 // ISOLAMENTO: Usuários que não são Owners só veem vagas da sua organização
@@ -223,12 +224,39 @@ export const Vagas = () => {
                 is_accepting_applications: status === 'aberta',
             };
 
-            const { error } = await supabase
+            const { error: vagaError } = await supabase
                 .from('vagas_white_label')
                 .update(updates)
                 .eq('id', id);
 
-            if (error) throw error;
+            if (vagaError) throw vagaError;
+
+            // Atualizar pipeline associado (se existir)
+            if (status === 'pausada' || status === 'cancelada' || status === 'fechada') {
+                // Desativar pipeline
+                await supabase
+                    .from('pipelines')
+                    .update({ is_active: false })
+                    .eq('vaga_id', id);
+            } else {
+                // Reativar pipeline
+                await supabase
+                    .from('pipelines')
+                    .update({ is_active: true })
+                    .eq('vaga_id', id);
+            }
+
+            // Se cancelada ou fechada, perguntar se quer deletar o pipeline
+            if ((status === 'cancelada' || status === 'fechada') && window.confirm(`Deseja deletar o Pipeline Kanban associado à vaga "${vagas.find(v => v.id === id)?.title}"?`)) {
+                const { error: deleteError } = await supabase
+                    .from('pipelines')
+                    .delete()
+                    .eq('vaga_id', id);
+
+                if (deleteError) {
+                    console.error('Erro ao deletar pipeline:', deleteError);
+                }
+            }
 
             setVagas(prev => prev.map(v =>
                 v.id === id ? { ...v, ...updates } : v
@@ -602,8 +630,32 @@ export const Vagas = () => {
                                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
-                                    <div style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                                    <div style={{ color: 'var(--text-main)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         {vaga.title}
+                                        {vaga.is_pcd && (
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '2px 8px',
+                                                background: 'rgba(236, 72, 153, 0.15)',
+                                                borderRadius: '12px',
+                                                color: '#ec4899',
+                                                fontSize: '11px',
+                                                fontWeight: 700
+                                            }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <circle cx="10" cy="4" r="2.5" />
+                                                    <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                                    <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                    <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+                                                    <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                    <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                    <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                                PcD
+                                            </span>
+                                        )}
                                     </div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                                         {vaga.location || '-'}
