@@ -19,7 +19,7 @@ import { AdminLogs } from './pages/dashboard/AdminLogs';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
-import { ConfirmEmail } from './pages/auth/ConfirmEmail';
+// import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 // import { TrialExpired } from './pages/auth/TrialExpired';
 import { Vagas } from './pages/vagas/Vagas';
 import { VagaForm } from './pages/vagas/VagaForm';

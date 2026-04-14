@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import {
     MapPin, DollarSign, Clock, Star, Target,
-    Award, Info, ArrowRight, CheckCircle, AlertCircle, ArrowLeft
+    Award, Info, ArrowRight, AlertCircle, ArrowLeft
 } from 'lucide-react';
 
 interface Job {
