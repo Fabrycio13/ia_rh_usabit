@@ -57,10 +57,38 @@ const PlanetOverlay = ({ type }: { type: string }) => {
       );
     case 'Saturn':
       return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
-          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
-        </div>
+        <>
+          {/* Main Planet Body */}
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', zIndex: 2, background: 'inherit' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(175deg, transparent, transparent 6px, rgba(161,98,7,0.1) 6px, rgba(161,98,7,0.1) 12px)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(175deg, transparent, transparent 10px, rgba(254,243,199,0.05) 10px, rgba(254,243,199,0.05) 20px)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 40%, rgba(0,0,0,0.2) 100%)' }} />
+          </div>
+          {/* Rings */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: '240%',
+            height: '15%',
+            borderRadius: '50%',
+            border: '8px solid rgba(217, 119, 6, 0.15)',
+            transform: 'translate(-50%, -50%) rotate(-15deg)',
+            zIndex: 1,
+            boxShadow: '0 0 10px rgba(217, 119, 6, 0.1)'
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: '210%',
+            height: '10%',
+            borderRadius: '50%',
+            border: '4px solid rgba(254, 243, 199, 0.2)',
+            transform: 'translate(-50%, -50%) rotate(-15deg)',
+            zIndex: 1
+          }} />
+        </>
       );
     default:
       return null;
@@ -102,7 +130,14 @@ export const SpaceBackground = () => {
                 <PlanetOverlay type="Jupiter" />
             </div>
 
-            <div className="planet" style={{ width: 110, height: 110, right: '12%', bottom: '15%', background: 'radial-gradient(circle at 35% 35%, #3b82f6 0%, #172554 100%)', opacity: 0.35 }}>
+            <div className="planet" style={{ 
+                width: 100, 
+                height: 100, 
+                right: '15%', 
+                bottom: '20%', 
+                background: 'radial-gradient(circle at 35% 35%, #f59e0b 0%, #78350f 100%)', 
+                opacity: 0.4 
+            }}>
                 <PlanetOverlay type="Saturn" />
             </div>
             
