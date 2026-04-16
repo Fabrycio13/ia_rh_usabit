@@ -737,7 +737,10 @@ export const Vagas = () => {
                                     {/* Actions */}
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                                         <button
-                                            onClick={() => navigate(`/v/${vaga.public_hash}`)}
+                                            onClick={() => {
+                                                const url = window.location.href.split('#')[0] + `#/v/${vaga.public_hash}`;
+                                                window.open(url, '_blank');
+                                            }}
                                             title="Visualizar vaga"
                                             style={{
                                                 padding: '6px',
