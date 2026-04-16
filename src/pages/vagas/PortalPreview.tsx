@@ -53,8 +53,7 @@ export const PortalPreview = ({
         }
     ];
 
-    const formatCurrency = (val?: number) => {
-        if (val === undefined) return '';
+    const formatCurrency = (val: number) => {
         return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
@@ -180,7 +179,7 @@ export const PortalPreview = ({
                                                 💰
                                             </div>
                                             <span style={{ fontWeight: 600, color: '#475569' }}>
-                                                {formatCurrency(vaga.salary_min)} - {formatCurrency(vaga.salary_max)}
+                                                {formatCurrency(vaga.salary_min || 0)} - {formatCurrency(vaga.salary_max || 0)}
                                             </span>
                                         </div>
                                     )}
