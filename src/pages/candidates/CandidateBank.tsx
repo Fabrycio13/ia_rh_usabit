@@ -394,12 +394,17 @@ export const CandidateBank = () => {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {([
-          { key: 'todos' as const, label: 'Todos', icon: Users },
-          { key: 'candidatos' as const, label: 'Candidatos', icon: UserCheck },
-          { key: 'blacklist' as const, label: 'Blacklist', icon: Ban },
+          { key: 'todos' as const, label: 'Todos', icon: Users, color: 'var(--primary)' },
+          { key: 'candidatos' as const, label: 'Candidatos', icon: UserCheck, color: '#10b981' },
+          { key: 'blacklist' as const, label: 'Blacklist', icon: Ban, color: '#ef4444' },
         ]).map(tab => {
           const isActive = activeTab === tab.key;
           const Icon = tab.icon;
+          const statusColor = tab.color;
+          const count = tab.key === 'todos' ? candidates.length :
+                        tab.key === 'candidatos' ? candidates.filter(c => !c.is_blacklisted).length :
+                        candidates.filter(c => c.is_blacklisted).length;
+
           return (
             <button
               key={tab.key}
@@ -413,16 +418,46 @@ export const CandidateBank = () => {
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                 borderRadius: '8px 8px 0 0',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                color: isActive ? statusColor : 'var(--text-muted)',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                marginBottom: '-1px'
+                marginBottom: '-1px',
+                opacity: isActive ? 1 : 0.8
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                    e.currentTarget.style.color = statusColor;
+                    e.currentTarget.style.opacity = '1';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                    e.currentTarget.style.opacity = '0.8';
+                }
               }}
             >
               <Icon size={16} />
               {tab.label}
+              <span style={{ 
+                  fontSize: '10px', 
+                  background: isActive ? `${statusColor}25` : `${statusColor}15`,
+                  color: statusColor,
+                  padding: '1px 7px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  marginLeft: '8px',
+                  border: `1px solid ${statusColor}30`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '20px',
+                  transition: 'all 0.2s'
+              }}>
+                  {count}
+              </span>
             </button>
           );
         })}

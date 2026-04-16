@@ -9,7 +9,7 @@ interface Vaga {
     title: string;
     company_name: string | null;
     application_count: number;
-    is_pcd: boolean;
+    is_pcd: string;
 }
 
 interface Candidato {
@@ -134,19 +134,22 @@ export const VagaCandidatos = () => {
                     <User size={32} style={{ color: 'var(--primary)' }} />
                     <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {vaga.title}
-                        {vaga.is_pcd && (
+                        {vaga.is_pcd && vaga.is_pcd !== 'no' && (
                             <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                padding: '4px 12px',
-                                background: 'rgba(236, 72, 153, 0.15)',
+                                gap: '4px',
+                                padding: '2px 8px',
+                                background: vaga.is_pcd === 'exclusive' 
+                                    ? 'rgba(236, 72, 153, 0.15)' 
+                                    : 'rgba(59, 130, 246, 0.15)',
                                 borderRadius: '12px',
-                                color: '#ec4899',
-                                fontSize: '12px',
-                                fontWeight: 700
+                                color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                marginLeft: '8px'
                             }}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                     <circle cx="10" cy="4" r="2.5" />
                                     <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
                                     <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
@@ -155,7 +158,7 @@ export const VagaCandidatos = () => {
                                     <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                                     <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
-                                Vaga PcD
+                                {vaga.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
                             </span>
                         )}
                     </h1>

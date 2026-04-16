@@ -3,16 +3,18 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ChatWidget } from './ChatWidget';
 import { useUser } from '../core/contexts/UserContext';
+import { useTheme } from '../core/contexts/ThemeContext';
 import { hasPermission } from '../core/config/permissions';
 import { SpaceBackground } from '../common/components/ui/SpaceBackground';
 
 export const DashboardLayout = () => {
     const { profile } = useUser();
+    const { planetMode } = useTheme();
     const [isChatOpen, setIsChatOpen] = React.useState(false);
 
     return (
         <div style={{ display: 'flex', width: '100vw', height: '100vh', position: 'relative', color: 'var(--text-main)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
-            <SpaceBackground />
+            {planetMode && <SpaceBackground />}
             
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%', height: '100%' }}>
                 <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />

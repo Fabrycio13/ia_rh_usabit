@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel } from './OwnerPanels';
+import { CareerSettingsPanel } from './CareerSettingsPanel';
 
 type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano';
 
@@ -208,7 +209,7 @@ const roleDefinitions = [
 
 export const Configuracoes = () => {
     const { profile, refetch } = useUser();
-    const { theme, toggleTheme } = useTheme();
+    const { theme, toggleTheme, planetMode, togglePlanetMode } = useTheme();
     const [activeTab, setActiveTab] = useState<TabKey>('perfil');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -913,6 +914,32 @@ export const Configuracoes = () => {
                             </button>
                         </div>
 
+                        <div style={{ marginTop: '24px', marginBottom: '8px' }}>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Fundo Especial</p>
+                        </div>
+
+                        <div className="theme-switch-container">
+                            <div className="theme-switch-slider" style={{
+                                transform: planetMode ? 'translateX(0)' : 'translateX(calc(100% + 4px))'
+                            }} />
+
+                            <button
+                                className={`theme-switch-option ${planetMode ? 'active' : ''}`}
+                                onClick={() => !planetMode && togglePlanetMode()}
+                            >
+                                <Star className="theme-icon-anim" size={16} />
+                                Planetas
+                            </button>
+
+                            <button
+                                className={`theme-switch-option ${!planetMode ? 'active' : ''}`}
+                                onClick={() => planetMode && togglePlanetMode()}
+                            >
+                                <X className="theme-icon-anim" size={16} />
+                                Simples
+                            </button>
+                        </div>
+
                         <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />
                             <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Interface Ativa</span>
@@ -1497,6 +1524,11 @@ export const Configuracoes = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ABA CARREIRAS: Portal White Label */}
+            {activeTab === 'carreiras' && (
+                <CareerSettingsPanel showToast={showToast} />
             )}
 
             {/* ABA 4: API (Integrações) */}

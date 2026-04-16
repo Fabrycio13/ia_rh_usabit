@@ -318,7 +318,7 @@ export const JobApplication = () => {
                 
                 <div style={{ position: 'relative', zIndex: 1, maxWidth: '700px', margin: '0 auto' }}>
                     <button
-                        onClick={() => navigate(`/v/${hash}`)}
+                        onClick={() => navigate(-1)}
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',
