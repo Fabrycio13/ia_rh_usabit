@@ -44,14 +44,14 @@ export const JobApplication = () => {
 
             try {
                 const { data, error: err } = await supabase
-                    .from('jobs')
+                    .from('vagas_white_label')
                     .select('id, title, company_name, has_location, location, work_model, is_accepting_applications')
                     .eq('public_hash', hash)
                     .eq('is_active', true)
                     .single();
 
                 if (err) throw err;
-                
+
                 if (!(data as any).is_accepting_applications) {
                     setError('Esta vaga não está mais aceitando candidaturas.');
                     return;
@@ -139,9 +139,9 @@ export const JobApplication = () => {
             const resumeUrl = await uploadResume();
 
             const { error: err } = await supabase
-                .from('job_applications')
+                .from('vagas_candidaturas')
                 .insert({
-                    job_id: job!.id,
+                    vaga_id: job!.id,
                     candidate_name: formData.name,
                     candidate_email: formData.email,
                     candidate_phone: formData.phone || null,
@@ -318,7 +318,7 @@ export const JobApplication = () => {
                 
                 <div style={{ position: 'relative', zIndex: 1, maxWidth: '700px', margin: '0 auto' }}>
                     <button
-                        onClick={() => navigate(`/v/${hash}`)}
+                        onClick={() => navigate(-1)}
                         style={{
                             display: 'inline-flex',
                             alignItems: 'center',

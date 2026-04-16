@@ -20,11 +20,12 @@
 }
 
 :root {
+  color-scheme: dark;
   /* Default Dark Mode (Current Theme) */
   --bg-main: #0f111a;
   --bg-card: #1a1d27;
-  --bg-sidebar: #0B0D12;
-  /* Adjusted to be darker for sidebar */
+  --bg-sidebar: rgba(15, 17, 26, 0.45);
+  /* Adjusted for glassmorphism */
   --bg-input: #0d0f17;
 
   --primary: #3b82f6;
@@ -71,6 +72,7 @@
 }
 
 [data-theme='light'] {
+  color-scheme: light;
   --bg-main: #f1f5f9;
   /* Ligeiramente mais escuro para contraste com cards */
   --bg-card: #ffffff;
@@ -263,5 +265,23 @@ body *::after {
   overflow: hidden;
 }
 
+/* Global Date Input Style */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(var(--calendar-icon-invert, 1));
+}
+
 .kpi-card { position:relative; overflow:hidden; border-radius:20px; padding:24px; transition:transform 0.2s, box-shadow 0.2s; cursor:default; }
 .kpi-card:hover { transform:translateY(-3px); box-shadow:0 16px 48px rgba(0,0,0,0.35); }
+
+/* Custom Calendar Styles */
+.cal-day { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; transition:background 0.15s, color 0.15s; color:var(--text-muted); position:relative; }
+.cal-day:hover { background:rgba(99,102,241,0.12); color:var(--text-main); }
+.cal-day.cal-active { background:var(--primary) !important; color:#fff !important; font-weight:700; }
+.cal-day.cal-today { font-weight:700; color:var(--primary); }
+.cal-day.cal-has-job::after { content:''; position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:#22c55e; }
+.cal-nav { background:none; border:none; cursor:pointer; color:var(--text-dim); padding:4px 8px; border-radius:8px; transition:background 0.15s; font-size:18px; line-height:1; }
+.cal-nav:hover { background:var(--bg-main); color:var(--text-main); }
+.cal-range { background:rgba(99,102,241,0.15) !important; color:var(--text-main) !important; border-radius:0 !important; }
+.cal-range-start { border-radius:8px 0 0 8px !important; }
+.cal-range-end { border-radius:0 8px 8px 0 !important; }

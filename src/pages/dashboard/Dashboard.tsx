@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw } from 'lucide-react';
+import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,15 +78,9 @@ const css = `
 .cal-nav:hover { background:var(--bg-main); color:var(--text-main); }
 .cal-range { background:rgba(99,102,241,0.15) !important; color:var(--text-main) !important; border-radius:0 !important; }
 .cal-range-start { border-radius:8px 0 0 8px !important; }
-@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
-@keyframes planet-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
-.planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
-.planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
 `;
 
-// ─── Planet Details ───────────────────────────────────────────────────────────
+// ─── Planet Overlay Component ─────────────────────────────────────────────────
 const PlanetOverlay = ({ type }: { type: string }) => {
   switch (type) {
     case 'Jupiter':
@@ -101,7 +95,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
     case 'Earth':
       return (
         <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, 
+          <div style={{ position: 'absolute', inset: 0,
             backgroundImage: `
               radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
               radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
@@ -112,7 +106,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
             opacity: 0.85, filter: 'blur(1px)'
           }} />
           <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
-          <div style={{ position: 'absolute', inset: 0, 
+          <div style={{ position: 'absolute', inset: 0,
             backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
             filter: 'blur(2px)', animation: 'float 30s linear infinite'
           }} />
@@ -318,10 +312,15 @@ export const Dashboard = () => {
       <style>{css}</style>
 
       {/* ── Header ── */}
-      <div className="anim-1" style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="anim-1" style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <p style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Visão geral</p>
-          <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Dashboard</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+              <LayoutGrid size={32} style={{ color: 'var(--primary)' }} />
+              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Dashboard
+              </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Visão geral</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button 

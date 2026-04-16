@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import {
     MapPin, DollarSign, Clock, Star, Target,
-    Award, Info, ArrowRight, CheckCircle, AlertCircle
+    Award, Info, ArrowRight, AlertCircle, ArrowLeft
 } from 'lucide-react';
 
 interface Job {
@@ -27,8 +27,10 @@ interface Job {
     company_logo: string | null;
     application_count: number;
     is_accepting_applications: boolean;
+    work_regime: string | null;
     application_deadline: string | null;
     created_at: string;
+    is_pcd: string;
 }
 
 export const PublicJobPage = () => {
@@ -48,14 +50,15 @@ export const PublicJobPage = () => {
 
             try {
                 const { data, error: err } = await supabase
-                    .from('jobs')
+                    .from('vagas_white_label')
                     .select('*')
                     .eq('public_hash', hash)
                     .eq('is_active', true)
+                    .eq('is_accepting_applications', true)
                     .single();
 
                 if (err) {
-                    setError('Vaga não encontrada ou expirada');
+                    setError('Vaga não encontrada');
                     return;
                 }
 
@@ -95,6 +98,15 @@ export const PublicJobPage = () => {
         return model ? labels[model] || model : '';
     };
 
+    const getWorkRegimeLabel = (regime: string | null) => {
+        const labels: Record<string, string> = {
+            'full-time': 'Tempo Integral',
+            'part-time': 'Meio Período',
+            'hourly': 'Horista'
+        };
+        return regime ? labels[regime] || regime : '';
+    };
+
     const formatDate = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString('pt-BR', {
             day: '2-digit',
@@ -105,7 +117,7 @@ export const PublicJobPage = () => {
 
     const handleApply = () => {
         if (job) {
-            navigate(`/vagas/${hash}/candidatar`);
+            navigate(`/v/${hash}/candidatar`);
         }
     };
 
@@ -128,13 +140,13 @@ export const PublicJobPage = () => {
         );
     }
 
-    if (error || !job) {
+    if (error || !job || !job.is_accepting_applications) {
         return (
             <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
                 <div style={{ textAlign: 'center', maxWidth: '500px' }}>
                     <AlertCircle size={64} style={{ color: '#ef4444', margin: '0 auto 24px' }} />
                     <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 700, marginBottom: '12px' }}>
-                        {error || 'Vaga não encontrada'}
+                        Vaga não encontrada
                     </h1>
                     <p style={{ color: '#94a3b8', fontSize: '16px', marginBottom: '32px' }}>
                         Esta vaga pode ter sido removida ou o link pode estar inválido.
@@ -159,22 +171,6 @@ export const PublicJobPage = () => {
         );
     }
 
-    if (!job.is_accepting_applications) {
-        return (
-            <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-                <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-                    <CheckCircle size={64} style={{ color: '#f59e0b', margin: '0 auto 24px' }} />
-                    <h1 style={{ color: '#f1f5f9', fontSize: '28px', fontWeight: 700, marginBottom: '12px' }}>
-                        Vaga encerrada
-                    </h1>
-                    <p style={{ color: '#94a3b8', fontSize: '16px' }}>
-                        Esta vaga não está mais aceitando candidaturas.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div style={{ minHeight: '100vh', background: '#0B1020' }}>
             {/* CSS Animations */}
@@ -183,6 +179,38 @@ export const PublicJobPage = () => {
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
             `}</style>
+
+            {/* Back Button */}
+            <div style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                zIndex: 10
+            }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                >
+                    <ArrowLeft size={16} />
+                    Voltar
+                </button>
+            </div>
 
             {/* Header with company info or gradient */}
             <div style={{
@@ -235,6 +263,50 @@ export const PublicJobPage = () => {
                             }}>
                                 <Clock size={14} />
                                 {getContractTypeLabel(job.contract_type)}
+                            </div>
+                        )}
+                        {job.work_regime && (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                background: 'rgba(59, 130, 246, 0.25)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '20px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 500
+                            }}>
+                                <Clock size={14} />
+                                {getWorkRegimeLabel(job.work_regime)}
+                            </div>
+                        )}
+                        {job.is_pcd && job.is_pcd !== 'no' && (
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                background: job.is_pcd === 'exclusive' 
+                                    ? 'rgba(236, 72, 153, 0.35)' 
+                                    : 'rgba(59, 130, 246, 0.35)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '20px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 600
+                            }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="10" cy="4" r="2.5" />
+                                    <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                    <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+                                    <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                    <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                {job.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
                             </div>
                         )}
                         {job.has_location && job.location && (

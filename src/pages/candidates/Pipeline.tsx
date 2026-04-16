@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -12,6 +12,8 @@ interface Pipeline {
     id: string;
     name: string;
     user_id: string;
+    vaga_id?: string | null;
+    is_active?: boolean;
 }
 interface PipelineColumn {
     id: string;
@@ -37,6 +39,7 @@ interface PipelineCard {
     is_blacklisted?: boolean;
     candidate_phone?: string | null;
     candidate_conversations?: any[];
+    vaga_id?: string | null;
 }
 
 interface EligibleCandidate {
@@ -290,6 +293,8 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
 export const Pipeline = () => {
     const { profile } = useUser();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const vagaIdParam = searchParams.get('vagaId');
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
     const [fetchingPipelines, setFetchingPipelines] = useState(true);
@@ -316,6 +321,13 @@ export const Pipeline = () => {
     const selectRef = useRef<HTMLDivElement>(null);
 
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
+    
+    // Filtro de Status para os pipelines
+    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string }>>([]);
+    const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
+    
+    const [showStatusSelect, setShowStatusSelect] = useState(false);
+    const statusSelectRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!profile.loaded || !profile.userId) return;
@@ -326,6 +338,9 @@ export const Pipeline = () => {
         const handleClickOutside = (e: MouseEvent) => {
             if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
                 setShowSelect(false);
+            }
+            if (statusSelectRef.current && !statusSelectRef.current.contains(e.target as Node)) {
+                setShowStatusSelect(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -340,6 +355,40 @@ export const Pipeline = () => {
             setCards([]);
         }
     }, [selectedPipelineId, profile.userId]);
+    
+    // Helper function para status da vaga
+    const getVagaStatusBadge = (vagaId?: string | null) => {
+        if (!vagaId) return null;
+        const vaga = availableVagas.find(v => v.id === vagaId);
+        if (!vaga) return null;
+        
+        const statusConfig: Record<string, { color: string; emoji: string; label: string }> = {
+            'aberta': { color: '#22c55e', emoji: '', label: 'Aberta' },
+            'pausada': { color: '#f59e0b', emoji: '', label: 'Pausada' },
+            'fechada': { color: '#ef4444', emoji: '', label: 'Fechada' },
+            'cancelada': { color: '#64748b', emoji: '', label: 'Cancelada' }
+        };
+        
+        const config = statusConfig[vaga.status] || { color: '#64748b', emoji: '', label: '' };
+        
+        return (
+            <span style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '4px',
+                fontSize: '7px',
+                fontWeight: 700,
+                padding: '2px 4px',
+                borderRadius: '4px',
+                background: config.color,
+                color: '#fff',
+                minWidth: '10px',
+                justifyContent: 'center'
+            }} title={`Vaga ${config.label}`}>
+                {config.emoji}
+            </span>
+        );
+    };
 
     async function init(userId: string) {
         setFetchingPipelines(true);
@@ -347,12 +396,41 @@ export const Pipeline = () => {
             const { data: pipes } = await supabase.from('pipelines').select('*').eq('user_id', userId).order('name');
             setPipelines(pipes || []);
             if (pipes && pipes.length > 0) {
-                setSelectedPipelineId(pipes[0].id);
+                // Se houver um vagaIdParam, tenta encontrar o pipeline correspondente
+                const targetPipe = vagaIdParam ? pipes.find(p => p.vaga_id === vagaIdParam) : null;
+                
+                if (targetPipe) {
+                    setSelectedPipelineId(targetPipe.id);
+                } else {
+                    setSelectedPipelineId(pipes[0].id);
+                }
             }
+            
+            // Buscar vagas disponíveis para filtro
+            await loadAvailableVagas();
         } catch (err) {
             console.error('Init error:', err);
         } finally {
             setFetchingPipelines(false);
+        }
+    }
+    
+    async function loadAvailableVagas() {
+        try {
+            const { data: vagas } = await supabase
+                .from('vagas_white_label')
+                .select('id, title, status, is_accepting_applications')
+                .order('title');
+            
+            if (vagas) {
+                setAvailableVagas(vagas.map(v => ({
+                    id: v.id,
+                    title: v.title,
+                    status: v.status
+                })));
+            }
+        } catch (err) {
+            console.error('Error loading vagas:', err);
         }
     }
 
@@ -886,22 +964,81 @@ export const Pipeline = () => {
         <>
             <style>{css}</style>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
                 {/* Left side: Title and Count */}
                 <div>
-                    <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
-                        Pipeline de Recrutamento
-                    </h1>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <Kanban size={32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            Pipeline de Recrutamento
+                        </h1>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
                         {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
                     </p>
                 </div>
 
                 {/* Right side: Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    
-                    {/* Select Pipeline Dropdown */}
-                    <div style={{ position: 'relative' }} ref={selectRef}>
+                    {/* Dropdown 1: Filtro de Status das Vagas */}
+                    <div style={{ position: 'relative', zIndex: 100 }} ref={statusSelectRef}>
+                        <div 
+                            onClick={() => setShowStatusSelect(!showStatusSelect)}
+                            style={{ 
+                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
+                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13, 
+                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', 
+                                minWidth: 200, justifyContent: 'space-between'
+                            }}
+                        >
+                            <span style={{ fontWeight: 600 }}>
+                                {pipelineStatusFilter === '' && 'Vagas: Todas'}
+                                {pipelineStatusFilter === 'aberta' && 'Vagas: Abertas'}
+                                {pipelineStatusFilter === 'pausada' && 'Vagas: Pausadas'}
+                                {pipelineStatusFilter === 'fechada' && 'Vagas: Fechadas'}
+                                {pipelineStatusFilter === 'cancelada' && 'Vagas: Canceladas'}
+                            </span>
+                            <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showStatusSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                        </div>
+
+                        {showStatusSelect && (
+                            <div className="pipeline_dropdown">
+                                {[
+                                    { value: '', label: 'Todas as Vagas' },
+                                    { value: 'aberta', label: 'Vagas Abertas' },
+                                    { value: 'pausada', label: 'Vagas Pausadas' },
+                                    { value: 'fechada', label: 'Vagas Fechadas' },
+                                    { value: 'cancelada', label: 'Vagas Canceladas' },
+                                ].map(opt => (
+                                    <div 
+                                        key={opt.value} 
+                                        className={`pipeline_option${pipelineStatusFilter === opt.value ? ' active' : ''}`}
+                                        onClick={() => { 
+                                            setPipelineStatusFilter(opt.value); 
+                                            setShowStatusSelect(false);
+                                            
+                                            // Atualiza o pipeline selecionado para o primeiro que corresponde ao filtro
+                                            const matchingPipelines = pipelines.map(p => {
+                                                const v = availableVagas.find(v => v.id === p.vaga_id);
+                                                return { ...p, status: v ? v.status : 'aberta' };
+                                            }).filter(p => !opt.value || p.status === opt.value);
+                                            
+                                            if (matchingPipelines.length > 0) {
+                                                setSelectedPipelineId(matchingPipelines[0].id);
+                                            } else {
+                                                setSelectedPipelineId(null);
+                                            }
+                                        }}
+                                    >
+                                        <span>{opt.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Dropdown 2: Select Pipeline Dropdown */}
+                    <div style={{ position: 'relative', zIndex: 99 }} ref={selectRef}>
                         <div 
                             onClick={() => setShowSelect(!showSelect)}
                             style={{ 
@@ -912,21 +1049,38 @@ export const Pipeline = () => {
                             }}
                         >
                             <span style={{ fontWeight: 600 }}>
-                                {pipelines.find(p => p.id === selectedPipelineId)?.name || 'Selecionar Processo'}
+                                {(() => {
+                                    const p = pipelines.find(p => p.id === selectedPipelineId);
+                                    if (!p) return 'Selecionar Processo';
+                                    const v = availableVagas.find(v => v.id === p.vaga_id);
+                                    const statusLabel = v ? `(${v.status})` : '';
+                                    return `${p.name} ${statusLabel}`;
+                                })()}
                             </span>
                             <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
                         </div>
 
                         {showSelect && (
                             <div className="pipeline_dropdown">
-                                {pipelines.map(p => (
+                                {pipelines
+                                    .map(p => {
+                                        const v = availableVagas.find(v => v.id === p.vaga_id);
+                                        return { ...p, status: v ? v.status : 'aberta' };
+                                    })
+                                    .filter(p => !pipelineStatusFilter || p.status === pipelineStatusFilter)
+                                    .map(p => (
                                     <div 
                                         key={p.id} 
                                         className={`pipeline_option${p.id === selectedPipelineId ? ' active' : ''}`}
                                         onClick={() => { setSelectedPipelineId(p.id); setShowSelect(false); }}
                                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                                     >
-                                        <span>{p.name}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span>{p.name}</span>
+                                            <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                                                {p.status}
+                                            </span>
+                                        </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); deletePipeline(p.id); }}
                                             style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4 }}
@@ -937,8 +1091,8 @@ export const Pipeline = () => {
                                         </button>
                                     </div>
                                 ))}
-                                {pipelines.length === 0 && (
-                                    <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhum processo criado.</div>
+                                {pipelines.filter(p => !pipelineStatusFilter || (availableVagas.find(v => v.id === p.vaga_id)?.status || 'aberta') === pipelineStatusFilter).length === 0 && (
+                                    <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhum processo neste status.</div>
                                 )}
                             </div>
                         )}
@@ -998,7 +1152,9 @@ export const Pipeline = () => {
             {activeTab === 'board' && (
                 <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
                 {columns.map(col => {
-                    const colCards = cards.filter(c => c.column_id === col.id).sort((a, b) => a.position - b.position);
+                    // Filtrar cards por coluna e por pipeline
+                    let colCards = cards.filter(c => c.column_id === col.id);
+                    colCards = colCards.sort((a, b) => a.position - b.position);
                     return (
                         <div
                             key={col.id}
@@ -1052,13 +1208,30 @@ export const Pipeline = () => {
                                                 </div>
                                             </div>
                                             {/* Linha 2: badge da vaga recuada para alinhar com o nome */}
-                                            {(card.display_job_name || (card.candidate_vagas && card.candidate_vagas.length > 0)) && (
-                                                <div style={{ paddingLeft: 44 }}>
-                                                    <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                                                        {(card.display_job_name || card.candidate_vagas[0]).toUpperCase()}
-                                                    </span>
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                const p = pipelines.find(pipe => pipe.id === card.pipeline_id);
+                                                const vId = card.vaga_id || p?.vaga_id;
+                                                return (card.display_job_name || (card.candidate_vagas && card.candidate_vagas.length > 0)) && (
+                                                    <div style={{ paddingLeft: 44, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        {getVagaStatusBadge(vId)}
+                                                        <span style={{ 
+                                                            fontSize: 9, 
+                                                            fontWeight: 800, 
+                                                            padding: '3px 8px', 
+                                                            borderRadius: 12, 
+                                                            background: 'rgba(99,102,241,0.1)', 
+                                                            border: '1px solid rgba(99,102,241,0.2)', 
+                                                            color: 'var(--primary)', 
+                                                            whiteSpace: 'nowrap', 
+                                                            overflow: 'hidden', 
+                                                            textOverflow: 'ellipsis', 
+                                                            maxWidth: 'calc(100% - 20px)'
+                                                        }}>
+                                                            {(card.display_job_name || card.candidate_vagas[0]).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1190,7 +1363,9 @@ export const Pipeline = () => {
                         {/* Card 1: Total */}
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
                             <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Total de Candidatos</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>{cards.length}</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                                {cards.length}
+                            </div>
                             <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Em todas as etapas do processo</div>
                             <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
                                 <Calendar size={18} />

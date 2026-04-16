@@ -249,7 +249,14 @@ export const LandingPage = () => {
 
           <div className="lp-nav-actions">
             <button className="btn-ghost" onClick={() => navigate('/login')}>Entrar</button>
-            <button className="btn-primary" onClick={() => navigate('/registro')}>Começar Grátis</button>
+            <button
+              className="btn-primary"
+              disabled
+              style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
+              title="Registro temporariamente desativado"
+            >
+              Começar Grátis
+            </button>
           </div>
         </nav>
 
@@ -261,7 +268,14 @@ export const LandingPage = () => {
           </h1>
           <p className="lp-sub">Analise currículos com IA de ponta, encontre os melhores talentos em segundos e construa o time dos seus sonhos.</p>
           <div className="lp-hero-btns">
-            <button className="btn-hero-primary" onClick={() => navigate('/registro')}>🚀 Começar Grátis</button>
+            <button
+              className="btn-hero-primary"
+              disabled
+              style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
+              title="Registro temporariamente desativado"
+            >
+              🚀 Começar Grátis
+            </button>
             <button className="btn-hero-ghost" onClick={() => navigate('/login')}>Entrar na conta</button>
           </div>
         </section>
@@ -319,7 +333,12 @@ export const LandingPage = () => {
               ))}
             </div>
             <div className="lp-insights-cta">
-              <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/registro')}>
+              <button
+                className="btn-hero-primary"
+                style={{ margin: '0 auto', opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
+                disabled
+                title="Registro temporariamente desativado"
+              >
                 🧠 Experimentar a IA Grátis →
               </button>
             </div>
@@ -342,7 +361,7 @@ export const LandingPage = () => {
                 <li>Dashboard de métricas</li>
                 <li>Suporte por e-mail</li>
               </ul>
-              <button className="btn-price btn-price-ghost" onClick={() => navigate('/registro')}>Começar Grátis</button>
+              <button className="btn-price btn-price-ghost" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>Começar Grátis</button>
             </div>
 
             <div className="lp-price-card popular">
@@ -359,7 +378,7 @@ export const LandingPage = () => {
                 <li>Relatórios detalhados</li>
                 <li>Suporte prioritário</li>
               </ul>
-              <button className="btn-price btn-price-main" onClick={() => navigate('/registro')}>Teste Grátis 14 Dias</button>
+              <button className="btn-price btn-price-main" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>Teste Grátis 14 Dias</button>
             </div>
 
             <div className="lp-price-card">
@@ -415,7 +434,12 @@ export const LandingPage = () => {
             <p className="lp-cta-sub">
               Junte-se a milhares de recrutadores que já transformaram seu processo com IA. Configuração em menos de 5 minutos.
             </p>
-            <button className="btn-hero-primary" style={{ margin: '0 auto' }} onClick={() => navigate('/registro')}>
+            <button
+              className="btn-hero-primary"
+              style={{ margin: '0 auto', opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
+              disabled
+              title="Registro temporariamente desativado"
+            >
               🚀 Começar Teste Grátis Agora →
             </button>
             <p className="lp-cta-hint">Sem cartão de crédito · Cancele quando quiser · Configuração em 5 minutos</p>

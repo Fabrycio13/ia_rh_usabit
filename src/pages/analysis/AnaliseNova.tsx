@@ -660,7 +660,8 @@ export const AnaliseNova = () => {
     const [monthlyJobCount, setMonthlyJobCount] = useState(0);
     useEffect(() => {
         const checkMonthlyLimit = async () => {
-            if (profile.account_type !== 'trial' || !profile.userId) return;
+            // Trial limit check - DESATIVADO POR ENQUANTO (uso interno)
+        // if (profile.account_type !== 'trial' || !profile.userId) return;
             
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -682,43 +683,49 @@ export const AnaliseNova = () => {
     // Local validation error (different from context error)
     const [formError, setFormError] = useState<string | null>(null);
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
+    const handleDrop = useCallback((e: any) => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
-        const maxFiles = profile.isPremium ? 200 : 5;
+        // Trial limit - DESATIVADO POR ENQUANTO (uso interno)
+        const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            const pdfs = dropped.filter(f => f.type === 'application/pdf');
-            if (!profile.isPremium && (files.length + pdfs.length) > 5) {
-                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
-            }
+            const pdfs: File[] = dropped.filter((f: any) => f.type === 'application/pdf') as File[];
+            // Trial check desativado
+            // if (!profile.isPremium && (files.length + pdfs.length) > 5) {
+            //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            // }
             setFiles(prev => [...prev, ...pdfs].slice(0, maxFiles));
         } else {
-            if (!profile.isPremium) {
-                toast.error('Análise via Excel não está disponível no plano Trial.');
-                return;
-            }
-            const xlsx = dropped.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+            // Trial check desativado
+            // if (!profile.isPremium) {
+            //     toast.error('Análise via Excel não está disponível no plano Trial.');
+            //     return;
+            // }
+            const xlsx: File[] = dropped.filter((f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
-    }, [uploadMode, files.length, profile.account_type]);
+    }, [uploadMode, files.length]);
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const picked = Array.from(e.target.files);
-        const maxFiles = profile.isPremium ? 200 : 5;
+        // Trial limit - DESATIVADO POR ENQUANTO (uso interno)
+        const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            if (!profile.isPremium && (files.length + picked.length) > 5) {
-                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
-            }
+            // Trial check desativado
+            // if (!profile.isPremium && (files.length + picked.length) > 5) {
+            //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            // }
             setFiles(prev => [...prev, ...picked].slice(0, maxFiles));
         } else {
-            if (!profile.isPremium) {
-                toast.error('Análise via Excel não está disponível no plano Trial.');
-                return;
-            }
+            // Trial check desativado
+            // if (!profile.isPremium) {
+            //     toast.error('Análise via Excel não está disponível no plano Trial.');
+            //     return;
+            // }
             setFiles([picked[0]]);
         }
         e.target.value = '';
@@ -930,14 +937,16 @@ export const AnaliseNova = () => {
                                 </div>
                             )}
 
-                            {/* File count */}
+                            {/* File count - Trial badge desativado */}
                             {uploadMode === 'pdf' && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    {/* Trial badge desativado
                                     {!profile.isPremium && (
                                         <span style={{ fontSize: 10, background: '#f59e0b22', color: '#f59e0b', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>TRIAL</span>
                                     )}
-                                    <span style={{ fontSize: 11, color: (!profile.isPremium && files.length >= 5) ? '#ef4444' : '#64748b' }}>
-                                        {files.length}/{!profile.isPremium ? 5 : 200} arquivos
+                                    */}
+                                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                                        {files.length}/200 arquivos
                                     </span>
                                 </div>
                             )}
