@@ -1,5 +1,4 @@
-import React from 'react';
-import { Briefcase, MapPin, Building2, Clock, Search } from 'lucide-react';
+import { MapPin, Building2, Search } from 'lucide-react';
 
 interface PortalPreviewProps {
     logoUrl?: string;
@@ -54,7 +53,8 @@ export const PortalPreview = ({
         }
     ];
 
-    const formatCurrency = (val: number) => {
+    const formatCurrency = (val?: number) => {
+        if (val === undefined) return '';
         return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 

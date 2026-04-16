@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Globe } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel } from './OwnerPanels';
 import { CareerSettingsPanel } from './CareerSettingsPanel';
 
-type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano';
+type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano' | 'carreiras';
 
 interface TabItem {
     key: TabKey;
