@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
@@ -94,11 +94,24 @@ const NavItem = ({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
     );
 };
 
+interface ENI { href: string; icon: any; label: string; collapsed: boolean; }
+const ExternalNavItem = ({ href, icon: Icon, label, collapsed }: ENI) => {
+    return (
+        <a href={href} target="_blank" rel="noreferrer" title={collapsed ? label : undefined}
+            className="nav-lnk"
+            style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 14px' }}>
+            <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0 }} />
+            {!collapsed && label}
+        </a>
+    );
+};
+
 export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
     const { profile } = useUser();
     const { lang, setLang, t } = useLang();
     const { analyzing, progress, jobName } = useAnalysis();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Persist collapsed state in localStorage so navigation doesn't reset it
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sb-col') === '1');

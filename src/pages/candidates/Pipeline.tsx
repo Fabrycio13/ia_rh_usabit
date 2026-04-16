@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -293,6 +293,8 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
 export const Pipeline = () => {
     const { profile } = useUser();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const vagaIdParam = searchParams.get('vagaId');
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
     const [fetchingPipelines, setFetchingPipelines] = useState(true);
@@ -394,7 +396,14 @@ export const Pipeline = () => {
             const { data: pipes } = await supabase.from('pipelines').select('*').eq('user_id', userId).order('name');
             setPipelines(pipes || []);
             if (pipes && pipes.length > 0) {
-                setSelectedPipelineId(pipes[0].id);
+                // Se houver um vagaIdParam, tenta encontrar o pipeline correspondente
+                const targetPipe = vagaIdParam ? pipes.find(p => p.vaga_id === vagaIdParam) : null;
+                
+                if (targetPipe) {
+                    setSelectedPipelineId(targetPipe.id);
+                } else {
+                    setSelectedPipelineId(pipes[0].id);
+                }
             }
             
             // Buscar vagas disponíveis para filtro
@@ -1004,7 +1013,22 @@ export const Pipeline = () => {
                                     <div 
                                         key={opt.value} 
                                         className={`pipeline_option${pipelineStatusFilter === opt.value ? ' active' : ''}`}
-                                        onClick={() => { setPipelineStatusFilter(opt.value); setShowStatusSelect(false); }}
+                                        onClick={() => { 
+                                            setPipelineStatusFilter(opt.value); 
+                                            setShowStatusSelect(false);
+                                            
+                                            // Atualiza o pipeline selecionado para o primeiro que corresponde ao filtro
+                                            const matchingPipelines = pipelines.map(p => {
+                                                const v = availableVagas.find(v => v.id === p.vaga_id);
+                                                return { ...p, status: v ? v.status : 'aberta' };
+                                            }).filter(p => !opt.value || p.status === opt.value);
+                                            
+                                            if (matchingPipelines.length > 0) {
+                                                setSelectedPipelineId(matchingPipelines[0].id);
+                                            } else {
+                                                setSelectedPipelineId(null);
+                                            }
+                                        }}
                                     >
                                         <span>{opt.label}</span>
                                     </div>

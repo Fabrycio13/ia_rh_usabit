@@ -31,13 +31,14 @@ interface VagaFormData {
     location: string;
     workModel: string;
     workRegime: string;
-    isPcd: boolean;
+    isPcd: string;
 
     // Step 3: Content
     responsibilities: string;
     requirements: string;
     differentials: string;
     additionalInfo: string;
+    category: string;
 }
 
 const initialFormData: VagaFormData = {
@@ -49,13 +50,14 @@ const initialFormData: VagaFormData = {
     contractType: '',
     hasLocation: false,
     location: '',
-    workModel: '',
+    workMode: '',
     workRegime: '',
-    isPcd: false,
+    isPcd: 'no',
     responsibilities: '',
     requirements: '',
     differentials: '',
     additionalInfo: '',
+    category: '',
 };
 
 export const VagaForm = () => {
@@ -108,11 +110,12 @@ export const VagaForm = () => {
                     location: data.location || '',
                     workModel: data.work_model || '',
                     workRegime: data.work_regime || '',
-                    isPcd: data.is_pcd || false,
+                    isPcd: data.is_pcd || 'no',
                     responsibilities: data.responsibilities || '',
                     requirements: data.requirements || '',
                     differentials: data.differentials || '',
                     additionalInfo: data.additional_info || '',
+                    category: data.category || '',
                 });
             } catch (err) {
                 console.error('Erro ao carregar vaga:', err);
@@ -214,25 +217,31 @@ export const VagaForm = () => {
                 .eq('id', user.id)
                 .single();
 
-            const vagaData = {
+            const vagaData: any = {
                 user_id: user.id,
-                organization_id: profile?.organization_id,
                 title: formData.title.trim(),
-                description: formData.description.trim() || null,
-                work_regime: formData.workRegime || null,
-                is_pcd: formData.isPcd,
+                description: formData.description.trim(),
                 has_salary_range: formData.hasSalaryRange,
                 salary_min: formData.hasSalaryRange && formData.salaryMin ? parseFloat(formData.salaryMin.replace(/[^\d,]/g, '').replace(',', '.')) : null,
                 salary_max: formData.hasSalaryRange && formData.salaryMax ? parseFloat(formData.salaryMax.replace(/[^\d,]/g, '').replace(',', '.')) : null,
-                contract_type: formData.contractType || null,
+                contract_type: formData.contractType,
                 has_location: formData.hasLocation,
-                location: formData.hasLocation && formData.location ? formData.location.trim() : null,
-                work_model: formData.hasLocation && formData.workModel ? formData.workModel : null,
-                responsibilities: formData.responsibilities.trim() || null,
-                requirements: formData.requirements.trim() || null,
-                differentials: formData.differentials.trim() || null,
-                additional_info: formData.additionalInfo.trim() || null,
+                location: formData.hasLocation ? formData.location.trim() : null,
+                work_model: formData.workModel,
+                work_regime: formData.workRegime,
+                is_pcd: formData.isPcd,
+                responsibilities: formData.responsibilities.trim(),
+                requirements: formData.requirements.trim(),
+                differentials: formData.differentials.trim(),
+                additional_info: formData.additionalInfo.trim(),
+                category: formData.category || 'Outros',
+                is_active: true,
             };
+
+            // Apenas define organization_id se for criação de nova vaga
+            if (!isEditMode) {
+                vagaData.organization_id = profile?.organization_id;
+            }
 
             let error;
 
@@ -483,7 +492,7 @@ export const VagaForm = () => {
             </div>
 
             {/* Form Content */}
-            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 40px 40px', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 32px 32px', position: 'relative', zIndex: 1 }}>
                 {/* Step Indicator */}
                 <StepIndicator steps={steps} currentStep={currentStep} />
 
@@ -534,6 +543,49 @@ export const VagaForm = () => {
                                             e.target.style.boxShadow = 'none';
                                         }}
                                     />
+                                </div>
+
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+                                        Área / Departamento
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.category}
+                                        onChange={(e) => updateField('category', e.target.value)}
+                                        placeholder="Ex: Desenvolvimento, Design, Marketing, Vendas..."
+                                        style={inputStyle}
+                                        onFocus={(e) => {
+                                            e.target.style.borderColor = 'var(--primary)';
+                                            e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.style.borderColor = 'var(--border)';
+                                            e.target.style.boxShadow = 'none';
+                                        }}
+                                    />
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                                        {['Desenvolvimento', 'Design', 'Marketing', 'Vendas', 'RH', 'Financeiro', 'Produto'].map(sug => (
+                                            <button
+                                                key={sug}
+                                                type="button"
+                                                onClick={() => updateField('category', sug)}
+                                                style={{
+                                                    padding: '4px 12px',
+                                                    borderRadius: '20px',
+                                                    border: '1px solid var(--border)',
+                                                    background: formData.category === sug ? 'var(--primary-bg)' : 'transparent',
+                                                    color: formData.category === sug ? 'var(--primary)' : 'var(--text-muted)',
+                                                    fontSize: '12px',
+                                                    fontWeight: 500,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {sug}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -776,11 +828,16 @@ export const VagaForm = () => {
                                     </div>
                                 </div>
 
-                                <ToggleField
-                                    label="Esta vaga é para PcD?"
-                                    description="Ative se a vaga for destinada a pessoas com deficiência"
+                                <RadioGroup
+                                    label="Configuração de PcD"
+                                    options={[
+                                        { value: 'no', label: 'Padrão', description: 'Vaga regular (sem foco PcD)' },
+                                        { value: 'exclusive', label: 'Exclusiva PcD', description: 'Destinada apenas a PcD' },
+                                        { value: 'inclusive', label: 'Inclusiva', description: 'Aberta a todos (Padrão + PcD)' },
+                                    ]}
                                     value={formData.isPcd}
                                     onChange={(value) => updateField('isPcd', value)}
+                                    columns={3}
                                 />
                             </div>
 
@@ -1214,162 +1271,116 @@ export const VagaForm = () => {
                         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
                         animation: 'fadeIn 0.3s ease-out'
                     }}>
-                        {/* Icon */}
-                        <div style={{
-                            width: '64px',
-                            height: '64px',
-                            borderRadius: '16px',
-                            background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 24px',
-                            boxShadow: '0 12px 40px rgba(99, 102, 241, 0.3)'
-                        }}>
-                            <Kanban size={32} style={{ color: '#fff' }} />
-                        </div>
-
-                        {/* Title */}
-                        <h2 style={{
-                            color: 'var(--text-main)',
-                            fontSize: '24px',
-                            fontWeight: 700,
-                            textAlign: 'center',
-                            margin: '0 0 12px'
-                        }}>
-                            Vaga Publicada com Sucesso! 🎉
-                        </h2>
-
-                        {/* Subtitle */}
-                        <p style={{
-                            color: 'var(--text-muted)',
-                            fontSize: '15px',
-                            textAlign: 'center',
-                            margin: '0 0 32px',
-                            lineHeight: 1.6
-                        }}>
-                            Deseja criar um Pipeline Kanban para gerenciar os candidatos desta vaga?
-                        </p>
-
-                        {/* Info Box */}
-                        <div style={{
-                            background: 'rgba(99, 102, 241, 0.1)',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                            borderRadius: '12px',
-                            padding: '20px',
-                            marginBottom: '32px'
-                        }}>
-                            <p style={{
-                                color: 'var(--text-main)',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                margin: '0 0 12px'
-                            }}>
-                                O Pipeline incluirá:
-                            </p>
+                        {/* Decorative background element */}
+                        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '40%', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%)', zIndex: 0 }} />
+                        
+                        <div style={{ position: 'relative', zIndex: 1 }}>
                             <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '24px',
+                                background: 'rgba(99, 102, 241, 0.1)',
                                 display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '8px'
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 24px',
+                                border: '1px solid rgba(99, 102, 241, 0.2)',
+                                boxShadow: '0 12px 32px rgba(99, 102, 241, 0.2)'
                             }}>
-                                {['Triagem', 'Entrevista', 'Proposta', 'Aprovado', 'Reprovado'].map((col, idx) => (
-                                    <span key={idx} style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        padding: '6px 12px',
-                                        background: 'rgba(99, 102, 241, 0.15)',
-                                        borderRadius: '8px',
-                                        color: 'var(--primary)',
-                                        fontSize: '13px',
-                                        fontWeight: 500
-                                    }}>
-                                        <div style={{
-                                            width: '8px',
-                                            height: '8px',
-                                            borderRadius: '50%',
-                                            background: ['#6366f1', '#0ea5e9', '#f59e0b', '#22c55e', '#ef4444'][idx]
-                                        }} />
-                                        {col}
-                                    </span>
-                                ))}
+                                <Kanban size={40} style={{ color: 'var(--primary)' }} />
                             </div>
-                        </div>
 
-                        {/* Actions */}
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px'
-                        }}>
-                            <button
-                                onClick={handleCreatePipeline}
-                                disabled={creatingPipeline}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: creatingPipeline ? 'var(--text-muted)' : 'linear-gradient(135deg, var(--primary), #7c3aed)',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                    color: '#fff',
-                                    cursor: creatingPipeline ? 'not-allowed' : 'pointer',
-                                    fontSize: '16px',
-                                    fontWeight: 700,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px',
-                                    opacity: creatingPipeline ? 0.6 : 1,
-                                    transition: 'all 0.2s',
-                                    boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!creatingPipeline) {
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(99, 102, 241, 0.4)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!creatingPipeline) {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(99, 102, 241, 0.3)';
-                                    }
-                                }}
-                            >
-                                <Kanban size={20} />
-                                {creatingPipeline ? 'Criando Pipeline...' : 'Sim, Criar Pipeline'}
-                            </button>
+                            <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', letterSpacing: '-0.02em' }}>
+                                Vaga Publicada! 🎉
+                            </h2>
+                            
+                            <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
+                                Sua vaga já está ativa. Deseja criar um Pipeline Kanban para gerenciar os candidatos desta vaga de forma visual?
+                            </p>
 
-                            <button
-                                onClick={handleSkipPipeline}
-                                disabled={creatingPipeline}
-                                style={{
-                                    width: '100%',
-                                    padding: '16px',
-                                    background: 'transparent',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '12px',
-                                    color: 'var(--text-muted)',
-                                    cursor: creatingPipeline ? 'not-allowed' : 'pointer',
-                                    fontSize: '15px',
-                                    fontWeight: 600,
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!creatingPipeline) {
-                                        e.currentTarget.style.background = 'var(--bg-card)';
-                                        e.currentTarget.style.color = 'var(--text-main)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!creatingPipeline) {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = 'var(--text-muted)';
-                                    }
-                                }}
-                            >
-                                Não, depois eu crio manualmente
-                            </button>
+                            {/* info box */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '16px',
+                                padding: '20px',
+                                marginBottom: '32px',
+                                textAlign: 'left'
+                            }}>
+                                <p style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 700, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Etapas sugeridas:
+                                </p>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {[
+                                        { name: 'Triagem', color: '#6366f1' },
+                                        { name: 'Entrevista', color: '#0ea5e9' },
+                                        { name: 'Proposta', color: '#f59e0b' },
+                                        { name: 'Aprovado', color: '#22c55e' },
+                                        { name: 'Reprovado', color: '#ef4444' }
+                                    ].map((col, idx) => (
+                                        <span key={idx} style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            padding: '6px 12px',
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            borderRadius: '8px',
+                                            color: 'var(--text-main)',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                                        }}>
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: col.color }} />
+                                            {col.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <button
+                                    onClick={handleCreatePipeline}
+                                    disabled={creatingPipeline}
+                                    style={{
+                                        width: '100%',
+                                        padding: '16px',
+                                        background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        color: '#fff',
+                                        cursor: creatingPipeline ? 'not-allowed' : 'pointer',
+                                        fontSize: '16px',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '10px',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)'
+                                    }}
+                                >
+                                    {creatingPipeline ? 'Criando...' : 'Sim, Criar Pipeline'}
+                                </button>
+                                
+                                <button
+                                    onClick={handleSkipPipeline}
+                                    disabled={creatingPipeline}
+                                    style={{
+                                        width: '100%',
+                                        padding: '16px',
+                                        background: 'transparent',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Não, criar manualmente depois
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

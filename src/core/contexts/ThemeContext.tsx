@@ -5,6 +5,8 @@ type Theme = 'light' | 'dark';
 interface ThemeContextType {
     theme: Theme;
     toggleTheme: () => void;
+    planetMode: boolean;
+    togglePlanetMode: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,11 +17,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return (saved as Theme) || 'dark'; // Default to dark as requested
     });
 
+    const [planetMode, setPlanetMode] = useState<boolean>(() => {
+        const saved = localStorage.getItem('app-planet-mode');
+        return saved !== null ? saved === 'true' : true; // Default is true (with planet)
+    });
+
     useEffect(() => {
         localStorage.setItem('app-theme', theme);
         document.documentElement.className = theme;
         document.documentElement.setAttribute('data-theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        localStorage.setItem('app-planet-mode', String(planetMode));
+    }, [planetMode]);
+
+    const togglePlanetMode = () => {
+        setPlanetMode(prev => !prev);
+    };
 
     const toggleTheme = () => {
         const nextTheme = theme === 'light' ? 'dark' : 'light';
@@ -40,7 +55,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+        <ThemeContext.Provider value={{ theme, toggleTheme, planetMode, togglePlanetMode }}>
             {children}
         </ThemeContext.Provider>
     );

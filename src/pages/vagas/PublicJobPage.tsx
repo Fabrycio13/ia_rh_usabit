@@ -30,7 +30,7 @@ interface Job {
     work_regime: string | null;
     application_deadline: string | null;
     created_at: string;
-    is_pcd: boolean;
+    is_pcd: string;
 }
 
 export const PublicJobPage = () => {
@@ -282,13 +282,15 @@ export const PublicJobPage = () => {
                                 {getWorkRegimeLabel(job.work_regime)}
                             </div>
                         )}
-                        {job.is_pcd && (
+                        {job.is_pcd && job.is_pcd !== 'no' && (
                             <div style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
                                 padding: '8px 14px',
-                                background: 'rgba(236, 72, 153, 0.35)',
+                                background: job.is_pcd === 'exclusive' 
+                                    ? 'rgba(236, 72, 153, 0.35)' 
+                                    : 'rgba(59, 130, 246, 0.35)',
                                 backdropFilter: 'blur(10px)',
                                 borderRadius: '20px',
                                 color: '#fff',
@@ -304,7 +306,7 @@ export const PublicJobPage = () => {
                                     <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                                     <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
-                                Vaga PcD
+                                {job.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
                             </div>
                         )}
                         {job.has_location && job.location && (
