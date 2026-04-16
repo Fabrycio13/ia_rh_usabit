@@ -1,5 +1,4 @@
-import React from 'react';
-import { Briefcase, MapPin, Building2, Clock, Search } from 'lucide-react';
+import { MapPin, Building2, Search } from 'lucide-react';
 
 interface PortalPreviewProps {
     logoUrl?: string;
@@ -180,7 +179,7 @@ export const PortalPreview = ({
                                                 💰
                                             </div>
                                             <span style={{ fontWeight: 600, color: '#475569' }}>
-                                                {formatCurrency(vaga.salary_min)} - {formatCurrency(vaga.salary_max)}
+                                                {formatCurrency(vaga.salary_min || 0)} - {formatCurrency(vaga.salary_max || 0)}
                                             </span>
                                         </div>
                                     )}

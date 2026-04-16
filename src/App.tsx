@@ -21,7 +21,7 @@ import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
 // import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 // import { TrialExpired } from './pages/auth/TrialExpired';
-import { Vagas } from './pages/vagas/Vagas';
+
 import { VagaForm } from './pages/vagas/VagaForm';
 import { VagaCandidatos } from './pages/vagas/VagaCandidatos';
 import { PublicJobPage } from './pages/vagas/PublicJobPage';

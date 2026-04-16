@@ -50,7 +50,7 @@ const initialFormData: VagaFormData = {
     contractType: '',
     hasLocation: false,
     location: '',
-    workMode: '',
+    workModel: '',
     workRegime: '',
     isPcd: 'no',
     responsibilities: '',

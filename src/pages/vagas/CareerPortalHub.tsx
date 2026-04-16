@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { 
     Loader2, 
-    Globe, 
     Copy, 
     ExternalLink, 
-    Settings, 
     Briefcase, 
     Building2,
     Eye,
@@ -27,7 +25,6 @@ import { PortalPreview } from './PortalPreview';
 
 export const CareerPortalHub = () => {
     const { profile } = useUser();
-    const navigate = useNavigate();
     
     // Tabs state
     const [activeTab, setActiveTab] = useState<'vagas' | 'design'>('vagas');
