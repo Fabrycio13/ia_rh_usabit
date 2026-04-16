@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
-import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X } from 'lucide-react';
+import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Kanban, Rocket } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -54,10 +54,10 @@ interface Vaga {
     application_count: number;
     created_at: string;
     organization_id: string | null;
-    is_pcd: boolean;
+    is_pcd: string;
 }
 
-export const Vagas = () => {
+export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const { t } = useLang();
     const navigate = useNavigate();
     const [vagas, setVagas] = useState<Vaga[]>([]);
@@ -68,6 +68,11 @@ export const Vagas = () => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [vagaToDelete, setVagaToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // States for Pipeline Deletion Confirmation
+    const [pipelineDeleteModalOpen, setPipelineDeleteModalOpen] = useState(false);
+    const [vagaForPipelineDelete, setVagaForPipelineDelete] = useState<string | null>(null);
+    const [deletingPipeline, setDeletingPipeline] = useState(false);
     
     // Filtros Avançados
     const [userRole, setUserRole] = useState<string>('');
@@ -141,6 +146,7 @@ export const Vagas = () => {
                 let query = supabase
                     .from('vagas_white_label')
                     .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd')
+                    .eq('is_active', true)
                     .order('created_at', { ascending: false });
 
                 // ISOLAMENTO: Usuários que não são Owners só veem vagas da sua organização
@@ -246,16 +252,10 @@ export const Vagas = () => {
                     .eq('vaga_id', id);
             }
 
-            // Se cancelada ou fechada, perguntar se quer deletar o pipeline
-            if ((status === 'cancelada' || status === 'fechada') && window.confirm(`Deseja deletar o Pipeline Kanban associado à vaga "${vagas.find(v => v.id === id)?.title}"?`)) {
-                const { error: deleteError } = await supabase
-                    .from('pipelines')
-                    .delete()
-                    .eq('vaga_id', id);
-
-                if (deleteError) {
-                    console.error('Erro ao deletar pipeline:', deleteError);
-                }
+            // Se cancelada ou fechada, perguntar se quer deletar o pipeline associado
+            if (status === 'cancelada' || status === 'fechada') {
+                setVagaForPipelineDelete(id);
+                setPipelineDeleteModalOpen(true);
             }
 
             setVagas(prev => prev.map(v =>
@@ -278,6 +278,40 @@ export const Vagas = () => {
         }
     };
 
+    const confirmPipelineDelete = async () => {
+        if (!vagaForPipelineDelete) return;
+        setDeletingPipeline(true);
+        try {
+            const { error: deleteError } = await supabase
+                .from('pipelines')
+                .delete()
+                .eq('vaga_id', vagaForPipelineDelete);
+
+            if (deleteError) throw deleteError;
+            
+            toast.success('Pipeline excluído com sucesso');
+            
+            // Log de exclusão
+            const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && vaga) {
+                logActivity(user.id, `Excluiu o pipeline associado à vaga: "${vaga.title}"`).catch(console.error);
+            }
+        } catch (err) {
+            console.error('Erro ao deletar pipeline:', err);
+            toast.error('Erro ao excluir pipeline associado');
+        } finally {
+            setDeletingPipeline(false);
+            setPipelineDeleteModalOpen(false);
+            setVagaForPipelineDelete(null);
+        }
+    };
+
+    const cancelPipelineDelete = () => {
+        setPipelineDeleteModalOpen(false);
+        setVagaForPipelineDelete(null);
+    };
+
     const getStatusFromVaga = (vaga: Vaga): VagaStatus => {
         return vaga.status || 'aberta';
     };
@@ -296,9 +330,13 @@ export const Vagas = () => {
         return type ? labels[type] || type : '-';
     };
 
+    const getPublicJobUrl = (hash: string) => {
+        // App uses HashRouter, so we need the hash symbol
+        return `${window.location.origin}${window.location.pathname}#/v/${hash}`;
+    };
+
     const copyPublicLink = (hash: string) => {
-        const url = `${window.location.origin}/v/${hash}`;
-        navigator.clipboard.writeText(url);
+        navigator.clipboard.writeText(getPublicJobUrl(hash));
         toast.success('Link copiado!');
     };
 
@@ -334,21 +372,23 @@ export const Vagas = () => {
     const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
 
     return (
-        <div style={{ padding: '0 40px 40px' }}>
+        <div style={{ padding: hideHeader ? '0' : '0 32px 32px' }}>
             <style>{css}</style>
             
             {/* Header */}
-            <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                    <Briefcase size={32} style={{ color: 'var(--primary)' }} />
-                    <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                        {t('vagas')}
-                    </h1>
+            {!hideHeader && (
+                <div style={{ marginBottom: '32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                        <Briefcase size={32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            {t('vagas')}
+                        </h1>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+                        Gerencie suas vagas e publique novas oportunidades
+                    </p>
                 </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
-                    Gerencie suas vagas e publique novas oportunidades
-                </p>
-            </div>
+            )}
 
             {/* Actions Bar */}
             <div style={{
@@ -630,17 +670,32 @@ export const Vagas = () => {
                                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
-                                    <div style={{ color: 'var(--text-main)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div 
+                                        onClick={() => navigate(`/pipeline?vagaId=${vaga.id}`)}
+                                        style={{ 
+                                            color: 'var(--text-main)', 
+                                            fontWeight: 600, 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'color 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-main)')}
+                                    >
                                         {vaga.title}
-                                        {vaga.is_pcd && (
+                                        {vaga.is_pcd && vaga.is_pcd !== 'no' && (
                                             <span style={{
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: '4px',
                                                 padding: '2px 8px',
-                                                background: 'rgba(236, 72, 153, 0.15)',
+                                                background: vaga.is_pcd === 'exclusive' 
+                                                    ? 'rgba(236, 72, 153, 0.15)' 
+                                                    : 'rgba(59, 130, 246, 0.15)',
                                                 borderRadius: '12px',
-                                                color: '#ec4899',
+                                                color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6',
                                                 fontSize: '11px',
                                                 fontWeight: 700
                                             }}>
@@ -653,7 +708,7 @@ export const Vagas = () => {
                                                     <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
                                                     <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
-                                                PcD
+                                                {vaga.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
                                             </span>
                                         )}
                                     </div>
@@ -737,10 +792,7 @@ export const Vagas = () => {
                                     {/* Actions */}
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                                         <button
-                                            onClick={() => {
-                                                const url = window.location.href.split('#')[0] + `#/v/${vaga.public_hash}`;
-                                                window.open(url, '_blank');
-                                            }}
+                                            onClick={() => window.open(getPublicJobUrl(vaga.public_hash), '_blank')}
                                             title="Visualizar vaga"
                                             style={{
                                                 padding: '6px',
@@ -772,6 +824,23 @@ export const Vagas = () => {
                                             }}
                                         >
                                             <Users size={14} />
+                                        </button>
+                                        <button 
+                                            onClick={() => toast.success('Módulo de Jornada em desenvolvimento')} 
+                                            title="Configurar Jornada" 
+                                            style={{ 
+                                                padding: '6px',
+                                                background: 'transparent',
+                                                border: '1px solid rgba(168, 85, 247, 0.3)', 
+                                                borderRadius: '6px', 
+                                                color: '#a855f7', 
+                                                cursor: 'pointer', 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center' 
+                                            }}
+                                        >
+                                            <Rocket size={14} />
                                         </button>
                                         <button
                                             onClick={() => navigate(`/vagas/editar/${vaga.id}`)}
@@ -1009,6 +1078,109 @@ export const Vagas = () => {
                     to { opacity: 1; transform: translateY(0) scale(1); }
                 }
             `}</style>
+            {/* Pipeline Delete Confirmation Modal */}
+            {pipelineDeleteModalOpen && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 200,
+                    animation: 'fadeIn 0.2s ease-out'
+                }}>
+                    <div style={{
+                        background: '#1a1c2d',
+                        border: '1px solid var(--border)',
+                        borderRadius: '24px',
+                        padding: '40px',
+                        maxWidth: '480px',
+                        width: '90%',
+                        textAlign: 'center',
+                        boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Decorative background element */}
+                        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '40%', background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, transparent 100%)', zIndex: 0 }} />
+                        
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '24px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 24px',
+                                border: '1px solid rgba(239, 68, 68, 0.2)'
+                            }}>
+                                <AlertTriangle size={40} style={{ color: '#ef4444' }} />
+                            </div>
+
+                            <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px', letterSpacing: '-0.02em' }}>
+                                Excluir Pipeline de Candidatos?
+                            </h2>
+                            
+                            <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
+                                Ao fechar esta vaga, você pode optar por excluir o Pipeline Kanban associado.
+                                <br />
+                                <strong style={{ color: '#ef4444', display: 'block', marginTop: '12px' }}>
+                                    ⚠️ Esta ação é irreversível e removerá todas as etapas e o histórico deste Kanban.
+                                </strong>
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <button
+                                    onClick={confirmPipelineDelete}
+                                    disabled={deletingPipeline}
+                                    style={{
+                                        width: '100%',
+                                        padding: '16px',
+                                        background: '#ef4444',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        color: '#fff',
+                                        cursor: deletingPipeline ? 'not-allowed' : 'pointer',
+                                        fontSize: '16px',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '10px',
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 8px 20px rgba(239, 68, 68, 0.2)'
+                                    }}
+                                >
+                                    {deletingPipeline ? 'Excluindo...' : 'Sim, Excluir Pipeline'}
+                                </button>
+                                
+                                <button
+                                    onClick={cancelPipelineDelete}
+                                    disabled={deletingPipeline}
+                                    style={{
+                                        width: '100%',
+                                        padding: '16px',
+                                        background: 'transparent',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Não, manter histórico do Pipeline
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

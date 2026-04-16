@@ -26,6 +26,8 @@ import { VagaForm } from './pages/vagas/VagaForm';
 import { VagaCandidatos } from './pages/vagas/VagaCandidatos';
 import { PublicJobPage } from './pages/vagas/PublicJobPage';
 import { JobApplication } from './pages/vagas/JobApplication';
+import { OrganizationCareerPage } from './pages/vagas/OrganizationCareerPage';
+import { CareerPortalHub } from './pages/vagas/CareerPortalHub';
 import { Toaster } from 'react-hot-toast';
 import { OnboardingModal } from './common/components/OnboardingModal';
 
@@ -39,25 +41,17 @@ const AppContent = ({ session }: { session: any }) => {
     const { profile } = useUser();
 
     // Helper to check if trial expired
+
     // const isTrialExpired = () => {
     //     if (!profile.trial_ends_at) return false;
     //     if (profile.account_type === 'lifetime' || profile.user_role === 'admin' || profile.user_role === 'rh') return false;
     //     return new Date(profile.trial_ends_at) < new Date();
     // };
 
-    if (session) {
-        // 1. Wait for profile to load
-        if (!profile.loaded) return <div style={{ height: '100vh', background: '#0B1020' }} />;
-
-        // 2. Email confirmation - DESATIVADO PARA NÃO TRAVAR O OWNER NO CONVITE
-        // if (!session.user.confirmed_at && profile.account_type !== 'lifetime') {
-        //     return <ConfirmEmail />;
-        // }
-
-        // 3. Trial Expiry - DESATIVADO POR ENQUANTO (uso interno)
-        // if (profile.account_type === 'trial' && isTrialExpired()) {
-        //     return <TrialExpired />;
-        // }
+    if (session && !profile.loaded) {
+        // Não bloqueia com tela escura se for uma rota pública (Portal de Carreiras ou Vaga)
+        const isPublicRoute = window.location.hash.includes('/carreiras/') || window.location.hash.includes('/v/');
+        if (!isPublicRoute) return <div style={{ height: '100vh', background: '#0B1020' }} />;
     }
 
     return (
@@ -80,11 +74,12 @@ const AppContent = ({ session }: { session: any }) => {
                 {/* Public Routes (no auth required) */}
                 <Route path="/v/:hash" element={<PublicJobPage />} />
                 <Route path="/v/:hash/candidatar" element={<JobApplication />} />
+                <Route path="/carreiras/:orgId" element={<OrganizationCareerPage />} />
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
                     <Route path="/dashboard" element={hasPermission(profile.user_role, 'dashboard') ? <Dashboard /> : <Navigate to="/vagas" />} />
-                    <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <Vagas /> : <Navigate to="/dashboard" />} />
+                    <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <CareerPortalHub /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/nova" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/editar/:id" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/:id/candidatos" element={hasPermission(profile.user_role, 'vagas') ? <VagaCandidatos /> : <Navigate to="/dashboard" />} />
