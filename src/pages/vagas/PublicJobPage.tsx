@@ -550,21 +550,6 @@ export const PublicJobPage = () => {
                                 <ArrowRight size={18} />
                             </button>
 
-                            {/* Stats */}
-                            {job.application_count > 0 && (
-                                <div style={{
-                                    marginTop: '20px',
-                                    padding: '16px',
-                                    background: 'rgba(99, 102, 241, 0.1)',
-                                    borderRadius: '10px',
-                                    textAlign: 'center'
-                                }}>
-                                    <p style={{ color: '#94a3b8', fontSize: '12px', margin: 0 }}>
-                                        {job.application_count} {job.application_count === 1 ? 'candidatura enviada' : 'candidaturas enviadas'}
-                                    </p>
-                                </div>
-                            )}
-
                             {/* Deadline */}
                             {job.application_deadline && (
                                 <div style={{
