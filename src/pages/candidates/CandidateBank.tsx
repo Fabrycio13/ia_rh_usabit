@@ -9,6 +9,7 @@ import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { AddCandidateModal } from '../../common/components/AddCandidateModal';
+import { hasPermission } from '../../core/config/permissions';
 
 const PAGE_SIZE = 10;
 
@@ -486,7 +487,7 @@ export const CandidateBank = () => {
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
-                [null, 'Chat'],
+                ...(hasPermission(profile.user_role, 'chat') ? [[null, 'Chat'] as [SortKey, string]] : []),
                 [null, 'Visualizar'],
               ] as [SortKey, string][]).map(([col, label]) => (
                 <th key={label}
@@ -561,18 +562,20 @@ export const CandidateBank = () => {
                     </button>
                   </div>
                 </td>
-                <td style={{ padding: '0 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div
-                      title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
-                      style={{ 
-                        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
-                      }}>
-                      <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                {hasPermission(profile.user_role, 'chat') && (
+                  <td style={{ padding: '0 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div
+                        title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
+                        style={{ 
+                          width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                          color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
+                        }}>
+                        <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
+                )}
                 <td style={{ padding: '0 16px', height: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <Eye style={{ width: 15, height: 15, color: '#475569' }} />

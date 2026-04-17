@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
-import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Rocket } from 'lucide-react';
+import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -55,6 +55,10 @@ interface Vaga {
     created_at: string;
     organization_id: string | null;
     is_pcd: string;
+    is_third_party: boolean;
+    company_name: string | null;
+    company_logo: string | null;
+    show_company_name: boolean;
 }
 
 export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
@@ -145,7 +149,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 // 3. Buscar Vagas
                 let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd')
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, company_name')
                     .eq('is_active', true)
                     .order('created_at', { ascending: false });
 
@@ -684,7 +688,43 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
                                         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-main)')}
                                     >
-                                        {vaga.title}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            <span style={{ display: 'block' }}>{vaga.title}</span>
+                                            {vaga.is_third_party && (
+                                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                    <span style={{ 
+                                                        fontSize: '10px', 
+                                                        color: 'var(--primary)', 
+                                                        background: 'rgba(59, 130, 246, 0.1)', 
+                                                        padding: '1px 6px', 
+                                                        borderRadius: '4px',
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.02em',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}>
+                                                        RPO: {vaga.company_name || 'Não definido'}
+                                                    </span>
+                                                    {!vaga.show_company_name && (
+                                                        <span style={{ 
+                                                            fontSize: '10px', 
+                                                            color: '#f59e0b', 
+                                                            background: 'rgba(245, 158, 11, 0.1)', 
+                                                            padding: '1px 6px', 
+                                                            borderRadius: '4px',
+                                                            fontWeight: 600,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '3px'
+                                                        }}>
+                                                            <Eye size={10} style={{ opacity: 0.7 }} /> Confidencial
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                         {vaga.is_pcd && vaga.is_pcd !== 'no' && (
                                             <span style={{
                                                 display: 'inline-flex',
@@ -824,23 +864,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                             }}
                                         >
                                             <Users size={14} />
-                                        </button>
-                                        <button 
-                                            onClick={() => toast.success('Módulo de Jornada em desenvolvimento')} 
-                                            title="Configurar Jornada" 
-                                            style={{ 
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid rgba(168, 85, 247, 0.3)', 
-                                                borderRadius: '6px', 
-                                                color: '#a855f7', 
-                                                cursor: 'pointer', 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center' 
-                                            }}
-                                        >
-                                            <Rocket size={14} />
                                         </button>
                                         <button
                                             onClick={() => navigate(`/vagas/editar/${vaga.id}`)}

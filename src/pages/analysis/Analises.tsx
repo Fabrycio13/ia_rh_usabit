@@ -8,6 +8,7 @@ import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
+import { hasPermission } from '../../core/config/permissions';
 import { logScreening, logActivity } from '../../core/services/logger';
 
 interface Job {
@@ -423,12 +424,12 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               <col style={{ width: '14%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '11%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '18%' }} />
+              {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
+              <col style={{ width: hasPermission(profile.user_role, 'chat') ? '18%' : '26%' }} />
             </colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', 'Chat', 'Ações'].map(h => (
+                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', ...(hasPermission(profile.user_role, 'chat') ? ['Chat'] : []), 'Ações'].map(h => (
                   <th key={h} style={{ padding: '14px 16px', textAlign: h === 'Chat' ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -486,19 +487,21 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                     </span>
                   </td>
                   {/* Chat */}
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      {c.conversations?.length ? (
-                        <div title="Chat Ativo">
-                          <Phone size={16} color="#22c55e" fill="#22c55e22" />
-                        </div>
-                      ) : (
-                        <div title="Chat Inativo">
-                          <Phone size={16} color="#64748b" opacity={0.5} />
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                  {hasPermission(profile.user_role, 'chat') && (
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {c.conversations?.length ? (
+                          <div title="Chat Ativo">
+                            <Phone size={16} color="#22c55e" fill="#22c55e22" />
+                          </div>
+                        ) : (
+                          <div title="Chat Inativo">
+                            <Phone size={16} color="#64748b" opacity={0.5} />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {/* Ações */}
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>

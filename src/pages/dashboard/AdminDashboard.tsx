@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
+import { useUser } from '../../core/contexts/UserContext';
 import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown } from 'lucide-react';
 import { 
     ResponsiveContainer, Tooltip as RechartsTooltip,
@@ -68,6 +69,10 @@ interface ChartData {
 }
 
 export const AdminDashboard = () => {
+    const { profile } = useUser();
+    const userRole = profile.user_role;
+    const userOrgId = profile.organization_id;
+
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -111,10 +116,17 @@ export const AdminDashboard = () => {
     const fetchDashboardData = async () => {
         setLoading(true);
         
-        const { data: userData } = await supabase
+        let userQuery = supabase
             .from('profiles')
             .select('*')
             .order('created_at', { ascending: false });
+        
+        // ISOLAMENTO: Apenas Owner vê tudo. Outros perfis (Gestor) veem apenas sua org.
+        if (userRole !== 'owner' && userOrgId) {
+            userQuery = userQuery.eq('organization_id', userOrgId);
+        }
+
+        const { data: userData } = await userQuery;
         
         if (userData) {
             setUsers(userData as UserProfile[]);
@@ -148,6 +160,9 @@ export const AdminDashboard = () => {
 
         if (selectedOrgId) {
             jobQuery = jobQuery.eq('organization_id', selectedOrgId);
+        } else if (userRole !== 'owner' && userOrgId) {
+            // Se não for owner, força o filtro da sua própria org mesmo que não tenha selecionado nada específico
+            jobQuery = jobQuery.eq('organization_id', userOrgId);
         }
 
         const { data: jobData } = await jobQuery;
@@ -266,45 +281,47 @@ export const AdminDashboard = () => {
                     Gerencie usuários e monitore o status das contas.
                 </p>
                 
-                {/* Organization Selection Filter - CUSTOM PREMIUM SELECT */}
-                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>Filtrar Dashboard por Organização:</span>
-                    
-                    <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '320px', flexShrink: 0 }}>
-                        <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, overflow: 'hidden' }}>
-                                <Database size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações (Visão Global)'}
-                                </span>
-                            </div>
-                            <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none' }} />
-                        </div>
-
-                        {isOrgOpen && (
-                            <div className="cs-dropdown">
-                                <div 
-                                    className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
-                                    onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); }}
-                                >
-                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
-                                    Visão Global (Todas)
+                {/* Organization Selection Filter - Apenas para Owner */}
+                {userRole === 'owner' && (
+                    <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>Filtrar Dashboard por Organização:</span>
+                        
+                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '320px', flexShrink: 0 }}>
+                            <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, overflow: 'hidden' }}>
+                                    <Database size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações (Visão Global)'}
+                                    </span>
                                 </div>
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
-                                {organizations.map(org => (
-                                    <div 
-                                        key={org.id} 
-                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
-                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); }}
-                                    >
-                                        <div className="cs-dot" style={{ background: '#10b981' }} />
-                                        {org.name}
-                                    </div>
-                                ))}
+                                <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none' }} />
                             </div>
-                        )}
+
+                            {isOrgOpen && (
+                                <div className="cs-dropdown">
+                                    <div 
+                                        className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                        Visão Global (Todas)
+                                    </div>
+                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                                    {organizations.map(org => (
+                                        <div 
+                                            key={org.id} 
+                                            className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                            onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); }}
+                                        >
+                                            <div className="cs-dot" style={{ background: '#10b981' }} />
+                                            {org.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Stats */}
@@ -329,7 +346,7 @@ export const AdminDashboard = () => {
             {/* Charts Section */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', marginBottom: '32px' }}>
                 {/* Analyses Per Day */}
-                <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: '#3b82f6' }}>
@@ -343,8 +360,8 @@ export const AdminDashboard = () => {
                             </h3>
                         </div>
                     </div>
-                    <div style={{ height: '300px', width: '100%' }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div style={{ height: '300px', width: '100%', minWidth: 0, position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={300} debounce={50}>
                             <AreaChart data={analysisData}>
                                 <defs>
                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">

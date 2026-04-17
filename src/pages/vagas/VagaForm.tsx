@@ -2,11 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, DollarSign, MapPin, Building2, Clock, Kanban } from 'lucide-react';
+import { 
+    ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, 
+    DollarSign, MapPin, Building2, Clock, Kanban, Plus, Trash2, Settings, 
+    List, Type, CheckCircle2, GripVertical, Zap, Upload
+} from 'lucide-react';
 import { StepIndicator } from './components/StepIndicator';
 import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
 import { RadioGroup } from './components/RadioGroup';
+import { useUser } from '../../core/contexts/UserContext';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
@@ -39,6 +44,33 @@ interface VagaFormData {
     differentials: string;
     additionalInfo: string;
     category: string;
+    
+    // External Client Info (RPO/Agency)
+    isThirdParty: boolean;
+    companyName: string;
+    companyLogo: string;
+    showCompanyName: boolean;
+
+    // Design Visual (por vaga)
+    vagaPrimaryColor: string;
+    vagaGradientEnd: string;
+    vagaBgColor: string;
+    vagaBgImage: string;
+
+    customQuestions: {
+        id: string;
+        label: string;
+        type: 'text' | 'paragraph' | 'choice';
+        options?: string[];
+        required: boolean;
+        logic?: {
+            parentId: string;
+            parentValue: string;
+        };
+        hasComplementary?: boolean;
+        complementaryTrigger?: string;
+        complementaryLabel?: string;
+    }[];
 }
 
 const initialFormData: VagaFormData = {
@@ -58,12 +90,22 @@ const initialFormData: VagaFormData = {
     differentials: '',
     additionalInfo: '',
     category: '',
+    isThirdParty: false,
+    companyName: '',
+    companyLogo: '',
+    showCompanyName: true,
+    vagaPrimaryColor: '',
+    vagaGradientEnd: '',
+    vagaBgColor: '',
+    vagaBgImage: '',
+    customQuestions: [],
 };
 
 export const VagaForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
+    const { profile } = useUser();
     
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<VagaFormData>(initialFormData);
@@ -116,6 +158,15 @@ export const VagaForm = () => {
                     differentials: data.differentials || '',
                     additionalInfo: data.additional_info || '',
                     category: data.category || '',
+                    isThirdParty: data.is_third_party || !!data.company_name,
+                    companyName: data.company_name || '',
+                    companyLogo: data.company_logo || '',
+                    showCompanyName: data.show_company_name !== false,
+                    vagaPrimaryColor: data.vaga_primary_color || '',
+                    vagaGradientEnd: data.vaga_gradient_end || '',
+                    vagaBgColor: data.vaga_bg_color || '',
+                    vagaBgImage: data.vaga_bg_image || '',
+                    customQuestions: data.custom_questions || [],
                 });
             } catch (err) {
                 console.error('Erro ao carregar vaga:', err);
@@ -131,6 +182,58 @@ export const VagaForm = () => {
 
     const updateField = <K extends keyof VagaFormData>(field: K, value: VagaFormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const addQuestion = () => {
+        const newQuestion: VagaFormData['customQuestions'][0] = {
+            id: Math.random().toString(36).substring(2, 11),
+            label: '',
+            type: 'text',
+            required: true,
+        };
+        updateField('customQuestions', [...formData.customQuestions, newQuestion]);
+    };
+
+    const removeQuestion = (id: string) => {
+        const updatedQuestions = formData.customQuestions
+            .filter(q => q.id !== id)
+            .map(q => {
+                if (q.logic?.parentId === id) {
+                    const { logic, ...rest } = q;
+                    return rest;
+                }
+                return q;
+            });
+        updateField('customQuestions', updatedQuestions);
+    };
+
+    const updateQuestion = (id: string, updates: Partial<VagaFormData['customQuestions'][0]>) => {
+        updateField('customQuestions', formData.customQuestions.map(q => q.id === id ? { ...q, ...updates } : q));
+    };
+
+    const addOption = (questionId: string) => {
+        const question = formData.customQuestions.find(q => q.id === questionId);
+        if (question) {
+            const options = question.options || [];
+            updateQuestion(questionId, { options: [...options, ''] });
+        }
+    };
+
+    const removeOption = (questionId: string, index: number) => {
+        const question = formData.customQuestions.find(q => q.id === questionId);
+        if (question) {
+            const options = (question.options || []).filter((_, i) => i !== index);
+            updateQuestion(questionId, { options });
+        }
+    };
+
+    const updateOption = (questionId: string, index: number, value: string) => {
+        const question = formData.customQuestions.find(q => q.id === questionId);
+        if (question) {
+            const options = [...(question.options || [])];
+            options[index] = value;
+            updateQuestion(questionId, { options });
+        }
     };
 
     const handleNext = () => {
@@ -166,7 +269,7 @@ export const VagaForm = () => {
             }
         }
 
-        if (currentStep < 3) {
+        if (currentStep < 4) {
             setCurrentStep(currentStep + 1);
         }
     };
@@ -174,6 +277,61 @@ export const VagaForm = () => {
     const handlePrevious = () => {
         if (currentStep > 1) {
             setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !profile?.organization_id) return;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${profile.organization_id}/clients/logo_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        
+        const toastId = toast.loading('Enviando logo do cliente...');
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('organizations')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('organizations')
+                .getPublicUrl(fileName);
+
+            updateField('companyLogo', publicUrl);
+            toast.success('Logo do cliente enviada!', { id: toastId });
+        } catch (error: any) {
+            console.error('Erro no upload:', error);
+            toast.error('Erro ao enviar logo.', { id: toastId });
+        }
+    };
+
+    const handleBgImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !profile?.organization_id) return;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${profile.organization_id}/vagas/bg_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const toastId = toast.loading('Enviando imagem de fundo...');
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('organizations')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('organizations')
+                .getPublicUrl(fileName);
+
+            updateField('vagaBgImage', publicUrl);
+            toast.success('Imagem de fundo enviada!', { id: toastId });
+        } catch (error: any) {
+            console.error('Erro no upload:', error);
+            toast.error('Erro ao enviar imagem.', { id: toastId });
         }
     };
 
@@ -235,6 +393,15 @@ export const VagaForm = () => {
                 differentials: formData.differentials.trim(),
                 additional_info: formData.additionalInfo.trim(),
                 category: formData.category || 'Outros',
+                custom_questions: formData.customQuestions,
+                is_third_party: formData.isThirdParty,
+                company_name: formData.isThirdParty ? (formData.companyName?.trim() || null) : null,
+                company_logo: formData.isThirdParty ? (formData.companyLogo || null) : null,
+                show_company_name: formData.isThirdParty ? formData.showCompanyName : true,
+                vaga_primary_color: formData.vagaPrimaryColor || null,
+                vaga_gradient_end: formData.vagaGradientEnd || null,
+                vaga_bg_color: formData.vagaBgColor || null,
+                vaga_bg_image: formData.vagaBgImage || null,
                 is_active: true,
             };
 
@@ -403,6 +570,7 @@ export const VagaForm = () => {
         { number: 1, title: 'Informações Básicas' },
         { number: 2, title: 'Detalhes do Cargo' },
         { number: 3, title: 'Conteúdo da Vaga' },
+        { number: 4, title: 'Jornada do Candidato' },
     ];
 
     if (loading) {
@@ -608,6 +776,39 @@ export const VagaForm = () => {
                                         }}
                                     />
                                 </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
+
+                                <ToggleField
+                                    label="Vaga para Cliente Externo?"
+                                    description="Ative se estiver recrutando para outra empresa (Mileto, etc)"
+                                    value={formData.isThirdParty}
+                                    onChange={(value) => updateField('isThirdParty', value)}
+                                />
+
+                                {formData.isThirdParty && (
+                                    <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'slideDown 0.3s ease-out' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+                                                Nome da Empresa Cliente (Opcional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.companyName}
+                                                onChange={(e) => updateField('companyName', e.target.value)}
+                                                placeholder="Ex: Mileto, Google, Startup X..."
+                                                style={inputStyle}
+                                            />
+                                        </div>
+
+                                        <ToggleField
+                                            label="Exibir nome da empresa no portal público?"
+                                            description="Se desativado, a vaga aparecerá como confidencial"
+                                            value={formData.showCompanyName}
+                                            onChange={(value) => updateField('showCompanyName', value)}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Navigation Buttons */}
@@ -674,6 +875,24 @@ export const VagaForm = () => {
                                     value={formData.hasSalaryRange}
                                     onChange={(value) => updateField('hasSalaryRange', value)}
                                 />
+
+                                {formData.hasSalaryRange && (
+                                    <p style={{ 
+                                        color: 'var(--text-muted)', 
+                                        fontSize: '12px', 
+                                        marginTop: '12px',
+                                        padding: '10px',
+                                        background: 'rgba(255,255,255,0.02)',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}>
+                                        <Info size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                        <span>Dica: Para salário fixo, preencha apenas o valor mínimo ou coloque valores iguais nos dois campos.</span>
+                                    </p>
+                                )}
 
                                 {formData.hasSalaryRange && (
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '20px', animation: 'slideDown 0.3s ease-out' }}>
@@ -1136,6 +1355,418 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Navigation Buttons */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                                <button
+                                    type="button"
+                                    onClick={handlePrevious}
+                                    style={{
+                                        padding: '14px 24px',
+                                        background: 'transparent',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '10px',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'var(--bg-card)';
+                                        e.currentTarget.style.color = 'var(--text-main)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'var(--text-muted)';
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                        <path d="M10 4L6 8L10 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                    Anterior
+                                </button>
+                                 <button
+                                    type="button"
+                                    onClick={handleNext}
+                                    style={{
+                                        padding: '14px 32px',
+                                        background: 'var(--primary)',
+                                        border: 'none',
+                                        borderRadius: '10px',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
+                                >
+                                    Próximo
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                        <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 4: Candidate Journey */}
+                    {currentStep === 4 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
+                            <div style={sectionStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '10px',
+                                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <Settings size={20} style={{ color: '#fff' }} />
+                                        </div>
+                                        <div>
+                                            <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
+                                                Jornada do Candidato
+                                            </h2>
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
+                                                Adicione perguntas personalizadas para filtrar candidatos
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={addQuestion}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: '8px 16px',
+                                            background: 'rgba(16, 185, 129, 0.1)',
+                                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                                            borderRadius: '10px',
+                                            color: '#10b981',
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'}
+                                    >
+                                        <Plus size={18} />
+                                        Adicionar Pergunta
+                                    </button>
+                                </div>
+
+                                {/* Questions List */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {formData.customQuestions.length === 0 ? (
+                                        <div style={{
+                                            padding: '40px',
+                                            textAlign: 'center',
+                                            background: 'rgba(255,255,255,0.02)',
+                                            borderRadius: '12px',
+                                            border: '1px dashed var(--border)'
+                                        }}>
+                                            <Info size={32} style={{ color: 'var(--text-muted)', marginBottom: '12px', opacity: 0.5 }} />
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+                                                Nenhuma pergunta personalizada adicionada.
+                                                <br />Apenas os campos padrão (Nome, E-mail, Currículo...) serão exibidos.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        formData.customQuestions.map((q, index) => (
+                                            <div key={q.id} style={{
+                                                background: 'rgba(255,255,255,0.03)',
+                                                borderRadius: '12px',
+                                                border: '1px solid var(--border)',
+                                                padding: '20px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '16px',
+                                                position: 'relative'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        borderRadius: '6px',
+                                                        background: 'var(--primary)',
+                                                        color: '#fff',
+                                                        fontSize: '12px',
+                                                        fontWeight: 700,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
+                                                    }}>
+                                                        {index + 1}
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={q.label}
+                                                        onChange={(e) => updateQuestion(q.id, { label: e.target.value })}
+                                                        placeholder="Ex: Qual sua experiência com React?"
+                                                        style={{ ...inputStyle, flex: 1 }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeQuestion(q.id)}
+                                                        style={{
+                                                            padding: '8px',
+                                                            color: '#ef4444',
+                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                            border: 'none',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                                                    {/* Type Selector */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <div style={{ display: 'flex', background: 'var(--bg-main)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                            {[
+                                                                { value: 'text', label: 'Texto', icon: <Type size={14} /> },
+                                                                { value: 'paragraph', label: 'Parágrafo', icon: <List size={14} /> },
+                                                                { value: 'choice', label: 'Seleção', icon: <CheckCircle2 size={14} /> }
+                                                            ].map(opt => (
+                                                                <button
+                                                                    key={opt.value}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const updates: any = { type: opt.value };
+                                                                        if (opt.value === 'choice' && (!q.options || q.options.length === 0)) {
+                                                                            updates.options = ['', ''];
+                                                                        }
+                                                                        updateQuestion(q.id, updates);
+                                                                    }}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px',
+                                                                        padding: '6px 12px',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: 600,
+                                                                        borderRadius: '6px',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        background: q.type === opt.value ? 'var(--primary)' : 'transparent',
+                                                                        color: q.type === opt.value ? '#fff' : 'var(--text-muted)',
+                                                                        transition: 'all 0.2s'
+                                                                    }}
+                                                                >
+                                                                    {opt.icon}
+                                                                    {opt.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Required Toggle */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`req-${q.id}`}
+                                                            checked={q.required}
+                                                            onChange={(e) => updateQuestion(q.id, { required: e.target.checked })}
+                                                            style={{ cursor: 'pointer' }}
+                                                        />
+                                                        <label htmlFor={`req-${q.id}`} style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                                                            Obrigatória
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Conditional Logic Section */}
+                                                {index > 0 && formData.customQuestions.slice(0, index).some(prevQ => prevQ.type === 'choice' && prevQ.options && prevQ.options.length > 0) && (
+                                                    <div style={{ marginTop: '4px', padding: '16px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '10px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: q.logic ? '12px' : '0' }}>
+                                                            <Zap size={14} style={{ color: 'var(--primary)' }} />
+                                                            <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600 }}>Exibição Condicional</span>
+                                                            {!q.logic ? (
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => updateQuestion(q.id, { logic: { parentId: '', parentValue: '' } })}
+                                                                    style={{ color: 'var(--primary)', background: 'transparent', border: 'none', borderBottom: '1px dashed var(--primary)', fontSize: '12px', cursor: 'pointer', marginLeft: 'auto', padding: 0 }}
+                                                                >
+                                                                    Configurar Lógica
+                                                                </button>
+                                                            ) : (
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newQuestions = formData.customQuestions.map(item => {
+                                                                            if (item.id === q.id) {
+                                                                                const { logic, ...rest } = item;
+                                                                                return rest;
+                                                                            }
+                                                                            return item;
+                                                                        });
+                                                                        updateField('customQuestions', newQuestions);
+                                                                    }}
+                                                                    style={{ color: '#ef4444', background: 'transparent', border: 'none', borderBottom: '1px dashed #ef4444', fontSize: '12px', cursor: 'pointer', marginLeft: 'auto', padding: 0 }}
+                                                                >
+                                                                    Remover Lógica
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {q.logic && (
+                                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Mostrar esta pergunta se</span>
+                                                                <select 
+                                                                    value={q.logic.parentId}
+                                                                    onChange={(e) => updateQuestion(q.id, { logic: { ...q.logic!, parentId: e.target.value, parentValue: '' } })}
+                                                                    style={{ ...inputStyle, padding: '6px 10px', fontSize: '13px', width: 'auto', background: 'var(--bg-main)' }}
+                                                                >
+                                                                    <option value="">Selecionar Pergunta...</option>
+                                                                    {formData.customQuestions.slice(0, index).filter(pq => pq.type === 'choice').map(pq => (
+                                                                        <option key={pq.id} value={pq.id}>{pq.label || `Pergunta ${formData.customQuestions.indexOf(pq) + 1}`}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>for igual a</span>
+                                                                <select 
+                                                                    value={q.logic.parentValue}
+                                                                    onChange={(e) => updateQuestion(q.id, { logic: { ...q.logic!, parentValue: e.target.value } })}
+                                                                    style={{ ...inputStyle, padding: '6px 10px', fontSize: '13px', width: 'auto', background: 'var(--bg-main)' }}
+                                                                    disabled={!q.logic.parentId}
+                                                                >
+                                                                    <option value="">Selecionar Valor...</option>
+                                                                    {formData.customQuestions.find(pq => pq.id === q.logic?.parentId)?.options?.map(opt => (
+                                                                        <option key={opt} value={opt}>{opt}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                 {/* Options for Choice type */}
+                                                {q.type === 'choice' && (
+                                                    <div style={{ marginTop: '8px', padding: '20px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                                            <label style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 700 }}>
+                                                                Opções de Resposta
+                                                            </label>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => addOption(q.id)}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    padding: '4px 10px',
+                                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                                                                    borderRadius: '6px',
+                                                                    color: 'var(--primary)',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: 600,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <Plus size={14} />
+                                                                Adicionar Opção
+                                                            </button>
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                            {q.options?.map((opt, idx) => (
+                                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <div style={{ color: 'var(--text-muted)', cursor: 'grab' }}>
+                                                                        <GripVertical size={14} />
+                                                                    </div>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opt}
+                                                                        onChange={(e) => updateOption(q.id, idx, e.target.value)}
+                                                                        placeholder={`Opção ${idx + 1}`}
+                                                                        style={{ ...inputStyle, padding: '10px 12px', paddingLeft: '12px' }}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeOption(q.id, idx)}
+                                                                        style={{
+                                                                            padding: '8px',
+                                                                            color: '#ef4444',
+                                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                                            border: 'none',
+                                                                            borderRadius: '8px',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Complementary Text Config */}
+                                                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: q.hasComplementary ? '12px' : '0' }}>
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    id={`comp-${q.id}`}
+                                                                    checked={q.hasComplementary}
+                                                                    onChange={(e) => updateQuestion(q.id, { hasComplementary: e.target.checked })}
+                                                                    style={{ cursor: 'pointer' }}
+                                                                />
+                                                                <label htmlFor={`comp-${q.id}`} style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+                                                                    Habilitar campo de texto complementar? (Opcional)
+                                                                </label>
+                                                            </div>
+                                                            
+                                                            {q.hasComplementary && (
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', animation: 'dashFadeUp 0.3s ease-out' }}>
+                                                                    <div>
+                                                                        <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>Ativar detalhes quando selecionar:</label>
+                                                                        <select 
+                                                                            value={q.complementaryTrigger}
+                                                                            onChange={(e) => updateQuestion(q.id, { complementaryTrigger: e.target.value })}
+                                                                            style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px', background: 'var(--bg-main)' }}
+                                                                        >
+                                                                            <option value="">Sempre exibir</option>
+                                                                            {q.options?.map(opt => (
+                                                                                <option key={opt} value={opt}>{opt}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>Legenda do campo extra</label>
+                                                                        <input 
+                                                                            type="text"
+                                                                            value={q.complementaryLabel || ''}
+                                                                            onChange={(e) => updateQuestion(q.id, { complementaryLabel: e.target.value })}
+                                                                            placeholder="Ex: Se sim, descreva:"
+                                                                            style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px', background: 'var(--bg-main)' }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+
+                            {/* Navigation Buttons for Step 4 */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
                                 <button
                                     type="button"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { Briefcase, MapPin, Loader2, Building2, Clock, DollarSign } from 'lucide-react';
+import { formatSalary } from '../../core/utils/jobFormatter';
 
 interface Vaga {
     id: string;
@@ -18,6 +19,7 @@ interface Vaga {
     work_model: string;
     category: string;
     created_at: string;
+    company_name: string | null;
 }
 
 interface OrgInfo {
@@ -95,7 +97,7 @@ export const OrganizationCareerPage = () => {
                 // Fetch Vagas that belong to org and are OPEN (status = 'aberta' and are active)
                 const { data: vagasData, error: vagasError } = await supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category')
+                    .select('id, title, public_hash, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name')
                     .eq('organization_id', orgId)
                     .eq('status', 'aberta')
                     .eq('is_active', true);
@@ -141,14 +143,7 @@ export const OrganizationCareerPage = () => {
         return matchesSearch && matchesCategory;
     });
 
-    const formatCurrency = (val: number | null | undefined) => {
-        if (!val) return 'A combinar';
-        try {
-            return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } catch (e) {
-            return 'A combinar';
-        }
-    };
+    // Removido formatCurrency local para usar o do jobFormatter
 
     const getContractTypeLabel = (type: string | null | undefined) => {
         if (!type) return 'N/A';
@@ -338,7 +333,14 @@ export const OrganizationCareerPage = () => {
                                     e.currentTarget.style.borderColor = 'rgba(226, 232, 240, 0.5)';
                                 }}
                             >
-                                <h3 style={{ fontSize: '20px', fontWeight: 800, color: orgInfo.font_color, margin: '0 0 16px', lineHeight: '1.2' }}>{vaga.title}</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
+                                    <h3 style={{ fontSize: '20px', fontWeight: 800, color: orgInfo.font_color, margin: 0, lineHeight: '1.2' }}>{vaga.title}</h3>
+                                    {vaga.company_name && (
+                                        <p style={{ margin: 0, fontSize: '13px', color: primaryColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            na {vaga.company_name}
+                                        </p>
+                                    )}
+                                </div>
                                 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {vaga.has_salary_range && (
@@ -347,7 +349,7 @@ export const OrganizationCareerPage = () => {
                                                 <DollarSign size={13} style={{ color: primaryColor }} />
                                             </div>
                                             <span style={{ fontWeight: 500, opacity: 0.8 }}>
-                                                {formatCurrency(vaga.salary_min)} - {formatCurrency(vaga.salary_max)}
+                                                {formatSalary(vaga.salary_min, vaga.salary_max)}
                                             </span>
                                         </div>
                                     )}
@@ -356,7 +358,7 @@ export const OrganizationCareerPage = () => {
                                         <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${primaryColor}10`, border: `1px solid ${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Building2 size={13} style={{ color: primaryColor }} />
                                         </div>
-                                        <span style={{ fontWeight: 500, opacity: 0.8 }}>Contrato: {getContractTypeLabel(vaga.contract_type)}</span>
+                                        <span style={{ fontWeight: 500, opacity: 0.8 }}>{getContractTypeLabel(vaga.contract_type)}</span>
                                     </div>
                                     
                                     {(vaga.has_location || vaga.work_model) && (
