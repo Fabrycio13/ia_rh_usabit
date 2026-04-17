@@ -82,7 +82,6 @@ async function extractTextFromPDF(file: File): Promise<string> {
  * Cria o prompt dinâmico baseado na Vaga e nas Respostas do Formulário
  */
 function createPrompt(jobTitle: string, jobRequirements: string, formAnswers: Record<string, string>) {
-    const now = new Date().toLocaleString('pt-BR');
     
     let formText = "Nenhuma resposta de formulário preenchida.";
     if (formAnswers && Object.keys(formAnswers).length > 0) {

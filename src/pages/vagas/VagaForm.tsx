@@ -5,13 +5,12 @@ import toast from 'react-hot-toast';
 import { 
     ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, 
     DollarSign, MapPin, Building2, Clock, Kanban, Plus, Trash2, Settings, 
-    List, Type, CheckCircle2, GripVertical, Zap, Upload
+    List, Type, CheckCircle2, GripVertical, Zap
 } from 'lucide-react';
 import { StepIndicator } from './components/StepIndicator';
 import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
 import { RadioGroup } from './components/RadioGroup';
-import { useUser } from '../../core/contexts/UserContext';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
@@ -105,7 +104,7 @@ export const VagaForm = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const isEditMode = !!id;
-    const { profile } = useUser();
+    
     
     const [currentStep, setCurrentStep] = useState(1);
     const [formData, setFormData] = useState<VagaFormData>(initialFormData);
@@ -280,60 +279,9 @@ export const VagaForm = () => {
         }
     };
 
-    const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !profile?.organization_id) return;
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${profile.organization_id}/clients/logo_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-        
-        const toastId = toast.loading('Enviando logo do cliente...');
 
-        try {
-            const { error: uploadError } = await supabase.storage
-                .from('organizations')
-                .upload(fileName, file, { upsert: true });
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('organizations')
-                .getPublicUrl(fileName);
-
-            updateField('companyLogo', publicUrl);
-            toast.success('Logo do cliente enviada!', { id: toastId });
-        } catch (error: any) {
-            console.error('Erro no upload:', error);
-            toast.error('Erro ao enviar logo.', { id: toastId });
-        }
-    };
-
-    const handleBgImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !profile?.organization_id) return;
-
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${profile.organization_id}/vagas/bg_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-        const toastId = toast.loading('Enviando imagem de fundo...');
-
-        try {
-            const { error: uploadError } = await supabase.storage
-                .from('organizations')
-                .upload(fileName, file, { upsert: true });
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('organizations')
-                .getPublicUrl(fileName);
-
-            updateField('vagaBgImage', publicUrl);
-            toast.success('Imagem de fundo enviada!', { id: toastId });
-        } catch (error: any) {
-            console.error('Erro no upload:', error);
-            toast.error('Erro ao enviar imagem.', { id: toastId });
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
