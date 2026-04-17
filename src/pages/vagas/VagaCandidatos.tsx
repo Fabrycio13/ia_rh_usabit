@@ -69,6 +69,31 @@ export const VagaCandidatos = () => {
     const [loading, setLoading] = useState(true);
     const [expandedCandidatoId, setExpandedCandidatoId] = useState<string | null>(null);
 
+    const handleViewResume = async (url: string) => {
+        if (!url) return;
+        try {
+            // Extrair o path relativo do Storage (o que vem após o nome do bucket)
+            const parts = url.split('/job-applications/');
+            if (parts.length < 2) {
+                toast.error('URL do currículo inválida.');
+                return;
+            }
+            const path = parts[1];
+
+            const { data, error } = await supabase.storage
+                .from('job-applications')
+                .createSignedUrl(path, 300); // Expira em 5 minutos
+
+            if (error) throw error;
+            if (data?.signedUrl) {
+                window.open(data.signedUrl, '_blank');
+            }
+        } catch (err: any) {
+            console.error('Erro ao gerar URL assinada:', err);
+            toast.error('Erro ao abrir currículo. Verifique suas permissões.');
+        }
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             if (!id) return;
@@ -361,6 +386,10 @@ export const VagaCandidatos = () => {
                                             {candidato.resume_file_name ? (
                                                 <button
                                                     title="Ver currículo"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleViewResume(candidato.resume_url!);
+                                                    }}
                                                     style={{
                                                         padding: '6px',
                                                         background: 'transparent',
