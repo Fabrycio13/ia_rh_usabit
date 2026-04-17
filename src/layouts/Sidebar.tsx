@@ -336,7 +336,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
                     {hasPermission(profile.user_role, 'chat') && (
                         <button
-                            onClick={profile.isPremium ? onToggleChat : undefined}
+                            onClick={onToggleChat}
                             className="nav-lnk"
                             style={{
                                 width: '100%',
@@ -344,15 +344,14 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                                 padding: collapsed ? '10px' : '10px 14px',
                                 background: 'none',
                                 border: 'none',
-                                cursor: profile.isPremium ? 'pointer' : 'not-allowed',
-                                opacity: profile.isPremium ? 1 : 0.6
+                                cursor: 'pointer',
+                                opacity: 1
                             }}
                         >
-                            <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: profile.isPremium ? '#22c55e' : 'var(--text-dim)' }} />
+                            <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: '#22c55e' }} />
                             {!collapsed && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                                    <span style={{ color: profile.isPremium ? '#22c55e' : 'var(--text-dim)', fontWeight: 600 }}>Assistente IA</span>
-                                    {!profile.isPremium && <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />}
+                                    <span style={{ color: '#22c55e', fontWeight: 600 }}>Assistente IA</span>
                                 </div>
                             )}
                         </button>

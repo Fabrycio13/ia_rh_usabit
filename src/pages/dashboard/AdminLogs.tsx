@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
+import { useUser } from '../../core/contexts/UserContext';
 import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database, ChevronDown } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 
@@ -19,6 +20,10 @@ interface LogEntry {
 }
 
 export const AdminLogs = () => {
+    const { profile } = useUser();
+    const userRole = profile.user_role;
+    const userOrgId = profile.organization_id;
+
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -49,22 +54,21 @@ export const AdminLogs = () => {
     const fetchLogs = async () => {
         setLoading(true);
         
-        let result = await supabase
+        let query = supabase
             .from('activity_logs')
             .select(`
                 *,
-                profiles (name, email, organization_id, organization_name)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(500); // Aumentado para suportar paginação local em mais dados
+                profiles!inner (name, email, organization_id, organization_name)
+            `);
         
-        if (result.error) {
-            result = await supabase
-                .from('activity_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(500);
+        // ISOLAMENTO: Apenas Owner vê logs de tudo. Gestor vê apenas sua org.
+        if (userRole !== 'owner' && userOrgId) {
+            query = query.eq('profiles.organization_id', userOrgId);
         }
+
+        const result = await query
+            .order('created_at', { ascending: false })
+            .limit(500);
         
         if (result.data) {
             const data = result.data as LogEntry[];
@@ -220,41 +224,43 @@ export const AdminLogs = () => {
 
                     <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Filtrar por:</span>
                     
-                    {/* Organization Selector - CUSTOM PREMIUM SELECT */}
-                    <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
-                        <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                                <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações'}
-                                </span>
-                            </div>
-                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none', opacity: 0.6, flexShrink: 0 }} />
-                        </div>
-
-                        {isOrgOpen && (
-                            <div className="cs-dropdown">
-                                <div 
-                                    className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
-                                    onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
-                                >
-                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
-                                    Todas as Organizações
+                    {/* Organization Selector - Apenas para Owner */}
+                    {userRole === 'owner' && (
+                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
+                            <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                                    <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações'}
+                                    </span>
                                 </div>
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
-                                {organizations.map(org => (
-                                    <div 
-                                        key={org.id} 
-                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
-                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); setCurrentPage(1); }}
-                                    >
-                                        <div className="cs-dot" style={{ background: '#10b981' }} />
-                                        {org.name}
-                                    </div>
-                                ))}
+                                <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none', opacity: 0.6, flexShrink: 0 }} />
                             </div>
-                        )}
-                    </div>
+
+                            {isOrgOpen && (
+                                <div className="cs-dropdown">
+                                    <div 
+                                        className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                        Todas as Organizações
+                                    </div>
+                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                                    {organizations.map(org => (
+                                        <div 
+                                            key={org.id} 
+                                            className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                            onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); setCurrentPage(1); }}
+                                        >
+                                            <div className="cs-dot" style={{ background: '#10b981' }} />
+                                            {org.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* User Search */}
                     <div style={{ position: 'relative', width: '200px' }}>

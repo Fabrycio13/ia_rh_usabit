@@ -10,6 +10,11 @@ interface Vaga {
     company_name: string | null;
     application_count: number;
     is_pcd: string;
+    custom_questions?: {
+        id: string;
+        label: string;
+        type: string;
+    }[];
 }
 
 interface Candidato {
@@ -24,6 +29,7 @@ interface Candidato {
     applied_at: string;
     status: string;
     match_score: number;
+    answers?: Record<string, any> | null;
 }
 
 // Dados mockados para demonstração
@@ -76,14 +82,24 @@ export const VagaCandidatos = () => {
         const fetchData = async () => {
             if (!id) return;
             try {
+                // Fetch Vaga
                 const { data: vagaData, error: vagaError } = await supabase
                     .from('vagas_white_label')
-                    .select('id, title, company_name, application_count, is_pcd')
+                    .select('id, title, company_name, application_count, is_pcd, custom_questions')
                     .eq('id', id)
                     .single();
                 if (vagaError) throw vagaError;
                 setVaga(vagaData);
-                setCandidatos(mockCandidatos.sort((a, b) => b.match_score - a.match_score));
+
+                // Fetch Real Candidates
+                const { data: candData, error: candError } = await supabase
+                    .from('vagas_candidaturas')
+                    .select('*')
+                    .eq('vaga_id', id)
+                    .order('match_score', { ascending: false });
+                
+                if (candError) throw candError;
+                setCandidatos(candData || []);
             } catch (err) {
                 console.error('Erro ao carregar dados:', err);
                 toast.error('Erro ao carregar dados da vaga');
@@ -398,41 +414,42 @@ export const VagaCandidatos = () => {
                                                         <a href={candidato.candidate_linkedin} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>LinkedIn</a>
                                                     </div>
                                                 )}
-                                                {candidato.resume_file_name && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
-                                                        <FileText size={16} style={{ color: 'var(--primary)' }} />
-                                                        {candidato.resume_file_name}
-                                                    </div>
-                                                )}
                                             </div>
 
-                                            {/* Match Breakdown (Mock) */}
-                                            <div style={{ padding: '16px', background: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                                <h4 style={{ color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, margin: '0 0 12px' }}>Análise de Match (IA)</h4>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Requisitos Técnicos</span>
-                                                        <span style={{ color: '#22c55e', fontSize: '13px', fontWeight: 600 }}>92%</span>
-                                                    </div>
-                                                    <div style={{ height: '6px', background: 'var(--bg-main)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                        <div style={{ width: '92%', height: '100%', background: '#22c55e', borderRadius: '3px' }} />
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Experiência</span>
-                                                        <span style={{ color: '#3b82f6', fontSize: '13px', fontWeight: 600 }}>85%</span>
-                                                    </div>
-                                                    <div style={{ height: '6px', background: 'var(--bg-main)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                        <div style={{ width: '85%', height: '100%', background: '#3b82f6', borderRadius: '3px' }} />
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Formação</span>
-                                                        <span style={{ color: '#f59e0b', fontSize: '13px', fontWeight: 600 }}>78%</span>
-                                                    </div>
-                                                    <div style={{ height: '6px', background: 'var(--bg-main)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                        <div style={{ width: '78%', height: '100%', background: '#f59e0b', borderRadius: '3px' }} />
+                                            {/* Custom Answers */}
+                                            {vaga.custom_questions && vaga.custom_questions.length > 0 && (
+                                                <div style={{ marginTop: '16px', padding: '20px', background: 'rgba(99, 102, 241, 0.03)', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                                                    <h4 style={{ color: 'var(--text-main)', fontSize: '15px', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <TrendingUp size={18} style={{ color: 'var(--primary)' }} />
+                                                        Perguntas Adicionais da Vaga
+                                                    </h4>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                                                        {vaga.custom_questions.map(q => (
+                                                            <div key={q.id}>
+                                                                <p style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                                    {q.label}
+                                                                </p>
+                                                                <p style={{ color: 'var(--text-main)', fontSize: '14px', margin: 0, lineHeight: '1.5', background: 'var(--bg-card)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                                    {candidato.answers?.[q.id] || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Não respondido</span>}
+                                                                    {candidato.answers?.[`${q.id}_extra`] && (
+                                                                        <span style={{ 
+                                                                            display: 'block', 
+                                                                            marginTop: '8px', 
+                                                                            paddingTop: '8px', 
+                                                                            borderTop: '1px solid var(--border)', 
+                                                                            fontSize: '13px', 
+                                                                            color: 'var(--text-main)',
+                                                                            fontStyle: 'italic'
+                                                                        }}>
+                                                                            <span style={{ color: 'var(--primary)', fontWeight: 600, fontStyle: 'normal' }}>Complemento:</span> {candidato.answers[`${q.id}_extra`]}
+                                                                        </span>
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

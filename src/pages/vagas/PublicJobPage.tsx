@@ -5,6 +5,7 @@ import {
     MapPin, DollarSign, Clock, Star, Target,
     Award, Info, ArrowRight, AlertCircle, ArrowLeft
 } from 'lucide-react';
+import { formatSalary } from '../../core/utils/jobFormatter';
 
 interface Job {
     id: string;
@@ -25,12 +26,17 @@ interface Job {
     additional_info: string | null;
     company_name: string | null;
     company_logo: string | null;
+    show_company_name: boolean;
     application_count: number;
     is_accepting_applications: boolean;
     work_regime: string | null;
     application_deadline: string | null;
     created_at: string;
     is_pcd: string;
+    vaga_primary_color: string | null;
+    vaga_gradient_end: string | null;
+    vaga_bg_color: string | null;
+    vaga_bg_image: string | null;
 }
 
 export const PublicJobPage = () => {
@@ -39,6 +45,13 @@ export const PublicJobPage = () => {
     const [job, setJob] = useState<Job | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const fetchJob = async () => {
@@ -73,11 +86,7 @@ export const PublicJobPage = () => {
         fetchJob();
     }, [hash]);
 
-    const formatCurrency = (value: string | null) => {
-        if (!value) return '';
-        const num = parseFloat(value);
-        return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    };
+    // Removido formatCurrency local para usar o do jobFormatter
 
     const getContractTypeLabel = (type: string | null) => {
         const labels: Record<string, string> = {
@@ -172,7 +181,12 @@ export const PublicJobPage = () => {
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0B1020' }}>
+        <div style={{
+            minHeight: '100vh',
+            background: job.vaga_bg_image
+                ? `url(${job.vaga_bg_image}) center/cover no-repeat`
+                : (job.vaga_bg_color || '#0B1020')
+        }}>
             {/* CSS Animations */}
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
@@ -214,9 +228,7 @@ export const PublicJobPage = () => {
 
             {/* Header with company info or gradient */}
             <div style={{
-                background: job.company_logo
-                    ? `linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(124, 58, 237, 0.9)), url(${job.company_logo})`
-                    : 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
+                background: `linear-gradient(135deg, ${job.vaga_primary_color || 'var(--primary)'} 0%, ${job.vaga_gradient_end || '#7c3aed'} 100%)`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 padding: '48px 40px',
@@ -233,10 +245,28 @@ export const PublicJobPage = () => {
                     background: 'rgba(255, 255, 255, 0.05)'
                 }} />
 
-                <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto' }}>
-                    {job.company_name && (
+                <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '32px', alignItems: 'flex-start' }}>
+                    {job.company_logo && job.show_company_name !== false && (
+                        <div style={{ 
+                            width: '80px', 
+                            height: '80px', 
+                            borderRadius: '16px', 
+                            background: '#fff', 
+                            padding: '12px', 
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+                            flexShrink: 0
+                        }}>
+                            <img src={job.company_logo} alt={job.company_name || 'Logo'} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                    {job.company_name && job.show_company_name !== false ? (
                         <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            {job.company_name}
+                            Oportunidade na {job.company_name}
+                        </p>
+                    ) : (
+                        <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Star size={14} /> Empresa Confidencial
                         </p>
                     )}
                     <h1 style={{ color: '#fff', fontSize: '36px', fontWeight: 700, margin: '0 0 16px', lineHeight: 1.2 }}>
@@ -245,6 +275,7 @@ export const PublicJobPage = () => {
                     <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '16px', margin: 0, lineHeight: 1.6 }}>
                         {job.description || 'Confira os detalhes desta oportunidade.'}
                     </p>
+
 
                     {/* Quick Info Badges */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '24px' }}>
@@ -340,12 +371,13 @@ export const PublicJobPage = () => {
                                 fontWeight: 600
                             }}>
                                 <DollarSign size={14} />
-                                {formatCurrency(job.salary_min)} {job.salary_max && `- ${formatCurrency(job.salary_max)}`}
+                                {formatSalary(job.salary_min, job.salary_max)}
                             </div>
                         )}
                     </div>
                 </div>
             </div>
+        </div>
 
             {/* Content */}
             <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px' }}>

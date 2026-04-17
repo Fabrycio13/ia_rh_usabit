@@ -5,6 +5,7 @@ import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
+import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail, toStr } from '../../features/analysis/CandidatePanelUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1197,7 +1198,7 @@ export const Pipeline = () => {
                                                 <p style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{card.candidate_name}</p>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                                                     {card.is_blacklisted && <Ban size={13} color="#ef4444" />}
-                                                    {(card.candidate_conversations?.length ?? 0) > 0 && (
+                                                    {hasPermission(profile.user_role, 'chat') && (card.candidate_conversations?.length ?? 0) > 0 && (
                                                         <div title="Chat Ativo">
                                                             <Phone size={13} color="#22c55e" fill="#22c55e22" />
                                                         </div>

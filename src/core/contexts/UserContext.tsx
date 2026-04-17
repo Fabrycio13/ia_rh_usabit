@@ -114,7 +114,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 loaded: true,
             }));
             
-            if (data.user_role === 'gestor') console.log('[UserContext] Gestor detectado:', data.organization_id);
         } else {
             // Case where user exists in Auth but not yet in Profiles (trigger delay)
             // Still set loaded to true so the app can continue, but with base data

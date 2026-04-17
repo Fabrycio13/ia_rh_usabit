@@ -14,9 +14,23 @@ import {
     Upload,
     PaintBucket,
     Save,
-    Type as TypeIcon
+    Type as TypeIcon,
+    Palette,
+    Layers,
+    Check,
+    User,
+    Mail,
+    Phone,
+    Linkedin,
+    MapPin,
+    ArrowLeft,
+    Send,
+    Search,
+    Filter,
+    X as CloseIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DatePicker from '../../common/components/ui/DatePicker';
 
 
 
@@ -28,6 +42,22 @@ export const CareerPortalHub = () => {
     
     // Tabs state
     const [activeTab, setActiveTab] = useState<'vagas' | 'design'>('vagas');
+    const [designSubTab, setDesignSubTab] = useState<'portal' | 'vagas'>('portal');
+
+    // Vagas para design individual
+    const [orgVagas, setOrgVagas] = useState<{id: string; title: string; category: string | null; status: string; vaga_primary_color: string | null; vaga_gradient_end: string | null; vaga_bg_color: string | null; vaga_bg_image: string | null;}[]>([]);
+    const [selectedVagaId, setSelectedVagaId] = useState<string>('');
+    const [vagaDesign, setVagaDesign] = useState({ primaryColor: '', gradientEnd: '', bgColor: '', bgImage: '' });
+    const [savingVaga, setSavingVaga] = useState(false);
+    const [vagaSearch, setVagaSearch] = useState('');
+    const [vagaStatusFilter, setVagaStatusFilter] = useState('');
+    const [vagaCategoryFilter, setVagaCategoryFilter] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    // Dropdown control
+    const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
+    const [isCategorySelectOpen, setIsCategorySelectOpen] = useState(false);
 
     // Portal Settings State
     const [loading, setLoading] = useState(true);
@@ -92,7 +122,15 @@ export const CareerPortalHub = () => {
                     setPageBackgroundUrl(orgData.page_background_url || '');
                 }
 
-                // Jobs fetching removed as it is handled by the Vagas component
+                // Buscar vagas da organização para design individual
+                const { data: vagasData } = await supabase
+                    .from('vagas_white_label')
+                    .select('id, title, category, status, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
+                    .eq('organization_id', profile.organization_id)
+                    .in('status', ['aberta', 'pausada'])
+                    .order('created_at', { ascending: false });
+                
+                if (vagasData) setOrgVagas(vagasData as any);
 
             } catch (err: any) {
                 console.error('[CareerPortalHub] Erro:', err);
@@ -180,6 +218,72 @@ export const CareerPortalHub = () => {
         toast.success('Link do portal copiado!');
     };
 
+    const handleSelectVaga = (vagaId: string) => {
+        setSelectedVagaId(vagaId);
+        const v = orgVagas.find(v => v.id === vagaId);
+        if (v) {
+            setVagaDesign({
+                primaryColor: v.vaga_primary_color || '',
+                gradientEnd: v.vaga_gradient_end || '',
+                bgColor: v.vaga_bg_color || '',
+                bgImage: v.vaga_bg_image || '',
+            });
+        } else {
+            setVagaDesign({ primaryColor: '', gradientEnd: '', bgColor: '', bgImage: '' });
+        }
+    };
+
+    const handleSaveVagaDesign = async () => {
+        if (!selectedVagaId) {
+            toast.error('Selecione uma vaga primeiro.');
+            return;
+        }
+        setSavingVaga(true);
+        try {
+            const { error } = await supabase
+                .from('vagas_white_label')
+                .update({
+                    vaga_primary_color: vagaDesign.primaryColor || null,
+                    vaga_gradient_end: vagaDesign.gradientEnd || null,
+                    vaga_bg_color: vagaDesign.bgColor || null,
+                    vaga_bg_image: vagaDesign.bgImage || null,
+                })
+                .eq('id', selectedVagaId);
+            if (error) throw error;
+            // Atualizar lista local
+            setOrgVagas(prev => prev.map(v => v.id === selectedVagaId ? {
+                ...v,
+                vaga_primary_color: vagaDesign.primaryColor || null,
+                vaga_gradient_end: vagaDesign.gradientEnd || null,
+                vaga_bg_color: vagaDesign.bgColor || null,
+                vaga_bg_image: vagaDesign.bgImage || null,
+            } : v));
+            toast.success('Design da vaga salvo!');
+        } catch (err: any) {
+            toast.error('Erro ao salvar: ' + err.message);
+        } finally {
+            setSavingVaga(false);
+        }
+    };
+
+    const handleVagaBgImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !profile.organization_id) return;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${profile.organization_id}/vagas/bg_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const toastId = toast.loading('Enviando imagem de fundo...');
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('organizations')
+                .upload(fileName, file, { upsert: true });
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = supabase.storage.from('organizations').getPublicUrl(fileName);
+            setVagaDesign(prev => ({ ...prev, bgImage: publicUrl }));
+            toast.success('Imagem enviada!', { id: toastId });
+        } catch (error: any) {
+            toast.error('Erro ao enviar imagem.', { id: toastId });
+        }
+    };
 
 
     if (loading) {
@@ -210,7 +314,9 @@ export const CareerPortalHub = () => {
         cursor: 'pointer',
         transition: 'all 0.2s',
         background: 'none',
-        border: 'none',
+        borderTop: 'none',
+        borderLeft: 'none',
+        borderRight: 'none',
         outline: 'none'
     });
 
@@ -257,6 +363,70 @@ export const CareerPortalHub = () => {
                 </div>
             ) : (
                 <div style={{ animation: 'fadeIn 0.3s ease-out', position: 'relative' }}>
+                    {/* Sub-tabs: Portal de Vagas | Design das Vagas */}
+                    <div style={{ 
+                        display: 'flex', 
+                        gap: '4px', 
+                        marginBottom: '32px', 
+                        borderBottom: '1px solid var(--border)',
+                        padding: '0 4px'
+                    }}>
+                        {[
+                            { id: 'portal' as const, label: 'Portal de Vagas', icon: <Layers size={18} />, count: 1 },
+                            { id: 'vagas' as const, label: 'Design das Vagas', icon: <Palette size={18} />, count: orgVagas.length }
+                        ].map(tab => {
+                            const active = designSubTab === tab.id;
+                            const statusColor = active ? 'var(--primary)' : 'var(--text-dim)';
+                            const badgeColor = active ? 'var(--primary)' : 'var(--text-muted)';
+                            
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setDesignSubTab(tab.id)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '12px',
+                                        padding: '12px 24px',
+                                        background: active ? 'var(--bg-card)' : 'transparent',
+                                        color: statusColor,
+                                        borderTop: 'none',
+                                        borderLeft: 'none',
+                                        borderRight: 'none',
+                                        borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
+                                        borderRadius: '8px 8px 0 0',
+                                        fontSize: '14px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        marginBottom: '-1px',
+                                        position: 'relative',
+                                        zIndex: active ? 1 : 0
+                                    }}
+                                >
+                                    <span style={{ opacity: active ? 1 : 0.6, display: 'flex' }}>{tab.icon}</span>
+                                    {tab.label}
+                                    <span style={{ 
+                                        fontSize: '11px', 
+                                        background: active ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.1)',
+                                        color: badgeColor,
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        fontWeight: 700,
+                                        marginLeft: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}>
+                                        {tab.count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {designSubTab === 'portal' && (
                     <div style={{ 
                         display: 'flex', 
                         gap: '24px', 
@@ -608,6 +778,444 @@ export const CareerPortalHub = () => {
                             </div>
                         )}
                     </div>
+                    )}
+
+                    {/* SUB-ABA: DESIGN DAS VAGAS */}
+                    {designSubTab === 'vagas' && (
+                    <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', maxWidth: '1200px', margin: '0 auto', transition: 'all 0.3s', width: '100%' }}>
+                        {/* Painel de controle */}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {/* Seletor de Vaga */}
+                            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                                <div style={{ marginBottom: '24px' }}>
+                                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '20px' }}>
+                                        {selectedVagaId ? 'Vaga Selecionada' : 'Filtrar Vagas'}
+                                    </h2>
+                                    
+                                    {!selectedVagaId && (
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', width: '100%', flexWrap: 'nowrap' }}>
+                                            {/* Search */}
+                                            <div style={{ position: 'relative', width: '260px', flexShrink: 0 }}>
+                                                <Search style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={16} />
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Buscar vagas..." 
+                                                    value={vagaSearch}
+                                                    onChange={e => setVagaSearch(e.target.value)}
+                                                    style={{ 
+                                                        background: 'rgba(255, 255, 255, 0.03)', 
+                                                        border: '1px solid var(--border)', 
+                                                        borderRadius: '10px', 
+                                                        padding: '12px 16px 12px 42px', 
+                                                        fontSize: '14px', 
+                                                        color: 'var(--text-main)',
+                                                        width: '100%',
+                                                        height: '44px',
+                                                        outline: 'none',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Category Filter */}
+                                            <div style={{ position: 'relative' }}>
+                                                <div 
+                                                    onClick={() => setIsCategorySelectOpen(!isCategorySelectOpen)}
+                                                    style={{ 
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border)',
+                                                        borderRadius: '10px', padding: '0 16px', color: 'var(--text-main)',
+                                                        fontSize: '14px', cursor: 'pointer', height: '44px', minWidth: '180px', gap: '8px',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <Briefcase size={16} style={{ color: 'var(--primary)' }} />
+                                                        <span style={{ whiteSpace: 'nowrap' }}>{vagaCategoryFilter || 'Todos Cargos'}</span>
+                                                    </div>
+                                                    <ChevronDown size={14} style={{ transform: isCategorySelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
+                                                </div>
+                                                {isCategorySelectOpen && (
+                                                    <>
+                                                        <div onClick={() => setIsCategorySelectOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: '#1a1f2e', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+                                                            <div 
+                                                                onClick={() => { setVagaCategoryFilter(''); setIsCategorySelectOpen(false); }} 
+                                                                style={{ 
+                                                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                                                    padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', 
+                                                                    color: !vagaCategoryFilter ? 'var(--primary)' : 'var(--text-dim)', 
+                                                                    fontSize: '13px', background: !vagaCategoryFilter ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                                                                    fontWeight: !vagaCategoryFilter ? 600 : 400
+                                                                }}
+                                                            >
+                                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: !vagaCategoryFilter ? 'var(--primary)' : 'var(--text-muted)' }} />
+                                                                Todos Cargos
+                                                            </div>
+                                                            {[...new Set(orgVagas.map(v => v.category).filter(Boolean))].map(cat => (
+                                                                <div 
+                                                                    key={cat} 
+                                                                    onClick={() => { setVagaCategoryFilter(cat!); setIsCategorySelectOpen(false); }} 
+                                                                    style={{ 
+                                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                                        padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', 
+                                                                        color: vagaCategoryFilter === cat ? 'var(--primary)' : 'var(--text-dim)', 
+                                                                        fontSize: '13px', background: vagaCategoryFilter === cat ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                                                                        fontWeight: vagaCategoryFilter === cat ? 600 : 400
+                                                                    }}
+                                                                >
+                                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} />
+                                                                    {cat}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* Status Filter */}
+                                            <div style={{ position: 'relative' }}>
+                                                <div 
+                                                    onClick={() => setIsStatusSelectOpen(!isStatusSelectOpen)}
+                                                    style={{ 
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border)',
+                                                        borderRadius: '10px', padding: '0 16px', color: 'var(--text-main)',
+                                                        fontSize: '14px', cursor: 'pointer', height: '44px', minWidth: '160px', gap: '8px',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <Filter size={16} style={{ color: '#10b981' }} />
+                                                        <span style={{ whiteSpace: 'nowrap' }}>{vagaStatusFilter ? (vagaStatusFilter.charAt(0).toUpperCase() + vagaStatusFilter.slice(1)) : 'Todos Status'}</span>
+                                                    </div>
+                                                    <ChevronDown size={14} style={{ transform: isStatusSelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
+                                                </div>
+                                                {isStatusSelectOpen && (
+                                                    <>
+                                                        <div onClick={() => setIsStatusSelectOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: '#1a1f2e', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+                                                            {[
+                                                                {id: '', label: 'Todos Status', color: 'var(--text-muted)'},
+                                                                {id: 'aberta', label: 'Aberta', color: '#22c55e'},
+                                                                {id: 'pausada', label: 'Pausada', color: '#f59e0b'},
+                                                                {id: 'fechada', label: 'Fechada', color: '#ef4444'},
+                                                                {id: 'cancelada', label: 'Cancelada', color: '#64748b'}
+                                                            ].map(status => (
+                                                                <div 
+                                                                    key={status.id}
+                                                                    onClick={() => { setVagaStatusFilter(status.id); setIsStatusSelectOpen(false); }} 
+                                                                    style={{ 
+                                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                                        padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', 
+                                                                        color: vagaStatusFilter === status.id ? 'var(--primary)' : 'var(--text-dim)', 
+                                                                        fontSize: '13px', background: vagaStatusFilter === status.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                                                                        fontWeight: vagaStatusFilter === status.id ? 600 : 400
+                                                                    }}
+                                                                >
+                                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: status.color }} />
+                                                                    {status.label}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* Period Filter */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>Período:</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8, marginLeft: '8px' }}>De:</span>
+                                                    <DatePicker value={startDate} onChange={val => setStartDate(val)} />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: '8px' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8, marginLeft: '8px' }}>Até:</span>
+                                                    <DatePicker value={endDate} onChange={val => setEndDate(val)} />
+                                                </div>
+                                            </div>
+
+                                            {/* Clear Filters Button */}
+                                            {(vagaSearch || vagaStatusFilter || vagaCategoryFilter || startDate || endDate) && (
+                                                <button 
+                                                    onClick={() => { setVagaSearch(''); setVagaStatusFilter(''); setVagaCategoryFilter(''); setStartDate(''); setEndDate(''); }}
+                                                    style={{ 
+                                                        background: 'transparent', border: '1px solid var(--error-border)', color: 'var(--text-error)', 
+                                                        fontSize: '12px', fontWeight: 600, cursor: 'pointer', 
+                                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                                        padding: '10px 14px', borderRadius: '10px', whiteSpace: 'nowrap'
+                                                    }}
+                                                >
+                                                    <CloseIcon size={14} /> Limpar
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {selectedVagaId && (
+                                        <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                                                Editando Design da Vaga
+                                            </h2>
+                                            <button 
+                                                onClick={() => setSelectedVagaId('')}
+                                                style={{ 
+                                                    display: 'flex', alignItems: 'center', gap: '6px', 
+                                                    background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', 
+                                                    border: 'none', padding: '10px 18px', borderRadius: '10px', 
+                                                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                            >
+                                                <CloseIcon size={14} /> Fechar Edição
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {orgVagas.length === 0 ? (
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Nenhuma vaga ativa encontrada.</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+                                        {orgVagas
+                                            .filter(v => {
+                                                if (selectedVagaId) return v.id === selectedVagaId;
+                                                const matchesSearch = v.title.toLowerCase().includes(vagaSearch.toLowerCase());
+                                                const matchesStatus = vagaStatusFilter ? v.status === vagaStatusFilter : true;
+                                                const matchesCategory = vagaCategoryFilter ? v.category === vagaCategoryFilter : true;
+                                                
+                                                // Date filter
+                                                const vagaDate = v.created_at ? new Date(v.created_at) : null;
+                                                if (startDate && vagaDate && vagaDate < new Date(startDate)) return false;
+                                                if (endDate && vagaDate) {
+                                                    const nextDay = new Date(endDate);
+                                                    nextDay.setDate(nextDay.getDate() + 1);
+                                                    if (vagaDate >= nextDay) return false;
+                                                }
+
+                                                return matchesSearch && matchesStatus && matchesCategory;
+                                            })
+                                            .map(v => (
+                                            <button
+                                                key={v.id}
+                                                type="button"
+                                                onClick={() => !selectedVagaId && handleSelectVaga(v.id)}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '12px 16px', borderRadius: '10px', 
+                                                    cursor: selectedVagaId ? 'default' : 'pointer',
+                                                    borderTop: selectedVagaId === v.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                    borderLeft: selectedVagaId === v.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                    borderRight: selectedVagaId === v.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                    borderBottom: selectedVagaId === v.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                                    background: selectedVagaId === v.id ? 'rgba(99,102,241,0.07)' : 'var(--bg-main)',
+                                                    transition: 'all 0.15s', textAlign: 'left',
+                                                    boxShadow: selectedVagaId === v.id ? '0 4px 12px rgba(99,102,241,0.15)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <Briefcase size={16} style={{ color: selectedVagaId === v.id ? 'var(--primary)' : 'var(--text-muted)' }} />
+                                                    <span style={{ color: selectedVagaId === v.id ? 'var(--primary)' : 'var(--text-main)', fontWeight: selectedVagaId === v.id ? 700 : 500, fontSize: '14px' }}>{v.title}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    {(v.vaga_primary_color || v.vaga_bg_image) && (
+                                                        <div title="Design Configurado" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', boxShadow: '0 0 8px var(--primary)' }} />
+                                                    )}
+                                                    <span style={{ fontSize: '11px', background: v.status === 'aberta' ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)', color: v.status === 'aberta' ? '#10b981' : 'var(--text-muted)', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{v.status}</span>
+                                                    {selectedVagaId === v.id && (
+                                                        <Check size={16} style={{ color: 'var(--primary)' }} />
+                                                    )}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedVagaId && (
+                            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
+                                <div>
+                                    <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px' }}>Customizar Identidade da Vaga</h2>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>Configure cores e fundo exclusivos para esta página de candidatura.</p>
+                                </div>
+
+                                {/* Cores */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>COR PRINCIPAL</label>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px' }}>Botões e destaques</p>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <input type="color" value={vagaDesign.primaryColor || '#6366f1'} onChange={e => setVagaDesign(p => ({...p, primaryColor: e.target.value}))} style={{ width: '44px', height: '44px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '2px', background: 'transparent' }} />
+                                            <input type="text" value={vagaDesign.primaryColor} onChange={e => setVagaDesign(p => ({...p, primaryColor: e.target.value}))} placeholder="#6366f1" style={{ ...inputStyle }} />
+                                            {vagaDesign.primaryColor && <button type="button" onClick={() => setVagaDesign(p => ({...p, primaryColor: ''}))} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}>Limpar</button>}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>COR DO GRADIENTE</label>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px' }}>2ª cor do cabeçalho</p>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <input type="color" value={vagaDesign.gradientEnd || '#7c3aed'} onChange={e => setVagaDesign(p => ({...p, gradientEnd: e.target.value}))} style={{ width: '44px', height: '44px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '2px', background: 'transparent' }} />
+                                            <input type="text" value={vagaDesign.gradientEnd} onChange={e => setVagaDesign(p => ({...p, gradientEnd: e.target.value}))} placeholder="#7c3aed" style={{ ...inputStyle }} />
+                                            {vagaDesign.gradientEnd && <button type="button" onClick={() => setVagaDesign(p => ({...p, gradientEnd: ''}))} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}>Limpar</button>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Preview do gradiente */}
+                                <div style={{ height: '56px', borderRadius: '10px', background: `linear-gradient(135deg, ${vagaDesign.primaryColor || '#6366f1'} 0%, ${vagaDesign.gradientEnd || '#7c3aed'} 100%)`, display: 'flex', alignItems: 'center', paddingLeft: '20px' }}>
+                                    <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px', opacity: 0.9 }}>Preview do Header</span>
+                                </div>
+
+                                {/* Fundo */}
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>COR DE FUNDO</label>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px' }}>Ignorada se houver imagem de fundo</p>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <input type="color" value={vagaDesign.bgColor || '#0B1020'} onChange={e => setVagaDesign(p => ({...p, bgColor: e.target.value}))} style={{ width: '44px', height: '44px', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '2px', background: 'transparent' }} />
+                                        <input type="text" value={vagaDesign.bgColor} onChange={e => setVagaDesign(p => ({...p, bgColor: e.target.value}))} placeholder="#0B1020" style={{ ...inputStyle }} />
+                                        {vagaDesign.bgColor && <button type="button" onClick={() => setVagaDesign(p => ({...p, bgColor: ''}))} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', whiteSpace: 'nowrap' }}>Limpar</button>}
+                                    </div>
+                                </div>
+
+                                {/* Imagem de Fundo */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>IMAGEM DE FUNDO</label>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px' }}>Substitui a cor sólida de fundo</p>
+                                    {vagaDesign.bgImage ? (
+                                        <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '100px' }}>
+                                            <img src={vagaDesign.bgImage} alt="Fundo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <button type="button" onClick={() => setVagaDesign(p => ({...p, bgImage: ''}))} style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', padding: '4px 10px', fontSize: '12px' }}>Remover</button>
+                                        </div>
+                                    ) : (
+                                        <label style={{ display: 'block', cursor: 'pointer' }}>
+                                            <input type="file" accept="image/*" onChange={handleVagaBgImageUpload} style={{ display: 'none' }} />
+                                            <div
+                                                style={{ border: '2px dashed var(--border)', borderRadius: '10px', padding: '24px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--primary)'}
+                                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
+                                            >
+                                                <Upload size={22} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
+                                                <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: 0 }}>Clique para enviar imagem</p>
+                                                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '4px 0 0', opacity: 0.7 }}>JPG, PNG, WebP</p>
+                                            </div>
+                                        </label>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                                    <button
+                                        onClick={handleSaveVagaDesign}
+                                        disabled={savingVaga}
+                                        style={{ padding: '12px 32px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, cursor: savingVaga ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', boxShadow: '0 4px 16px rgba(99,102,241,0.3)' }}
+                                    >
+                                        {savingVaga ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                        Salvar Design da Vaga
+                                    </button>
+                                </div>
+                            </div>
+                            )}
+                        </div>
+
+                        {/* Preview ao vivo da vaga - Só aparece quando selecionado */}
+                        {selectedVagaId && (
+                        <div style={{ width: '420px', position: 'sticky', top: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+                            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                                <Eye size={16} />
+                                <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Preview da Candidatura</span>
+                            </div>
+                            <div style={{ border: '8px solid var(--bg-card)', borderRadius: '32px', boxShadow: '0 30px 60px rgba(0,0,0,0.3)', overflow: 'hidden', height: '780px' }}>
+                                <div style={{
+                                    height: '100%',
+                                    background: vagaDesign.bgImage ? `url(${vagaDesign.bgImage}) center/cover no-repeat` : (vagaDesign.bgColor || '#0B1020'),
+                                    fontFamily: 'Inter, sans-serif',
+                                    overflowY: 'auto',
+                                    paddingBottom: '40px'
+                                }}>
+                                    {/* Header (Fiel ao real) */}
+                                    <div style={{
+                                        background: `linear-gradient(135deg, ${vagaDesign.primaryColor || 'var(--primary)'} 0%, ${vagaDesign.gradientEnd || '#7c3aed'} 100%)`,
+                                        padding: '40px 24px', position: 'relative', overflow: 'hidden'
+                                    }}>
+                                        <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
+                                        
+                                        <div style={{ position: 'relative', zIndex: 1 }}>
+                                            <div style={{ 
+                                                display: 'inline-flex', alignItems: 'center', gap: '6px', 
+                                                padding: '6px 12px', background: 'rgba(255, 255, 255, 0.15)', 
+                                                borderRadius: '6px', color: '#fff', fontSize: '11px', marginBottom: '12px' 
+                                            }}>
+                                                <ArrowLeft size={12} /> Voltar
+                                            </div>
+                                            <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: 800, margin: '0 0 6px' }}>
+                                                Candidate-se à Vaga
+                                            </h2>
+                                            <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px', margin: 0, fontWeight: 500 }}>
+                                                {orgVagas.find(v => v.id === selectedVagaId)?.title || 'Título da Vaga'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Cards de Preview */}
+                                    <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* Card: Informações Pessoais */}
+                                        <div style={{ background: '#1a1c2d', padding: '20px', borderRadius: '16px', border: '1px solid #1f2332' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '16px' }}>Informações Pessoais</div>
+                                            
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {[
+                                                    { label: 'Nome Completo *', icon: <User size={14} />, placeholder: 'Seu nome completo' },
+                                                    { label: 'E-mail *', icon: <Mail size={14} />, placeholder: 'seu.email@exemplo.com' },
+                                                    { label: 'Telefone *', icon: <Phone size={14} />, placeholder: '(11) 99999-9999' },
+                                                    { label: 'LinkedIn', icon: <Linkedin size={14} />, placeholder: 'linkedin.com/in/seu-perfil' },
+                                                    { label: 'Cidade / Estado', icon: <MapPin size={14} />, placeholder: 'São Paulo, SP' }
+                                                ].map(field => (
+                                                    <div key={field.label}>
+                                                        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, marginBottom: '6px' }}>{field.label}</div>
+                                                        <div style={{ height: '36px', background: '#0B1020', borderRadius: '8px', border: '1px solid #1f2332', display: 'flex', alignItems: 'center', padding: '0 12px', gap: '10px' }}>
+                                                            <div style={{ color: '#64748b' }}>{field.icon}</div>
+                                                            <div style={{ fontSize: '11px', color: '#475569' }}>{field.placeholder}</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Card: Currículo */}
+                                        <div style={{ background: '#1a1c2d', padding: '20px', borderRadius: '16px', border: '1px solid #1f2332' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', marginBottom: '16px' }}>Currículo</div>
+                                            <div style={{ 
+                                                height: '100px', border: '2px dashed #1f2332', borderRadius: '12px', 
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' 
+                                            }}>
+                                                <Upload size={18} style={{ color: '#64748b' }} />
+                                                <span style={{ fontSize: '10px', color: '#64748b', textAlign: 'center' }}>Clique para enviar seu currículo<br/>PDF até 10MB</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Botão Final */}
+                                        <div style={{ 
+                                            height: '46px', borderRadius: '12px', marginTop: '10px',
+                                            background: `linear-gradient(135deg, ${vagaDesign.primaryColor || 'var(--primary)'} 0%, ${vagaDesign.gradientEnd || '#7c3aed'} 100%)`, 
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                            boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
+                                        }}>
+                                            <Send size={16} style={{ color: '#fff' }} />
+                                            <span style={{ color: '#fff', fontSize: '13px', fontWeight: 700 }}>Enviar Candidatura</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                    )}
                 </div>
             )}
         </div>
