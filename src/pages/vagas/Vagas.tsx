@@ -149,7 +149,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 // 3. Buscar Vagas
                 let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, company_name')
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, is_third_party, company_name, company_logo, show_company_name')
                     .eq('is_active', true)
                     .order('created_at', { ascending: false });
 

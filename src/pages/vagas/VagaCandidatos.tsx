@@ -32,16 +32,7 @@ interface Candidato {
     answers?: Record<string, any> | null;
 }
 
-// Dados mockados para demonstração
-const mockCandidatos: Candidato[] = [
-    { id: '1', candidate_name: 'Ana Silva', candidate_email: 'ana.silva@email.com', candidate_phone: '(11) 98765-4321', candidate_location: 'São Paulo, SP', candidate_linkedin: 'https://linkedin.com/in/anasilva', resume_url: null, resume_file_name: 'curriculo_ana.pdf', applied_at: '2026-04-08T10:30:00Z', status: 'pending', match_score: 95 },
-    { id: '2', candidate_name: 'Carlos Oliveira', candidate_email: 'carlos.oliveira@email.com', candidate_phone: '(21) 97654-3210', candidate_location: 'Rio de Janeiro, RJ', candidate_linkedin: 'https://linkedin.com/in/carlosoliveira', resume_url: null, resume_file_name: 'cv_carlos.pdf', applied_at: '2026-04-07T14:20:00Z', status: 'pending', match_score: 88 },
-    { id: '3', candidate_name: 'Mariana Santos', candidate_email: 'mariana.santos@email.com', candidate_phone: '(31) 96543-2109', candidate_location: 'Belo Horizonte, MG', candidate_linkedin: null, resume_url: null, resume_file_name: 'curriculo_mariana.pdf', applied_at: '2026-04-06T09:15:00Z', status: 'reviewed', match_score: 82 },
-    { id: '4', candidate_name: 'Pedro Costa', candidate_email: 'pedro.costa@email.com', candidate_phone: null, candidate_location: 'Curitiba, PR', candidate_linkedin: 'https://linkedin.com/in/pedrocosta', resume_url: null, resume_file_name: 'cv_pedro.pdf', applied_at: '2026-04-05T16:45:00Z', status: 'pending', match_score: 75 },
-    { id: '5', candidate_name: 'Juliana Lima', candidate_email: 'juliana.lima@email.com', candidate_phone: '(41) 95432-1098', candidate_location: 'Florianópolis, SC', candidate_linkedin: 'https://linkedin.com/in/julianalima', resume_url: null, resume_file_name: 'curriculo_juliana.pdf', applied_at: '2026-04-04T11:00:00Z', status: 'shortlisted', match_score: 70 },
-    { id: '6', candidate_name: 'Roberto Almeida', candidate_email: 'roberto.almeida@email.com', candidate_phone: '(51) 94321-0987', candidate_location: 'Porto Alegre, RS', candidate_linkedin: null, resume_url: null, resume_file_name: 'cv_roberto.pdf', applied_at: '2026-04-03T08:30:00Z', status: 'pending', match_score: 62 },
-    { id: '7', candidate_name: 'Fernanda Souza', candidate_email: 'fernanda.souza@email.com', candidate_phone: '(61) 93210-9876', candidate_location: 'Brasília, DF', candidate_linkedin: 'https://linkedin.com/in/fernandasouza', resume_url: null, resume_file_name: 'curriculo_fernanda.pdf', applied_at: '2026-04-02T13:20:00Z', status: 'rejected', match_score: 45 },
-];
+// Estilos para facilitar personalização dinâmica
 
 const getMatchColor = (score: number) => {
     if (score >= 85) return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '#22c55e' };

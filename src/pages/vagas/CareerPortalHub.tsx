@@ -45,7 +45,7 @@ export const CareerPortalHub = () => {
     const [designSubTab, setDesignSubTab] = useState<'portal' | 'vagas'>('portal');
 
     // Vagas para design individual
-    const [orgVagas, setOrgVagas] = useState<{id: string; title: string; category: string | null; status: string; vaga_primary_color: string | null; vaga_gradient_end: string | null; vaga_bg_color: string | null; vaga_bg_image: string | null;}[]>([]);
+    const [orgVagas, setOrgVagas] = useState<{id: string; title: string; category: string | null; status: string; created_at: string | null; vaga_primary_color: string | null; vaga_gradient_end: string | null; vaga_bg_color: string | null; vaga_bg_image: string | null;}[]>([]);
     const [selectedVagaId, setSelectedVagaId] = useState<string>('');
     const [vagaDesign, setVagaDesign] = useState({ primaryColor: '', gradientEnd: '', bgColor: '', bgImage: '' });
     const [savingVaga, setSavingVaga] = useState(false);
@@ -125,7 +125,7 @@ export const CareerPortalHub = () => {
                 // Buscar vagas da organização para design individual
                 const { data: vagasData } = await supabase
                     .from('vagas_white_label')
-                    .select('id, title, category, status, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
+                    .select('id, title, category, status, created_at, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
                     .eq('organization_id', profile.organization_id)
                     .in('status', ['aberta', 'pausada'])
                     .order('created_at', { ascending: false });
