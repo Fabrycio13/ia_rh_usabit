@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../core/services/supabase';
 import { Briefcase, MapPin, Loader2, Building2, Clock, DollarSign } from 'lucide-react';
 import { formatSalary } from '../../core/utils/jobFormatter';
 

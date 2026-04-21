@@ -160,6 +160,7 @@ export const VagaForm = () => {
                     differentials: data.differentials || '',
                     additionalInfo: data.additional_info || '',
                     category: data.category || '',
+                    initialStatus: data.status === 'fechada' ? 'fechada' : 'aberta',
                     isThirdParty: data.is_third_party || !!data.company_name,
                     companyName: data.company_name || '',
                     companyLogo: data.company_logo || '',
