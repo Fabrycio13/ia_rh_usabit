@@ -133,7 +133,9 @@ ${jobRequirements}
 Respostas fornecidas pelo Candidato no formulário da vaga:
 ${formText}
 
---> ATENÇÃO: As respostas dadas pelo candidato são um complemento FUNDAMENTAL ao currículo. Se ele não detalhou algo no currículo, mas justificou muito bem nas respostas do formulário, a pontuação DEVE refletir esse fato positivamente.
+--> ATENÇÃO: As respostas dadas pelo candidato (Jornada do Candidato) são FUNDAMENTAIS para compor a nota:
+1. Se a vaga exigir algo (ex: "Inglês Fluente", "CNH B") e a resposta do candidato no formulário mostrar que ele NÃO tem ou tem um nível inferior (ex: "Inglês Intermediário", "Não tem CNH"), você DEVE obrigatoriamente penalizar o score.
+2. Por outro lado, se ele não detalhou algo no CV, mas informou positivamente no formulário, a pontuação deve aumentar.
 
 ---
 

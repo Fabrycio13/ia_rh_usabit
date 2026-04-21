@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { handleViewResume } from '../../core/utils/storage';
 
 interface Vaga {
     id: string;
@@ -69,30 +70,6 @@ export const VagaCandidatos = () => {
     const [loading, setLoading] = useState(true);
     const [expandedCandidatoId, setExpandedCandidatoId] = useState<string | null>(null);
 
-    const handleViewResume = async (url: string) => {
-        if (!url) return;
-        try {
-            // Extrair o path relativo do Storage (o que vem após o nome do bucket)
-            const parts = url.split('/job-applications/');
-            if (parts.length < 2) {
-                toast.error('URL do currículo inválida.');
-                return;
-            }
-            const path = parts[1];
-
-            const { data, error } = await supabase.storage
-                .from('job-applications')
-                .createSignedUrl(path, 300); // Expira em 5 minutos
-
-            if (error) throw error;
-            if (data?.signedUrl) {
-                window.open(data.signedUrl, '_blank');
-            }
-        } catch (err: any) {
-            console.error('Erro ao gerar URL assinada:', err);
-            toast.error('Erro ao abrir currículo. Verifique suas permissões.');
-        }
-    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -470,6 +447,38 @@ export const VagaCandidatos = () => {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* AI Feedback */}
+                                            {candidato.answers?._ai_analysis?.summary && (
+                                                <div style={{ marginTop: '16px', padding: '20px', background: 'rgba(16, 185, 129, 0.03)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                                                    <h4 style={{ color: 'var(--text-main)', fontSize: '15px', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                        </div>
+                                                        Feedback da IA (Motivo do Score)
+                                                    </h4>
+                                                    <p style={{ color: 'var(--text-main)', fontSize: '14px', margin: 0, lineHeight: '1.6' }}>
+                                                        {candidato.answers._ai_analysis.summary}
+                                                    </p>
+                                                    {candidato.answers._ai_analysis.gaps && candidato.answers._ai_analysis.gaps.length > 0 && (
+                                                        <div style={{ marginTop: '12px' }}>
+                                                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pontos de Atenção:</span>
+                                                            <ul style={{ margin: '8px 0 0', paddingLeft: '20px', color: '#ef4444', fontSize: '13px' }}>
+                                                                {candidato.answers._ai_analysis.gaps.map((gap: string, i: number) => <li key={i}>{gap}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    {candidato.answers._ai_analysis.strengths && candidato.answers._ai_analysis.strengths.length > 0 && (
+                                                        <div style={{ marginTop: '12px' }}>
+                                                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pontos Fortes:</span>
+                                                            <ul style={{ margin: '8px 0 0', paddingLeft: '20px', color: '#10b981', fontSize: '13px' }}>
+                                                                {candidato.answers._ai_analysis.strengths.map((str: string, i: number) => <li key={i}>{str}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                         </div>
                                     )}
                                 </div>

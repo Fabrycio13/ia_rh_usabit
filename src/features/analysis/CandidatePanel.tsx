@@ -6,6 +6,7 @@ import {
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logActivity } from '../../core/services/logger';
+import { handleViewResume } from '../../core/utils/storage';
 
 import {
     initials, scoreColor, formatDate, parseSkills, parseComments, relativeTime,
@@ -811,7 +812,7 @@ export function CandidatePanel({
                                                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                                                 {c.resume_url && (
                                                                     <button 
-                                                                        onClick={e => { e.stopPropagation(); window.open(c.resume_url!, '_blank'); }} 
+                                                                        onClick={e => { e.stopPropagation(); handleViewResume(c.resume_url); }} 
                                                                         title="Ver currículo"
                                                                         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--primary)', display: 'flex', transition: 'all 0.2s' }}
                                                                         onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}

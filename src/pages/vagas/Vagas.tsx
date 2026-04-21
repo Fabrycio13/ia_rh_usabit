@@ -230,7 +230,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             // Sincronizar booleanos legados com o novo status
             const updates = {
                 status,
-                is_active: status !== 'pausada' && status !== 'cancelada',
                 is_accepting_applications: status === 'aberta',
             };
 

@@ -11,6 +11,7 @@ import { StepIndicator } from './components/StepIndicator';
 import { logActivity } from '../../core/services/logger';
 import { ToggleField } from './components/ToggleField';
 import { RadioGroup } from './components/RadioGroup';
+import { CityAutocomplete } from './components/CityAutocomplete';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
@@ -43,6 +44,7 @@ interface VagaFormData {
     differentials: string;
     additionalInfo: string;
     category: string;
+    initialStatus: 'aberta' | 'fechada';
     
     // External Client Info (RPO/Agency)
     isThirdParty: boolean;
@@ -89,6 +91,7 @@ const initialFormData: VagaFormData = {
     differentials: '',
     additionalInfo: '',
     category: '',
+    initialStatus: 'aberta',
     isThirdParty: false,
     companyName: '',
     companyLogo: '',
@@ -242,10 +245,18 @@ export const VagaForm = () => {
                 toast.error('Preencha o título da vaga.');
                 return;
             }
+            if (!formData.category) {
+                toast.error('Selecione a área / departamento da vaga.');
+                return;
+            }
         }
 
         // Validação Step 2
         if (currentStep === 2) {
+            if (!formData.workModel) {
+                toast.error('Selecione o modelo de trabalho.');
+                return;
+            }
             if (!formData.contractType) {
                 toast.error('Selecione o tipo de contrato.');
                 return;
@@ -373,7 +384,8 @@ export const VagaForm = () => {
                     .from('vagas_white_label')
                     .insert({
                         ...vagaData,
-                        status: 'aberta',
+                        status: formData.initialStatus,
+                        is_accepting_applications: formData.initialStatus === 'aberta',
                         published_at: new Date().toISOString(),
                     });
                 error = insertError;
@@ -662,43 +674,79 @@ export const VagaForm = () => {
                                 </div>
 
                                 <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
-                                        Área / Departamento
+                                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
+                                        Área / Departamento *
                                     </label>
-                                    <input
-                                        type="text"
-                                        value={formData.category}
-                                        onChange={(e) => updateField('category', e.target.value)}
-                                        placeholder="Ex: Desenvolvimento, Design, Marketing, Vendas..."
-                                        style={inputStyle}
-                                        onFocus={(e) => {
-                                            e.target.style.borderColor = 'var(--primary)';
-                                            e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
-                                        }}
-                                        onBlur={(e) => {
-                                            e.target.style.borderColor = 'var(--border)';
-                                            e.target.style.boxShadow = 'none';
-                                        }}
-                                    />
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-                                        {['Desenvolvimento', 'Design', 'Marketing', 'Vendas', 'RH', 'Financeiro', 'Produto'].map(sug => (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {['Desenvolvimento', 'Design', 'Marketing', 'RH', 'Financeiro'].map(sug => (
                                             <button
                                                 key={sug}
                                                 type="button"
                                                 onClick={() => updateField('category', sug)}
                                                 style={{
-                                                    padding: '4px 12px',
+                                                    padding: '6px 16px',
                                                     borderRadius: '20px',
-                                                    border: '1px solid var(--border)',
-                                                    background: formData.category === sug ? 'var(--primary-bg)' : 'transparent',
+                                                    border: `1px solid ${formData.category === sug ? 'var(--primary)' : 'var(--border)'}`,
+                                                    background: formData.category === sug ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
                                                     color: formData.category === sug ? 'var(--primary)' : 'var(--text-muted)',
-                                                    fontSize: '12px',
-                                                    fontWeight: 500,
+                                                    fontSize: '13px',
+                                                    fontWeight: formData.category === sug ? 600 : 500,
                                                     cursor: 'pointer',
-                                                    transition: 'all 0.2s'
+                                                    transition: 'all 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (formData.category !== sug) {
+                                                        e.currentTarget.style.borderColor = 'var(--primary)';
+                                                        e.currentTarget.style.color = 'var(--primary)';
+                                                    }
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (formData.category !== sug) {
+                                                        e.currentTarget.style.borderColor = 'var(--border)';
+                                                        e.currentTarget.style.color = 'var(--text-muted)';
+                                                    }
                                                 }}
                                             >
                                                 {sug}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Status inicial da vaga */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
+                                        Status inicial da vaga *
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        {([
+                                            { value: 'aberta', label: '🟢 Publicada (Visível no site)', desc: 'Aparece no painel / API e já recebe candidaturas' },
+                                            { value: 'fechada', label: '🟡 Invisível (Apenas interna)', desc: 'Vaga criada no sistema, mas oculta e sem receber candidaturas' },
+                                        ] as const).map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => updateField('initialStatus', opt.value)}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '12px 16px',
+                                                    borderRadius: '12px',
+                                                    border: `1px solid ${formData.initialStatus === opt.value ? (opt.value === 'aberta' ? '#22c55e' : '#f59e0b') : 'var(--border)'}`,
+                                                    background: formData.initialStatus === opt.value
+                                                        ? (opt.value === 'aberta' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)')
+                                                        : 'transparent',
+                                                    color: formData.initialStatus === opt.value
+                                                        ? (opt.value === 'aberta' ? '#22c55e' : '#f59e0b')
+                                                        : 'var(--text-muted)',
+                                                    fontSize: '13px',
+                                                    fontWeight: formData.initialStatus === opt.value ? 700 : 500,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    textAlign: 'left',
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: 700, marginBottom: '2px' }}>{opt.label}</div>
+                                                <div style={{ fontSize: '11px', opacity: 0.75 }}>{opt.desc}</div>
                                             </button>
                                         ))}
                                     </div>
@@ -823,6 +871,68 @@ export const VagaForm = () => {
                                     value={formData.hasSalaryRange}
                                     onChange={(value) => updateField('hasSalaryRange', value)}
                                 />
+
+                                {/* Botão de pretensão salarial quando faixa não definida */}
+                                {!formData.hasSalaryRange && (() => {
+                                    const alreadyAdded = formData.customQuestions.some(q => q.id === '__salary_expectation__');
+                                    return (
+                                        <div style={{
+                                            marginTop: '14px',
+                                            padding: '14px 16px',
+                                            background: alreadyAdded ? 'rgba(34, 197, 94, 0.07)' : 'rgba(99, 102, 241, 0.06)',
+                                            border: `1px solid ${alreadyAdded ? 'rgba(34,197,94,0.25)' : 'rgba(99,102,241,0.2)'}`,
+                                            borderRadius: '10px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '12px',
+                                        }}>
+                                            <div>
+                                                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                                                    {alreadyAdded ? '✅ Pergunta de pretensão salarial adicionada' : '💡 Perguntar pretensão salarial ao candidato?'}
+                                                </p>
+                                                <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                    {alreadyAdded
+                                                        ? 'A pergunta foi adicionada à Jornada do Candidato.'
+                                                        : 'Adiciona automaticamente um campo de resposta na jornada do candidato.'}
+                                                </p>
+                                            </div>
+                                            {alreadyAdded ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateField('customQuestions', formData.customQuestions.filter(q => q.id !== '__salary_expectation__'))}
+                                                    style={{
+                                                        padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)',
+                                                        background: 'rgba(239,68,68,0.08)', color: '#ef4444',
+                                                        fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    Remover
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateField('customQuestions', [
+                                                        ...formData.customQuestions,
+                                                        {
+                                                            id: '__salary_expectation__',
+                                                            label: 'Qual é a sua pretensão salarial?',
+                                                            type: 'text' as const,
+                                                            required: true,
+                                                        }
+                                                    ])}
+                                                    style={{
+                                                        padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)',
+                                                        background: 'rgba(99,102,241,0.1)', color: 'var(--primary)',
+                                                        fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    + Adicionar pergunta
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
 
                                 {formData.hasSalaryRange && (
                                     <p style={{ 
@@ -1012,68 +1122,50 @@ export const VagaForm = () => {
                             <div style={sectionStyle}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        borderRadius: '10px',
+                                        width: '40px', height: '40px', borderRadius: '10px',
                                         background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
                                         <MapPin size={20} style={{ color: '#fff' }} />
                                     </div>
                                     <div>
                                         <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, margin: 0 }}>
-                                            Localidade
+                                            Modelo de trabalho *
                                         </h2>
                                         <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '2px 0 0' }}>
-                                            Informações sobre o local de trabalho
+                                            Selecione como será o regime de presença
                                         </p>
                                     </div>
                                 </div>
-                                
-                                <ToggleField
-                                    label="Definir localidade?"
-                                    description="Ative para informar cidade e modelo de trabalho"
-                                    value={formData.hasLocation}
-                                    onChange={(value) => updateField('hasLocation', value)}
+
+                                <RadioGroup
+                                    label="Modelo de trabalho"
+                                    options={[
+                                        { value: 'remote', label: 'Remoto', icon: <MapPin size={18} />, description: '100% remoto' },
+                                        { value: 'hybrid', label: 'Híbrido', icon: <Building2 size={18} />, description: 'Semi-presencial' },
+                                        { value: 'onsite', label: 'Presencial', icon: <Building2 size={18} />, description: 'No escritório' },
+                                    ]}
+                                    value={formData.workModel}
+                                    onChange={(value) => {
+                                        updateField('workModel', value);
+                                        // Se mudar para remoto, limpa localização
+                                        if (value === 'remote') {
+                                            updateField('location', '');
+                                            updateField('hasLocation', false);
+                                        } else {
+                                            updateField('hasLocation', true);
+                                        }
+                                    }}
+                                    columns={3}
                                 />
 
-                                {formData.hasLocation && (
-                                    <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px', animation: 'slideDown 0.3s ease-out' }}>
-                                        <div>
-                                            <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-                                                Cidade / Estado
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={formData.location}
-                                                onChange={(e) => updateField('location', e.target.value)}
-                                                placeholder="Ex: São Paulo, SP"
-                                                style={inputStyle}
-                                                onFocus={(e) => {
-                                                    e.target.style.borderColor = 'var(--primary)';
-                                                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
-                                                }}
-                                                onBlur={(e) => {
-                                                    e.target.style.borderColor = 'var(--border)';
-                                                    e.target.style.boxShadow = 'none';
-                                                }}
-                                            />
-                                        </div>
-
-                                        <RadioGroup
-                                            label="Modelo de trabalho"
-                                            options={[
-                                                { value: 'remote', label: 'Remoto', icon: <MapPin size={18} />, description: '100% remoto' },
-                                                { value: 'hybrid', label: 'Híbrido', icon: <Building2 size={18} />, description: 'Semi-presencial' },
-                                                { value: 'onsite', label: 'Presencial', icon: <Building2 size={18} />, description: 'No escritório' },
-                                            ]}
-                                            value={formData.workModel}
-                                            onChange={(value) => updateField('workModel', value)}
-                                            columns={3}
-                                        />
-                                    </div>
+                                {/* Campo de cidade — só aparece para Híbrido ou Presencial */}
+                                {(formData.workModel === 'hybrid' || formData.workModel === 'onsite') && (
+                                    <CityAutocomplete
+                                        value={formData.location}
+                                        onChange={(val) => updateField('location', val)}
+                                        inputStyle={inputStyle}
+                                    />
                                 )}
                             </div>
 

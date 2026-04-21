@@ -4,6 +4,7 @@ import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, Chevro
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
+import { handleViewResume } from '../../core/utils/storage';
 import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
@@ -518,13 +519,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                         title={c.resumeUrl ? 'Abrir Currículo' : 'PDF não disponível'}
                         onClick={e => {
                           e.stopPropagation();
-                          if (c.resumeUrl) {
-                            const a = document.createElement('a');
-                            a.href = c.resumeUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                          } else {
-                            toast.error('PDF não disponível para este candidato.');
-                          }
+                          handleViewResume(c.resumeUrl);
                         }}
                         style={{ background: 'none', border: 'none', cursor: c.resumeUrl ? 'pointer' : 'not-allowed', color: c.resumeUrl ? '#818cf8' : '#2d3147', padding: 6, borderRadius: 6 }}
                         onMouseEnter={e => { if (c.resumeUrl) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.1)'; }}
