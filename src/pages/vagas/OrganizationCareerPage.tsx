@@ -69,44 +69,42 @@ export const OrganizationCareerPage = () => {
             if (!orgId) return;
             setLoading(true);
             try {
-                // Fetch Org info
-                const { data: orgData, error: orgError } = await supabase
-                    .from('organizations')
-                    .select('name, logo_url, cover_image_url, primary_color, about_text, font_family, font_color, logo_scale, cover_fit, background_fit, header_padding, page_background_url')
-                    .eq('id', orgId)
-                    .single();
-
-                if (orgError) throw orgError;
-                if (!orgData) throw new Error('Organização não encontrada');
-                
-                setOrgInfo({
-                    name: orgData.name,
-                    logo_url: orgData.logo_url || '',
-                    cover_image_url: orgData.cover_image_url || '',
-                    primary_color: orgData.primary_color || '#3b82f6',
-                    about_text: orgData.about_text || '',
-                    font_family: orgData.font_family || 'Inter',
-                    font_color: orgData.font_color || '#0f172a',
-                    logo_scale: orgData.logo_scale ?? 1.0,
-                    cover_fit: orgData.cover_fit as any || 'cover',
-                    background_fit: orgData.background_fit as any || 'cover',
-                    header_padding: orgData.header_padding ?? 24,
-                    page_background_url: orgData.page_background_url || '',
+                // Nova abordagem: consumir API via Edge Function
+                const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-jobs?orgId=${orgId}`;
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+                    }
                 });
 
-                // Fetch Vagas that belong to org and are OPEN (status = 'aberta' and are active)
-                const { data: vagasData, error: vagasError } = await supabase
-                    .from('vagas_white_label')
-                    .select('id, title, public_hash, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name')
-                    .eq('organization_id', orgId)
-                    .eq('status', 'aberta')
-                    .eq('is_active', true);
+                if (!response.ok) {
+                    const errPayload = await response.json().catch(() => ({}));
+                    throw new Error(errPayload.error || 'Erro na API: Função não implementada ou fora do ar. Leia o guia na aba ao lado para fazer o Deploy.');
+                }
+
+                const { orgInfo, vagas } = await response.json();
                 
-                if (vagasError) throw vagasError;
-                
-                setVagas(vagasData || []);
+                if (!orgInfo) throw new Error('Organização não encontrada na resposta da API');
+
+                setOrgInfo({
+                    name: orgInfo.name,
+                    logo_url: orgInfo.logo_url || '',
+                    cover_image_url: orgInfo.cover_image_url || '',
+                    primary_color: orgInfo.primary_color || '#3b82f6',
+                    about_text: orgInfo.about_text || '',
+                    font_family: orgInfo.font_family || 'Inter',
+                    font_color: orgInfo.font_color || '#0f172a',
+                    logo_scale: orgInfo.logo_scale ?? 1.0,
+                    cover_fit: orgInfo.cover_fit as any || 'cover',
+                    background_fit: orgInfo.background_fit as any || 'cover',
+                    header_padding: orgInfo.header_padding ?? 24,
+                    page_background_url: orgInfo.page_background_url || '',
+                });
+
+                setVagas(vagas || []);
             } catch (err: any) {
-                console.error('Erro ao carregar página de carreiras', err);
+                console.error('Erro ao carregar página de carreiras da API:', err);
                 setError(err.message);
             } finally {
                 setLoading(false);

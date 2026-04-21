@@ -13,7 +13,10 @@ interface Job {
     title: string;
     company_name: string | null;
     description?: string | null;
+    responsibilities?: string | null;
     requirements?: string | null;
+    differentials?: string | null;
+    additional_info?: string | null;
     has_location: boolean;
     location: string | null;
     work_model: string | null;
@@ -264,7 +267,7 @@ export const JobApplication = () => {
             try {
                 const { data, error: err } = await supabase
                     .from('vagas_white_label')
-                    .select('id, organization_id, title, company_name, description, requirements, has_location, location, work_model, is_accepting_applications, custom_questions, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
+                    .select('id, organization_id, title, company_name, description, responsibilities, requirements, differentials, additional_info, has_location, location, work_model, is_accepting_applications, custom_questions, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
                     .eq('public_hash', hash)
                     .eq('is_active', true)
                     .single();
@@ -372,9 +375,18 @@ export const JobApplication = () => {
 
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !job) return null;
-        const fileExt = resumeFile.name.split('.').pop();
-        const filePath = `resumes/${job.id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('job-applications').upload(filePath, resumeFile, { cacheControl: '3600', upsert: false });
+        
+        // PROTEÇÃO [RED TEAM]: Hacker pode tentar usar Burp Suite pra enviar um .exe fraudulento.
+        // Forçamos a extensão a ser .pdf para matar a execução e o contentType para application/pdf.
+        const safeExtensionsOnly = 'pdf';
+        const filePath = `resumes/${job.id}/${Date.now()}_secure.${safeExtensionsOnly}`;
+        
+        const { error: uploadError } = await supabase.storage.from('job-applications').upload(filePath, resumeFile, { 
+            cacheControl: '3600', 
+            upsert: false,
+            contentType: 'application/pdf'
+        });
+        
         if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
         const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
         return publicUrl;
@@ -403,7 +415,14 @@ export const JobApplication = () => {
             // Análise com IA local (TypeScript no browser, igual ao AnaliseNova)
             let aiResult: JobMatchResult | null = null;
             try {
-                const combinedJobDesc = `${job!.description || ''}\n\nRequisitos:\n${job!.requirements || ''}`;
+                const combinedJobDesc = `
+${job!.description ? `Descrição:\n${job!.description}\n\n` : ''}
+${job!.responsibilities ? `Responsabilidades:\n${job!.responsibilities}\n\n` : ''}
+${job!.requirements ? `Requisitos:\n${job!.requirements}\n\n` : ''}
+${job!.differentials ? `Diferenciais:\n${job!.differentials}\n\n` : ''}
+${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n` : ''}
+`.trim();
+
                 aiResult = await analyzeJobApplication(
                     resumeFile,
                     job!.title,
