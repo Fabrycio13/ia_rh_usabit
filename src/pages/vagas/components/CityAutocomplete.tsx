@@ -18,7 +18,7 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
     const [suggestions, setSuggestions] = useState<City[]>([]);
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceRef = useRef<number | NodeJS.Timeout | undefined>(undefined);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     // Sync when external value changes

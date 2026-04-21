@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
  * then navigates to the signed URL after the async operation completes.
  * @param url The full legacy URL or just the file path within the job-applications bucket
  */
-export const handleViewResume = async (url: string | null): Promise<void> => {
+export const handleViewResume = async (url: string | null | undefined): Promise<void> => {
     if (!url) {
         toast.error('Currículo não disponível para este candidato.');
         return;
