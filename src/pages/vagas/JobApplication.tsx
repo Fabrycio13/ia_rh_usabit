@@ -4,7 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
-    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, ChevronDown, Link
+    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, Link
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 
@@ -267,10 +267,6 @@ export const JobApplication = () => {
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
     
-    // Lista de cidades para select
-    const [brazilCities, setBrazilCities] = useState<string[]>([]);
-    const [loadingCities, setLoadingCities] = useState(true);
-    const [showCityDropdown, setShowCityDropdown] = useState(false);
 
     const fetchAddress = async (cep: string) => {
         const cleanCep = cep.replace(/\D/g, '');
@@ -329,58 +325,7 @@ export const JobApplication = () => {
         fetchJob();
     }, [hash]);
 
-    useEffect(() => {
-        const CACHE_KEY = 'ibge_br_cities_v2';
-        const loadCities = async () => {
-            setLoadingCities(true);
-            try {
-                // Check cache first
-                const cached = localStorage.getItem(CACHE_KEY);
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (Array.isArray(parsed) && parsed.length > 1000) {
-                        setBrazilCities(parsed);
-                        setLoadingCities(false);
-                        return;
-                    }
-                }
-                // Fetch from IBGE
-                const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data');
-                const formatted = data.map((c: any) => {
-                    const uf = c?.microrregiao?.mesorregiao?.UF?.sigla ?? c?.['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla ?? '';
-                    return `${c.nome}${uf ? ` - ${uf}` : ''}`;
-                }).sort();
-                setBrazilCities(formatted);
-                try { localStorage.setItem(CACHE_KEY, JSON.stringify(formatted)); } catch { /* quota exceeded */ }
-            } catch (err) {
-                console.error('[JobApplication] Falha ao carregar cidades do IBGE:', err);
-                // Fallback com capitais + principais cidades
-                setBrazilCities([
-                    'São Paulo - SP','Rio de Janeiro - RJ','Brasília - DF','Salvador - BA',
-                    'Fortaleza - CE','Belo Horizonte - MG','Manaus - AM','Curitiba - PR',
-                    'Recife - PE','Porto Alegre - RS','Belém - PA','Goiânia - GO',
-                    'Guarulhos - SP','Campinas - SP','São Luís - MA','São Gonçalo - RJ',
-                    'Maceió - AL','Natal - RN','Teresina - PI','Campo Grande - MS',
-                    'João Pessoa - PB','Santo André - SP','Osasco - SP','Jaboatão dos Guararapes - PE',
-                    'Ribeirão Preto - SP','Uberlândia - MG','Sorocaba - SP','Contagem - MG',
-                    'Aracaju - SE','Feira de Santana - BA','Cuiabá - MT','Joinville - SC',
-                    'Juiz de Fora - MG','Londrina - PR','Aparecida de Goiânia - GO',
-                    'Ananindeua - PA','Porto Velho - RO','Florianópolis - SC','Serra - ES',
-                    'Caxias do Sul - RS','Macapá - AP','Mogi das Cruzes - SP','Diadema - SP',
-                    'Santos - SP','Betim - MG','Niterói - RJ','Vila Velha - ES',
-                    'Rio Branco - AC','Boa Vista - RR','Palmas - TO','Macaé - RJ',
-                ].sort());
-            } finally {
-                setLoadingCities(false);
-            }
-        };
-        loadCities();
-    }, []);
 
-    const removeAccents = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 
     const triggerStepReveal = useCallback((delay = 300) => {
