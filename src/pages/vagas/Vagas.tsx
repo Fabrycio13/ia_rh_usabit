@@ -40,7 +40,7 @@ const css = `
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
-type VagaStatus = 'aberta' | 'fechada' | 'pausada' | 'cancelada';
+type VagaStatus = 'aberta' | 'fechada' | 'pausada' | 'cancelada' | 'invisivel';
 
 interface Vaga {
     id: string;
@@ -102,7 +102,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         aberta: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', label: 'Aberta' },
         fechada: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', label: 'Fechada' },
         pausada: { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', label: 'Pausada' },
-        cancelada: { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b', label: 'Cancelada' }
+        cancelada: { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b', label: 'Cancelada' },
+        invisivel: { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', label: 'Invisível' }
     };
 
     useEffect(() => {
@@ -230,7 +231,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             // Sincronizar booleanos legados com o novo status
             const updates = {
                 status,
-                is_accepting_applications: status === 'aberta',
+                is_accepting_applications: status === 'aberta' || status === 'invisivel',
             };
 
             const { error: vagaError } = await supabase
@@ -265,7 +266,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 v.id === id ? { ...v, ...updates } : v
             ));
 
-            const statusLabels = { aberta: 'Aberta', fechada: 'Fechada', pausada: 'Pausada', cancelada: 'Cancelada' };
+            const statusLabels = { aberta: 'Aberta', fechada: 'Fechada', pausada: 'Pausada', cancelada: 'Cancelada', invisivel: 'Invisível' };
             toast.success(`Status alterado para "${statusLabels[status]}"`);
             setOpenStatusId(null);
 
@@ -930,7 +931,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             minWidth: '140px',
                             boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.5)'
                         }}>
-                            {(['aberta', 'fechada', 'pausada', 'cancelada'] as VagaStatus[]).map((status) => {
+                            {(['aberta', 'fechada', 'pausada', 'cancelada', 'invisivel'] as VagaStatus[]).map((status) => {
                                 const config = getStatusConfig(status);
                                 return (
                                     <button

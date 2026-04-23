@@ -64,7 +64,6 @@ export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicator
                             justifyContent: 'center',
                             marginBottom: '8px',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: isCurrent ? '0 0 0 4px rgba(99, 102, 241, 0.1)' : 'none'
                         }}>
                             {isCompleted ? (
                                 <Check size={18} style={{ color: '#fff' }} />

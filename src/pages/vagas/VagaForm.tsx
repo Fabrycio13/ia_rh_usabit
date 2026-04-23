@@ -47,7 +47,7 @@ interface VagaFormData {
     differentials: string;
     additionalInfo: string;
     category: string;
-    initialStatus: 'aberta' | 'fechada';
+    initialStatus: 'aberta' | 'invisivel' | 'fechada';
     
     // External Client Info (RPO/Agency)
     isThirdParty: boolean;
@@ -168,7 +168,7 @@ export const VagaForm = () => {
                     differentials: data.differentials || '',
                     additionalInfo: data.additional_info || '',
                     category: data.category || '',
-                    initialStatus: data.status === 'fechada' ? 'fechada' : 'aberta',
+                    initialStatus: data.status as any || 'aberta',
                     isThirdParty: data.is_third_party || !!data.company_name,
                     companyName: data.company_name || '',
                     companyLogo: data.company_logo || '',
@@ -405,7 +405,7 @@ export const VagaForm = () => {
                     .insert({
                         ...vagaData,
                         status: formData.initialStatus,
-                        is_accepting_applications: formData.initialStatus === 'aberta',
+                        is_accepting_applications: formData.initialStatus === 'aberta' || formData.initialStatus === 'invisivel',
                         published_at: new Date().toISOString(),
                     });
                 error = insertError;
@@ -697,91 +697,97 @@ export const VagaForm = () => {
                                     <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
                                         Área / Departamento *
                                     </label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '8px' }}>
+                                    <div className="hide-scrollbar" style={{ display: 'flex', flexWrap: 'nowrap', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                                         {[
-                                            { label: 'Desenvolvimento', value: 'Desenvolvimento' },
-                                            { label: 'Infraestrutura', value: 'Infraestrutura' },
-                                            { label: 'Design', value: 'Design' },
-                                            { label: 'Marketing', value: 'Marketing' },
-                                            { label: 'RH', value: 'RH' },
-                                            { label: 'Adm/Financeiro', value: 'Administrativo/Financeiro' },
-                                            { label: 'Comercial', value: 'Comercial' },
-                                            { label: 'Atendimento', value: 'Atendimento' },
-                                        ].map(sug => (
-                                            <button
-                                                key={sug.value}
-                                                type="button"
-                                                onClick={() => updateField('category', sug.value)}
-                                                style={{
-                                                    whiteSpace: 'nowrap',
-                                                    flexShrink: 0,
-                                                    padding: '6px 16px',
-                                                    borderRadius: '20px',
-                                                    border: `1px solid ${formData.category === sug.value ? 'var(--primary)' : 'var(--border)'}`,
-                                                    background: formData.category === sug.value ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                                                    color: formData.category === sug.value ? 'var(--primary)' : 'var(--text-muted)',
-                                                    fontSize: '13px',
-                                                    fontWeight: formData.category === sug.value ? 600 : 500,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (formData.category !== sug.value) {
-                                                        e.currentTarget.style.borderColor = 'var(--primary)';
-                                                        e.currentTarget.style.color = 'var(--primary)';
-                                                    }
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (formData.category !== sug.value) {
-                                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                                        e.currentTarget.style.color = 'var(--text-muted)';
-                                                    }
-                                                }}
-                                            >
-                                                {sug.label}
-                                            </button>
-                                        ))}
+                                            { label: 'Desenvolvimento', value: 'Desenvolvimento', color: '#6366f1' },
+                                            { label: 'Infraestrutura', value: 'Infraestrutura', color: '#38bdf8' },
+                                            { label: 'Design', value: 'Design', color: '#ec4899' },
+                                            { label: 'Marketing', value: 'Marketing', color: '#f97316' },
+                                            { label: 'RH', value: 'RH', color: '#22c55e' },
+                                            { label: 'Administrativo/Financeiro', value: 'Administrativo/Financeiro', color: '#eab308' },
+                                            { label: 'Comercial', value: 'Comercial', color: '#10b981' },
+                                            { label: 'Atendimento', value: 'Atendimento', color: '#06b6d4' },
+                                        ].map(sug => {
+                                            const isSelected = formData.category === sug.value;
+                                            const itemColor = sug.color;
+                                            return (
+                                                <button
+                                                    key={sug.value}
+                                                    type="button"
+                                                    onClick={() => updateField('category', sug.value)}
+                                                    style={{
+                                                        whiteSpace: 'nowrap',
+                                                        flexShrink: 0,
+                                                        padding: '6px 12px',
+                                                        borderRadius: '20px',
+                                                        border: `1px solid ${isSelected ? itemColor : 'var(--border)'}`,
+                                                        background: isSelected ? `${itemColor}26` : 'transparent',
+                                                        color: isSelected ? itemColor : 'var(--text-muted)',
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        if (!isSelected) {
+                                                            e.currentTarget.style.borderColor = itemColor;
+                                                            e.currentTarget.style.color = itemColor;
+                                                        }
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        if (!isSelected) {
+                                                            e.currentTarget.style.borderColor = 'var(--border)';
+                                                            e.currentTarget.style.color = 'var(--text-muted)';
+                                                        }
+                                                    }}
+                                                >
+                                                    {sug.label}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
-                                {/* Status inicial da vaga */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
-                                        Status inicial da vaga *
-                                    </label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        {([
-                                            { value: 'aberta', label: '🟢 Publicada (Visível no site)', desc: 'Aparece no painel / API e já recebe candidaturas' },
-                                            { value: 'fechada', label: '🟡 Invisível (Apenas interna)', desc: 'Vaga criada no sistema, mas oculta e sem receber candidaturas' },
-                                        ] as const).map(opt => (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                onClick={() => updateField('initialStatus', opt.value)}
-                                                style={{
-                                                    flex: 1,
-                                                    padding: '12px 16px',
-                                                    borderRadius: '12px',
-                                                    border: `1px solid ${formData.initialStatus === opt.value ? (opt.value === 'aberta' ? '#22c55e' : '#f59e0b') : 'var(--border)'}`,
-                                                    background: formData.initialStatus === opt.value
-                                                        ? (opt.value === 'aberta' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)')
-                                                        : 'transparent',
-                                                    color: formData.initialStatus === opt.value
-                                                        ? (opt.value === 'aberta' ? '#22c55e' : '#f59e0b')
-                                                        : 'var(--text-muted)',
-                                                    fontSize: '13px',
-                                                    fontWeight: formData.initialStatus === opt.value ? 700 : 500,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    textAlign: 'left',
-                                                }}
-                                            >
-                                                <div style={{ fontWeight: 700, marginBottom: '2px' }}>{opt.label}</div>
-                                                <div style={{ fontSize: '11px', opacity: 0.75 }}>{opt.desc}</div>
-                                            </button>
-                                        ))}
+                                {/* Status inicial da vaga - Apenas na Criação */}
+                                {!isEditMode && (
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
+                                            Status inicial da vaga *
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            {([
+                                                { value: 'aberta', label: '🟢 Publicada (Visível no site)', desc: 'Aparece no painel / API e já recebe candidaturas', color: '#22c55e' },
+                                                { value: 'invisivel', label: '🟣 Invisível (Apenas link)', desc: 'Não aparece no portal, mas pode ser acessada e receber candidaturas via link direto', color: '#6366f1' },
+                                            ] as const).map(opt => (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    onClick={() => updateField('initialStatus', opt.value)}
+                                                    style={{
+                                                        flex: 1,
+                                                        padding: '12px 16px',
+                                                        borderRadius: '12px',
+                                                        border: `1px solid ${formData.initialStatus === opt.value ? opt.color : 'var(--border)'}`,
+                                                        background: formData.initialStatus === opt.value
+                                                            ? `${opt.color}1a`
+                                                            : 'transparent',
+                                                        color: formData.initialStatus === opt.value
+                                                            ? opt.color
+                                                            : 'var(--text-muted)',
+                                                        fontSize: '13px',
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        textAlign: 'left',
+                                                    }}
+                                                >
+                                                    <div style={{ fontWeight: 700, marginBottom: '2px' }}>{opt.label}</div>
+                                                    <div style={{ fontSize: '11px', opacity: 0.75 }}>{opt.desc}</div>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div>
                                     <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
