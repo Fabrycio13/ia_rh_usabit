@@ -41,9 +41,9 @@ serve(async (req) => {
       .eq('public_hash', hash)
       .eq('is_active', true)
       // PROTEÇÃO IDOR (Broken Object Level Authorization) APLICADA PELO PEN-TESTER:
-      // Garante que vagas marcadas como "Invisível" (Fechada) ou "Pausada" não vazem
-      // para o público, mesmo que alguém consiga vazar a URL/Hash antes do lançamento.
-      .eq('status', 'aberta')
+      // Garante que vagas marcadas como "Invisível" (Invisível) ou "Aberta" sejam acessíveis
+      // via link direto, mas outras (Pausada, Fechada, Cancelada) permaneçam 404.
+      .in('status', ['aberta', 'invisivel'])
       .single();
 
     if (jobError || !jobData) {
