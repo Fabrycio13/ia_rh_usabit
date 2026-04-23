@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock } from 'lucide-react';
+import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock, Bot, Mail, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 
@@ -398,17 +398,77 @@ export const VagaCandidatos = () => {
                                             borderBottom: '1px solid var(--border)',
                                             animation: 'fadeIn 0.3s ease-out'
                                         }}>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                                                {candidato.candidate_phone && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
-                                                        <Phone size={16} style={{ color: 'var(--primary)' }} />
-                                                        {candidato.candidate_phone}
+                                            <div style={{ marginBottom: '24px' }}>
+                                                <h4 style={{ color: 'var(--text-main)', fontSize: '15px', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <User size={18} style={{ color: 'var(--primary)' }} />
+                                                    Informações de Contato e Endereço
+                                                </h4>
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                                    {candidato.candidate_phone && (
+                                                        <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                                <Phone size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Telefone</div>
+                                                                <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500 }}>{candidato.candidate_phone}</div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                            <Mail size={16} />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>E-mail</div>
+                                                            <div style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500 }}>{candidato.candidate_email}</div>
+                                                        </div>
                                                     </div>
-                                                )}
-                                                {candidato.candidate_linkedin && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
-                                                        <ExternalLink size={16} style={{ color: 'var(--primary)' }} />
-                                                        <a href={candidato.candidate_linkedin} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>LinkedIn</a>
+                                                    {candidato.candidate_linkedin && (
+                                                        <a href={candidato.candidate_linkedin} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                                <ExternalLink size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>LinkedIn</div>
+                                                                <div style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: 600 }}>Acessar Perfil</div>
+                                                            </div>
+                                                        </a>
+                                                    )}
+                                                    {candidato.answers?.portfolio && (
+                                                        <a href={candidato.answers.portfolio} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                                <ExternalLink size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>Portfólio</div>
+                                                                <div style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: 600 }}>Ver Projetos</div>
+                                                            </div>
+                                                        </a>
+                                                    )}
+                                                </div>
+
+                                                {candidato.answers?.cep && (
+                                                    <div style={{ marginTop: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
+                                                            <MapPin size={16} />
+                                                        </div>
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Endereço Residencial</span>
+                                                                <div style={{ height: '4px', width: '4px', borderRadius: '50%', background: 'var(--border)', opacity: 0.5 }} />
+                                                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>CEP: {candidato.answers.cep}</span>
+                                                            </div>
+                                                            <div style={{ fontSize: '15px', color: 'var(--text-main)', fontWeight: 600, lineHeight: 1.4 }}>
+                                                                {candidato.answers.address}, {candidato.answers.address_number} 
+                                                                {candidato.answers.complement && (
+                                                                    <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>({candidato.answers.complement})</span>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                                {candidato.candidate_location}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -452,8 +512,8 @@ export const VagaCandidatos = () => {
                                             {candidato.answers?._ai_analysis?.summary && (
                                                 <div style={{ marginTop: '16px', padding: '20px', background: 'rgba(16, 185, 129, 0.03)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
                                                     <h4 style={{ color: 'var(--text-main)', fontSize: '15px', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)' }}>
+                                                            <Bot size={16} />
                                                         </div>
                                                         Feedback da IA (Motivo do Score)
                                                     </h4>

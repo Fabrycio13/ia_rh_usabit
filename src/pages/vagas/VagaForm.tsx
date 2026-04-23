@@ -20,6 +20,8 @@ const css = `
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
 .planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
 interface VagaFormData {
@@ -34,6 +36,7 @@ interface VagaFormData {
     contractType: string;
     hasLocation: boolean;
     location: string;
+    neighborhood: string;
     workModel: string;
     workRegime: string;
     isPcd: string;
@@ -83,6 +86,7 @@ const initialFormData: VagaFormData = {
     contractType: '',
     hasLocation: false,
     location: '',
+    neighborhood: '',
     workModel: '',
     workRegime: '',
     isPcd: 'no',
@@ -143,6 +147,9 @@ export const VagaForm = () => {
 
                 console.log('Dados da vaga carregados:', data);
 
+                const fullLocation = data.location || '';
+                const locationParts = fullLocation.split(' - ');
+
                 setFormData({
                     title: data.title || '',
                     description: data.description || '',
@@ -151,7 +158,8 @@ export const VagaForm = () => {
                     salaryMax: data.salary_max ? data.salary_max.toString() : '',
                     contractType: data.contract_type || '',
                     hasLocation: data.has_location || false,
-                    location: data.location || '',
+                    location: locationParts[0] || '',
+                    neighborhood: locationParts[1] || '',
                     workModel: data.work_model || '',
                     workRegime: data.work_regime || '',
                     isPcd: data.is_pcd || 'no',
@@ -258,6 +266,10 @@ export const VagaForm = () => {
                 toast.error('Selecione o modelo de trabalho.');
                 return;
             }
+            if ((formData.workModel === 'hybrid' || formData.workModel === 'onsite') && !formData.location.trim()) {
+                toast.error('Informe a cidade / estado para vagas presenciais ou híbridas.');
+                return;
+            }
             if (!formData.contractType) {
                 toast.error('Selecione o tipo de contrato.');
                 return;
@@ -307,6 +319,11 @@ export const VagaForm = () => {
             toast.error('Selecione o tipo de contrato.');
             return;
         }
+        if ((formData.workModel === 'hybrid' || formData.workModel === 'onsite') && !formData.location.trim()) {
+            toast.error('Informe a cidade / estado para vagas presenciais ou híbridas.');
+            setCurrentStep(2);
+            return;
+        }
         if (!formData.responsibilities.trim()) {
             toast.error('Preencha as responsabilidades da vaga.');
             setCurrentStep(3);
@@ -344,7 +361,9 @@ export const VagaForm = () => {
                 salary_max: formData.hasSalaryRange && formData.salaryMax ? parseFloat(formData.salaryMax.replace(/[^\d,]/g, '').replace(',', '.')) : null,
                 contract_type: formData.contractType,
                 has_location: formData.hasLocation,
-                location: formData.hasLocation ? formData.location.trim() : null,
+                location: formData.hasLocation 
+                    ? (formData.neighborhood?.trim() ? `${formData.location.trim()} - ${formData.neighborhood.trim()}` : formData.location.trim())
+                    : null,
                 work_model: formData.workModel,
                 work_regime: formData.workRegime,
                 is_pcd: formData.isPcd,
@@ -678,37 +697,48 @@ export const VagaForm = () => {
                                     <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
                                         Área / Departamento *
                                     </label>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {['Desenvolvimento', 'Design', 'Marketing', 'RH', 'Financeiro'].map(sug => (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '8px' }}>
+                                        {[
+                                            { label: 'Desenvolvimento', value: 'Desenvolvimento' },
+                                            { label: 'Infraestrutura', value: 'Infraestrutura' },
+                                            { label: 'Design', value: 'Design' },
+                                            { label: 'Marketing', value: 'Marketing' },
+                                            { label: 'RH', value: 'RH' },
+                                            { label: 'Adm/Financeiro', value: 'Administrativo/Financeiro' },
+                                            { label: 'Comercial', value: 'Comercial' },
+                                            { label: 'Atendimento', value: 'Atendimento' },
+                                        ].map(sug => (
                                             <button
-                                                key={sug}
+                                                key={sug.value}
                                                 type="button"
-                                                onClick={() => updateField('category', sug)}
+                                                onClick={() => updateField('category', sug.value)}
                                                 style={{
+                                                    whiteSpace: 'nowrap',
+                                                    flexShrink: 0,
                                                     padding: '6px 16px',
                                                     borderRadius: '20px',
-                                                    border: `1px solid ${formData.category === sug ? 'var(--primary)' : 'var(--border)'}`,
-                                                    background: formData.category === sug ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                                                    color: formData.category === sug ? 'var(--primary)' : 'var(--text-muted)',
+                                                    border: `1px solid ${formData.category === sug.value ? 'var(--primary)' : 'var(--border)'}`,
+                                                    background: formData.category === sug.value ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                                                    color: formData.category === sug.value ? 'var(--primary)' : 'var(--text-muted)',
                                                     fontSize: '13px',
-                                                    fontWeight: formData.category === sug ? 600 : 500,
+                                                    fontWeight: formData.category === sug.value ? 600 : 500,
                                                     cursor: 'pointer',
                                                     transition: 'all 0.2s',
                                                 }}
                                                 onMouseEnter={(e) => {
-                                                    if (formData.category !== sug) {
+                                                    if (formData.category !== sug.value) {
                                                         e.currentTarget.style.borderColor = 'var(--primary)';
                                                         e.currentTarget.style.color = 'var(--primary)';
                                                     }
                                                 }}
                                                 onMouseLeave={(e) => {
-                                                    if (formData.category !== sug) {
+                                                    if (formData.category !== sug.value) {
                                                         e.currentTarget.style.borderColor = 'var(--border)';
                                                         e.currentTarget.style.color = 'var(--text-muted)';
                                                     }
                                                 }}
                                             >
-                                                {sug}
+                                                {sug.label}
                                             </button>
                                         ))}
                                     </div>
@@ -1162,11 +1192,34 @@ export const VagaForm = () => {
 
                                 {/* Campo de cidade — só aparece para Híbrido ou Presencial */}
                                 {(formData.workModel === 'hybrid' || formData.workModel === 'onsite') && (
-                                    <CityAutocomplete
-                                        value={formData.location}
-                                        onChange={(val) => updateField('location', val)}
-                                        inputStyle={inputStyle}
-                                    />
+                                    <>
+                                        <CityAutocomplete
+                                            value={formData.location}
+                                            onChange={(val) => updateField('location', val)}
+                                            inputStyle={inputStyle}
+                                        />
+
+                                        <div style={{ marginTop: '20px' }}>
+                                            <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
+                                                Bairro (Opcional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={formData.neighborhood}
+                                                onChange={(e) => updateField('neighborhood', e.target.value)}
+                                                placeholder="Ex: Pinheiros"
+                                                style={inputStyle}
+                                                onFocus={(e) => {
+                                                    e.target.style.borderColor = 'var(--primary)';
+                                                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                                                }}
+                                                onBlur={(e) => {
+                                                    e.target.style.borderColor = 'var(--border)';
+                                                    e.target.style.boxShadow = 'none';
+                                                }}
+                                            />
+                                        </div>
+                                    </>
                                 )}
                             </div>
 

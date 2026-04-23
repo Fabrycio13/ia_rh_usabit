@@ -4,7 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
-    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, ChevronDown
+    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, ChevronDown, Link
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 
@@ -95,6 +95,15 @@ const CSS = `
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
 }
 
+.chat-bubble-typing {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(12px);
+    margin-left: 12px;
+    padding: 16px 20px;
+    border-radius: 24px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+}
+
 .wizard-input {
     width: 100%;
     padding: 14px 18px;
@@ -177,9 +186,9 @@ const BotAvatar = () => (
 );
 
 const TypingIndicator = () => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
         <BotAvatar />
-        <div className="chat-bubble-new" style={{ flex: 'initial' }}>
+        <div className="chat-bubble-typing" style={{ flex: 'initial' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="typing-dot" />
                 <span className="typing-dot" />
@@ -227,6 +236,12 @@ const maskPhone = (val: string) => {
     return v.substring(0, 15);
 };
 
+const maskCep = (val: string) => {
+    let v = val.replace(/\D/g, '');
+    if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
+    return v.substring(0, 9);
+};
+
 export const JobApplication = () => {
     const { hash } = useParams<{ hash: string }>();
     const navigate = useNavigate();
@@ -243,14 +258,41 @@ export const JobApplication = () => {
     const [showTyping, setShowTyping] = useState(false);
     const [contentVisible, setContentVisible] = useState(false);
 
-    const [formData, setFormData] = useState({ name: '', email: '', phone: '', linkedin: '', location: '' });
+    const [formData, setFormData] = useState({ 
+        name: '', email: '', phone: '', linkedin: '', location: '', portfolio: '',
+        cep: '', address: '', addressNumber: '', complement: '' 
+    });
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [showLGPD, setShowLGPD] = useState(false);
     
     // Lista de cidades para select
     const [brazilCities, setBrazilCities] = useState<string[]>([]);
     const [loadingCities, setLoadingCities] = useState(true);
     const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+    const fetchAddress = async (cep: string) => {
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+                const data = await response.json();
+                if (!data.erro) {
+                    setFormData(prev => ({
+                        ...prev,
+                        address: data.logradouro || '',
+                        location: `${data.localidade} - ${data.uf}`
+                    }));
+                    toast.success('Endereço encontrado!');
+                } else {
+                    toast.error('CEP não encontrado.');
+                }
+            } catch (error) {
+                console.error('Error fetching address:', error);
+            }
+        }
+    };
 
     const primaryColor = job?.vaga_primary_color || '#6366f1';
     const gradientEnd = job?.vaga_gradient_end || '#7c3aed';
@@ -436,6 +478,11 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             // Unir resultados da IA com as respostas do usuário caso a IA tenha funcionado
             const finalAnswers = {
                 ...filteredAnswers,
+                portfolio: formData.portfolio,
+                cep: formData.cep,
+                address: formData.address,
+                address_number: formData.addressNumber,
+                complement: formData.complement,
                 _ai_analysis: aiResult ? {
                     classification: aiResult.classification,
                     summary: aiResult.summary,
@@ -552,7 +599,13 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
     const msg = stepMessages[step];
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
-    const canAdvanceStep1 = formData.email.trim() && formData.phone.trim().length >= 14;
+    const canAdvanceStep1 = 
+        formData.email.trim() && 
+        formData.phone.trim().length >= 14 && 
+        formData.cep.trim().length === 9 && 
+        formData.address.trim() && 
+        formData.addressNumber.trim() && 
+        formData.location.trim();
     const canAdvanceStep2 = (() => {
         if (!job.custom_questions) return true;
         for (const q of job.custom_questions) {
@@ -681,70 +734,79 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         onChange={e => setFormData(p => ({ ...p, phone: maskPhone(e.target.value) }))} 
                                     />
                                 </div>
+                                
+                                <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 10 }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <MapPin size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                                        <input 
+                                            className="wizard-input" 
+                                            style={{ paddingLeft: 40 }} 
+                                            type="text" 
+                                            placeholder="CEP *" 
+                                            value={formData.cep} 
+                                            onChange={e => {
+                                                const val = maskCep(e.target.value);
+                                                setFormData(p => ({ ...p, cep: val }));
+                                                if (val.length === 9) fetchAddress(val);
+                                            }} 
+                                        />
+                                    </div>
+                                    <div style={{ position: 'relative' }}>
+                                        <input 
+                                            className="wizard-input" 
+                                            type="text" 
+                                            placeholder="Cidade / Estado *" 
+                                            value={formData.location} 
+                                            readOnly
+                                            style={{ background: 'rgba(255,255,255,0.02)', color: '#94a3b8' }}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div style={{ position: 'relative' }}>
-                                    <MapPin size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none', zIndex: 2 }} />
                                     <input 
                                         className="wizard-input" 
-                                        style={{ paddingLeft: 46, paddingRight: 40 }} 
                                         type="text" 
-                                        placeholder="Cidade / Estado  (ex: São Paulo - SP) *" 
-                                        value={formData.location} 
-                                        onChange={e => {
-                                            setFormData(p => ({ ...p, location: e.target.value }));
-                                            setShowCityDropdown(true);
-                                        }}
-                                        onFocus={() => setShowCityDropdown(true)}
-                                        onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                                        placeholder="Endereço (Rua, Av...) *" 
+                                        value={formData.address} 
+                                        onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} 
                                     />
-                                    <ChevronDown size={18} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none', zIndex: 2 }} />
-                                    
-                                    {showCityDropdown && (
-                                        <div style={{ 
-                                            position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, 
-                                            background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', 
-                                            borderRadius: 12, maxHeight: 200, overflowY: 'auto', zIndex: 50,
-                                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                                        }}>
-                                            {loadingCities ? (
-                                                <div style={{ padding: '10px 16px', color: '#64748b', fontSize: 14 }}>
-                                                    <div style={{ width: 14, height: 14, border: '2px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite', display: 'inline-block', verticalAlign: 'middle', marginRight: 8 }} />
-                                                    Carregando cidades do Brasil...
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {(() => {
-                                                        const safeInput = removeAccents(formData.location.toLowerCase());
-                                                        const filtered = brazilCities.filter(c => removeAccents(c.toLowerCase()).includes(safeInput)).slice(0, 50);
-                                                        if (filtered.length === 0) {
-                                                            return <div style={{ padding: '10px 16px', color: '#64748b', fontSize: 14 }}>Nenhuma cidade encontrada</div>;
-                                                        }
-                                                        return filtered.map(city => (
-                                                            <div 
-                                                                key={city}
-                                                                style={{ padding: '10px 16px', color: '#cbd5e1', fontSize: 14, cursor: 'pointer', transition: 'background 0.2s' }}
-                                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                                onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, location: city })); setShowCityDropdown(false); }}
-                                                            >
-                                                                {city}
-                                                            </div>
-                                                        ));
-                                                    })()}
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 10 }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <input 
+                                            className="wizard-input" 
+                                            type="text" 
+                                            placeholder="Número *" 
+                                            value={formData.addressNumber} 
+                                            onChange={e => setFormData(p => ({ ...p, addressNumber: e.target.value }))} 
+                                        />
+                                    </div>
+                                    <div style={{ position: 'relative' }}>
+                                        <input 
+                                            className="wizard-input" 
+                                            type="text" 
+                                            placeholder="Complemento (ex: Casa 1, Apto 101)" 
+                                            value={formData.complement} 
+                                            onChange={e => setFormData(p => ({ ...p, complement: e.target.value }))} 
+                                        />
+                                    </div>
                                 </div>
                                 <div style={{ position: 'relative' }}>
                                     <Linkedin size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
                                     <input className="wizard-input" style={{ paddingLeft: 46 }} type="url" placeholder="https://linkedin.com/in/seu-perfil (opcional)" value={formData.linkedin} onChange={e => setFormData(p => ({ ...p, linkedin: e.target.value }))} />
+                                </div>
+                                <div style={{ position: 'relative' }}>
+                                    <Link size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                                    <input className="wizard-input" style={{ paddingLeft: 46 }} type="url" placeholder="Link do seu portfólio (opcional)" value={formData.portfolio} onChange={e => setFormData(p => ({ ...p, portfolio: e.target.value }))} />
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(0); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
-                                    <button className="wizard-btn-primary" disabled={!canAdvanceStep1 || !formData.location.trim()} onClick={goToNextStep}>
+                                    <button className="wizard-btn-primary" disabled={!canAdvanceStep1} onClick={goToNextStep}>
                                         Continuar <ArrowRight size={16} />
                                     </button>
                                 </div>
@@ -849,13 +911,26 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     )}
                                 </button>
 
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginTop: '12px', marginBottom: '8px', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        id="lgpd-terms" 
+                                        checked={termsAccepted} 
+                                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                                        style={{ marginTop: '4px', cursor: 'pointer', width: '18px', height: '18px', accentColor: '#6366f1' }}
+                                    />
+                                    <label htmlFor="lgpd-terms" style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.5', cursor: 'pointer' }}>
+                                        Li e aceito os <button type="button" onClick={(e) => { e.preventDefault(); setShowLGPD(true); }} style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Termos de Privacidade e LGPD</button>. Entendo que meus dados e currículo serão armazenados no banco de talentos para contato sobre processos seletivos.
+                                    </label>
+                                </div>
+
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(hasQuestions ? 2 : 1); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
                                     <button
                                         className="wizard-btn-primary"
-                                        disabled={!resumeFile || submitting}
+                                        disabled={!resumeFile || submitting || !termsAccepted}
                                         onClick={handleSubmit}
                                         style={{ background: submitting ? '#64748b' : `linear-gradient(135deg, ${primaryColor}, ${gradientEnd})` }}
                                     >
@@ -880,6 +955,47 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     Etapa {step + 1} de {totalSteps}
                 </p>
             </div>
+            
+            {/* LGPD Modal */}
+            {showLGPD && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(4px)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '24px'
+                }}>
+                    <div style={{
+                        background: '#1e293b', border: '1px solid #334155', borderRadius: '16px',
+                        width: '100%', maxWidth: '600px', maxHeight: '85vh',
+                        display: 'flex', flexDirection: 'column',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <div style={{ padding: '24px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ margin: 0, color: '#f8fafc', fontSize: '18px', fontWeight: 700 }}>Termos de Privacidade e LGPD</h2>
+                            <button onClick={() => setShowLGPD(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+                        </div>
+                        <div style={{ padding: '24px', overflowY: 'auto', color: '#cbd5e1', fontSize: '14px', lineHeight: '1.6' }}>
+                            <p><strong>1. Coleta de Dados</strong><br />Ao enviar seu currículo, coletamos dados pessoais como nome, e-mail, telefone, links profissionais, localização e o arquivo do seu currículo.</p>
+                            <p><strong>2. Finalidade</strong><br />Seus dados serão utilizados exclusivamente para fins de recrutamento e seleção para a vaga atual e futuras oportunidades que se encaixem no seu perfil.</p>
+                            <p><strong>3. Compartilhamento</strong><br />Seus dados poderão ser compartilhados com recrutadores e gestores da empresa responsável pela vaga. Não vendemos ou repassamos seus dados a terceiros não autorizados.</p>
+                            <p><strong>4. Armazenamento e Segurança</strong><br />Armazenamos suas informações em servidores seguros e adotamos medidas técnicas e administrativas para protegê-las contra acessos não autorizados.</p>
+                            <p><strong>5. Seus Direitos (LGPD)</strong><br />De acordo com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), você tem o direito de solicitar a visualização, correção ou exclusão dos seus dados do nosso banco de talentos a qualquer momento, entrando em contato com a empresa.</p>
+                            <p>Ao marcar a caixa de seleção e enviar sua candidatura, você concorda expressamente com os termos descritos acima.</p>
+                        </div>
+                        <div style={{ padding: '20px 24px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button 
+                                onClick={() => setShowLGPD(false)}
+                                style={{
+                                    background: '#6366f1', color: '#fff', border: 'none', padding: '10px 24px',
+                                    borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                                }}
+                            >
+                                Entendi e Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
