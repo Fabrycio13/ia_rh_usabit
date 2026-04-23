@@ -126,6 +126,6 @@ Este projeto adere a protocolos rígidos de segurança para garantir a proteçã
 ---
 
 <p align="center">
-  <strong>Desenvolvido com Precisão e Paixão pela Usabit Engineering</strong><br>
+  <strong>Desenvolvido com Precisão e Paixão pela Usabit ❤️</strong><br>
   © 2026 Usabit. Todos os direitos reservados.
 </p>
