@@ -82,7 +82,7 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
     return (
         <div ref={wrapperRef} style={{ marginTop: '20px', position: 'relative' }}>
             <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
-                Cidade / Estado
+                Cidade / Estado *
             </label>
             <div style={{ position: 'relative' }}>
                 <MapPin size={16} style={{
