@@ -73,7 +73,8 @@ export const OrganizationCareerPage = () => {
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
-                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                     }
                 });
 
@@ -125,7 +126,13 @@ export const OrganizationCareerPage = () => {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
                 <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a' }}>Página não encontrada</h1>
-                <p style={{ color: '#64748b' }}>A página de carreiras solicitada não existe ou foi removida.</p>
+                <p style={{ color: '#64748b', maxWidth: '400px', textAlign: 'center' }}>{error || 'A página de carreiras solicitada não existe ou foi removida.'}</p>
+                <button 
+                    onClick={() => navigate('/')}
+                    style={{ marginTop: '24px', padding: '10px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                    Voltar ao início
+                </button>
             </div>
         );
     }

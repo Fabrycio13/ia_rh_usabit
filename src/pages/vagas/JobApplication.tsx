@@ -304,7 +304,10 @@ export const JobApplication = () => {
             if (!hash) return;
             try {
                 const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-job-detail?hash=${hash}`, {
-                    headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY }
+                    headers: { 
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                    }
                 });
 
                 if (!response.ok) {
