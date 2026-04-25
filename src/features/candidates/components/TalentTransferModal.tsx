@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, CheckCircle2, AlertCircle, Loader, GitMerge as PipelineIcon, UserPlus, Briefcase } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader, GitMerge as PipelineIcon, UserPlus } from 'lucide-react';
 import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
 import toast from 'react-hot-toast';
