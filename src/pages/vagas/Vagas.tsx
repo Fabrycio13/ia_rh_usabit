@@ -336,7 +336,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
     const getPublicJobUrl = (hash: string) => {
         // App uses HashRouter, so we need the hash symbol
-        return `${window.location.origin}${window.location.pathname}#/v/${hash}`;
+        // Normalizamos o origin + pathname para evitar barras duplas
+        const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
+        return `${baseUrl}/#/v/${hash}`;
     };
 
     const copyPublicLink = (hash: string) => {

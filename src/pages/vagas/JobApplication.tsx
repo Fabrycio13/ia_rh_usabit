@@ -303,19 +303,22 @@ export const JobApplication = () => {
         const fetchJob = async () => {
             if (!hash) return;
             try {
-                const { data, error: err } = await supabase
-                    .from('vagas_white_label')
-                    .select('id, organization_id, title, company_name, description, responsibilities, requirements, differentials, additional_info, has_location, location, work_model, is_accepting_applications, custom_questions, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image')
-                    .eq('public_hash', hash)
-                    .eq('is_active', true)
-                    .single();
+                const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-job-detail?hash=${hash}`, {
+                    headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY }
+                });
 
-                if (err) throw err;
-                if (!(data as any).is_accepting_applications) {
+                if (!response.ok) {
+                    setError('Vaga não encontrada.');
+                    return;
+                }
+
+                const { job: jobData } = await response.json();
+                
+                if (!jobData.is_accepting_applications) {
                     setError('Esta vaga não está mais aceitando candidaturas.');
                     return;
                 }
-                setJob(data as Job);
+                setJob(jobData as Job);
             } catch {
                 setError('Vaga não encontrada.');
             } finally {

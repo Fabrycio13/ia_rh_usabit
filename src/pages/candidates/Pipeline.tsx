@@ -472,7 +472,7 @@ export const Pipeline = () => {
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -498,7 +498,7 @@ export const Pipeline = () => {
                     notes: c.notes,
                     candidate_name: c.candidates?.name ?? 'Sem nome',
                     candidate_score: c.candidates?.score ?? null,
-                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
                     display_job_name: displayJobName,
                     display_job_score: displayJobScore,
                     job_id: jobId,
@@ -516,7 +516,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: any[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -527,7 +527,7 @@ export const Pipeline = () => {
             id: c.id,
             name: c.name,
             score: c.score,
-            vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+            vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
             already_in_pipeline: inPipeline.has(c.id),
             is_blacklisted: c.is_blacklisted,
             phone: c.phone,

@@ -5,8 +5,8 @@
 <h1 align="center">🚀 Space Talent AI</h1>
 
 <p align="center">
-  <strong>The Future of Human Potential with Artificial Intelligence.</strong><br>
-  An enterprise-grade platform for modern Recruitment & Selection.
+  <strong>O Futuro do Potencial Humano com Inteligência Artificial.</strong><br>
+  Uma plataforma de nível empresarial para Recrutamento e Seleção modernos.
 </p>
 
 <p align="center">
@@ -19,113 +19,113 @@
 
 ---
 
-## 📖 Vision
+## 📖 Visão
 
-**Space Talent AI** is a premium ecosystem designed to revolutionize the recruitment lifecycle. By integrating advanced Artificial Intelligence with a high-performance cloud architecture, we empower HR teams to discover, analyze, and hire top-tier talent with unprecedented speed and precision.
+O **Space Talent AI** é um ecossistema premium projetado para revolucionar o ciclo de vida do recrutamento. Ao integrar Inteligência Artificial avançada com uma arquitetura cloud de alta performance, capacitamos as equipes de RH a descobrir, analisar e contratar talentos de alto nível com velocidade e precisão sem precedentes.
 
-Our mission is to eliminate administrative overhead and provide deep behavioral and technical insights, allowing recruiters to focus on what truly matters: **human connection**.
-
----
-
-## ✨ Key Features
-
-### 🤖 Intelligent Sourcing & AI Scoring
-- **Automated Ranking**: Advanced algorithms that score candidates based on resume-job compatibility.
-- **Smart Filtering**: Multi-dimensional search across skills, seniority, and location.
-
-### 📋 Full-Cycle Pipeline Management
-- **Visual Kanban**: A dynamic, drag-and-drop workflow to manage candidates across stages.
-- **Custom Application Flow**: Tailored question sets and logic-based application forms.
-
-### 📊 Real-time Analytics
-- **Strategic KPIs**: Dashboards for Time-to-Hire, Diversity & Inclusion, and Source Effectiveness.
-- **Predictive Insights**: Data-driven suggestions for process optimization.
-
-### 🔒 Privacy & Security (PII Protection)
-- **Secure Document Storage**: Candidate resumes are protected via private Supabase buckets and Signed URLs.
-- **Granular RLS**: Row Level Security (RLS) ensures data is only accessible to authorized recruiters.
-
-### 🌐 Public Integration API
-- **External Exposure**: Secure Edge Functions to list and fetch job details for third-party portals.
-- **Hybrid Visibility**: Support for "Invisible" jobs—accessible via direct link only for discrete recruitment.
+Nossa missão é eliminar a carga administrativa e fornecer insights comportamentais e técnicos profundos, permitindo que os recrutadores foquem no que realmente importa: **a conexão humana**.
 
 ---
 
-## 🛠️ Technology Stack
+## ✨ Principais Funcionalidades
 
-### Frontend Ecosystem
-- **React 18**: Component-based UI architecture.
-- **TypeScript**: Full-stack type safety.
-- **Vite**: Ultra-fast build tool and development server.
-- **Tailwind CSS**: Utility-first styling for a premium, responsive interface.
-- **Lucide**: Clean and modern iconography.
+### 🤖 Triagem Inteligente e AI Scoring
+- **Ranking Automatizado**: Algoritmos avançados que pontuam candidatos com base na compatibilidade entre currículo e vaga.
+- **Filtros Inteligentes**: Busca multidimensional por habilidades, senioridade e localização.
 
-### Backend Infrastructure (BaaS)
-- **Supabase / PostgreSQL**: Scalable relational database with advanced RLS.
-- **Edge Functions**: Deno-based serverless functions for secure API interactions.
-- **PostgREST**: Instant and secure RESTful API layer.
-- **Supabase Storage**: Secure management of candidate documents.
+### 📋 Gestão de Pipeline Completa
+- **Kanban Visual**: Fluxo de trabalho dinâmico com drag-and-drop para gerenciar candidatos entre as etapas.
+- **Fluxo de Candidatura Personalizado**: Conjuntos de perguntas adaptáveis e lógica de formulário inteligente.
+
+### 📊 Analytics em Tempo Real
+- **KPIs Estratégicos**: Dashboards de Tempo de Contratação (Time-to-Hire), Diversidade e Inclusão, e Eficácia de Fontes.
+- **Insights Preditivos**: Sugestões baseadas em dados para otimização de processos.
+
+### 🔒 Privacidade e Segurança (Proteção de PII)
+- **Armazenamento Seguro de Documentos**: Currículos protegidos via buckets privados no Supabase e URLs Assinadas.
+- **RLS Granular**: Row Level Security (RLS) garante que os dados sejam acessíveis apenas por recrutadores autorizados.
+
+### 🌐 API de Integração Pública
+- **Exposição Externa**: Edge Functions seguras para listar e buscar detalhes de vagas para portais de terceiros.
+- **Visibilidade Híbrida**: Suporte para vagas "Invisíveis" — acessíveis apenas via link direto para recrutamento discreto.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Stack Tecnológica
 
-### 1. Prerequisites
-- Node.js (v18 or higher)
-- A Supabase account and project
+### Ecossistema Frontend
+- **React 18**: Arquitetura de UI baseada em componentes.
+- **TypeScript**: Segurança de tipos em todo o projeto.
+- **Vite**: Ferramenta de build e servidor de desenvolvimento ultra-rápido.
+- **Tailwind CSS**: Estilização utilitária para uma interface premium e responsiva.
+- **Lucide**: Iconografia moderna e minimalista.
 
-### 2. Installation
+### Infraestrutura Backend (BaaS)
+- **Supabase / PostgreSQL**: Banco de dados relacional escalável com RLS avançado.
+- **Edge Functions**: Funções serverless baseadas em Deno para interações de API seguras.
+- **PostgREST**: Camada de API RESTful instantânea e segura.
+- **Supabase Storage**: Gestão segura de documentos dos candidatos.
+
+---
+
+## 🚀 Começando
+
+### 1. Pré-requisitos
+- Node.js (v18 ou superior)
+- Conta e projeto no Supabase
+
+### 2. Instalação
 ```bash
-# Clone the repository
+# Clone o repositório
 git clone https://github.com/usabit/rh-ia-v2.git
 
-# Install dependencies
+# Instale as dependências
 cd rh-ia-v2
 npm install
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
+### 3. Configuração de Ambiente
+Crie um arquivo `.env` na raiz do projeto:
 ```env
-VITE_SUPABASE_URL=your_project_url.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_SUPABASE_URL=sua_url_do_projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 ```
 
-### 4. Development Server
+### 4. Servidor de Desenvolvimento
 ```bash
 npm run dev
 ```
 
 ---
 
-## 📁 Project Architecture
+## 📁 Arquitetura do Projeto
 
 ```text
-├── .agent/              # AI Agent configuration and workflows
-├── docs/                # Technical documentation and security policies
+├── .agent/              # Configurações de Agentes de IA e workflows
+├── docs/                # Documentação técnica e políticas de segurança
 ├── src/
-│   ├── core/           # Business logic, services (Supabase, API)
-│   ├── layouts/        # Global layout components and Design System
-│   ├── pages/          # Feature-based page views
-│   └── common/         # Reusable UI components
+│   ├── core/           # Lógica de negócio, serviços (Supabase, API)
+│   ├── layouts/        # Componentes de layout global e Design System
+│   ├── pages/          # Views baseadas em funcionalidades
+│   └── common/         # Componentes de UI reutilizáveis
 ├── supabase/
-│   ├── functions/      # Secure serverless Edge Functions
-│   └── migrations/     # Version-controlled database schema
-└── README.md           # This document
+│   ├── functions/      # Edge Functions serverless seguras
+│   └── migrations/     # Esquema de banco de dados versionado
+└── README.md           # Este documento
 ```
 
 ---
 
-## 🔐 Security Standards
+## 🔐 Padrões de Segurança
 
-This project adheres to strict security protocols to ensure candidate data protection (LGPD/GDPR compliance ready):
-- All PII is protected by **PostgreSQL Row Level Security**.
-- External APIs are whitelisted and served via **Supabase Edge Functions**.
-- Storage access is strictly controlled via **Signed URLs**.
+Este projeto adere a protocolos rígidos de segurança para garantir a proteção dos dados dos candidatos (pronto para LGPD):
+- Todos os dados sensíveis (PII) são protegidos por **Row Level Security (RLS)** do PostgreSQL.
+- APIs externas são filtradas e servidas via **Supabase Edge Functions**.
+- O acesso a arquivos é estritamente controlado via **URLs Assinadas (Signed URLs)**.
 
 ---
 
 <p align="center">
-  <strong>Developed with Precision & Passion by Usabit Engineering</strong><br>
-  © 2026 Usabit. All rights reserved.
+  <strong>Desenvolvido com Precisão e Paixão pela Usabit ❤️</strong><br>
+  © 2026 Usabit. Todos os direitos reservados.
 </p>

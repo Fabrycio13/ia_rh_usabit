@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
-    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList
+    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logActivity } from '../../core/services/logger';
 import { handleViewResume } from '../../core/utils/storage';
+import { TalentTransferModal } from '../candidates/components/TalentTransferModal';
 
 import {
     initials, scoreColor, formatDate, parseSkills, parseComments, relativeTime,
@@ -47,12 +48,13 @@ export function CandidatePanel({
     const [editFieldVal, setEditFieldVal] = useState('');
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
-    const [localC, setLocalC] = useState({ email: c.email, phone: c.phone, location: c.location, address: c.address, age: c.age, gender: c.gender });
+    const [localC, setLocalC] = useState({ email: c.email, phone: c.phone, location: c.location, address: c.address, linkedin: c.linkedin, age: c.age, gender: c.gender });
     const [togglingEligible, setTogglingEligible] = useState(false);
     const [inclusionStep, setInclusionStep] = useState<'initial' | 'job' | 'pipeline'>('initial');
     const [pendingJob, setPendingJob] = useState<{ jobId: string; jobName: string; score: number } | null>(null);
     const [pipelines, setPipelines] = useState<{ id: string, name: string }[]>([]);
     const [fetchingPipelines, setFetchingPipelines] = useState(true);
+    const [transferringToBank, setTransferringToBank] = useState(false);
 
     const activeJobIds = new Set(c.pipelineCards?.map((pc: any) => pc.jobId).filter(Boolean));
     const availableJobs = c.applications.filter(app => !activeJobIds.has(app.jobId));
@@ -150,9 +152,9 @@ export function CandidatePanel({
     }
 
     useEffect(() => {
-        setLocalC({ email: c.email, phone: c.phone, location: c.location, address: c.address, age: c.age, gender: c.gender });
+        setLocalC({ email: c.email, phone: c.phone, location: c.location, address: c.address, linkedin: c.linkedin, age: c.age, gender: c.gender });
         setChatActive(!!c.conversations?.length);
-    }, [c.email, c.phone, c.location, c.address, c.age, c.gender, c.conversations]);
+    }, [c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.conversations]);
 
     useEffect(() => {
         setPhoneError(null);
@@ -421,6 +423,7 @@ export function CandidatePanel({
                                 {([
                                     { key: 'email', label: 'Email', icon: <Mail size={14} />, value: localC.email },
                                     { key: 'phone', label: 'Telefone', icon: <Phone size={14} />, value: localC.phone },
+                                    { key: 'linkedin', label: 'LinkedIn', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>, value: localC.linkedin },
                                     { key: 'location', label: 'Local', icon: <MapPin size={14} />, value: localC.location },
                                     { key: 'address', label: 'Endereço', icon: <MapPin size={14} />, value: localC.address },
                                     { key: 'gender', label: 'Gênero', icon: <UserRound size={14} />, value: localC.gender },
@@ -1034,7 +1037,61 @@ export function CandidatePanel({
                     </div>
                 )}
 
+                <div style={{ padding: '0 24px 32px' }}>
+                    <button
+                        onClick={() => setTransferringToBank(true)}
+                        style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                            background: '#10b981',
+                            border: 'none',
+                            borderRadius: '16px',
+                            padding: '16px',
+                            color: '#fff',
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.3)';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                        }}
+                    >
+                        <UserPlus size={18} />
+                        Mover para Banco de Talentos
+                    </button>
+                </div>
             </div>
+
+            {transferringToBank && (
+                <TalentTransferModal
+                    candidate={{
+                        id: c.id,
+                        name: c.name,
+                        email: c.email,
+                        phone: localC.phone,
+                        location: localC.location,
+                        linkedin: localC.linkedin,
+                        resume_url: c.resume_url,
+                        match_score: c.score || 0,
+                        answers: { _ai_analysis: c.analysis }
+                    }}
+                    job={{
+                        id: c.applications[0]?.jobId || 'banco',
+                        title: c.applications[0]?.jobName || 'Banco de Talentos'
+                    }}
+                    onClose={() => setTransferringToBank(null as any)}
+                    onSuccess={() => {
+                        setTransferringToBank(false);
+                        // window.location.reload();
+                    }}
+                />
+            )}
         </>
     );
 }
