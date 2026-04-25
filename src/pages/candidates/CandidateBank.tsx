@@ -145,7 +145,7 @@ export const CandidateBank = () => {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
+        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
@@ -164,7 +164,7 @@ export const CandidateBank = () => {
         // Fallback sem join
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
+          .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -181,7 +181,7 @@ export const CandidateBank = () => {
           is_blacklisted: false,
           phone: c.phone,
           conversations: c.conversations,
-          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
         })));
         return;
       }
@@ -194,7 +194,7 @@ export const CandidateBank = () => {
         resume_url: c.resume_url,
         phone: c.phone,
         conversations: c.conversations,
-        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
       })));
     } finally {
       setLoading(false);

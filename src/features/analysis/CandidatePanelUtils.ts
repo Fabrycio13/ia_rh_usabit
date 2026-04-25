@@ -5,6 +5,7 @@ export interface Candidate {
     email: string;
     location: string | null;
     address: string | null;
+    linkedin?: string | null;
     age: string | null;
     gender: string | null;
     score: number | null;

@@ -62,20 +62,17 @@ export const PublicJobPage = () => {
             }
 
             try {
-                const { data, error: err } = await supabase
-                    .from('vagas_white_label')
-                    .select('*')
-                    .eq('public_hash', hash)
-                    .eq('is_active', true)
-                    .eq('is_accepting_applications', true)
-                    .single();
+                const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-job-detail?hash=${hash}`, {
+                    headers: { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY }
+                });
 
-                if (err) {
+                if (!response.ok) {
                     setError('Vaga não encontrada');
                     return;
                 }
 
-                setJob(data as Job);
+                const { job: jobData } = await response.json();
+                setJob(jobData as Job);
             } catch (err) {
                 setError('Erro ao carregar vaga');
             } finally {

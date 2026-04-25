@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock, Bot, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock, Bot, Mail, MapPin, UserPlus, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
+import { TalentTransferModal } from '../../features/candidates/components/TalentTransferModal';
 
 interface Vaga {
     id: string;
@@ -43,7 +44,14 @@ const getMatchColor = (score: number) => {
 };
 
 const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = { pending: 'Pendente', reviewed: 'Analisado', shortlisted: 'Pré-selecionado', rejected: 'Rejeitado', hired: 'Contratado' };
+    const labels: Record<string, string> = { 
+        pending: 'Pendente', 
+        reviewed: 'Analisado', 
+        shortlisted: 'Pré-selecionado', 
+        rejected: 'Rejeitado', 
+        hired: 'Contratado',
+        talent_bank: 'No Banco'
+    };
     return labels[status] || status;
 };
 
@@ -54,6 +62,7 @@ const getStatusColor = (status: string) => {
         shortlisted: { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' },
         rejected: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
         hired: { bg: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' },
+        talent_bank: { bg: 'rgba(16, 185, 129, 0.1)', color: '#10b981' },
     };
     return colors[status] || { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
 };
@@ -69,6 +78,7 @@ export const VagaCandidatos = () => {
     const [candidatos, setCandidatos] = useState<Candidato[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedCandidatoId, setExpandedCandidatoId] = useState<string | null>(null);
+    const [transferringCand, setTransferringCand] = useState<Candidato | null>(null);
 
 
     useEffect(() => {
@@ -103,6 +113,19 @@ export const VagaCandidatos = () => {
         fetchData();
     }, [id]);
 
+    const handleTransferSuccess = () => {
+        // Refresh candidates
+        if (id) {
+            supabase.from('vagas_candidaturas')
+                .select('*')
+                .eq('vaga_id', id)
+                .order('match_score', { ascending: false })
+                .then(({ data }) => {
+                    if (data) setCandidatos(data);
+                });
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -120,7 +143,7 @@ export const VagaCandidatos = () => {
     }
 
     // Grid columns MUST be identical between header and rows
-    const gridColumns = '60px 2fr 1.5fr 1.2fr 1fr 0.8fr 110px 150px';
+    const gridColumns = '60px 2fr 1.5fr 1fr 0.8fr 110px 80px';
 
     return (
         <div className="text-[var(--text-main)]">
@@ -258,11 +281,10 @@ export const VagaCandidatos = () => {
                             <div style={{ textAlign: 'center' }}>Rank</div>
                             <div>Candidato</div>
                             <div>Localização</div>
-                            <div>Contato</div>
                             <div style={{ textAlign: 'center' }}>Status</div>
                             <div style={{ textAlign: 'center' }}>Match</div>
                             <div style={{ textAlign: 'center' }}>Currículo</div>
-                            <div style={{ textAlign: 'center' }}>Data</div>
+                            <div style={{ textAlign: 'center' }}>Banco</div>
                         </div>
 
                         {/* Table Rows */}
@@ -332,9 +354,6 @@ export const VagaCandidatos = () => {
                                         <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                                             {candidato.candidate_location || '-'}
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '14px', overflow: 'hidden' }}>
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidato.candidate_email}</span>
-                                        </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <span style={{
                                                 display: 'inline-block',
@@ -385,8 +404,36 @@ export const VagaCandidatos = () => {
                                                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
                                             )}
                                         </div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>
-                                            {formatDate(candidato.applied_at)}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <button
+                                                title="Mover para Banco de Talentos"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setTransferringCand(candidato);
+                                                }}
+                                                style={{
+                                                    padding: '8px',
+                                                    background: 'rgba(16, 185, 129, 0.1)',
+                                                    border: '1px solid #10b981',
+                                                    borderRadius: '8px',
+                                                    color: '#10b981',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={e => {
+                                                    e.currentTarget.style.background = '#10b981';
+                                                    e.currentTarget.style.color = '#fff';
+                                                }}
+                                                onMouseLeave={e => {
+                                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                                                    e.currentTarget.style.color = '#10b981';
+                                                }}
+                                            >
+                                                <UserPlus size={16} />
+                                            </button>
                                         </div>
                                     </div>
 
@@ -539,6 +586,45 @@ export const VagaCandidatos = () => {
                                                 </div>
                                             )}
 
+                                            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                                                {candidato.status === 'talent_bank' ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontWeight: 600, fontSize: '14px' }}>
+                                                        <Check size={18} />
+                                                        Já está no Banco de Talentos
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setTransferringCand(candidato);
+                                                        }}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: '10px',
+                                                            background: '#10b981',
+                                                            border: 'none',
+                                                            borderRadius: '12px',
+                                                            padding: '14px 28px',
+                                                            color: '#fff',
+                                                            fontSize: '15px',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s',
+                                                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                                                        }}
+                                                        onMouseEnter={e => {
+                                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.3)';
+                                                        }}
+                                                        onMouseLeave={e => {
+                                                            e.currentTarget.style.transform = 'translateY(0)';
+                                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                                                        }}
+                                                    >
+                                                        <UserPlus size={20} />
+                                                        Mover para Banco de Talentos
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -547,6 +633,28 @@ export const VagaCandidatos = () => {
                     </div>
                 )}
             </div>
+
+            {transferringCand && vaga && (
+                <TalentTransferModal
+                    candidate={{
+                        id: transferringCand.id,
+                        name: transferringCand.candidate_name,
+                        email: transferringCand.candidate_email,
+                        phone: transferringCand.candidate_phone,
+                        location: transferringCand.candidate_location,
+                        linkedin: transferringCand.candidate_linkedin,
+                        resume_url: transferringCand.resume_url,
+                        match_score: transferringCand.match_score,
+                        answers: transferringCand.answers
+                    }}
+                    job={{
+                        id: vaga.id,
+                        title: vaga.title
+                    }}
+                    onClose={() => setTransferringCand(null)}
+                    onSuccess={handleTransferSuccess}
+                />
+            )}
 
             <style>{`
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }

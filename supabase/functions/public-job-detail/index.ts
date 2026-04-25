@@ -37,7 +37,7 @@ serve(async (req) => {
     // Selecionamos de forma estrita apenas os dados visíveis da Vaga para evitar vazar anotações internas do RH ou orçamentos.
     const { data: jobData, error: jobError } = await supabaseAdmin
       .from('vagas_white_label')
-      .select('id, title, public_hash, description, responsibilities, requirements, differentials, additional_info, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name, company_logo, show_company_name, application_deadline, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image, is_accepting_applications')
+      .select('id, organization_id, title, public_hash, description, responsibilities, requirements, differentials, additional_info, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name, company_logo, show_company_name, application_deadline, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image, is_accepting_applications, custom_questions')
       .eq('public_hash', hash)
       .eq('is_active', true)
       // PROTEÇÃO IDOR (Broken Object Level Authorization) APLICADA PELO PEN-TESTER:
