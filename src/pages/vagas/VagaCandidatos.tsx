@@ -67,9 +67,6 @@ const getStatusColor = (status: string) => {
     return colors[status] || { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
 };
 
-const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 export const VagaCandidatos = () => {
     const { id } = useParams<{ id: string }>();

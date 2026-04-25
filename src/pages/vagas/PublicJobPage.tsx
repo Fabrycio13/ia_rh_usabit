@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../core/services/supabase';
 import {
     MapPin, DollarSign, Clock, Star, Target,
     Award, Info, ArrowRight, AlertCircle, ArrowLeft
