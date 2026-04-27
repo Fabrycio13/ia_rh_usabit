@@ -601,7 +601,8 @@ export const Pipeline = () => {
             score: card.candidate_score,
             vagas: card.candidate_vagas,
             enriched: false,
-            applications: []
+            applications: [],
+            hideBankButton: true
         };
         setSelectedCandidate(base);
         try {

@@ -266,7 +266,8 @@ export const CandidateBank = () => {
       ...c, 
       phone: null, skills: null, experience: null, education: null, 
       redFlags: null, applications: [], notes: null, enriched: false,
-      is_blacklisted: c.is_blacklisted ?? false 
+      is_blacklisted: c.is_blacklisted ?? false,
+      hideBankButton: true
     } as CandidateDetail);
     enrichCandidate(c.id);
   }

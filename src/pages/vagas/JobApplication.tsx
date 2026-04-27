@@ -4,7 +4,8 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
-    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, Link
+    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, Link,
+    UserRound, Calendar, ChevronDown
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 
@@ -166,6 +167,63 @@ const CSS = `
     border-color: rgba(255,255,255,0.2);
     color: #cbd5e1;
 }
+
+/* Custom Select Wizard */
+.cs-trigger-wizard {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; padding: 14px 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 12px; color: #f1f5f9;
+    font-size: 15px; cursor: pointer; transition: all 0.25s;
+    box-sizing: border-box;
+}
+.cs-trigger-wizard:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); }
+.cs-trigger-wizard.open { border-color: var(--primary-hex, #6366f1); background: rgba(99,102,241,0.06); }
+
+.cs-dropdown-wizard {
+    position: absolute; top: calc(100% + 8px); left: 0; width: 300px;
+    background: #111827; border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px; padding: 6px; z-index: 1000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    backdrop-filter: blur(20px); animation: csSlideUp 0.2s ease-out;
+    display: flex; flex-direction: column;
+}
+.cs-dropdown-items-wrapper {
+    max-height: 250px; overflow-y: auto; overflow-x: hidden;
+    padding-right: 4px; margin-top: 4px;
+}
+.cs-dropdown-items-wrapper::-webkit-scrollbar { width: 4px; }
+.cs-dropdown-items-wrapper::-webkit-scrollbar-track { background: transparent; }
+.cs-dropdown-items-wrapper::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.cs-dropdown-items-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+.cs-search-wrapper {
+    position: sticky; top: 0; z-index: 10;
+    padding: 6px 8px; background: #111827;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 4px;
+}
+.cs-search-input {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 8px 12px;
+    color: #f1f5f9; font-size: 13px; outline: none;
+    transition: all 0.2s;
+}
+.cs-search-input:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+}
+.cs-item-wizard {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px; color: #94a3b8;
+    font-size: 14px; cursor: pointer; transition: all 0.15s;
+}
+.cs-item-wizard:hover { background: rgba(255, 255, 255, 0.05); color: #f1f5f9; }
+.cs-item-wizard.active { background: rgba(99, 102, 241, 0.15); color: #818cf8; font-weight: 600; }
+.cs-dot-wizard { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
 const BotAvatar = () => (
@@ -224,16 +282,63 @@ const ProgressBar = ({ step, total }: { step: number; total: number }) => (
     </div>
 );
 
-const maskPhone = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length <= 10) {
-        v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
-        v = v.replace(/(\d{4})(\d)/, '$1-$2');
+const maskPhone = (val: string, country: { code: string; iso: string }) => {
+    let v = val;
+    if (!v) return country.code + ' ';
+
+    // Remove tudo que não é dígito, exceto o + inicial
+    const clean = v.startsWith('+') ? '+' + v.replace(/\D/g, '') : '+' + v.replace(/\D/g, '');
+    const digits = clean.replace(/\D/g, '');
+    const codeDigits = country.code.replace(/\D/g, '');
+    
+    // Extrai a parte local do número
+    let localDigits = '';
+    if (digits.startsWith(codeDigits)) {
+        localDigits = digits.substring(codeDigits.length);
     } else {
-        v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
-        v = v.replace(/(\d{5})(\d)/, '$1-$2');
+        localDigits = digits;
     }
-    return v.substring(0, 15);
+
+    // Limita a 12 dígitos locais (padrão internacional seguro)
+    localDigits = localDigits.substring(0, 12);
+
+    // Máscara Brasil (+55)
+    if (country.code === '+55') {
+        let res = '+55 ';
+        if (localDigits.length > 0) {
+            res += '(' + localDigits.substring(0, 2);
+            if (localDigits.length > 2) {
+                res += ') ' + localDigits.substring(2, 7);
+                if (localDigits.length > 7) {
+                    res += '-' + localDigits.substring(7, 11);
+                }
+            }
+        }
+        return res.trim();
+    }
+
+    // Máscara NANP (+1) - EUA, Canadá e Caribe (que não tem prefixo maior)
+    if (country.code === '+1') {
+        let res = '+1 ';
+        if (localDigits.length > 0) {
+            res += '(' + localDigits.substring(0, 3);
+            if (localDigits.length > 3) {
+                res += ') ' + localDigits.substring(3, 6);
+                if (localDigits.length > 6) {
+                    res += '-' + localDigits.substring(6, 10);
+                }
+            }
+        }
+        return res.trim();
+    }
+
+    // Máscara Genérica (Europa e outros) - Agrupa de 3 em 3 ou 4 em 4
+    let res = country.code + ' ';
+    for (let i = 0; i < localDigits.length; i++) {
+        if (i > 0 && i % 3 === 0 && i < 9) res += ' ';
+        res += localDigits[i];
+    }
+    return res.trim();
 };
 
 const maskCep = (val: string) => {
@@ -260,13 +365,178 @@ export const JobApplication = () => {
 
     const [formData, setFormData] = useState({ 
         name: '', email: '', phone: '', linkedin: '', location: '', portfolio: '',
-        cep: '', address: '', addressNumber: '', complement: '' 
+        cep: '', address: '', addressNumber: '', complement: '',
+        gender: '', age: ''
     });
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
     
+
+    const [genderOpen, setGenderOpen] = useState(false);
+    const genderRef = useRef<HTMLDivElement>(null);
+    const [countryOpen, setCountryOpen] = useState(false);
+    const countryRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (genderRef.current && !genderRef.current.contains(e.target as Node)) {
+                setGenderOpen(false);
+            }
+            if (countryRef.current && !countryRef.current.contains(e.target as Node)) {
+                setCountryOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const countries = [
+        // Américas - Sul
+        { code: '+55', iso: 'br', name: 'Brasil' },
+        { code: '+54', iso: 'ar', name: 'Argentina' },
+        { code: '+591', iso: 'bo', name: 'Bolívia' },
+        { code: '+56', iso: 'cl', name: 'Chile' },
+        { code: '+57', iso: 'co', name: 'Colômbia' },
+        { code: '+593', iso: 'ec', name: 'Equador' },
+        { code: '+592', iso: 'gy', name: 'Guiana' },
+        { code: '+595', iso: 'py', name: 'Paraguai' },
+        { code: '+51', iso: 'pe', name: 'Peru' },
+        { code: '+597', iso: 'sr', name: 'Suriname' },
+        { code: '+598', iso: 'uy', name: 'Uruguai' },
+        { code: '+58', iso: 've', name: 'Venezuela' },
+
+        // Américas - Norte
+        { code: '+1', iso: 'us', name: 'Estados Unidos' },
+        { code: '+1', iso: 'ca', name: 'Canadá' },
+        { code: '+52', iso: 'mx', name: 'México' },
+
+        // Américas - Central e Caribe
+        { code: '+501', iso: 'bz', name: 'Belize' },
+        { code: '+506', iso: 'cr', name: 'Costa Rica' },
+        { code: '+503', iso: 'sv', name: 'El Salvador' },
+        { code: '+502', iso: 'gt', name: 'Guatemala' },
+        { code: '+504', iso: 'hn', name: 'Honduras' },
+        { code: '+505', iso: 'ni', name: 'Nicarágua' },
+        { code: '+507', iso: 'pa', name: 'Panamá' },
+        { code: '+1242', iso: 'bs', name: 'Bahamas' },
+        { code: '+1246', iso: 'bb', name: 'Barbados' },
+        { code: '+53', iso: 'cu', name: 'Cuba' },
+        { code: '+1809', iso: 'do', name: 'Rep. Dominicana' },
+        { code: '+509', iso: 'ht', name: 'Haiti' },
+        { code: '+1876', iso: 'jm', name: 'Jamaica' },
+        { code: '+1868', iso: 'tt', name: 'Trinidad e Tobago' },
+        { code: '+1787', iso: 'pr', name: 'Porto Rico' },
+
+        // Europa
+        { code: '+351', iso: 'pt', name: 'Portugal' },
+        { code: '+34', iso: 'es', name: 'Espanha' },
+        { code: '+33', iso: 'fr', name: 'França' },
+        { code: '+44', iso: 'gb', name: 'Reino Unido' },
+        { code: '+49', iso: 'de', name: 'Alemanha' },
+        { code: '+39', iso: 'it', name: 'Itália' },
+        { code: '+31', iso: 'nl', name: 'Holanda' },
+        { code: '+32', iso: 'be', name: 'Bélgica' },
+        { code: '+41', iso: 'ch', name: 'Suíça' },
+        { code: '+43', iso: 'at', name: 'Áustria' },
+        { code: '+353', iso: 'ie', name: 'Irlanda' },
+        { code: '+30', iso: 'gr', name: 'Grécia' },
+        { code: '+45', iso: 'dk', name: 'Dinamarca' },
+        { code: '+46', iso: 'se', name: 'Suécia' },
+        { code: '+47', iso: 'no', name: 'Noruega' },
+        { code: '+358', iso: 'fi', name: 'Finlândia' },
+        { code: '+48', iso: 'pl', name: 'Polônia' },
+        { code: '+7', iso: 'ru', name: 'Rússia' },
+        { code: '+90', iso: 'tr', name: 'Turquia' },
+        { code: '+380', iso: 'ua', name: 'Ucrânia' },
+        { code: '+420', iso: 'cz', name: 'Rep. Tcheca' },
+        { code: '+36', iso: 'hu', name: 'Hungria' },
+        { code: '+40', iso: 'ro', name: 'Romênia' },
+        { code: '+352', iso: 'lu', name: 'Luxemburgo' },
+        { code: '+377', iso: 'mc', name: 'Mônaco' },
+        { code: '+379', iso: 'va', name: 'Vaticano' },
+        { code: '+354', iso: 'is', name: 'Islândia' },
+        { code: '+385', iso: 'hr', name: 'Croácia' },
+        { code: '+359', iso: 'bg', name: 'Bulgária' },
+        { code: '+381', iso: 'rs', name: 'Sérvia' },
+        { code: '+421', iso: 'sk', name: 'Eslováquia' },
+        { code: '+386', iso: 'si', name: 'Eslovênia' },
+        { code: '+370', iso: 'lt', name: 'Lituânia' },
+        { code: '+371', iso: 'lv', name: 'Letônia' },
+        { code: '+372', iso: 'ee', name: 'Estônia' },
+
+        // Outros Principais
+        { code: '+81', iso: 'jp', name: 'Japão' },
+        { code: '+86', iso: 'cn', name: 'China' },
+        { code: '+61', iso: 'au', name: 'Austrália' },
+        { code: '+971', iso: 'ae', name: 'Emirados Árabes' },
+        { code: '+972', iso: 'il', name: 'Israel' },
+        { code: '+27', iso: 'za', name: 'África do Sul' },
+        { code: '+244', iso: 'ao', name: 'Angola' },
+        { code: '+258', iso: 'mz', name: 'Moçambique' }
+    ];
+
+    const [selectedCountry, setSelectedCountry] = useState(countries[0]);
+    const [countrySearch, setCountrySearch] = useState('');
+
+    const normalizeText = (text: string) => 
+        text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    const filteredCountries = countries.filter(c => {
+        const search = normalizeText(countrySearch);
+        const name = normalizeText(c.name);
+        return name.includes(search) || c.code.includes(search);
+    });
+
+    const handlePhoneChange = (val: string) => {
+        let digits = val.replace(/\D/g, '');
+        let currentCountry = selectedCountry;
+
+        // Detecção Automática de País por Prefixo ao digitar
+        if (val.startsWith('+') || digits.length > 0) {
+            const searchVal = val.startsWith('+') ? val : '+' + digits;
+            const cleanDigits = searchVal.replace(/\D/g, '');
+            
+            let found = null;
+            // Busca do prefixo mais longo (4 dígitos) para o mais curto (1 dígito)
+            for (let len = 4; len >= 1; len--) {
+                const prefix = '+' + cleanDigits.substring(0, len);
+                found = countries.find(c => c.code === prefix);
+                if (found) break;
+            }
+
+            // REGRA CRÍTICA: Só muda o país se:
+            // 1. O código encontrado for diferente do código atual (ex: mudou de +55 para +1)
+            // 2. OU se o código atual for um prefixo parcial do novo código (ex: de +1 para +1868)
+            if (found) {
+                const isDifferentCode = found.code !== selectedCountry.code;
+                const isMoreSpecific = found.code.startsWith(selectedCountry.code) && found.code.length > selectedCountry.code.length;
+                
+                if (isDifferentCode || isMoreSpecific) {
+                    currentCountry = found;
+                    setSelectedCountry(found);
+                }
+            }
+        }
+
+        const masked = maskPhone(val, currentCountry);
+        setFormData(p => ({ ...p, phone: masked }));
+    };
+
+    useEffect(() => {
+        if (!formData.phone && selectedCountry.code) {
+            setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
+        }
+    }, [selectedCountry]);
+
+    const genderOptions = [
+        { value: 'Masculino', label: 'Masculino', color: '#3b82f6' },
+        { value: 'Feminino', label: 'Feminino', color: '#ec4899' },
+        { value: 'Não-binário', label: 'Não-binário', color: '#8b5cf6' },
+        { value: 'Outro', label: 'Outro', color: '#14b8a6' },
+        { value: 'Prefiro não informar', label: 'Prefiro não informar', color: '#64748b' }
+    ];
 
     const fetchAddress = async (cep: string) => {
         const cleanCep = cep.replace(/\D/g, '');
@@ -450,6 +720,8 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 candidate_phone: formData.phone || null,
                 candidate_location: formData.location || null,
                 candidate_linkedin: formData.linkedin || null,
+                candidate_gender: formData.gender || null,
+                candidate_age: formData.age || null,
                 resume_url: resumeUrl,
                 resume_file_name: resumeFile.name,
                 status: aiResult ? 'reviewed' : 'pending',
@@ -674,16 +946,128 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     <Mail size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
                                     <input autoFocus className="wizard-input" style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
                                 </div>
-                                <div style={{ position: 'relative' }}>
-                                    <Phone size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                                    <input 
-                                        className="wizard-input" 
-                                        style={{ paddingLeft: 46 }} 
-                                        type="tel" 
-                                        placeholder="(11) 99999-9999 *" 
-                                        value={formData.phone} 
-                                        onChange={e => setFormData(p => ({ ...p, phone: maskPhone(e.target.value) }))} 
-                                    />
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ position: 'relative' }} ref={countryRef}>
+                                            <div 
+                                                className={`cs-trigger-wizard ${countryOpen ? 'open' : ''}`}
+                                                style={{ width: '85px', height: '51px', padding: '0 12px' }}
+                                                onClick={() => setCountryOpen(!countryOpen)}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                                                    <img 
+                                                        src={`https://flagcdn.com/w40/${selectedCountry.iso}.png`}
+                                                        srcSet={`https://flagcdn.com/w80/${selectedCountry.iso}.png 2x`}
+                                                        width="24"
+                                                        alt={selectedCountry.name}
+                                                        style={{ borderRadius: '3px', flexShrink: 0 }}
+                                                    />
+                                                    <ChevronDown size={14} style={{ color: '#64748b', opacity: 0.8 }} />
+                                                </div>
+                                            </div>
+
+                                            {countryOpen && (
+                                                <div className="cs-dropdown-wizard">
+                                                    <div className="cs-search-wrapper">
+                                                        <input 
+                                                            autoFocus
+                                                            className="cs-search-input"
+                                                            placeholder="Procurar país..."
+                                                            value={countrySearch}
+                                                            onChange={e => setCountrySearch(e.target.value)}
+                                                            onClick={e => e.stopPropagation()}
+                                                        />
+                                                    </div>
+                                                    <div className="cs-dropdown-items-wrapper">
+                                                        {filteredCountries.map(c => (
+                                                            <div 
+                                                                key={c.iso + c.code}
+                                                                className={`cs-item-wizard ${selectedCountry.iso === c.iso && selectedCountry.code === c.code ? 'active' : ''}`}
+                                                                onClick={() => {
+                                                                    setSelectedCountry(c);
+                                                                    setCountryOpen(false);
+                                                                    setCountrySearch('');
+                                                                    setFormData(p => ({ ...p, phone: c.code + ' ' }));
+                                                                }}
+                                                            >
+                                                                <img 
+                                                                    src={`https://flagcdn.com/w40/${c.iso}.png`}
+                                                                    width="22"
+                                                                    alt={c.name}
+                                                                    style={{ borderRadius: '2px', flexShrink: 0 }}
+                                                                />
+                                                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                                                                    <span style={{ fontSize: '14px', color: '#f1f5f9' }}>{c.name}</span>
+                                                                    <span style={{ fontSize: '11px', color: '#64748b' }}>{c.code}</span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {filteredCountries.length === 0 && (
+                                                            <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                                                                Nenhum país encontrado
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ position: 'relative', flex: 1 }}>
+                                            <Phone size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                                            <input 
+                                                className="wizard-input" 
+                                                style={{ paddingLeft: 46 }} 
+                                                type="tel" 
+                                                placeholder={selectedCountry.code + ' (00) 00000-0000'}
+                                                value={formData.phone} 
+                                                onChange={e => handlePhoneChange(e.target.value)} 
+                                            />
+                                        </div>
+                                    </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <Calendar size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+                                        <input 
+                                            className="wizard-input" 
+                                            style={{ paddingLeft: 46 }} 
+                                            type="text" 
+                                            placeholder="Idade" 
+                                            value={formData.age} 
+                                            onChange={e => setFormData(p => ({ ...p, age: e.target.value }))} 
+                                        />
+                                    </div>
+                                    <div style={{ position: 'relative' }} ref={genderRef}>
+                                        <div 
+                                            className={`cs-trigger-wizard ${genderOpen ? 'open' : ''}`}
+                                            onClick={() => setGenderOpen(!genderOpen)}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <UserRound size={17} style={{ color: '#64748b', flexShrink: 0 }} />
+                                                <span style={{ color: formData.gender ? '#f1f5f9' : '#475569' }}>
+                                                    {formData.gender || 'Selecione o Gênero'}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={16} style={{ color: '#64748b', transform: genderOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                                        </div>
+
+                                        {genderOpen && (
+                                            <div className="cs-dropdown-wizard">
+                                                {genderOptions.map(opt => (
+                                                    <div 
+                                                        key={opt.value}
+                                                        className={`cs-item-wizard ${formData.gender === opt.value ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            setFormData(p => ({ ...p, gender: opt.value }));
+                                                            setGenderOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="cs-dot-wizard" style={{ background: opt.color }} />
+                                                        {opt.label}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 10 }}>
@@ -891,9 +1275,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                                 Enviando...
                                             </>
                                         ) : (
-                                            <>
-                                                <Sparkles size={16} /> Enviar candidatura!
-                                            </>
+                                            "Enviar candidatura!"
                                         )}
                                     </button>
                                 </div>
