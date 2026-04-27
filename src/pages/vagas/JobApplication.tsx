@@ -4,7 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
-    CheckCircle, AlertCircle, ArrowRight, Sparkles, Heart, Link,
+    CheckCircle, AlertCircle, ArrowRight, Heart, Link,
     UserRound, Calendar, ChevronDown
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';

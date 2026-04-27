@@ -38,6 +38,7 @@ export interface CandidateDetail extends Candidate {
     enriched: boolean;
     analysis?: any;
     conversations?: any[];
+    hideBankButton?: boolean;
 }
 
 export interface Comment {
