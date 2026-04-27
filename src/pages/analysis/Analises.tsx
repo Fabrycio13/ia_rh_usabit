@@ -305,7 +305,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       name: c.name,
       score: c.score,
       enriched: false,
-      applications: []
+      applications: [],
+      hideBankButton: true
     };
     setSelectedCandidate(base);
     try {

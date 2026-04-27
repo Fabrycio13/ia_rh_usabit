@@ -1037,35 +1037,37 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                <div style={{ padding: '0 24px 32px' }}>
-                    <button
-                        onClick={() => setTransferringToBank(true)}
-                        style={{
-                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                            background: '#10b981',
-                            border: 'none',
-                            borderRadius: '16px',
-                            padding: '16px',
-                            color: '#fff',
-                            fontSize: '15px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.3)';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
-                        }}
-                    >
-                        <UserPlus size={18} />
-                        Mover para Banco de Talentos
-                    </button>
-                </div>
+                {!c.hideBankButton && (
+                    <div style={{ padding: '0 24px 32px' }}>
+                        <button
+                            onClick={() => setTransferringToBank(true)}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                background: '#10b981',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                color: '#fff',
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.3)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                            }}
+                        >
+                            <UserPlus size={18} />
+                            Mover para Banco de Talentos
+                        </button>
+                    </div>
+                )}
             </div>
 
             {transferringToBank && (
