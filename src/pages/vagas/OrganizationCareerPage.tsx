@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Briefcase, MapPin, Loader2, Building2, Clock, DollarSign } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { formatSalary } from '../../core/utils/jobFormatter';
 
 interface Vaga {
@@ -43,7 +43,7 @@ export const OrganizationCareerPage = () => {
     const [loading, setLoading] = useState(true);
     const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
     const [vagas, setVagas] = useState<Vaga[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState('Todos');
     const [error, setError] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -137,8 +137,7 @@ export const OrganizationCareerPage = () => {
         );
     }
 
-    const primaryColor = orgInfo.primary_color || '#3b82f6';
-    
+
     const categories = ['Todos', ...Array.from(new Set(vagas.map(v => v.category || 'Outros'))).sort()];
 
     const filteredVagas = vagas.filter(v => {
@@ -158,143 +157,151 @@ export const OrganizationCareerPage = () => {
     return (
         <div style={{ 
             minHeight: '100vh', 
-            background: orgInfo.page_background_url ? `url(${orgInfo.page_background_url}) center/${orgInfo.background_fit} no-repeat fixed` : '#f8fafc', 
-            backgroundSize: orgInfo.background_fit,
-            fontFamily: `'${orgInfo.font_family}', sans-serif`,
-            color: orgInfo.font_color,
-            paddingBottom: '40px'
+            background: '#04070c',
+            fontFamily: `'Manrope', sans-serif`,
+            color: '#ffffff',
+            paddingBottom: '80px',
+            position: 'relative',
+            overflow: 'hidden'
         }}>
+            {/* Background Gradient SVG - Ultra Soft & Large */}
+            <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                right: 0, 
+                width: '70%', 
+                height: '100%', 
+                pointerEvents: 'none', 
+                zIndex: 0, 
+                overflow: 'hidden',
+                background: 'radial-gradient(53.74% 45.93% at 100% 50%, rgba(44, 88, 253, 0.15) 0%, rgba(26, 53, 151, 0) 100%)',
+                filter: 'blur(40px)'
+            }}>
+                <svg width="2122" height="1434" viewBox="-1350 0 2122 1434" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: 'absolute', top: 0, right: '-20%', height: '120%', width: 'auto', opacity: 0.4 }}>
+                    <path d="M-1304.14 405.498C-1197.64 48.9343 -644.279 -100.653 -68.1689 71.3844C507.941 243.422 888.637 671.939 782.139 1028.5C675.642 1385.07 122.279 1534.65 -453.831 1362.62C-1029.94 1190.58 -1410.64 762.061 -1304.14 405.498Z" fill="url(#paint0_radial_career_ultra)"/>
+                    <defs>
+                        <radialGradient id="paint0_radial_career_ultra" cx="0" cy="0" r="1" gradientTransform="matrix(192.831 -645.616 1043.14 311.502 -261 717)" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#2C58FD"/>
+                            <stop offset="1" stop-color="#1A3597" stop-opacity="0"/>
+                        </radialGradient>
+                    </defs>
+                </svg>
+            </div>
+
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+                
+                body {
+                    font-family: 'Inter', sans-serif !important;
+                    color: #C3C7CD !important;
+                    line-height: 24px !important;
+                    letter-spacing: 0.16px !important;
+                }
+
+                h1, h2, h3, h4 { 
+                    font-family: 'Space Grotesk', sans-serif !important; 
+                    color: #ffffff !important;
+                }
+                
+                .category-tab {
+                    position: relative;
+                    padding: 12px 24px;
+                    background: transparent;
+                    border: none;
+                    color: #94a3b8;
+                    font-size: 16px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    display: flex;
+                    alignItems: center;
+                    gap: 8px;
+                }
+                
+                .category-tab.active {
+                    color: #ffffff;
+                }
+                
+                .category-tab.active::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 2px;
+                    background: #2C58FD;
+                }
+
+                .category-count {
+                    font-size: 11px;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    margin-left: 6px;
+                }
+
+                .job-card {
+                    background: #080c14;
+                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    border-radius: 8px;
+                    padding: 32px;
+                    transition: all 0.3s;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+
+                .job-card:hover {
+                    border-color: rgba(44, 88, 253, 0.3);
+                    background: #0d121d;
+                }
+            `}</style>
             {/* Header / Cover */}
             <div style={{ 
-                height: orgInfo.cover_image_url ? (isMobile ? '160px' : `${orgInfo.header_padding + 180}px`) : (isMobile ? '120px' : `${orgInfo.header_padding + 100}px`), 
-                background: orgInfo.cover_image_url ? `url(${orgInfo.cover_image_url}) center/${orgInfo.cover_fit} no-repeat` : primaryColor,
+                height: isMobile ? '280px' : '400px', 
+                background: 'transparent',
                 position: 'relative',
-                borderBottom: `4px solid ${primaryColor}`,
-                transition: 'all 0.3s ease'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                padding: '0 24px',
+                zIndex: 1
             }}>
-                <div style={{ 
-                    position: 'absolute', inset: 0, 
-                    background: orgInfo.cover_image_url ? 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' : 'none' 
-                }} />
-                
-                <div style={{ 
-                    maxWidth: '1000px', 
-                    margin: '0 auto', 
-                    height: '100%', 
-                    display: 'flex', 
-                    alignItems: 'flex-end', 
-                    padding: `0 24px`,
-                    position: 'relative',
-                    zIndex: 2
-                }}>
-                    {/* Logo Container - Reposicionado para consistência */}
-                    <div style={{ 
-                        width: isMobile ? '90px' : '120px', 
-                        height: isMobile ? '90px' : '120px', 
-                        background: '#fff', 
-                        borderRadius: isMobile ? '15px' : '20px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        boxShadow: '0 12px 24px rgba(0,0,0,0.15)',
-                        padding: isMobile ? '10px' : '16px',
-                        transform: `translateY(${isMobile ? '45px' : '60px'})`,
-                        border: '1px solid #e2e8f0',
-                        flexShrink: 0
-                    }}>
-                        {orgInfo.logo_url ? (
-                            <img src={orgInfo.logo_url} alt={orgInfo.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', transform: `scale(${orgInfo.logo_scale})` }} />
-                        ) : (
-                            <Building2 size={48} color={primaryColor} />
-                        )}
-                    </div>
+                <div style={{ maxWidth: '800px' }}>
+                    <h1 style={{ fontSize: isMobile ? '36px' : '64px', fontWeight: 800, color: '#fff', margin: '0 0 24px', lineHeight: 1.1 }}>
+                        {orgInfo.name === 'Usabit' ? 'Vagas abertas' : `Vagas na ${orgInfo.name}`}
+                    </h1>
+                    <p style={{ fontSize: isMobile ? '16px' : '18px', color: '#94a3b8', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
+                        Venha transformar negócios com tecnologia, estratégia e design.
+                    </p>
                 </div>
             </div>
 
-            {/* Content Area */}
-            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: `${isMobile ? '70px' : '90px'} 24px 60px` }}>
-                <div style={{ marginBottom: isMobile ? '24px' : '40px' }}>
-                    <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 800, color: orgInfo.font_color, margin: '0 0 16px', lineHeight: 1.2 }}>Vagas na {orgInfo.name}</h1>
-                    {orgInfo.about_text && (
-                        <p style={{ color: orgInfo.font_color, opacity: 0.8, fontSize: '16px', lineHeight: '1.6', maxWidth: '800px', whiteSpace: 'pre-wrap' }}>
-                            {orgInfo.about_text}
-                        </p>
-                    )}
-                </div>
-
-                {/* Filtro/Busca */}
-                <div style={{ marginBottom: '32px' }}>
-                    <div style={{ position: 'relative', maxWidth: '500px' }}>
-                        <Briefcase size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por cargo ou palavra-chave..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ 
-                                width: '100%', 
-                                padding: '14px 14px 14px 48px', 
-                                borderRadius: '12px', 
-                                border: '1px solid #e2e8f0', 
-                                background: 'rgba(255, 255, 255, 0.8)', 
-                                backdropFilter: 'blur(5px)',
-                                fontSize: '15px', 
-                                color: orgInfo.font_color,
-                                outline: 'none',
-                                transition: 'all 0.2s',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => e.currentTarget.style.borderColor = primaryColor}
-                            onBlur={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-                        />
-                    </div>
-                </div>
-
-                {/* Filtro por Categoria (Tabs) */}
+            <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
+                {/* Tabs de Categoria */}
                 <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '24px', 
-                    marginBottom: '32px', 
-                    borderBottom: '1px solid #e2e8f0',
+                    justifyContent: 'center',
+                    gap: isMobile ? '10px' : '40px', 
+                    marginBottom: '60px', 
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                     overflowX: 'auto',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
+                    scrollbarWidth: 'none'
                 }}>
                     {categories.map(cat => {
                         const isActive = activeCategory === cat;
+                        const count = vagas.filter(v => cat === 'Todos' || (v.category || 'Outros') === cat).length;
                         return (
                             <button
                                 key={cat}
                                 onClick={() => setActiveCategory(cat)}
-                                style={{
-                                    padding: '12px 4px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    borderBottom: `2px solid ${isActive ? primaryColor : 'transparent'}`,
-                                    color: isActive ? primaryColor : '#64748b',
-                                    fontSize: '15px',
-                                    fontWeight: isActive ? 700 : 500,
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap',
-                                    transition: 'all 0.2s',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px'
-                                }}
+                                className={`category-tab ${isActive ? 'active' : ''}`}
                             >
-                                {cat === 'Todos' && <Briefcase size={16} />}
                                 {cat}
-                                <span style={{ 
-                                    fontSize: '11px', 
-                                    background: isActive ? `${primaryColor}20` : 'rgba(241, 245, 249, 0.5)', 
-                                    padding: '2px 6px', 
-                                    borderRadius: '10px',
-                                    marginLeft: '4px',
-                                    backdropFilter: 'blur(4px)'
-                                }}>
-                                    {vagas.filter(v => cat === 'Todos' || (v.category || 'Outros') === cat).length}
-                                </span>
+                                <span className="category-count">{count}</span>
                             </button>
                         );
                     })}
@@ -302,119 +309,38 @@ export const OrganizationCareerPage = () => {
 
                 <div style={{ 
                     display: 'grid', 
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', 
-                    gap: isMobile ? '16px' : '20px' 
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+                    gap: '24px' 
                 }}>
                     {filteredVagas.length === 0 ? (
-                        <div style={{ gridColumn: '1 / -1', padding: '60px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.5)' }}>
-                            <Briefcase size={40} style={{ color: orgInfo.font_color, opacity: 0.3, margin: '0 auto 16px' }} />
-                            <h3 style={{ fontSize: '18px', fontWeight: 600, color: orgInfo.font_color, margin: '0 0 8px' }}>Nenhuma vaga encontrada</h3>
-                            <p style={{ color: orgInfo.font_color, opacity: 0.6, margin: 0 }}>Tente outros termos ou remova os filtros.</p>
+                        <div style={{ gridColumn: '1 / -1', padding: '80px 40px', textAlign: 'center' }}>
+                            <p style={{ color: '#64748b', margin: 0 }}>Nenhuma vaga encontrada.</p>
                         </div>
                     ) : (
                         filteredVagas.map((vaga) => (
                             <div 
                                 key={vaga.id}
+                                className="job-card"
                                 onClick={() => navigate(`/v/${vaga.public_hash}`)}
-                                style={{ 
-                                    background: 'rgba(255, 255, 255, 0.9)', 
-                                    backdropFilter: 'blur(12px)',
-                                    borderRadius: '16px', 
-                                    padding: '24px', 
-                                    border: '1px solid rgba(226, 232, 240, 0.5)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    position: 'relative'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                    e.currentTarget.style.boxShadow = '0 12px 24px -8px rgba(0,0,0,0.1)';
-                                    e.currentTarget.style.borderColor = primaryColor;
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                    e.currentTarget.style.borderColor = 'rgba(226, 232, 240, 0.5)';
-                                }}
                             >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
-                                    <h3 style={{ fontSize: '20px', fontWeight: 800, color: orgInfo.font_color, margin: 0, lineHeight: '1.2' }}>{vaga.title}</h3>
-                                    {vaga.company_name && (
-                                        <p style={{ margin: 0, fontSize: '13px', color: primaryColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            na {vaga.company_name}
-                                        </p>
-                                    )}
-                                </div>
+                                <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', margin: 0 }}>{vaga.title}</h3>
                                 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    {vaga.has_salary_range && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: orgInfo.font_color, fontSize: '14px' }}>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${primaryColor}10`, border: `1px solid ${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <DollarSign size={13} style={{ color: primaryColor }} />
-                                            </div>
-                                            <span style={{ fontWeight: 500, opacity: 0.8 }}>
-                                                {formatSalary(vaga.salary_min, vaga.salary_max)}
-                                            </span>
-                                        </div>
-                                    )}
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                                    {vaga.work_regime === 'part-time' ? 'Part time' : 'Full time'} · {vaga.location || 'Remoto'} · {getContractTypeLabel(vaga.contract_type)}
+                                </p>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: orgInfo.font_color, fontSize: '14px' }}>
-                                        <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${primaryColor}10`, border: `1px solid ${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Building2 size={13} style={{ color: primaryColor }} />
-                                        </div>
-                                        <span style={{ fontWeight: 500, opacity: 0.8 }}>{getContractTypeLabel(vaga.contract_type)}</span>
-                                    </div>
-                                    
-                                    {(vaga.has_location || vaga.work_model) && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: orgInfo.font_color, fontSize: '14px' }}>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${primaryColor}10`, border: `1px solid ${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <MapPin size={13} style={{ color: primaryColor }} />
-                                            </div>
-                                            <span style={{ fontWeight: 500, opacity: 0.8 }}>
-                                                {vaga.location ? vaga.location : 'Remoto'}
-                                                {vaga.work_model && ` (${vaga.work_model})`}
-                                            </span>
-                                        </div>
-                                    )}
+                                {vaga.has_salary_range && (
+                                    <p style={{ fontSize: '16px', fontWeight: 700, color: '#2C58FD', margin: '8px 0 0' }}>
+                                        {formatSalary(vaga.salary_min, vaga.salary_max)}
+                                    </p>
+                                )}
 
-                                    {vaga.work_regime && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: orgInfo.font_color, fontSize: '14px' }}>
-                                            <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `${primaryColor}10`, border: `1px solid ${primaryColor}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <Clock size={13} style={{ color: primaryColor }} />
-                                            </div>
-                                            <span style={{ fontWeight: 500, opacity: 0.8 }}>Regime: {vaga.work_regime === 'full-time' ? 'Tempo Integral' : vaga.work_regime === 'part-time' ? 'Meio Período' : 'Por hora'}</span>
-                                        </div>
-                                    )}
-
-                                    {vaga.is_pcd && vaga.is_pcd !== 'no' && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                            <span style={{ 
-                                                background: vaga.is_pcd === 'exclusive' ? '#fdf2f8' : `${primaryColor}15`, 
-                                                color: vaga.is_pcd === 'exclusive' ? '#db2777' : primaryColor, 
-                                                padding: '4px 10px', 
-                                                borderRadius: '20px', 
-                                                fontSize: '11px', 
-                                                fontWeight: 700, 
-                                                textTransform: 'uppercase', 
-                                                letterSpacing: '0.05em',
-                                                border: vaga.is_pcd === 'exclusive' ? 'none' : `1px solid ${primaryColor}30`,
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '6px'
-                                            }}>
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                    <circle cx="10" cy="4" r="2.5" />
-                                                    <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                                                    <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
-                                                    <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                                </svg>
-                                                {vaga.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
-                                            </span>
-                                        </div>
-                                    )}
+                                <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '13px', fontWeight: 600 }}>
+                                    Ver mais detalhes
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="7" y1="17" x2="17" y2="7"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
                                 </div>
                             </div>
                         ))
@@ -422,7 +348,8 @@ export const OrganizationCareerPage = () => {
                 </div>
             </div>
 
-            <footer style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', borderTop: '1px solid #e2e8f0' }}>
+
+            <footer style={{ padding: '60px 24px 24px', textAlign: 'center', color: '#475569', fontSize: '13px', position: 'relative', zIndex: 1 }}>
                 <p>Powered by <strong>Space Talent</strong></p>
             </footer>
         </div>

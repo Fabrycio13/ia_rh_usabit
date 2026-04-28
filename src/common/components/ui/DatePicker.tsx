@@ -95,12 +95,12 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 
                     top: 'calc(100% + 8px)',
                     left: 0,
                     zIndex: 2000,
-                    background: '#1a1f2e',
+                    background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
                     borderRadius: '16px',
                     padding: '20px',
                     width: '300px',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
                     backdropFilter: 'blur(16px)',
                 }}>
                     {/* Calendar Header */}

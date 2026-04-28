@@ -1993,7 +1993,7 @@ export const VagaForm = () => {
                     animation: 'fadeIn 0.2s ease-out'
                 }}>
                     <div style={{
-                        background: '#1a1c2d',
+                        background: 'var(--bg-card)',
                         borderRadius: '20px',
                         border: '1px solid var(--border)',
                         padding: '40px',

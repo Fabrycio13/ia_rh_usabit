@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight, Key, Layout } from 'lucide-react';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
@@ -26,11 +26,11 @@ const faqs = [
         items: [
             {
                 q: 'Como funciona a plataforma?',
-                a: 'Nossa plataforma usa IA para analisar currículos automaticamente. Você cria vagas, faz upload de currículos e nossa IA extrai informações, avalia competências e gera scores para cada candidato. Tudo é organizado em dashboards intuitivos.',
+                a: 'O Space Talent é um ecossistema de recrutamento inteligente. O fluxo básico é:\n1. 📋 **Criar Vaga**: Defina requisitos e publique.\n2. 📥 **Coletar Candidatos**: Via link público ou upload manual.\n3. 🤖 **Análise de IA**: O sistema avalia e pontua cada candidato.\n4. ⚡ **Pipeline**: Organize os melhores em um funil de contratação visual.',
             },
             {
-                q: 'Por onde devo começar?',
-                a: '1️⃣ Crie sua primeira vaga na seção "Vagas"\n2️⃣ Vá para "Análises" e faça upload dos currículos\n3️⃣ Acompanhe os resultados no Dashboard\n\nDica: Comece com 2-3 currículos para entender o fluxo completo.',
+                q: 'Por onde devo começar? (Passo a Passo)',
+                a: '1️⃣ **Crie sua Vaga**: Vá em "Vagas" e preencha os requisitos. Publique para gerar o link.\n2️⃣ **Receba Currículos**: Divulgue o link ou vá em "Análises" > "Nova Análise" para subir arquivos PDF.\n3️⃣ **Revise os Scores**: A IA dará uma nota de 0 a 100 baseada na vaga.\n4️⃣ **Gerencie no Pipeline**: Arraste os aprovados para as etapas de entrevista ou teste.\n5️⃣ **Contrate**: Utilize o Banco de Candidatos para manter contato com os melhores talentos.',
             },
             {
                 q: 'Quanto tempo leva para analisar um currículo?',
@@ -140,6 +140,31 @@ const faqs = [
             {
                 q: 'Como altero minha senha?',
                 a: 'Acesse "Configurações" → "Segurança" → "Alterar Senha". Você precisará informar a senha atual e a nova senha.',
+            },
+            {
+                q: 'Onde encontro minha Chave de API?',
+                a: 'Acesse "Configurações" → "API". Lá você poderá visualizar sua chave atual ou gerar uma nova. Mantenha essa chave em segredo!',
+            },
+        ],
+    },
+    {
+        category: '🔗 Desenvolvedores e API',
+        items: [
+            {
+                q: 'O que é a API do Space Talent?',
+                a: 'Nossa API permite integrar o Space Talent com outros sistemas (como seu site de carreiras próprio ou ERP). Você pode automatizar a criação de vagas e a consulta de candidatos analisados.',
+            },
+            {
+                q: 'Onde está a documentação técnica?',
+                a: 'A documentação completa seguindo o padrão OpenAPI/Swagger pode ser solicitada ao nosso suporte técnico ou acessada via link direto nas configurações de API.',
+            },
+            {
+                q: 'Quais as funcionalidades disponíveis via API?',
+                a: '✅ Listar e criar vagas\n✅ Consultar resultados de análises\n✅ Sincronizar banco de candidatos\n✅ Webhooks para eventos em tempo real (em breve)',
+            },
+            {
+                q: 'Existe limite de requisições?',
+                a: 'Sim, os limites variam conforme seu plano. O plano Pro permite até 1.000 requisições/dia, enquanto o Enterprise possui limites personalizados e suporte dedicado.',
             },
         ],
     },
@@ -413,6 +438,48 @@ export const Ajuda = () => {
                                     ],
                                     tip: 'Use logs para auditoria e troubleshooting',
                                     link: '/admin',
+                                },
+                                {
+                                    icon: Zap,
+                                    title: 'Pipeline',
+                                    desc: 'Gerencie o fluxo de contratação visualmente',
+                                    color: '#f59e0b',
+                                    steps: [
+                                        'Acesse "Pipeline" no menu lateral',
+                                        'Vincule uma vaga ao pipeline (opcional)',
+                                        'Arraste candidatos entre as colunas de etapas',
+                                        'Personalize as colunas conforme seu processo',
+                                    ],
+                                    tip: 'O Pipeline ajuda a não perder nenhum candidato de vista',
+                                    link: '/pipeline',
+                                },
+                                {
+                                    icon: Key,
+                                    title: 'API e Integrações',
+                                    desc: 'Conecte o sistema com suas ferramentas',
+                                    color: '#3b82f6',
+                                    steps: [
+                                        'Acesse "Configurações" > "API"',
+                                        'Gere sua Chave de API (Secret Key)',
+                                        'Consulte a documentação técnica',
+                                        'Realize os testes de integração',
+                                    ],
+                                    tip: 'A API é ideal para empresas com sistemas próprios de RH',
+                                    link: '/configuracoes',
+                                },
+                                {
+                                    icon: Layout,
+                                    title: 'Página de Carreiras',
+                                    desc: 'Personalize seu portal white label',
+                                    color: '#ec4899',
+                                    steps: [
+                                        'Acesse "Configurações" > "Página de Carreiras"',
+                                        'Configure sua logomarca e imagem de capa',
+                                        'Defina a cor principal da sua marca',
+                                        'Escreva sobre sua empresa',
+                                    ],
+                                    tip: 'Este é o link que você enviará para os candidatos',
+                                    link: '/configuracoes',
                                 },
                             ].map((module, i) => (
                                 <div key={i} className="module-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px' }}>

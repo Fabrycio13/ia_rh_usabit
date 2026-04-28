@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
@@ -83,12 +83,67 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 
 // ─── SelectFilter ─────────────────────────────────────────────────────────────
 function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: value ? 'var(--text-main)' : 'var(--text-dim)', fontSize: 12, outline: 'none', cursor: 'pointer', minWidth: 110 }}>
-      <option value="">{placeholder}</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
+    <div ref={ref} style={{ width: '160px', position: 'relative' }}>
+      <div onClick={() => setIsOpen(!isOpen)} style={{ 
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: '8px', padding: '7px 12px', color: value ? 'var(--text-main)' : 'var(--text-dim)',
+          fontSize: '12px', cursor: 'pointer', height: '34px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          transition: 'all 0.2s'
+      }}>
+         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || placeholder}</span>
+         <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
+      </div>
+      {isOpen && (
+          <div style={{ 
+              position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '100%',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '10px', padding: '6px', zIndex: 1000,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+              maxHeight: '240px', overflowY: 'auto'
+          }}>
+             <div
+                 onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                 style={{ 
+                     padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                     color: value === '' ? '#3b82f6' : 'var(--text-dim)',
+                     background: value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                     fontWeight: value === '' ? 600 : 400
+                 }} onClick={() => { onChange(''); setIsOpen(false); }}>
+                 {placeholder}
+             </div>
+             {options.map(o => (
+                <div key={o}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    style={{ 
+                        padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                        color: value === o ? '#3b82f6' : 'var(--text-dim)',
+                        background: value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        fontWeight: value === o ? 600 : 400
+                    }} onClick={() => { onChange(o); setIsOpen(false); }}>
+                    {o}
+                </div>
+             ))}
+          </div>
+      )}
+    </div>
   );
 }
 

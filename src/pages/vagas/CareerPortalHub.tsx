@@ -36,12 +36,21 @@ import DatePicker from '../../common/components/ui/DatePicker';
 
 import { Vagas } from './Vagas';
 import { PortalPreview } from './PortalPreview';
+import { useLocation } from 'react-router-dom';
 
 export const CareerPortalHub = () => {
     const { profile } = useUser();
+    const location = useLocation();
     
     // Tabs state
     const [activeTab, setActiveTab] = useState<'vagas' | 'design'>('vagas');
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab === 'design') setActiveTab('design');
+        else if (tab === 'vagas') setActiveTab('vagas');
+    }, [location]);
     const [designSubTab, setDesignSubTab] = useState<'portal' | 'vagas'>('portal');
 
     // Vagas para design individual
@@ -354,7 +363,7 @@ export const CareerPortalHub = () => {
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '32px' }}>
                 <button onClick={() => setActiveTab('vagas')} style={tabStyle(activeTab === 'vagas')}>Vagas</button>
-                <button onClick={() => setActiveTab('design')} style={tabStyle(activeTab === 'design')}>Personalizar Design</button>
+                <button disabled style={{ ...tabStyle(activeTab === 'design'), opacity: 0.5, cursor: 'not-allowed' }} title="Em breve">Personalizar Design</button>
             </div>
 
             {activeTab === 'vagas' ? (
@@ -841,7 +850,7 @@ export const CareerPortalHub = () => {
                                                 {isCategorySelectOpen && (
                                                     <>
                                                         <div onClick={() => setIsCategorySelectOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: '#1a1f2e', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', backdropFilter: 'blur(16px)' }}>
                                                             <div 
                                                                 onClick={() => { setVagaCategoryFilter(''); setIsCategorySelectOpen(false); }} 
                                                                 style={{ 
@@ -899,7 +908,7 @@ export const CareerPortalHub = () => {
                                                 {isStatusSelectOpen && (
                                                     <>
                                                         <div onClick={() => setIsStatusSelectOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: '#1a1f2e', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.5)', backdropFilter: 'blur(16px)' }}>
+                                                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '8px', zIndex: 1000, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', backdropFilter: 'blur(16px)' }}>
                                                             {[
                                                                 {id: '', label: 'Todos Status', color: 'var(--text-muted)'},
                                                                 {id: 'aberta', label: 'Aberta', color: '#22c55e'},
