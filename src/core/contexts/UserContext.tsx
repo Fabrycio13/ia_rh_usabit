@@ -69,7 +69,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             firstName: name.split(' ')[0],
             initials,
             isPremium: isPremiumOptimistic,
-            loaded: false, // Keep false until DB enrichment
+            loaded: prev.loaded, // Preserve loaded state during refetch
         }));
 
         // Then enrich with Supabase profile data (avatarUrl, role etc.)

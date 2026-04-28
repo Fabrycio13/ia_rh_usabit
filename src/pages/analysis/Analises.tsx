@@ -7,6 +7,7 @@ import { supabase } from '../../core/services/supabase';
 import { handleViewResume } from '../../core/utils/storage';
 import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
 import { hasPermission } from '../../core/config/permissions';
@@ -678,6 +679,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 export const Analises = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -870,7 +872,7 @@ export const Analises = () => {
       {recent.length > 0 && (
         <>
           <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-4">Acessados recentemente</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
             {recent.map((j, i) => {
               // Cycle through planets for variety
               const planetVariants = [
@@ -888,7 +890,7 @@ export const Analises = () => {
                 <div
                   key={j.id}
                   onClick={() => navigate(`/analise/${j.id}`)}
-                  className="d-card group"
+                  className={`d-card group ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
                   style={{ 
                     position: 'relative',
                     overflow: 'hidden',
@@ -911,44 +913,65 @@ export const Analises = () => {
                     (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
                   }}
                 >
-                  {/* Stars Background - Full Coverage */}
-                  {[...Array(25)].map((_, si) => (
-                    <div 
-                      key={si} 
-                      className="star" 
-                      style={{ 
-                        width: si % 7 === 0 ? 2 : 1, 
-                        height: si % 7 === 0 ? 2 : 1, 
-                        top: `${(si * 17) % 100}%`, 
-                        left: `${(si * 37 + i * 13) % 100}%`, 
-                        '--duration': `${1.5 + (si % 4)}s`, 
-                        animationDelay: `${si * 0.1}s`, 
-                        opacity: (si % 5) * 0.1 
-                      } as any} 
-                    />
-                  ))}
+                  {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                  {/* Theme-based backgrounds */}
+                  {bgTheme === 'planets' && (
+                    <>
+                      {/* Stars Background - Full Coverage */}
+                      {[...Array(25)].map((_, si) => (
+                        <div 
+                          key={si} 
+                          className="star" 
+                          style={{ 
+                            width: si % 7 === 0 ? 2 : 1, 
+                            height: si % 7 === 0 ? 2 : 1, 
+                            top: `${(si * 17) % 100}%`, 
+                            left: `${(si * 37 + i * 13) % 100}%`, 
+                            '--duration': `${1.5 + (si % 4)}s`, 
+                            animationDelay: `${si * 0.1}s`, 
+                            opacity: (si % 5) * 0.1 
+                          } as any} 
+                        />
+                      ))}
+                    </>
+                  )}
 
                   {/* Mini Planet Segment - Solid to hide stars */}
-                  <div 
-                    className="planet" 
-                    style={{ 
-                      position: 'absolute', 
-                      width: 65, 
-                      height: 65, 
-                      borderRadius: '50%', 
-                      background: 'black',
-                      backgroundImage: p.color, 
-                      right: -15, 
-                      bottom: -15, 
-                      opacity: 1, 
-                      boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, 
-                      zIndex: 2,
-                      animation: 'float 25s ease-in-out infinite'
-                    } as any} 
-                  >
-                    <PlanetOverlay type={p.name} />
-                    {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
-                  </div>
+                  {bgTheme === 'planets' && (
+                    <div 
+                      className="planet" 
+                      style={{ 
+                        position: 'absolute', 
+                        width: 65, 
+                        height: 65, 
+                        borderRadius: '50%', 
+                        background: 'black',
+                        backgroundImage: p.color, 
+                        right: -15, 
+                        bottom: -15, 
+                        opacity: 1, 
+                        boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, 
+                        zIndex: 2,
+                        animation: 'float 25s ease-in-out infinite'
+                      } as any} 
+                    >
+                      <PlanetOverlay type={p.name} />
+                      {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                    </div>
+                  )}
+
+                  {bgTheme === 'spatial' && (
+                    <div style={{
+                      position: 'absolute',
+                      right: -10,
+                      bottom: -10,
+                      width: 80,
+                      height: 80,
+                      background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                      filter: 'blur(20px)',
+                      zIndex: 1
+                    }} />
+                  )}
 
                   <div style={{ position: 'relative', zIndex: 3 }}>
                     <p className="font-bold text-sm text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">{j.name}</p>

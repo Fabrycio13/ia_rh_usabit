@@ -13,20 +13,20 @@ const css = `
 .cs-container { position: relative; width: 220px; display: flex; align-items: center; gap: 12px; }
 .cs-trigger { 
     display: flex; align-items: center; justify-content: space-between;
-    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+    background: var(--bg-input); border: 1px solid var(--border);
     border-radius: 10px; padding: 10px 16px; color: var(--text-main);
     font-size: 14px; cursor: pointer; transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     white-space: nowrap;
     flex: 1;
     height: 44px;
 }
-.cs-trigger:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.06); }
+.cs-trigger:hover { border-color: var(--primary); }
 .cs-dropdown {
     position: absolute; top: calc(100% + 8px); left: 0; min-width: 100%;
-    background: #1a1f2e; border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 12px; padding: 8px; z-index: 1000;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
     backdrop-filter: blur(16px); animation: csSlideUp 0.2s ease-out;
 }
 .cs-item {
@@ -34,7 +34,7 @@ const css = `
     padding: 10px 12px; border-radius: 8px; color: var(--text-dim);
     font-size: 13px; cursor: pointer; transition: all 0.15s;
 }
-.cs-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+.cs-item:hover { background: var(--row-hover); color: var(--text-main); }
 .cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -925,7 +925,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             top: dropdownPos.top,
                             left: dropdownPos.left,
                             transform: 'translateX(-50%)',
-                            background: '#1a1c2d',
+                            background: 'var(--bg-card)',
                             border: '1px solid var(--border)',
                             borderRadius: '10px',
                             padding: '6px',
@@ -983,7 +983,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     animation: 'fadeIn 0.2s ease-out'
                 }}>
                     <div style={{
-                        background: '#1a1c2d',
+                        background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
                         borderRadius: '16px',
                         padding: '32px',
@@ -1117,7 +1117,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     animation: 'fadeIn 0.2s ease-out'
                 }}>
                     <div style={{
-                        background: '#1a1c2d',
+                        background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
                         borderRadius: '24px',
                         padding: '40px',

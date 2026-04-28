@@ -7,6 +7,7 @@ import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../core/contexts/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Job {
@@ -40,12 +41,12 @@ const AnimatedNumber = ({ target, suffix = '' }: { target: number; suffix?: stri
 
 // ─── Tooltip style ────────────────────────────────────────────────────────────
 const TT = {
-  background: '#1a1c2d',
-  border: '1px solid rgba(99,102,241,0.2)',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 10,
-  color: '#e2e8f0',
+  color: 'var(--text-main)',
   fontSize: 12,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  boxShadow: '0 8px 30px rgba(0,0,0,0.12)'
 };
 
 
@@ -157,6 +158,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard = () => {
   const { profile } = useUser();
+  const { bgTheme, theme } = useTheme();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<JobWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -393,58 +395,85 @@ export const Dashboard = () => {
         ].map((k, idx) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="kpi-card d-card" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div key={k.label} 
+              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+              style={{ position: 'relative', overflow: 'hidden', '--card-idx': idx } as React.CSSProperties}
+            >
+              {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
               <div className="kpi-orb" style={{ background: k.orb }} />
               
-              {/* Animated Stars - Maximum Density */}
-              {[...Array(35)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="star" 
-                  style={{ 
-                    width: (i % 6 === 0 ? 2 : 1), 
-                    height: (i % 6 === 0 ? 2 : 1), 
-                    top: `${(i * 13) % 95}%`, 
-                    left: `${(idx * 23 + i * 31) % 95}%`, 
-                    '--duration': `${1.5 + (i % 5) * 0.4}s`,
-                    animationDelay: `${i * 0.1}s`,
-                    opacity: 0.15 + (i % 5) * 0.15
-                  } as any} 
-                />
-              ))}
+              {/* Theme-based backgrounds */}
+              {bgTheme === 'planets' && (
+                <>
+                  {/* Animated Stars - Maximum Density */}
+                  {[...Array(35)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className="star" 
+                      style={{ 
+                        width: (i % 6 === 0 ? 2 : 1), 
+                        height: (i % 6 === 0 ? 2 : 1), 
+                        top: `${(i * 13) % 95}%`, 
+                        left: `${(idx * 23 + i * 31) % 95}%`, 
+                        '--duration': `${1.5 + (i % 5) * 0.4}s`,
+                        animationDelay: `${i * 0.1}s`,
+                        opacity: 0.15 + (i % 5) * 0.15
+                      } as any} 
+                    />
+                  ))}
 
-              {/* Rotating Planet */}
-              <div 
-                className="planet" 
-                style={{ 
-                  width: k.planet.size, 
-                  height: k.planet.size, 
-                  background: 'black', 
-                  backgroundImage: k.planet.color, 
-                  right: k.planet.right, 
-                  bottom: k.planet.bottom,
-                  animation: 'float 18s ease-in-out infinite',
-                  animationDelay: `${idx * 1.2}s`,
-                  zIndex: 2,
-                  ...(k.planet.style || {})
-                } as any}
-              >
-                <PlanetOverlay type={k.planet.name} />
-                {k.planet.ring && (
-                  <div className="planet-ring" style={{ 
-                    width: k.planet.size * 2.4, 
-                    height: k.planet.size * 0.5, 
-                    background: 'radial-gradient(ellipse at center, transparent 38%, rgba(217,119,6,0.1) 39%, rgba(217,119,6,0.2) 45%, rgba(217,119,6,0.05) 55%, rgba(217,119,6,0.15) 65%, transparent 66%)', 
-                    transform: 'translate(-50%, -50%) rotate(-15deg)', 
-                    filter: 'blur(0.5px)',
-                    boxShadow: '0 0 10px rgba(217,119,6,0.05)'
-                  }} />
-                )}
-              </div>
+                  {/* Rotating Planet */}
+                  <div 
+                    className="planet" 
+                    style={{ 
+                      width: k.planet.size, 
+                      height: k.planet.size, 
+                      background: 'black', 
+                      backgroundImage: k.planet.color, 
+                      right: k.planet.right, 
+                      bottom: k.planet.bottom,
+                      animation: 'float 18s ease-in-out infinite',
+                      animationDelay: `${idx * 1.2}s`,
+                      zIndex: 2,
+                      ...(k.planet.style || {})
+                    } as any}
+                  >
+                    <PlanetOverlay type={k.planet.name} />
+                    {k.planet.ring && (
+                      <div className="planet-ring" style={{ 
+                        width: k.planet.size * 2.4, 
+                        height: k.planet.size * 0.5, 
+                        background: 'radial-gradient(ellipse at center, transparent 38%, rgba(217,119,6,0.1) 39%, rgba(217,119,6,0.2) 45%, rgba(217,119,6,0.05) 55%, rgba(217,119,6,0.15) 65%, transparent 66%)', 
+                        transform: 'translate(-50%, -50%) rotate(-15deg)', 
+                        filter: 'blur(0.5px)',
+                        boxShadow: '0 0 10px rgba(217,119,6,0.05)'
+                      }} />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {bgTheme === 'spatial' && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'radial-gradient(circle at 100% 100%, rgba(44, 88, 253, 0.08) 0%, transparent 60%)',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }} />
+              )}
 
               <div style={{ position: 'relative', zIndex: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12, padding: 10, display: 'flex' }}>
+                  <div style={{ 
+                    background: theme === 'dark' ? 'rgba(7, 15, 42, 0.65)' : 'var(--primary-light-bg)', 
+                    backdropFilter: 'blur(8px)', 
+                    border: '1px solid ' + (theme === 'dark' ? 'rgba(99,102,241,0.3)' : 'var(--primary-border)'), 
+                    borderRadius: 12, 
+                    padding: 10, 
+                    display: 'flex', 
+                    boxShadow: theme === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(37,99,235,0.08)' 
+                  }}>
                     <Icon style={{ width: 18, height: 18, color: 'var(--primary)' }} />
                   </div>
                   <ArrowUpRight style={{ width: 16, height: 16, color: 'var(--text-dim)' }} />
@@ -679,7 +708,7 @@ export const Dashboard = () => {
                 Ver todas <ChevronRight style={{ width: 14, height: 14 }} />
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
               {jobs.slice(0, 8).map((j, i) => {
                 const pct = j.totalCandidates > 0 ? Math.round((j.topCandidates / j.totalCandidates) * 100) : 0;
                 const date = new Date(j.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
@@ -698,15 +727,33 @@ export const Dashboard = () => {
 
                 return (
                   <div key={j.id} onClick={() => navigate('/analises')} 
-                    className="d-card"
-                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid var(--border)', minHeight: 125, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 40px rgba(0,0,0,0.35)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}>
+                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' ? 'none' : '1px solid var(--border)', minHeight: 125, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                    onMouseEnter={e => { 
+                      if (bgTheme !== 'spatial') {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; 
+                      }
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
+                    }}
+                    onMouseLeave={e => { 
+                      if (bgTheme !== 'spatial') {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; 
+                      }
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
+                    }}>
+                    {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
                     
-                    {/* Stars Background */}
-                    {[...Array(12)].map((_, si) => (
-                      <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as any} />
-                    ))}
+                    {/* Theme-based backgrounds */}
+                    {bgTheme === 'planets' && (
+                      <>
+                        {/* Stars Background */}
+                        {[...Array(12)].map((_, si) => (
+                          <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as any} />
+                        ))}
+                      </>
+                    )}
 
                     <div style={{ position: 'relative', zIndex: 3 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -736,10 +783,25 @@ export const Dashboard = () => {
                     </div>
 
                     {/* Mini Planet Segment - Compact */}
-                    <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as any}>
-                      <PlanetOverlay type={p.name} />
-                      {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
-                    </div>
+                    {bgTheme === 'planets' && (
+                      <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as any}>
+                        <PlanetOverlay type={p.name} />
+                        {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                      </div>
+                    )}
+
+                    {bgTheme === 'spatial' && (
+                      <div style={{
+                        position: 'absolute',
+                        right: -10,
+                        bottom: -10,
+                        width: 80,
+                        height: 80,
+                        background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                        filter: 'blur(20px)',
+                        zIndex: 1
+                      }} />
+                    )}
                   </div>
                 );
               })}

@@ -4,7 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
-    CheckCircle, AlertCircle, ArrowRight, Heart, Link,
+    AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
@@ -40,6 +40,8 @@ interface Job {
 }
 
 const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeSlideUp {
     from { opacity: 0; transform: translateY(28px); }
@@ -66,9 +68,12 @@ const CSS = `
     0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
     40%            { transform: scale(1); opacity: 1; }
 }
-.typing-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; animation: dots 1.2s infinite ease-in-out; }
+.typing-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2C58FD; animation: dots 1.2s infinite ease-in-out; }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+body { font-family: 'Space Grotesk', sans-serif; }
+h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; }
 
 .chat-bubble-new {
     position: relative;
@@ -112,10 +117,12 @@ const CSS = `
     border: 1.5px solid rgba(255,255,255,0.1);
     border-radius: 12px;
     color: #f1f5f9;
-    font-size: 15px;
+    font-size: 16px;
     outline: none;
     transition: all 0.25s;
-    font-family: inherit;
+    font-family: 'Space Grotesk', sans-serif !important;
+    line-height: 24px;
+    letter-spacing: 0.16px;
     box-sizing: border-box;
 }
 .wizard-input:focus {
@@ -127,25 +134,29 @@ const CSS = `
 
 .wizard-btn-primary {
     display: inline-flex; align-items: center; gap: 10px;
-    padding: 14px 28px;
-    background: linear-gradient(135deg, #6366f1, #7c3aed);
+    padding: 13px 28px;
+    background: #2C58FD;
     border: none; border-radius: 12px;
     color: #fff; font-size: 15px; font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.3px;
     cursor: pointer; transition: all 0.25s;
-    box-shadow: 0 6px 24px rgba(99,102,241,0.35);
+    box-shadow: 0 10px 30px rgba(44, 88, 253, 0.3);
 }
 .wizard-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(99,102,241,0.5);
+    box-shadow: 0 15px 40px rgba(44, 88, 253, 0.4);
 }
-.wizard-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.wizard-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .wizard-btn-ghost {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 11px 20px;
+    padding: 13px 28px;
     background: transparent;
-    border: 1.5px solid rgba(255,255,255,0.12); border-radius: 10px;
-    color: #94a3b8; font-size: 14px; font-weight: 500;
+    border: 1.5px solid rgba(255,255,255,0.12); border-radius: 12px;
+    color: #94a3b8; font-size: 15px; font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.3px;
     cursor: pointer; transition: all 0.2s;
 }
 .wizard-btn-ghost:hover { border-color: rgba(255,255,255,0.25); color: #f1f5f9; }
@@ -260,27 +271,113 @@ const MessageBubble = ({ text }: { text: string }) => (
     <div style={{
         display: 'flex', alignItems: 'flex-start', gap: '0px',
         animation: `messagePop 0.45s ease-out both`,
-        width: '100%'
+        width: '100%',
+        fontFamily: "'Space Grotesk', sans-serif"
     }}>
         <BotAvatar />
-        <div className="chat-bubble-new" style={{ flex: 1 }} dangerouslySetInnerHTML={{ __html: text }} />
+        <div className="chat-bubble-new" style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif" }} dangerouslySetInnerHTML={{ __html: text }} />
     </div>
 );
 
-const ProgressBar = ({ step, total }: { step: number; total: number }) => (
-    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-        {Array.from({ length: total }).map((_, i) => (
-            <div key={i} style={{
-                height: '4px',
-                borderRadius: '2px',
-                flex: 1,
-                background: i < step ? 'linear-gradient(90deg, #6366f1, #7c3aed)' : 'rgba(255,255,255,0.1)',
-                transition: 'all 0.4s ease',
-                boxShadow: i < step ? '0 0 8px rgba(99,102,241,0.5)' : 'none'
+const ProgressBar = ({ step, total, labels }: { step: number; total: number; labels: string[] }) => {
+    return (
+        <div style={{ 
+            position: 'relative', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'flex-start', 
+            width: '100%',
+            maxWidth: '600px',
+            margin: '0 auto 24px',
+            padding: '0 20px'
+        }}>
+            {/* Estilo para animação de pulso */}
+            <style>{`
+                @keyframes pulse-blue {
+                    0% { box-shadow: 0 0 0 0 rgba(44, 88, 253, 0.4); transform: scale(1); }
+                    70% { box-shadow: 0 0 0 10px rgba(44, 88, 253, 0); transform: scale(1.05); }
+                    100% { box-shadow: 0 0 0 0 rgba(44, 88, 253, 0); transform: scale(1); }
+                }
+                .active-step {
+                    animation: pulse-blue 2s infinite;
+                }
+            `}</style>
+
+            {/* Linha de fundo (Cinza) */}
+            <div style={{ 
+                position: 'absolute', 
+                top: '20px', 
+                left: '40px', 
+                right: '40px', 
+                height: '2px', 
+                background: 'rgba(255, 255, 255, 0.1)', 
+                zIndex: 0
             }} />
-        ))}
-    </div>
-);
+            
+            {/* Linha de progresso (Azul) */}
+            <div style={{ 
+                position: 'absolute', 
+                top: '20px', 
+                left: '40px', 
+                width: `calc(${(step - 1) / (total - 1)} * (100% - 80px))`, 
+                maxWidth: 'calc(100% - 80px)',
+                height: '2px', 
+                background: '#2C58FD', 
+                transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                zIndex: 1
+            }} />
+
+            {Array.from({ length: total }).map((_, i) => {
+                const isCompleted = i + 1 < step;
+                const isActive = i + 1 === step;
+                
+                return (
+                    <div key={i} style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        width: '80px',
+                        position: 'relative',
+                        zIndex: 2
+                    }}>
+                        <div 
+                            className={isActive ? 'active-step' : ''}
+                            style={{ 
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: '#04070c',
+                                border: `2px solid ${isActive || isCompleted ? '#2C58FD' : 'rgba(255, 255, 255, 0.1)'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: isActive || isCompleted ? '#2C58FD' : 'rgba(255, 255, 255, 0.3)',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                fontFamily: "'Space Grotesk', sans-serif",
+                                transition: 'all 0.4s ease',
+                                marginBottom: '16px'
+                            }}
+                        >
+                            {i + 1}
+                        </div>
+                        <span style={{ 
+                            fontSize: '12px', 
+                            color: isActive ? '#fff' : isCompleted ? '#fff' : '#C3C7CD',
+                            fontWeight: isActive || isCompleted ? 700 : 500,
+                            fontFamily: "'Inter', sans-serif",
+                            textAlign: 'center',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.3s'
+                        }}>
+                            {labels[i]}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 const maskPhone = (val: string, country: { code: string; iso: string }) => {
     let v = val;
@@ -347,7 +444,26 @@ const maskCep = (val: string) => {
     return v.substring(0, 9);
 };
 
+const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }: any) => {
+    useEffect(() => {
+        if (!contentVisible) return;
+        
+        const timer = setTimeout(() => {
+            const textareas = containerRef.current?.querySelectorAll('textarea');
+            textareas?.forEach((ta: any) => {
+                ta.style.height = 'auto';
+                ta.style.height = ta.scrollHeight + 'px';
+            });
+        }, 100);
+        
+        return () => clearTimeout(timer);
+    }, [step, contentVisible, customAnswers]);
+    
+    return null;
+};
+
 export const JobApplication = () => {
+    const isMobile = window.innerWidth < 768;
     const { hash } = useParams<{ hash: string }>();
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -560,8 +676,6 @@ export const JobApplication = () => {
         }
     };
 
-    const primaryColor = job?.vaga_primary_color || '#6366f1';
-    const gradientEnd = job?.vaga_gradient_end || '#7c3aed';
 
     const hasQuestions = (job?.custom_questions?.length ?? 0) > 0;
     const totalSteps = hasQuestions ? 4 : 3;
@@ -732,6 +846,20 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             
             if (err) throw err;
             setSubmitted(true);
+
+            // Enviar e-mail de confirmação via Supabase Edge Function
+            try {
+                await supabase.functions.invoke('send-application-email', {
+                    body: {
+                        candidateName: formData.name,
+                        candidateEmail: formData.email,
+                        jobTitle: job!.title
+                    }
+                });
+            } catch (emailErr) {
+                console.error("Erro ao enviar email de confirmação:", emailErr);
+            }
+
         } catch {
             toast.error('Erro ao enviar candidatura. Tente novamente.');
         } finally {
@@ -766,36 +894,66 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
 
     if (submitted) {
         return (
-            <div style={{ minHeight: '100vh', background: job.vaga_bg_image ? `url(${job.vaga_bg_image}) center/cover no-repeat` : (job.vaga_bg_color || '#0B1020'), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+            <div style={{ 
+                minHeight: '100vh', 
+                background: '#04070c', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '24px',
+                position: 'relative',
+                overflow: 'hidden',
+                fontFamily: "'Space Grotesk', sans-serif"
+            }}>
                 <style>{CSS}</style>
-                <div style={{ textAlign: 'center', maxWidth: 560, animation: 'fadeSlideUp 0.6s ease-out' }}>
-                    <div style={{ width: 100, height: 100, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px', animation: 'successBounce 0.6s ease-out', boxShadow: '0 0 40px rgba(16,185,129,0.4)' }}>
-                        <CheckCircle size={50} style={{ color: '#fff' }} />
+
+                {/* Background Gradient SVG - Site Panel Pattern Sync */}
+                <div style={{ 
+                    position: 'absolute', top: 0, right: 0, width: '70%', height: '100%', 
+                    pointerEvents: 'none', zIndex: 0, overflow: 'hidden',
+                    background: 'radial-gradient(53.74% 45.93% at 100% 50%, rgba(44, 88, 253, 0.15) 0%, rgba(26, 53, 151, 0) 100%)',
+                    filter: 'blur(40px)'
+                }}>
+                    <svg width="2122" height="1434" viewBox="-1350 0 2122 1434" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: 'absolute', top: 0, right: '-20%', height: '120%', width: 'auto', opacity: 0.4 }}>
+                        <path d="M-1304.14 405.498C-1197.64 48.9343 -644.279 -100.653 -68.1689 71.3844C507.941 243.422 888.637 671.939 782.139 1028.5C675.642 1385.07 122.279 1534.65 -453.831 1362.62C-1029.94 1190.58 -1410.64 762.061 -1304.14 405.498Z" fill="url(#paint_success_glow)"/>
+                        <defs>
+                            <radialGradient id="paint_success_glow" cx="0" cy="0" r="1" gradientTransform="matrix(192.831 -645.616 1043.14 311.502 -261 717)" gradientUnits="userSpaceOnUse">
+                                <stop stopColor="#2C58FD"/>
+                                <stop offset="1" stopColor="#1A3597" stopOpacity="0"/>
+                            </radialGradient>
+                        </defs>
+                    </svg>
+                </div>
+
+                <div style={{ textAlign: 'center', maxWidth: '480px', animation: 'fadeSlideUp 0.6s ease-out', position: 'relative', zIndex: 1 }}>
+                    <div style={{ margin: '0 auto 32px', display: 'flex', justifyContent: 'center' }}>
+                        <svg width="64" height="80" viewBox="0 0 64 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M40 4V20C40 21.0609 40.4214 22.0783 41.1716 22.8284C41.9217 23.5786 42.9391 24 44 24H60M40 4H12C9.87827 4 7.84344 4.84285 6.34315 6.34315C4.84285 7.84344 4 9.87827 4 12V68C4 70.1217 4.84285 72.1566 6.34315 73.6569C7.84344 75.1571 9.87827 76 12 76H52C54.1217 76 56.1566 75.1571 57.6569 73.6569C59.1571 72.1566 60 70.1217 60 68V24M40 4L60 24M20 52L28 60L44 44" stroke="#22c55e" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                     </div>
 
-                    <div style={{ fontSize: 32 }}>🎉</div>
-                    <h1 style={{ color: '#f1f5f9', fontSize: 30, fontWeight: 800, margin: '12px 0 8px' }}>
-                        Candidatura enviada, {formData.name.split(' ')[0]}!
-                    </h1>
-                    <p style={{ color: '#94a3b8', fontSize: 16, lineHeight: 1.7, marginBottom: 8 }}>
-                        Muito obrigado por se candidatar à vaga de <strong style={{ color: '#f1f5f9' }}>{job.title}</strong>.
-                    </p>
-                    <p style={{ color: '#64748b', fontSize: 15, lineHeight: 1.7, marginBottom: 32 }}>
-                        Boa sorte! Torço muito para que essa seja a vaga certa pra você. 🍀<br />
-                        {job.company_name && `Em breve a equipe da ${job.company_name} pode entrar em contato.`}
+                    <h2 style={{ fontSize: '32px', fontWeight: 700, marginBottom: '16px', color: '#fff' }}>
+                        Candidatura enviada!
+                    </h2>
+                    
+                    <p style={{ color: '#94a3b8', fontSize: '16px', lineHeight: '1.6', marginBottom: '32px' }}>
+                        Recebemos sua candidatura para a vaga de <strong style={{ color: '#fff' }}>{job.title}</strong>!<br /><br />
+                        Boa sorte, {formData.name.split(' ')[0]}! Torcemos muito para que essa seja a vaga certa pra você. 🍀<br /><br />
+                        Agradecemos o seu interesse e, caso seu perfil seja selecionado para esta ou futuras oportunidades, nosso time entrará em contato.
                     </p>
 
-                    <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 14, padding: '18px 24px', marginBottom: 32, textAlign: 'left' }}>
-                        <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
-                            📧 Confirmação enviada para <strong style={{ color: '#f1f5f9' }}>{formData.email}</strong>
-                        </p>
-                    </div>
-
-                     <button 
-                        className="wizard-btn-primary" 
-                        onClick={() => job.organization_id ? navigate(`/carreiras/${job.organization_id}`) : navigate(`/v/${hash}`)}
+                    <button 
+                        onClick={() => {
+                            if (job.organization_id) {
+                                navigate(`/carreiras/${job.organization_id}`);
+                            } else {
+                                navigate(`/v/${hash}`);
+                            }
+                        }}
+                        className="wizard-btn-primary"
+                        style={{ width: '100%', justifyContent: 'center' }}
                     >
-                        <Heart size={16} /> Voltar para o Portal
+                        Voltar para o Portal
                     </button>
                 </div>
             </div>
@@ -839,61 +997,94 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
     })();
 
     return (
-        <div
-            ref={containerRef}
-            style={{
-                minHeight: '100vh',
-                background: job.vaga_bg_image ? `url(${job.vaga_bg_image}) center/cover no-repeat fixed` : (job.vaga_bg_color || '#0B1020'),
-                fontFamily: "'Inter', system-ui, sans-serif",
-                overflowX: 'hidden',
-                paddingBottom: 40
-            }}
-        >
+        <div style={{ 
+            minHeight: '100vh', 
+            background: '#04070c', 
+            color: '#fff', 
+            position: 'relative',
+            overflowX: 'hidden',
+            fontFamily: "'Manrope', sans-serif"
+        }}>
             <style>{CSS}</style>
-            <style>{`:root { --primary-hex: ${primaryColor}; }`}</style>
 
-            {/* Header */}
-            <div style={{
-                background: `linear-gradient(135deg, ${primaryColor} 0%, ${gradientEnd} 100%)`,
-                padding: '24px 32px 32px',
-                position: 'relative', overflow: 'hidden'
+            {/* Background Gradient SVG - Site Panel Pattern */}
+            <div style={{ 
+                position: 'fixed', 
+                top: 0, 
+                right: 0, 
+                width: '70%', 
+                height: '100%', 
+                pointerEvents: 'none', 
+                zIndex: 0, 
+                overflow: 'hidden',
+                background: 'radial-gradient(53.74% 45.93% at 100% 50%, rgba(44, 88, 253, 0.15) 0%, rgba(26, 53, 151, 0) 100%)',
+                filter: 'blur(40px)'
             }}>
-                <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
-                <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '0 auto' }}>
-                    <button
-                        className="wizard-btn-ghost"
-                        onClick={() => navigate(-1)}
-                        style={{ marginBottom: 16, borderColor: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.85)' }}
-                    >
-                        <ArrowLeft size={15} /> Voltar para a vaga
-                    </button>
-                    <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 800, margin: '0 0 4px' }}>
-                        Candidate-se à Vaga
-                    </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, margin: 0 }}>
-                        {job.title}{job.company_name && ` • ${job.company_name}`}
-                    </p>
-
-                    {/* Progress */}
-                    <div style={{ marginTop: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            {stepLabels.map((label, i) => (
-                                <span key={i} style={{
-                                    fontSize: 11, fontWeight: 600,
-                                    color: i <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
-                                    transition: 'color 0.3s'
-                                }}>
-                                    {label}
-                                </span>
-                            ))}
-                        </div>
-                        <ProgressBar step={step + 1} total={totalSteps} />
-                    </div>
-                </div>
+                <svg width="2122" height="1434" viewBox="-1350 0 2122 1434" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: 'absolute', top: 0, right: '-20%', height: '120%', width: 'auto', opacity: 0.4 }}>
+                    <path d="M-1304.14 405.498C-1197.64 48.9343 -644.279 -100.653 -68.1689 71.3844C507.941 243.422 888.637 671.939 782.139 1028.5C675.642 1385.07 122.279 1534.65 -453.831 1362.62C-1029.94 1190.58 -1410.64 762.061 -1304.14 405.498Z" fill="url(#paint0_radial_apply_ultra)"/>
+                    <defs>
+                        <radialGradient id="paint0_radial_apply_ultra" cx="0" cy="0" r="1" gradientTransform="matrix(192.831 -645.616 1043.14 311.502 -261 717)" gradientUnits="userSpaceOnUse">
+                            <stop stopColor="#2C58FD"/>
+                            <stop offset="1" stopColor="#1A3597" stopOpacity="0"/>
+                        </radialGradient>
+                    </defs>
+                </svg>
             </div>
 
-            {/* Chat Area */}
-            <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px 80px' }}>
+            {/* Header com Progresso - Transparente para unificar fundo */}
+            <header style={{ 
+                background: 'transparent', 
+                backdropFilter: 'blur(10px)',
+                padding: isMobile ? '20px 24px 10px' : '40px 24px 20px',
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                textAlign: 'center'
+            }}>
+                <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+                    <h1 style={{ 
+                        fontSize: '36px', 
+                        fontWeight: 700, 
+                        margin: '0 0 8px', 
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        letterSpacing: '-0.02em',
+                        color: '#ffffff'
+                    }}>
+                        Candidate-se à Vaga
+                    </h1>
+                    <p style={{ 
+                        color: '#2C58FD', 
+                        fontSize: '16px', 
+                        fontWeight: 600, 
+                        marginBottom: isMobile ? '16px' : '24px',
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                    }}>
+                        {job.title}
+                    </p>
+                    
+                    <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}>
+                        <ProgressBar step={step + 1} total={totalSteps} labels={stepLabels} />
+                    </div>
+                </div>
+            </header>
+
+            {/* Auto-resize Effect */}
+            <AutoResizeEffect step={step} contentVisible={contentVisible} customAnswers={customAnswers} containerRef={containerRef} />
+
+            <main 
+                ref={containerRef}
+                style={{ 
+                    maxWidth: '640px', 
+                    margin: '0 auto', 
+                    padding: isMobile ? '0px 24px 120px' : '10px 24px 120px',
+                    position: 'relative',
+                    zIndex: 1,
+                    fontFamily: "'Inter', sans-serif",
+                    color: '#C3C7CD'
+                }}
+            >
 
                 {showTyping && (
                     <div style={{ marginTop: 24, animation: 'fadeSlideDown 0.3s ease-out' }}>
@@ -906,7 +1097,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
 
                         {/* Bot Message */}
                         {msg && (
-                            <div style={{ marginBottom: 32 }}>
+                            <div style={{ marginBottom: 16 }}>
                                 <MessageBubble text={msg.bubble} />
                             </div>
                         )}
@@ -927,7 +1118,28 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         onKeyDown={e => e.key === 'Enter' && canAdvanceStep0 && goToNextStep()}
                                     />
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                    <button 
+                                        className="wizard-btn-ghost" 
+                                        onClick={() => navigate(`/v/${hash}`)}
+                                        style={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '8px',
+                                            color: '#ef4444',
+                                            borderColor: 'rgba(239, 68, 68, 0.2)'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                                        }}
+                                    >
+                                        <ArrowLeft size={14} /> Voltar para a vaga
+                                    </button>
                                     <button
                                         className="wizard-btn-primary"
                                         disabled={!canAdvanceStep0}
@@ -1033,7 +1245,11 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                             type="text" 
                                             placeholder="Idade" 
                                             value={formData.age} 
-                                            onChange={e => setFormData(p => ({ ...p, age: e.target.value }))} 
+                                            onChange={e => {
+                                                let val = e.target.value.replace(/\D/g, '');
+                                                if (val.length > 2) val = val.slice(0, 2);
+                                                setFormData(p => ({ ...p, age: val }));
+                                            }} 
                                         />
                                     </div>
                                     <div style={{ position: 'relative' }} ref={genderRef}>
@@ -1105,6 +1321,11 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         placeholder="Endereço (Rua, Av...) *" 
                                         value={formData.address} 
                                         onChange={e => setFormData(p => ({ ...p, address: e.target.value }))} 
+                                        readOnly={!!formData.address}
+                                        style={{ 
+                                            background: formData.address ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)', 
+                                            color: formData.address ? '#94a3b8' : '#f1f5f9' 
+                                        }}
                                     />
                                 </div>
 
@@ -1115,7 +1336,10 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                             type="text" 
                                             placeholder="Número *" 
                                             value={formData.addressNumber} 
-                                            onChange={e => setFormData(p => ({ ...p, addressNumber: e.target.value }))} 
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                setFormData(p => ({ ...p, addressNumber: val }));
+                                            }} 
                                         />
                                     </div>
                                     <div style={{ position: 'relative' }}>
@@ -1137,8 +1361,12 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     <input className="wizard-input" style={{ paddingLeft: 46 }} type="url" placeholder="Link do seu portfólio (opcional)" value={formData.portfolio} onChange={e => setFormData(p => ({ ...p, portfolio: e.target.value }))} />
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
-                                    <button className="wizard-btn-ghost" onClick={() => { setStep(0); triggerStepReveal(); }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                    <button 
+                                        className="wizard-btn-ghost" 
+                                        onClick={() => { setStep(0); triggerStepReveal(); }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
                                     <button className="wizard-btn-primary" disabled={!canAdvanceStep1} onClick={goToNextStep}>
@@ -1164,7 +1392,25 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                             )}
 
                                             {q.type === 'paragraph' && (
-                                                <textarea className="wizard-input" placeholder="Sua resposta detalhada..." rows={4} value={customAnswers[q.id] || ''} onChange={e => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))} style={{ resize: 'vertical', lineHeight: '1.6', paddingTop: 12, paddingBottom: 12 }} />
+                                                <textarea 
+                                                    className="wizard-input hide-scrollbar" 
+                                                    placeholder="Sua resposta detalhada..." 
+                                                    rows={1} 
+                                                    value={customAnswers[q.id] || ''} 
+                                                    onChange={e => {
+                                                        setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }));
+                                                        e.target.style.height = 'auto';
+                                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                                    }} 
+                                                    style={{ 
+                                                        resize: 'none', 
+                                                        lineHeight: '1.6', 
+                                                        paddingTop: 12, 
+                                                        paddingBottom: 12,
+                                                        overflow: 'hidden',
+                                                        minHeight: '52px'
+                                                    }} 
+                                                />
                                             )}
 
                                             {q.type === 'choice' && (
@@ -1184,7 +1430,25 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                                     {q.hasComplementary && (!q.complementaryTrigger || customAnswers[q.id] === q.complementaryTrigger) && (
                                                         <div style={{ marginTop: 8, animation: 'fadeSlideUp 0.3s ease-out' }}>
                                                             <label style={{ display: 'block', color: '#6366f1', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{q.complementaryLabel || 'Pode detalhar?'}</label>
-                                                            <textarea className="wizard-input" rows={2} placeholder="Digite aqui..." value={customAnswers[`${q.id}_extra`] || ''} onChange={e => setCustomAnswers(p => ({ ...p, [`${q.id}_extra`]: e.target.value }))} style={{ resize: 'vertical', lineHeight: '1.6', paddingTop: 10, paddingBottom: 10 }} />
+                                                            <textarea 
+                                                                className="wizard-input hide-scrollbar" 
+                                                                rows={1} 
+                                                                placeholder="Digite aqui..." 
+                                                                value={customAnswers[`${q.id}_extra`] || ''} 
+                                                                onChange={e => {
+                                                                    setCustomAnswers(p => ({ ...p, [`${q.id}_extra`]: e.target.value }));
+                                                                    e.target.style.height = 'auto';
+                                                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                                                }} 
+                                                                style={{ 
+                                                                    resize: 'none', 
+                                                                    lineHeight: '1.6', 
+                                                                    paddingTop: 10, 
+                                                                    paddingBottom: 10,
+                                                                    overflow: 'hidden',
+                                                                    minHeight: '44px'
+                                                                }} 
+                                                            />
                                                         </div>
                                                     )}
                                                 </div>
@@ -1193,7 +1457,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     );
                                 })}
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(1); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
@@ -1267,7 +1531,11 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         className="wizard-btn-primary"
                                         disabled={!resumeFile || submitting || !termsAccepted}
                                         onClick={handleSubmit}
-                                        style={{ background: submitting ? '#64748b' : `linear-gradient(135deg, ${primaryColor}, ${gradientEnd})` }}
+                                        style={{ 
+                                            background: submitting ? '#64748b' : '#2C58FD',
+                                            width: isMobile ? '100%' : 'auto',
+                                            justifyContent: 'center'
+                                        }}
                                     >
                                         {submitting ? (
                                             <>
@@ -1287,7 +1555,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 <p style={{ textAlign: 'center', color: '#334155', fontSize: 12, marginTop: 40 }}>
                     Etapa {step + 1} de {totalSteps}
                 </p>
-            </div>
+            </main>
             
             {/* LGPD Modal */}
             {showLGPD && (
@@ -1317,11 +1585,9 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                         </div>
                         <div style={{ padding: '20px 24px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end' }}>
                             <button 
+                                className="wizard-btn-primary"
                                 onClick={() => setShowLGPD(false)}
-                                style={{
-                                    background: '#6366f1', color: '#fff', border: 'none', padding: '10px 24px',
-                                    borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                                }}
+                                style={{ padding: '10px 24px', fontSize: '14px' }}
                             >
                                 Entendi e Fechar
                             </button>

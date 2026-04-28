@@ -3,7 +3,8 @@
 Este arquivo serve como índice para os registros diários de atividades localizados na pasta `docs/logs/`.
 
 ## Logs Diários
-- [2026-04-27 (Hoje)](file:///d:/Projetos/IA%20RH/docs/logs/2026-04-27.md) - Gênero/Idade, Telefone Internacional Premium, Ajustes UI e Correções Build CI.
+- [2026-04-28 (Hoje)](file:///c:/Users/thiag/OneDrive/%C3%81rea%20de%20Trabalho/n8n/Anti/ia_rh_usabit/docs/logs/2026-04-28.md) - Otimização de Temas, Custom Dropdowns e E-mail Automático (Resend/Edge Functions).
+- [2026-04-27](file:///c:/Users/thiag/OneDrive/%C3%81rea%20de%20Trabalho/n8n/Anti/ia_rh_usabit/docs/logs/2026-04-27.md) - Gênero/Idade, Telefone Internacional Premium, Ajustes UI e Correções Build CI.
 - [2026-04-17](file:///d:/Projetos/IA%20RH/docs/logs/2026-04-17.md) - Protocolo de Testes, Branding RPO, Fix Alinhamento e IA de Scoring.
 
 ---
