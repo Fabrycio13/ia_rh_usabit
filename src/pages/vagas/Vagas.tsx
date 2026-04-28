@@ -72,6 +72,10 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [vagaToDelete, setVagaToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    
+    // Paginação
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // States for Pipeline Deletion Confirmation
     const [pipelineDeleteModalOpen, setPipelineDeleteModalOpen] = useState(false);
@@ -356,7 +360,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             (vaga.contract_type || '').toLowerCase().includes(searchUpper);
 
         // 2. Filtro por Organização (Owner only)
-        // Se selecionado, filtra pelo ID. Se não selecionado ("Todas"), mostra todas.
         const matchesOrg = !selectedOrgId || vaga.organization_id === selectedOrgId;
 
         // 3. Filtro por Status
@@ -373,6 +376,14 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
         return matchesSearch && matchesOrg && matchesRole && matchesStatus && matchesStart && matchesEnd;
     });
+
+    // Reset pagination on filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedOrgId, selectedStatusFilter, selectedRoleFilter, startDate, endDate]);
+
+    const totalPages = Math.ceil(filteredVagas.length / itemsPerPage);
+    const paginatedVagas = filteredVagas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     // Lista de cargos únicos para o filtro
     const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
@@ -657,7 +668,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         </div>
 
                         {/* Table Rows */}
-                        {filteredVagas.map((vaga) => {
+                        {paginatedVagas.map((vaga) => {
                             const currentStatus = getStatusFromVaga(vaga);
                             const statusConfig = getStatusConfig(currentStatus);
                             const isStatusOpen = openStatusId === vaga.id;
@@ -905,6 +916,101 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Paginação UI */}
+                {!loading && filteredVagas.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '16px 24px',
+                        borderTop: '1px solid var(--border)',
+                        background: 'rgba(0,0,0,0.02)',
+                        color: 'var(--text-muted)',
+                        fontSize: '13px'
+                    }}>
+                        <div>
+                            Mostrando <strong>{Math.min(filteredVagas.length, (currentPage - 1) * itemsPerPage + 1)}</strong>-
+                            <strong>{Math.min(filteredVagas.length, currentPage * itemsPerPage)}</strong> de <strong>{filteredVagas.length}</strong> vagas
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--bg-card)',
+                                    color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-main)',
+                                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    opacity: currentPage === 1 ? 0.5 : 1,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Anterior
+                            </button>
+
+                            {[...Array(totalPages)].map((_, i) => {
+                                const page = i + 1;
+                                // Mostrar apenas algumas páginas se houver muitas
+                                if (totalPages > 7) {
+                                    if (page !== 1 && page !== totalPages && (page < currentPage - 1 || page > currentPage + 1)) {
+                                        if (page === currentPage - 2 || page === currentPage + 2) return <span key={page}>...</span>;
+                                        return null;
+                                    }
+                                }
+                                
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            borderRadius: '6px',
+                                            border: '1px solid',
+                                            borderColor: currentPage === page ? 'var(--primary)' : 'var(--border)',
+                                            background: currentPage === page ? 'var(--primary)' : 'var(--bg-card)',
+                                            color: currentPage === page ? '#fff' : 'var(--text-main)',
+                                            cursor: 'pointer',
+                                            fontSize: '12px',
+                                            fontWeight: 600,
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            })}
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--bg-card)',
+                                    color: currentPage === totalPages ? 'var(--text-muted)' : 'var(--text-main)',
+                                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    opacity: currentPage === totalPages ? 0.5 : 1,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Próximo
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
