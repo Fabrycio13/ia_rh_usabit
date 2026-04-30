@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, FileText
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, FileText
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
