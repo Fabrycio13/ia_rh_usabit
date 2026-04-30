@@ -44,7 +44,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         candidatos_edit: true,
         pipeline: true,
         pipeline_edit: true,
-        chat: false,
+        chat: true,
         admin: true,   // painel de gerenciamento da sua própria org
         logs: true,
     },
@@ -60,7 +60,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         candidatos_edit: true,
         pipeline: true,
         pipeline_edit: true,
-        chat: false,
+        chat: true,
         admin: false,
         logs: false,
     },

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
     Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
-    ChevronLeft
+    ChevronLeft, FileText
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -25,7 +25,8 @@ export function CandidatePanel({
     onRemoveCard,
     onFieldChange,
     onBlacklistChange,
-    onTransferSuccess
+    onTransferSuccess,
+    currentJobContext
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -36,6 +37,7 @@ export function CandidatePanel({
     onFieldChange: (id: string, field: string, val: any) => void;
     onBlacklistChange: (id: string, val: boolean) => void;
     onTransferSuccess?: () => void;
+    currentJobContext?: { id: string; title: string };
 }) {
     const skillsList = parseSkills(c.skills);
 
@@ -189,11 +191,11 @@ export function CandidatePanel({
 
     useEffect(() => {
         async function loadPipelines() {
-            if (!profile.userId) return;
+            if (!profile.organization_id) return;
             const { data, error } = await supabase
                 .from('pipelines')
                 .select('id, name')
-                .eq('user_id', profile.userId)
+                .eq('organization_id', profile.organization_id)
                 .order('created_at', { ascending: true });
             if (!error && data) {
                 setPipelines(data);
@@ -201,7 +203,7 @@ export function CandidatePanel({
             setFetchingPipelines(false);
         }
         loadPipelines();
-    }, [profile.userId]);
+    }, [profile.organization_id]);
 
     async function handleToggleEligible(jobInfo?: { jobId: string; jobName: string; score: number }, pipelineId?: string) {
         if (togglingEligible) return;
@@ -252,7 +254,7 @@ export function CandidatePanel({
     }
 
     const [expandedJob, setExpandedJob] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>('triagem');
+    const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
     const [vagasOpen, setVagasOpen] = useState(true);
 
     const [screeningLogs, setScreeningLogs] = useState<any[]>([]);
@@ -283,9 +285,30 @@ export function CandidatePanel({
 
     async function persistComments(updated: Comment[]) {
         const json = JSON.stringify(updated);
-        const { error } = await supabase.from('candidates').update({ notes: json }).eq('id', c.id);
-        if (!error) onNotesChange(c.id, json);
-        return !error;
+        
+        // Tenta primeiro na tabela candidates (Banco de Talentos)
+        const { error: candError, data: candData } = await supabase
+            .from('candidates')
+            .update({ notes: json })
+            .eq('id', c.id)
+            .select('id');
+
+        // Se não encontrou no banco (candData vazio ou erro), tenta na tabela de candidaturas (Vagas)
+        if (candError || !candData || candData.length === 0) {
+            const { error: appError } = await supabase
+                .from('vagas_candidaturas')
+                .update({ internal_notes: json })
+                .eq('id', c.id);
+            
+            if (!appError) {
+                onNotesChange(c.id, json);
+                return true;
+            }
+            return false;
+        }
+
+        if (!candError) onNotesChange(c.id, json);
+        return !candError;
     }
 
     async function handleAddComment() {
@@ -428,21 +451,44 @@ export function CandidatePanel({
                                 </div>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                            <button
-                                onClick={toggleBlacklist}
-                                title={c.is_blacklisted ? "Remover da Blacklist" : "Adicionar à Blacklist"}
-                                style={{
-                                    background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'var(--bg-main)',
-                                    border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
-                                    borderRadius: 10, padding: 8, cursor: 'pointer',
-                                    color: c.is_blacklisted ? '#ef4444' : 'var(--text-dim)',
-                                    transition: 'all 0.2s',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}
-                            >
-                                <Ban size={16} />
-                            </button>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                            {c.resume_url && (
+                                <button
+                                    onClick={() => handleViewResume(c.resume_url)}
+                                    title="Ver currículo"
+                                    style={{
+                                        background: 'rgba(99,102,241,0.1)',
+                                        border: '1px solid rgba(99,102,241,0.2)',
+                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        color: 'var(--primary)',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        marginRight: 4
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'; }}
+                                >
+                                    <FileText size={16} />
+                                    Currículo
+                                </button>
+                            )}
+                            {!c.isVagaView && (
+                                <button
+                                    onClick={toggleBlacklist}
+                                    title={c.is_blacklisted ? "Remover da Blacklist" : "Adicionar à Blacklist"}
+                                    style={{
+                                        background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'var(--bg-main)',
+                                        border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
+                                        borderRadius: 10, padding: 8, cursor: 'pointer',
+                                        color: c.is_blacklisted ? '#ef4444' : 'var(--text-dim)',
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                >
+                                    <Ban size={16} />
+                                </button>
+                            )}
                             <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', flexShrink: 0 }}><X size={16} /></button>
                         </div>
                     </div>
@@ -532,284 +578,257 @@ export function CandidatePanel({
                                 ))}
                             </div>
                         </section>
+                        
+                        {c.isVagaView && (
+                            <>
+                                {/* Habilidades (Mover para cima) */}
+                                {skillsList.length > 0 && (
+                                    <section>
+                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            {skillsList.map((s, i) => (
+                                                <span key={i} style={{
+                                                    background: 'rgba(99, 102, 241, 0.15)',
+                                                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                                                    borderRadius: 8,
+                                                    padding: '5px 14px',
+                                                    fontSize: 12,
+                                                    color: 'var(--text-main)',
+                                                    fontWeight: 600,
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                                }}>{s}</span>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
 
-                        {/* Pipeline Section (Redesigned) */}
-                        <section style={{ 
-                            border: '1px solid var(--border)', 
-                            borderRadius: 20, 
-                            padding: 24, 
-                            background: c.is_blacklisted ? 'rgba(239,68,68,0.02)' : 'rgba(255,255,255,0.03)', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            gap: 20,
-                            opacity: c.is_blacklisted ? 0.8 : 1,
-                            transition: 'all 0.3s',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                {/* Respostas Adicionais (Mover para cima do Feedback) */}
+                                {c.answers && Object.entries(c.answers).filter(([key]) => 
+                                    !key.startsWith('_') && 
+                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                ).length > 0 && (
+                                    <section style={{ 
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: 20, 
+                                        padding: 24, 
+                                        background: 'rgba(255,255,255,0.02)', 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        gap: 16
+                                    }}>
+                                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <ClipboardList size={16} /> Respostas Adicionais
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                            {Object.entries(c.answers)
+                                                .filter(([key]) => !key.startsWith('_') && !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .map(([key, value]) => {
+                                                    const questionLabel = (c as any).questionLabels?.[key] || key.replace(/_/g, ' ');
+                                                    return (
+                                                        <div key={key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 12 }}>
+                                                            <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.03em' }}>
+                                                                {questionLabel}
+                                                            </p>
+                                                            <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, fontWeight: 500 }}>
+                                                                {typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : (value || '-')}
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    </section>
+                                )}
+
+                                {/* Feedback da IA */}
+                                <section style={{ 
+                                    border: '1px solid rgba(99, 102, 241, 0.2)', 
+                                    borderRadius: 20, 
+                                    padding: 24, 
+                                    background: 'rgba(99, 102, 241, 0.03)', 
+                                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 20
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', margin: '0', display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <Zap size={16} fill="var(--primary)" /> Feedback da IA
+                                        </p>
+                                        {c.score !== null && c.score !== undefined && (
+                                            <div style={{ 
+                                                background: scoreColor(c.score), 
+                                                color: '#fff', 
+                                                padding: '4px 12px', 
+                                                borderRadius: '12px', 
+                                                fontSize: '14px', 
+                                                fontWeight: 800,
+                                                boxShadow: `0 4px 12px ${scoreColor(c.score)}44`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4
+                                            }}>
+                                                <span style={{ fontSize: 10, opacity: 0.9, fontWeight: 700 }}>SCORE:</span>
+                                                {c.score}%
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Análise da Nota */}
+                                    {(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis) && (
+                                        <div>
+                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Pontos Positivos */}
+                                    {(c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points) && (
+                                        <div style={{ borderTop: '1px solid rgba(34, 197, 94, 0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos Positivos do Currículo</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {Array.isArray(c.analysis?.strengths) ? c.analysis.strengths.join('\n') : (c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points)}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Pontos de Atenção / Negativos */}
+                                    {(c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps) && (
+                                        <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {Array.isArray(c.analysis?.gaps) ? c.analysis.gaps.join('\n') : (c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </section>
+                            </>
+                        )}
+
+
+
+                        {!c.isVagaView && (
+                            <section style={{ 
+                                border: `1px solid ${chatActive ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`, 
+                                borderRadius: 16, 
+                                padding: '16px 20px', 
+                                background: chatActive ? 'rgba(34,197,94,0.03)' : 'rgba(99,102,241,0.02)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between', 
+                                gap: 14,
+                                transition: 'all 0.3s'
+                            }}>
                                 <div>
-                                    <p style={{ fontSize: 13, fontWeight: 700, color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        {c.is_blacklisted && <Ban size={14} />} Pipeline de Recrutamento
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: chatActive ? '#22c55e' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Phone size={14} color={chatActive ? '#22c55e' : 'var(--text-dim)'} /> 
+                                        CONVERSA WHATSAPP
                                     </p>
-                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.5 }}>
+                                    <p style={{ 
+                                        fontSize: 12, 
+                                        color: phoneError ? '#ef4444' : (chatActive ? '#22c55e' : 'var(--text-dim)'), 
+                                        fontWeight: chatActive ? 700 : 400,
+                                        margin: 0, 
+                                        maxWidth: '300px' 
+                                    }}>
+                                        {phoneError || (chatActive 
+                                            ? 'Chat habilitado ! ✅' 
+                                            : 'Habilite o candidato para iniciar conversas em tempo real via Chat.'
+                                        )}
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={chatActive ? handleDeactivateChat : handleActivateChat}
+                                    disabled={activatingChat}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        background: chatActive ? 'rgba(239,68,68,0.05)' : 'transparent',
+                                        border: `1px solid ${chatActive ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
+                                        borderRadius: 12, padding: '10px 20px',
+                                        color: chatActive ? '#ef4444' : 'var(--text-dim)',
+                                        fontSize: 13, fontWeight: 700,
+                                        cursor: activatingChat ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (chatActive) {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+                                            e.currentTarget.style.borderColor = '#ef4444';
+                                        } else if (!activatingChat) {
+                                            e.currentTarget.style.background = 'rgba(99,102,241,0.05)';
+                                            e.currentTarget.style.borderColor = 'var(--primary)';
+                                            e.currentTarget.style.color = 'var(--primary)';
+                                        }
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (chatActive) {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
+                                        } else if (!activatingChat) {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'var(--border)';
+                                            e.currentTarget.style.color = 'var(--text-dim)';
+                                        }
+                                    }}
+                                >
+                                    {activatingChat ? <Loader size={16} className="spin" /> : (chatActive ? <X size={15} /> : <Zap size={15} />)}
+                                    {chatActive ? 'Desativar Chat' : 'Habilitar Chat'}
+                                </button>
+                            </section>
+                        )}
+
+                        {!c.isVagaView && (
+                            <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+                                <div>
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Ban size={14} /> Lista de Restrição (Blacklist)
+                                    </p>
+                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, maxWidth: '300px' }}>
                                         {c.is_blacklisted 
-                                            ? 'Ações bloqueadas devido à restrição do candidato.' 
-                                            : 'Vincule o candidato a um processo seletivo ativo para iniciar a triagem.'
+                                            ? 'Candidato restrito. Remova da lista para voltar a considerá-lo.' 
+                                            : 'Sinalize candidatos que não devem ser considerados para futuras oportunidades.'
                                         }
                                     </p>
                                 </div>
-                                {inclusionStep === 'initial' && !c.is_blacklisted && (
-                                    <button
-                                        onClick={() => handleToggleEligible()}
-                                        disabled={togglingEligible || availableJobs.length === 0 || fetchingPipelines}
-                                        style={{
-                                            display: 'flex', alignItems: 'center', gap: 8,
-                                            background: (availableJobs.length === 0 ? 'rgba(34,197,94,0.12)' : 'var(--primary)'),
-                                            border: `1px solid ${(availableJobs.length === 0 ? '#22c55e' : 'var(--primary)')}`,
-                                            borderRadius: 14, padding: '12px 24px',
-                                            color: (availableJobs.length === 0 ? '#22c55e' : '#fff'),
-                                            fontSize: 14, fontWeight: 700,
-                                            cursor: (togglingEligible || availableJobs.length === 0 || fetchingPipelines) ? 'not-allowed' : 'pointer',
-                                            transition: 'all 0.2s', whiteSpace: 'nowrap',
-                                            boxShadow: availableJobs.length === 0 ? 'none' : '0 8px 16px rgba(99,102,241,0.25)',
-                                        }}
-                                        onMouseEnter={e => { if (!togglingEligible && availableJobs.length > 0) e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                                        onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                                    >
-                                        <Zap size={15} fill={availableJobs.length === 0 ? '#22c55e' : 'none'} />
-                                        {availableJobs.length === 0 ? 'Todas as vagas vinculadas' : 'Adicionar ao Pipeline'}
-                                    </button>
-                                )}
-                            </div>
+                                <button
+                                    onClick={toggleBlacklist}
+                                    disabled={togglingBlacklist}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'transparent',
+                                        border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
+                                        borderRadius: 12, padding: '10px 20px',
+                                        color: c.is_blacklisted ? '#ef4444' : 'var(--text-dim)',
+                                        fontSize: 13, fontWeight: 700,
+                                        cursor: togglingBlacklist ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (!c.is_blacklisted) {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                                            e.currentTarget.style.borderColor = '#ef4444';
+                                            e.currentTarget.style.color = '#ef4444';
+                                        }
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (!c.is_blacklisted) {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'var(--border)';
+                                            e.currentTarget.style.color = 'var(--text-dim)';
+                                        }
+                                    }}
+                                >
+                                    {togglingBlacklist ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={14} />}
+                                    {c.is_blacklisted ? 'Remover da Lista' : 'Restringir Candidato'}
+                                </button>
+                            </section>
+                        )}
 
-                            {/* Step Selectors */}
-                            {!c.is_blacklisted && (
-                                <>
-                                    {inclusionStep === 'job' && (
-                                        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 16, padding: 16, border: '1px solid var(--border)' }}>
-                                            <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>1. Escolha a Análise/Vaga:</p>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                                {availableJobs.map(app => (
-                                                    <button
-                                                        key={app.jobId}
-                                                        onClick={() => handleToggleEligible(app)}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                            padding: '12px 16px', borderRadius: 12, background: 'var(--bg-card)',
-                                                            border: '1px solid var(--border)', cursor: 'pointer', transition: 'all 0.15s',
-                                                            textAlign: 'left'
-                                                        }}
-                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
-                                                    >
-                                                        <div style={{ minWidth: 0 }}>
-                                                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 2px' }}>{app.jobName}</p>
-                                                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Analisado em {formatDate(app.appliedAt)}</span>
-                                                        </div>
-                                                        <span style={{ background: scoreColor(app.score), color: '#fff', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 800 }}>{app.score}% match</span>
-                                                    </button>
-                                                ))}
-                                                <button onClick={() => setInclusionStep('initial')} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', marginTop: 8, alignSelf: 'center', fontWeight: 600 }}>Cancelar</button>
-                                            </div>
-                                        </div>
-                                    )}
 
-                                    {inclusionStep === 'pipeline' && (
-                                        <div style={{ background: 'rgba(99,102,241,0.05)', borderRadius: 16, padding: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
-                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>2. Selecione o Processo Seletivo (Pipeline):</p>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                                {pipelines.map(p => (
-                                                    <button
-                                                        key={p.id}
-                                                        onClick={() => handleToggleEligible(pendingJob!, p.id)}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                            padding: '12px 16px', borderRadius: 12, background: 'var(--bg-card)',
-                                                            border: '1px solid var(--border)', cursor: 'pointer', transition: 'all 0.15s',
-                                                            textAlign: 'left', fontSize: 14, fontWeight: 600, color: 'var(--text-main)'
-                                                        }}
-                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.1)'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
-                                                    >
-                                                        {p.name}
-                                                    </button>
-                                                ))}
-                                                <button onClick={() => setInclusionStep('job')} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', marginTop: 8, alignSelf: 'center', fontWeight: 600 }}>Voltar para Vagas</button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
 
-                            {fetchingPipelines && inclusionStep === 'initial' && !c.is_blacklisted && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-dim)', padding: '0 4px' }}>
-                                    <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> Carregando processos disponíveis…
-                                </div>
-                            )}
-
-                            {c.pipelineCards && c.pipelineCards.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-                                    <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vagas Ativas no Kanban:</p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        {c.pipelineCards.map(pc => (
-                                            <div 
-                                                key={pc.id} 
-                                                style={{ 
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                                                    padding: '16px 20px', 
-                                                    background: 'rgba(34,197,94,0.04)', 
-                                                    border: '1px solid rgba(34,197,94,0.2)', 
-                                                    borderRadius: 16,
-                                                    transition: 'all 0.2s'
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                        <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>{pc.jobName || 'Vaga'}</p>
-                                                        {pc.pipelineName && (
-                                                            <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', padding: '2px 8px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)' }}>
-                                                                {pc.pipelineName}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {pc.score != null && <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 700 }}>{pc.score}% match</span>}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Remover este candidato do processo seletivo?')) {
-                                                            onRemoveCard(pc.id, c.id);
-                                                        }
-                                                    }}
-                                                    style={{ background: 'none', border: 'none', color: 'rgba(239,68,68,0.7)', cursor: 'pointer', padding: 8, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700, transition: 'all 0.2s' }}
-                                                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(239,68,68,0.7)'}
-                                                >
-                                                    <X size={16} /> Remover
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </section>
-
-                        {/* WhatsApp Integration Section */}
-                        <section style={{ 
-                            border: `1px solid ${chatActive ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`, 
-                            borderRadius: 16, 
-                            padding: '16px 20px', 
-                            background: chatActive ? 'rgba(34,197,94,0.03)' : 'rgba(99,102,241,0.02)', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between', 
-                            gap: 14,
-                            transition: 'all 0.3s'
-                        }}>
-                            <div>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: chatActive ? '#22c55e' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Phone size={14} color={chatActive ? '#22c55e' : 'var(--text-dim)'} /> 
-                                    CONVERSA WHATSAPP
-                                </p>
-                                <p style={{ 
-                                    fontSize: 12, 
-                                    color: phoneError ? '#ef4444' : (chatActive ? '#22c55e' : 'var(--text-dim)'), 
-                                    fontWeight: chatActive ? 700 : 400,
-                                    margin: 0, 
-                                    maxWidth: '300px' 
-                                }}>
-                                    {phoneError || (chatActive 
-                                        ? 'Chat habilitado ! ✅' 
-                                        : 'Habilite o candidato para iniciar conversas em tempo real via Chat.'
-                                    )}
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={chatActive ? handleDeactivateChat : handleActivateChat}
-                                disabled={activatingChat}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: chatActive ? 'rgba(239,68,68,0.05)' : 'transparent',
-                                    border: `1px solid ${chatActive ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
-                                    borderRadius: 12, padding: '10px 20px',
-                                    color: chatActive ? '#ef4444' : 'var(--text-dim)',
-                                    fontSize: 13, fontWeight: 700,
-                                    cursor: activatingChat ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s', whiteSpace: 'nowrap',
-                                }}
-                                onMouseEnter={e => {
-                                    if (chatActive) {
-                                        e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
-                                        e.currentTarget.style.borderColor = '#ef4444';
-                                    } else if (!activatingChat) {
-                                        e.currentTarget.style.background = 'rgba(99,102,241,0.05)';
-                                        e.currentTarget.style.borderColor = 'var(--primary)';
-                                        e.currentTarget.style.color = 'var(--primary)';
-                                    }
-                                }}
-                                onMouseLeave={e => {
-                                    if (chatActive) {
-                                        e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
-                                        e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
-                                    } else if (!activatingChat) {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                        e.currentTarget.style.color = 'var(--text-dim)';
-                                    }
-                                }}
-                            >
-                                {activatingChat ? <Loader size={16} className="spin" /> : (chatActive ? <X size={15} /> : <Zap size={15} />)}
-                                {chatActive ? 'Desativar Chat' : 'Habilitar Chat'}
-                            </button>
-                        </section>
-
-                        {/* Blacklist Section */}
-                        <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
-                            <div>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Ban size={14} /> Lista de Restrição (Blacklist)
-                                </p>
-                                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, maxWidth: '300px' }}>
-                                    {c.is_blacklisted 
-                                        ? 'Candidato restrito. Remova da lista para voltar a considerá-lo.' 
-                                        : 'Sinalize candidatos que não devem ser considerados para futuras oportunidades.'
-                                    }
-                                </p>
-                            </div>
-                            <button
-                                onClick={toggleBlacklist}
-                                disabled={togglingBlacklist}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'transparent',
-                                    border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
-                                    borderRadius: 12, padding: '10px 20px',
-                                    color: c.is_blacklisted ? '#ef4444' : 'var(--text-dim)',
-                                    fontSize: 13, fontWeight: 700,
-                                    cursor: togglingBlacklist ? 'not-allowed' : 'pointer',
-                                    transition: 'all 0.2s', whiteSpace: 'nowrap',
-                                }}
-                                onMouseEnter={e => {
-                                    if (!c.is_blacklisted) {
-                                        e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
-                                        e.currentTarget.style.borderColor = '#ef4444';
-                                        e.currentTarget.style.color = '#ef4444';
-                                    }
-                                }}
-                                onMouseLeave={e => {
-                                    if (!c.is_blacklisted) {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.borderColor = 'var(--border)';
-                                        e.currentTarget.style.color = 'var(--text-dim)';
-                                    }
-                                }}
-                            >
-                                {togglingBlacklist ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={14} />}
-                                {c.is_blacklisted ? 'Remover da Lista' : 'Restringir Candidato'}
-                            </button>
-                        </section>
-
-                        {skillsList.length > 0 && (
+                        {!c.isVagaView && skillsList.length > 0 && (
                             <section>
                                 <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -831,20 +850,27 @@ export function CandidatePanel({
 
                         {/* ─── Tabs: Vagas Aplicadas | Triagem | Comentários ────────────── */}
                         <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 16, background: 'var(--bg-main)', borderRadius: 12, padding: 4 }}>
-                                <button onClick={() => setActiveTab('vagas')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'vagas' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'vagas' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'vagas' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
-                                    <Briefcase size={12} />
-                                    Vagas {c.applications.length > 0 && <span style={{ background: activeTab === 'vagas' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'vagas' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{c.applications.length}</span>}
-                                </button>
-                                <button onClick={() => setActiveTab('triagem')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'triagem' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'triagem' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'triagem' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
-                                    <Activity size={12} />
-                                    Triagem
-                                </button>
-                                <button onClick={() => setActiveTab('comments')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'comments' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'comments' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'comments' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
-                                    <MessageSquare size={12} />
-                                    Notas {comments.length > 0 && <span style={{ background: activeTab === 'comments' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'comments' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{comments.length}</span>}
-                                </button>
-                            </div>
+                            {!c.isVagaView ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 16, background: 'var(--bg-main)', borderRadius: 12, padding: 4 }}>
+                                    <button onClick={() => setActiveTab('vagas')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'vagas' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'vagas' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'vagas' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <Briefcase size={12} />
+                                        Vagas {c.applications.length > 0 && <span style={{ background: activeTab === 'vagas' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'vagas' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{c.applications.length}</span>}
+                                    </button>
+                                    <button onClick={() => setActiveTab('triagem')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'triagem' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'triagem' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'triagem' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <Activity size={12} />
+                                        Triagem
+                                    </button>
+                                    <button onClick={() => setActiveTab('comments')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'comments' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'comments' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'comments' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <MessageSquare size={12} />
+                                        Notas {comments.length > 0 && <span style={{ background: activeTab === 'comments' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'comments' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{comments.length}</span>}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Notas do Recrutador</p>
+                                    {comments.length > 0 && <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{comments.length}</span>}
+                                </div>
+                            )}
 
                             {activeTab === 'vagas' && (
                                 <div>
@@ -860,22 +886,26 @@ export function CandidatePanel({
                                                     <div key={app.jobId} style={{ background: 'var(--bg-main)', border: `1px solid ${expandedJob === app.jobId ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden' }}>
                                                         <div onClick={() => setExpandedJob(expandedJob === app.jobId ? null : app.jobId)} style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
                                                             <div style={{ minWidth: 0, flex: 1 }}>
-                                                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.jobName}</p>
+                                                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                    {app.jobName}
+                                                                    {app.jobCode && <span style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>{app.jobCode}</span>}
+                                                                </p>
                                                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                                                     <span style={{ background: scoreColor(app.score), color: '#fff', borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{app.score}% match</span>
                                                                     <span style={{ fontSize: 11, color: '#64748b' }}>{formatDate(app.appliedAt)}</span>
                                                                 </div>
                                                             </div>
                                                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                                                {c.resume_url && (
+                                                                {(app.resume_url || c.resume_url) && (
                                                                     <button 
-                                                                        onClick={e => { e.stopPropagation(); handleViewResume(c.resume_url); }} 
-                                                                        title="Ver currículo"
-                                                                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--primary)', display: 'flex', transition: 'all 0.2s' }}
-                                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.background = 'rgba(99,102,241,0.05)'; }}
-                                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
+                                                                        onClick={e => { 
+                                                                            e.stopPropagation(); 
+                                                                            handleViewResume(app.resume_url || c.resume_url);
+                                                                        }} 
+                                                                        title="Ver currículo desta inscrição"
+                                                                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--primary)', display: 'flex' }}
                                                                     >
-                                                                        <ClipboardList size={14} />
+                                                                        <FileText size={14} />
                                                                     </button>
                                                                 )}
                                                                 <button onClick={e => { e.stopPropagation(); navigate(`/analise/${app.jobId}`); }} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><Eye size={14} /></button>
@@ -886,8 +916,14 @@ export function CandidatePanel({
                                                             <div style={{ borderTop: '1px solid var(--border)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                                                                 {(app.experience || c.experience) && (
                                                                     <div>
-                                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Experiência</p>
+                                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Análise da Nota</p>
                                                                         <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.experience || c.experience}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.positivePoints) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Pontos Positivos</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
                                                                     </div>
                                                                 )}
                                                                 {(app.education || c.education) && (
@@ -963,7 +999,7 @@ export function CandidatePanel({
                                                                 <div key={log.id} style={{ position: 'relative', paddingLeft: 24, paddingBottom: i === group.logs.length - 1 ? 0 : 20 }}>
                                                                     <div style={{ 
                                                                         position: 'absolute', left: -4, top: 2, width: 9, height: 9, borderRadius: '50%', 
-                                                                        background: i === 0 ? 'var(--primary)' : 'var(--bg-card)', 
+                                        background: i === 0 ? 'var(--primary)' : 'var(--bg-card)', 
                                                                         border: `2px solid ${i === 0 ? 'var(--primary)' : 'var(--border)'}`, 
                                                                         boxShadow: i === 0 ? '0 0 8px var(--primary)' : 'none' 
                                                                     }} />
@@ -1091,7 +1127,7 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                {!c.hideBankButton && (
+                {!c.hideBankButton && c.status !== 'talent_bank' && (
                     <div style={{ padding: '0 24px 32px' }}>
                         <button
                             onClick={() => setTransferringToBank(true)}
@@ -1142,11 +1178,13 @@ export function CandidatePanel({
                         complement: localC.complement,
                         resume_url: c.resume_url,
                         match_score: c.score || 0,
+                        notes: c.notes,
                         answers: { _ai_analysis: c.analysis }
                     }}
                     job={{
-                        id: c.applications[0]?.jobId || 'banco',
-                        title: c.applications[0]?.jobName || 'Banco de Talentos'
+                        id: currentJobContext?.id || c.applications[0]?.jobId || 'banco',
+                        title: currentJobContext?.title || c.applications[0]?.jobName || 'Banco de Talentos',
+                        organization_id: profile.organization_id
                     }}
                     onClose={() => setTransferringToBank(null as any)}
                     onSuccess={() => {

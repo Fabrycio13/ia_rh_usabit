@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
     AlertCircle, ArrowRight, Link,
-    UserRound, Calendar, ChevronDown
+    UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
@@ -249,7 +249,7 @@ const BotAvatar = () => (
         <img 
             src="/avatar-recrutador.png" 
             alt="Assistant"
-            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
         <div style={{ position: 'absolute', bottom: 1, right: 1, width: 13, height: 13, borderRadius: '50%', background: '#10b981', border: '2.5px solid #0f172a', boxShadow: '0 0 10px #10b981' }} />
     </div>
@@ -347,12 +347,12 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
                                 width: '40px',
                                 height: '40px',
                                 borderRadius: '50%',
-                                background: '#04070c',
+                                background: isCompleted ? '#2C58FD' : '#04070c',
                                 border: `2px solid ${isActive || isCompleted ? '#2C58FD' : 'rgba(255, 255, 255, 0.1)'}`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: isActive || isCompleted ? '#2C58FD' : 'rgba(255, 255, 255, 0.3)',
+                                color: isCompleted ? '#fff' : (isActive ? '#2C58FD' : 'rgba(255, 255, 255, 0.3)'),
                                 fontSize: '14px',
                                 fontWeight: 700,
                                 fontFamily: "'Space Grotesk', sans-serif",
@@ -360,7 +360,11 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
                                 marginBottom: '16px'
                             }}
                         >
-                            {i + 1}
+                            {isCompleted ? (
+                                <Check size={20} strokeWidth={3} />
+                            ) : (
+                                i + 1
+                            )}
                         </div>
                         <span style={{ 
                             fontSize: '12px', 
@@ -828,8 +832,10 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 } : null
             };
 
+            // 1. Salvar na tabela de candidaturas (vínculo com a vaga)
             const { error: err } = await supabase.from('vagas_candidaturas').insert({
                 vaga_id: job!.id,
+                organization_id: job!.organization_id, // Adicionado vínculo direto com a org
                 candidate_name: formData.name,
                 candidate_email: formData.email,
                 candidate_phone: formData.phone || null,
@@ -846,6 +852,31 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             });
             
             if (err) throw err;
+
+            // 2. UPSERT automático no Banco de Talentos (tabela candidates)
+            // Isso garante que o candidato já "nasça" no banco vinculado à organização
+            if (job!.organization_id) {
+                await supabase.from('candidates').upsert({
+                    email: formData.email,
+                    organization_id: job!.organization_id,
+                    name: formData.name,
+                    phone: formData.phone || null,
+                    location: formData.location || null,
+                    linkedin: formData.linkedin || null,
+                    resume_url: resumeUrl,
+                    gender: formData.gender || null,
+                    age: formData.age || null,
+                    address: formData.address || null,
+                    portfolio: formData.portfolio || null,
+                    cep: formData.cep || null,
+                    address_number: formData.addressNumber || null,
+                    complement: formData.complement || null,
+                    vaga_id: job!.id, // Vaga de origem
+                    status: 'active'
+                }, {
+                    onConflict: 'email,organization_id'
+                });
+            }
             setSubmitted(true);
 
             // Enviar e-mail de confirmação via Supabase Edge Function
@@ -1122,7 +1153,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                                     <button 
                                         className="wizard-btn-ghost" 
-                                        onClick={() => navigate(`/v/${hash}`)}
+                                        onClick={() => navigate(-1)}
                                         style={{ 
                                             display: 'flex', 
                                             alignItems: 'center', 

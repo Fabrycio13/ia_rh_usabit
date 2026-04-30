@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, FileText
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, FileText, Eye
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -323,7 +323,9 @@ export const CandidateBank = () => {
       ...c, 
       phone: null, skills: null, experience: null, education: null, 
       redFlags: null, applications: [], notes: null, enriched: false,
-      is_blacklisted: c.is_blacklisted ?? false
+      is_blacklisted: c.is_blacklisted ?? false,
+      hideBankButton: true,
+      status: 'talent_bank'
     } as CandidateDetail);
     enrichCandidate(c.id);
   }
@@ -332,18 +334,26 @@ export const CandidateBank = () => {
     try {
       const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
-        supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+        supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
         supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
-      const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+      const validJobIds = new Set();
+      (jcData ?? []).forEach((jc: any) => {
+        if (jc.job_id) validJobIds.add(jc.job_id);
+        if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+      });
+      console.log('[enrichCandidate] validJobIds:', Array.from(validJobIds));
 
       setSelected(prev => {
         if (!prev || prev.id !== id) return prev;
         const analysis = cd?.analysis ?? {};
         const rawHistory: any[] = analysis?.history ?? [];
-        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+        console.log('[enrichCandidate] rawHistory IDs:', rawHistory.map((h: any) => h.job_id));
+
+        const validHistory = rawHistory.filter((h: any) => h.job_id);
+        console.log('[enrichCandidate] validHistory count (unfiltered):', validHistory.length);
 
         const pipelineCards = (pipeData ?? []).map((pc: any) => {
           let jobName = undefined;
@@ -370,13 +380,16 @@ export const CandidateBank = () => {
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
           applications: validHistory.map((h: any) => ({
             jobId: h.job_id,
-            jobName: h.job_name,
-            score: h.score,
-            appliedAt: h.analyzed_at,
+            jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
+            jobCode: h.job_code || h.code || '',
+            score: h.score ?? h.match_score ?? 0,
+            appliedAt: h.analyzed_at || h.date || h.created_at,
             skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
             experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
+            positivePoints: toStr(h.positivePoints ?? h.pontos_positivos ?? h.analysis?.positivePoints ?? h.analysis?.pontos_positivos),
             education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-            redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
+            redFlags: toStr(h.redFlags ?? h.pontos_atencao ?? h.analysis?.redFlags ?? h.analysis?.pontos_atencao),
+            resume_url: h.resume_url || h.analysis?.resume_url
           })),
           pipelineCards,
           enriched: true,
@@ -531,7 +544,7 @@ export const CandidateBank = () => {
             <col style={{ width: '18%' }} />
             <col style={{ width: '8%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
+            {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
             <col style={{ width: '8%' }} />
           </colgroup>
           <thead>
@@ -635,12 +648,11 @@ export const CandidateBank = () => {
                 )}
                 <td style={{ padding: '0 16px', height: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {(c.resume_url || c.resume_file_name) ? (
                         <button 
-                          title={c.resume_file_name || 'Ver currículo'}
+                          title="Visualizar Card"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewResume(c.resume_url!);
+                            openCandidate(c);
                           }}
                           style={{
                             padding: '6px',
@@ -651,14 +663,22 @@ export const CandidateBank = () => {
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'var(--primary-light-bg)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.transform = 'scale(1)';
                           }}
                         >
-                          <FileText size={14} />
+                          <Eye size={16} />
                         </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
-                      )}
                     </div>
                 </td>
               </tr>

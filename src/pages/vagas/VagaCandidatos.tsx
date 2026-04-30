@@ -19,6 +19,8 @@ interface Vaga {
         label: string;
         type: string;
     }[];
+    organization_id: string | null;
+    job_code: string | null;
 }
 
 interface Candidato {
@@ -39,9 +41,8 @@ interface Candidato {
 }
 
 const getMatchColor = (score: number) => {
-    if (score >= 85) return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '#22c55e' };
-    if (score >= 70) return { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '#3b82f6' };
-    if (score >= 50) return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '#f59e0b' };
+    if (score >= 70) return { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '#10b981' };
+    if (score >= 40) return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '#f59e0b' };
     return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '#ef4444' };
 };
 
@@ -84,7 +85,7 @@ export const VagaCandidatos = () => {
             try {
                 const { data: vagaData, error: vagaError } = await supabase
                     .from('vagas_white_label')
-                    .select('id, title, company_name, application_count, is_pcd, custom_questions')
+                    .select('id, title, company_name, application_count, is_pcd, custom_questions, organization_id, job_code')
                     .eq('id', id)
                     .single();
                 if (vagaError) throw vagaError;
@@ -105,7 +106,47 @@ export const VagaCandidatos = () => {
                 setLoading(false);
             }
         };
+
         fetchData();
+
+        // ─── Realtime Subscription ──────────────────────────────────────────────
+        if (!id) return;
+
+        const channel = supabase
+            .channel(`vaga-candidatos-${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'vagas_candidaturas',
+                    filter: `vaga_id=eq.${id}`
+                },
+                (payload) => {
+                    const newCand = payload.new as Candidato;
+                    // Prevenir duplicatas caso o fetch e o realtime ocorram quase juntos
+                    setCandidatos(prev => {
+                        if (prev.find(c => c.id === newCand.id)) return prev;
+                        
+                        // Adicionar e reordenar por score (ou o que preferir)
+                        const updated = [newCand, ...prev].sort((a, b) => b.match_score - a.match_score);
+                        return updated;
+                    });
+                    
+                    // Atualizar contagem da vaga
+                    setVaga(prev => prev ? { ...prev, application_count: prev.application_count + 1 } : prev);
+                    
+                    toast.success(`Novo candidato: ${newCand.candidate_name}`, {
+                        icon: '🔔',
+                        duration: 5000,
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [id]);
 
     const handleTransferSuccess = () => {
@@ -130,15 +171,15 @@ export const VagaCandidatos = () => {
                 email: c.candidate_email,
                 phone: c.candidate_phone,
                 location: c.candidate_location,
-                address: null,
+                address: c.answers?.address || null,
                 linkedin: c.candidate_linkedin,
                 age: c.candidate_age,
                 gender: c.candidate_gender,
                 score: c.match_score,
-                portfolio: null,
-                cep: null,
-                address_number: null,
-                complement: null,
+                portfolio: c.answers?.portfolio || null,
+                cep: c.answers?.cep || null,
+                address_number: c.answers?.address_number || null,
+                complement: c.answers?.complement || null,
                 vagas: [],
                 interview_eligible: false,
                 is_blacklisted: false,
@@ -148,12 +189,19 @@ export const VagaCandidatos = () => {
                 redFlags: (c as any).ai_analysis?.redFlags || c.answers?._ai_analysis?.redFlags || null,
                 applications: [],
                 pipelineCards: [],
-                notes: null,
+                notes: (c as any).candidate?.notes || c.internal_notes || null,
                 resume_url: c.resume_url,
                 enriched: true,
                 analysis: (c as any).ai_analysis || c.answers?._ai_analysis || null,
                 conversations: [],
-                hideBankButton: false
+                hideBankButton: c.status === 'talent_bank',
+                isVagaView: true,
+                status: c.status,
+                answers: c.answers,
+                questionLabels: (vaga.custom_questions || []).reduce((acc: any, q: any) => {
+                    acc[q.id] = q.label;
+                    return acc;
+                }, {})
             };
 
             setSelectedCandDetail(detail);
@@ -179,7 +227,7 @@ export const VagaCandidatos = () => {
         );
     }
 
-    const gridColumns = '60px 2fr 1.5fr 1fr 0.8fr 110px 80px';
+    const gridColumns = '50px 1.3fr 1.1fr 0.5fr 0.7fr 0.7fr 0.6fr 0.4fr 0.4fr';
 
     return (
         <div style={{ fontFamily: 'Inter, sans-serif', padding: '24px' }}>
@@ -225,9 +273,16 @@ export const VagaCandidatos = () => {
 
             {/* Table */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: gridColumns, padding: '16px 24px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-                    {['Rank', 'Candidato', 'Localização', 'Status', 'Score', 'Currículo', 'Ações'].map((h, i) => (
-                        <div key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: i >= 3 && i <= 5 ? 'center' : 'left' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: gridColumns, padding: '12px 24px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+                    {['Rank', 'Candidato', 'Localização', 'Idade', 'Gênero', 'Status', 'Score', 'Currículo', 'Ações'].map((h, i) => (
+                        <div key={h} style={{ 
+                            fontSize: 10, 
+                            fontWeight: 700, 
+                            color: 'var(--text-dim)', 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '0.06em', 
+                            textAlign: [0, 3, 4, 5, 6, 7, 8].includes(i) ? 'center' : 'left'
+                        }}>
                             {h}
                         </div>
                     ))}
@@ -250,7 +305,7 @@ export const VagaCandidatos = () => {
                                         style={{
                                             display: 'grid',
                                             gridTemplateColumns: gridColumns,
-                                            padding: '16px 24px',
+                                            padding: '14px 24px',
                                             background: 'var(--bg-card)',
                                             cursor: 'pointer',
                                             transition: 'all 0.2s',
@@ -260,25 +315,68 @@ export const VagaCandidatos = () => {
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: index < 3 ? 'var(--primary)' : 'var(--bg-main)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: index < 3 ? '#fff' : 'var(--text-dim)' }}>
+                                            <div style={{ 
+                                                width: 26, height: 26, borderRadius: '50%', 
+                                                background: index < 3 ? 'var(--primary)' : 'var(--bg-main)', 
+                                                border: '1px solid var(--border)', 
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                fontSize: 11, fontWeight: 700, 
+                                                color: index < 3 ? '#fff' : 'var(--text-dim)' 
+                                            }}>
                                                 {index + 1}
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                             <div style={{
-                                                width: 36, height: 36, borderRadius: '10px',
+                                                width: 32, height: 32, borderRadius: '8px',
                                                 background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                color: '#fff', fontSize: 14, fontWeight: 600, flexShrink: 0
+                                                color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0
                                             }}>
                                                 {candidato.candidate_name.charAt(0)}
                                             </div>
-                                            <div style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px' }}>
+                                            <div style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {candidato.candidate_name}
                                             </div>
                                         </div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {candidato.candidate_location || '-'}
+                                        </div>
+                                        {/* Idade */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                {candidato.candidate_age ? `${candidato.candidate_age} anos` : '-'}
+                                            </span>
+                                        </div>
+                                        {/* Gênero */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {candidato.candidate_gender ? (
+                                                <span style={{
+                                                    display: 'inline-block', padding: '2px 10px',
+                                                    background: candidato.candidate_gender?.toLowerCase().includes('fem') 
+                                                        ? 'rgba(236,72,153,0.15)' 
+                                                        : candidato.candidate_gender?.toLowerCase().includes('masc') 
+                                                            ? 'rgba(59,130,246,0.15)'
+                                                            : 'rgba(100,116,139,0.1)',
+                                                    color: candidato.candidate_gender?.toLowerCase().includes('fem') 
+                                                        ? '#ec4899' 
+                                                        : candidato.candidate_gender?.toLowerCase().includes('masc') 
+                                                            ? '#3b82f6'
+                                                            : '#64748b',
+                                                    borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                                                    border: `1px solid ${
+                                                        candidato.candidate_gender?.toLowerCase().includes('fem') 
+                                                            ? '#ec489933' 
+                                                            : candidato.candidate_gender?.toLowerCase().includes('masc') 
+                                                                ? '#3b82f633'
+                                                                : '#64748b33'
+                                                    }`
+                                                }}>
+                                                    {candidato.candidate_gender}
+                                                </span>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
+                                            )}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <span style={{ display: 'inline-block', padding: '4px 10px', background: statusColors.bg, color: statusColors.color, borderRadius: '8px', fontSize: '11px', fontWeight: 600 }}>
@@ -298,9 +396,21 @@ export const VagaCandidatos = () => {
                                                         e.stopPropagation();
                                                         handleViewResume(candidato.resume_url!);
                                                     }}
-                                                    style={{ padding: '6px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    style={{ 
+                                                        width: 34, height: 34,
+                                                        padding: '0', 
+                                                        background: 'rgba(99,102,241,0.08)', 
+                                                        border: '1px solid rgba(99,102,241,0.3)', 
+                                                        borderRadius: '8px', 
+                                                        color: 'var(--primary)', 
+                                                        cursor: 'pointer', 
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                                 >
-                                                    <FileText size={14} />
+                                                    <FileText size={15} />
                                                 </button>
                                             ) : (
                                                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
@@ -313,11 +423,21 @@ export const VagaCandidatos = () => {
                                                     e.stopPropagation();
                                                     setTransferringCand(candidato);
                                                 }}
-                                                style={{ padding: '8px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '8px', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                                style={{ 
+                                                    width: 34, height: 34,
+                                                    padding: '0', 
+                                                    background: 'rgba(16, 185, 129, 0.1)', 
+                                                    border: '1px solid #10b981', 
+                                                    borderRadius: '8px', 
+                                                    color: '#10b981', 
+                                                    cursor: 'pointer', 
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                                    transition: 'all 0.2s' 
+                                                }}
                                                 onMouseEnter={e => { e.currentTarget.style.background = '#10b981'; e.currentTarget.style.color = '#fff'; }}
                                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'; e.currentTarget.style.color = '#10b981'; }}
                                             >
-                                                <UserPlus size={16} />
+                                                <UserPlus size={15} />
                                             </button>
                                         </div>
                                     </div>
@@ -334,8 +454,10 @@ export const VagaCandidatos = () => {
                     onClose={() => setSelectedCandDetail(null)}
                     navigate={navigate}
                     onTransferSuccess={handleTransferSuccess}
+                    currentJobContext={{ id: id!, title: vaga?.title || '' }}
                     onNotesChange={(cid, notes) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
+                        setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, internal_notes: notes } : cand));
                     }}
                     onEligibleChange={async (_cid, val) => {
                         // Logic handled within CandidatePanel or via parent refresh
@@ -380,8 +502,10 @@ export const VagaCandidatos = () => {
                         answers: transferringCand.answers
                     }}
                     job={{
-                        id: vaga.id,
-                        title: vaga.title
+                        id: id!,
+                        title: vaga?.title || '',
+                        job_code: vaga?.job_code || null,
+                        organization_id: vaga?.organization_id
                     }}
                     onClose={() => setTransferringCand(null)}
                     onSuccess={handleTransferSuccess}

@@ -43,6 +43,9 @@ export interface CandidateDetail extends Candidate {
     analysis?: any;
     conversations?: any[];
     hideBankButton?: boolean;
+    isVagaView?: boolean;
+    status?: string;
+    answers?: Record<string, any> | null;
 }
 
 export interface Comment {

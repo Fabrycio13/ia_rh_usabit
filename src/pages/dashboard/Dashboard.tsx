@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -23,22 +23,37 @@ interface JobWithStats extends Job {
 }
 
 // ─── Animated Counter ─────────────────────────────────────────────────────────
-const AnimatedNumber = ({ target, suffix = '' }: { target: number; suffix?: string }) => {
-  const [val, setVal] = useState(0);
-  const ref = useRef<number>(0);
+// Uses a ref to track the previous target so the animation only fires when the
+// actual data value changes — not on re-renders caused by sidebar resizing.
+const AnimatedNumber = memo(({ target, suffix = '' }: { target: number; suffix?: string }) => {
+  const [val, setVal] = useState(target);
+  const prevTarget = useRef<number>(target);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    ref.current = 0;
+    if (prevTarget.current === target) return; // skip re-renders with same value
+    prevTarget.current = target;
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    const start = val;
     const steps = 40;
-    const inc = target / steps;
-    const timer = setInterval(() => {
-      ref.current += inc;
-      if (ref.current >= target) { setVal(target); clearInterval(timer); }
-      else setVal(Math.floor(ref.current));
+    const inc = (target - start) / steps;
+    let current = start;
+    timerRef.current = setInterval(() => {
+      current += inc;
+      const done = inc >= 0 ? current >= target : current <= target;
+      if (done) {
+        setVal(target);
+        clearInterval(timerRef.current!);
+      } else {
+        setVal(Math.floor(current));
+      }
     }, 30);
-    return () => clearInterval(timer);
-  }, [target]);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return <>{val}{suffix}</>;
-};
+});
 
 // ─── Tooltip style ────────────────────────────────────────────────────────────
 const TT = {
@@ -185,10 +200,10 @@ export const Dashboard = () => {
     return () => clearTimeout(t);
   }, []);
 
-  const saveLayout = (newLayout: typeof layout) => {
+  const saveLayout = useCallback((newLayout: typeof layout) => {
     setLayout(newLayout);
     localStorage.setItem(`dash-layout-${profile.userId}`, JSON.stringify(newLayout));
-  };
+  }, [profile.userId]);
 
   const totalVagas = jobs.length;
   const totalAvaliados = jobs.reduce((s, j) => s + j.totalCandidates, 0);
@@ -609,7 +624,7 @@ export const Dashboard = () => {
               </div>
               <div style={{ height: 220, width: '100%' }}>
                 {showCharts && (
-                  <ResponsiveContainer width="100%" height={220} debounce={150}>
+                  <ResponsiveContainer width="100%" height={220} debounce={350}>
                     <AreaChart data={areaData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="gVaga" x1="0" y1="0" x2="0" y2="1">
@@ -747,7 +762,7 @@ export const Dashboard = () => {
               </div>
               <div style={{ height: 220, width: '100%' }}>
                 {showCharts && (
-                  <ResponsiveContainer width="100%" height={220} debounce={150}>
+                  <ResponsiveContainer width="100%" height={220} debounce={350}>
                     <BarChart data={barData} barGap={4} barCategoryGap="32%" margin={{ left: -20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
