@@ -8,6 +8,7 @@ import {
     UserRound, Calendar, ChevronDown
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
+import { sanitizeHtml } from '../../core/utils/security';
 
 interface Job {
     id: string;
@@ -275,7 +276,7 @@ const MessageBubble = ({ text }: { text: string }) => (
         fontFamily: "'Space Grotesk', sans-serif"
     }}>
         <BotAvatar />
-        <div className="chat-bubble-new" style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif" }} dangerouslySetInnerHTML={{ __html: text }} />
+        <div className="chat-bubble-new" style={{ flex: 1, fontFamily: "'Space Grotesk', sans-serif" }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(text) }} />
     </div>
 );
 
