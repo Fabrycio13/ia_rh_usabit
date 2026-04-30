@@ -21,8 +21,6 @@ export function CandidatePanel({
     onClose,
     navigate,
     onNotesChange,
-    onEligibleChange,
-    onRemoveCard,
     onFieldChange,
     onBlacklistChange,
     onTransferSuccess,
@@ -32,8 +30,6 @@ export function CandidatePanel({
     onClose: () => void;
     navigate: (path: string) => void;
     onNotesChange: (id: string, notes: string) => void;
-    onEligibleChange: (id: string, val: boolean, jobInfo?: { jobId: string; jobName: string; score: number }, pipelineId?: string) => void;
-    onRemoveCard: (cardId: string, candidateId: string) => void;
     onFieldChange: (id: string, field: string, val: any) => void;
     onBlacklistChange: (id: string, val: boolean) => void;
     onTransferSuccess?: () => void;
@@ -66,15 +62,7 @@ export function CandidatePanel({
         address_number: c.address_number,
         complement: c.complement
     });
-    const [togglingEligible, setTogglingEligible] = useState(false);
-    const [inclusionStep, setInclusionStep] = useState<'initial' | 'job' | 'pipeline'>('initial');
-    const [pendingJob, setPendingJob] = useState<{ jobId: string; jobName: string; score: number } | null>(null);
-    const [pipelines, setPipelines] = useState<{ id: string, name: string }[]>([]);
-    const [fetchingPipelines, setFetchingPipelines] = useState(true);
     const [transferringToBank, setTransferringToBank] = useState(false);
-
-    const activeJobIds = new Set(c.pipelineCards?.map((pc: any) => pc.jobId).filter(Boolean));
-    const availableJobs = c.applications.filter(app => !activeJobIds.has(app.jobId));
     const [togglingBlacklist, setTogglingBlacklist] = useState(false);
     const [activatingChat, setActivatingChat] = useState(false);
     const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -189,54 +177,7 @@ export function CandidatePanel({
         setPhoneError(null);
     }, [localC.phone]);
 
-    useEffect(() => {
-        async function loadPipelines() {
-            if (!profile.organization_id) return;
-            const { data, error } = await supabase
-                .from('pipelines')
-                .select('id, name')
-                .eq('organization_id', profile.organization_id)
-                .order('created_at', { ascending: true });
-            if (!error && data) {
-                setPipelines(data);
-            }
-            setFetchingPipelines(false);
-        }
-        loadPipelines();
-    }, [profile.organization_id]);
 
-    async function handleToggleEligible(jobInfo?: { jobId: string; jobName: string; score: number }, pipelineId?: string) {
-        if (togglingEligible) return;
-
-        // Step 1: Start selection
-        if (!jobInfo && !pipelineId) {
-            if (pipelines.length === 0) {
-                alert("Crie um processo seletivo (Pipeline) primeiro na aba de Pipeline.");
-                return;
-            }
-            setInclusionStep('job');
-            return;
-        }
-
-        // Step 2: Job selected, move to pipeline selection
-        if (jobInfo && !pipelineId) {
-            setPendingJob(jobInfo);
-            setInclusionStep('pipeline');
-            return;
-        }
-
-        // Step 3: Finalize inclusion
-        if (pendingJob && pipelineId) {
-            setTogglingEligible(true);
-            try {
-                await onEligibleChange(c.id, true, pendingJob, pipelineId);
-                setInclusionStep('initial');
-                setPendingJob(null);
-            } finally {
-                setTogglingEligible(false);
-            }
-        }
-    }
 
     async function handleFieldSave(field: string) {
         if (savingField) return;
@@ -278,7 +219,6 @@ export function CandidatePanel({
         if (activeTab === 'triagem') fetchScreeningLogs();
     }, [activeTab, c.id]);
 
-    // Sincroniza quando enrichCandidate retorna os dados do banco
     useEffect(() => {
         setComments(parseComments(c.notes));
     }, [c.notes]);
@@ -286,14 +226,12 @@ export function CandidatePanel({
     async function persistComments(updated: Comment[]) {
         const json = JSON.stringify(updated);
         
-        // Tenta primeiro na tabela candidates (Banco de Talentos)
         const { error: candError, data: candData } = await supabase
             .from('candidates')
             .update({ notes: json })
             .eq('id', c.id)
             .select('id');
 
-        // Se não encontrou no banco (candData vazio ou erro), tenta na tabela de candidaturas (Vagas)
         if (candError || !candData || candData.length === 0) {
             const { error: appError } = await supabase
                 .from('vagas_candidaturas')
@@ -502,7 +440,6 @@ export function CandidatePanel({
                 ) : (
                     <div style={{ padding: '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-                        {/* Contato */}
                         <section>
                             <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Contato</p>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
@@ -581,7 +518,6 @@ export function CandidatePanel({
                         
                         {c.isVagaView && (
                             <>
-                                {/* Habilidades (Mover para cima) */}
                                 {skillsList.length > 0 && (
                                     <section>
                                         <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
@@ -602,7 +538,6 @@ export function CandidatePanel({
                                     </section>
                                 )}
 
-                                {/* Respostas Adicionais (Mover para cima do Feedback) */}
                                 {c.answers && Object.entries(c.answers).filter(([key]) => 
                                     !key.startsWith('_') && 
                                     !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
@@ -639,7 +574,6 @@ export function CandidatePanel({
                                     </section>
                                 )}
 
-                                {/* Feedback da IA */}
                                 <section style={{ 
                                     border: '1px solid rgba(99, 102, 241, 0.2)', 
                                     borderRadius: 20, 
@@ -673,7 +607,6 @@ export function CandidatePanel({
                                         )}
                                     </div>
                                     
-                                    {/* Análise da Nota */}
                                     {(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis) && (
                                         <div>
                                             <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
@@ -683,7 +616,6 @@ export function CandidatePanel({
                                         </div>
                                     )}
 
-                                    {/* Pontos Positivos */}
                                     {(c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points) && (
                                         <div style={{ borderTop: '1px solid rgba(34, 197, 94, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos Positivos do Currículo</p>
@@ -693,7 +625,6 @@ export function CandidatePanel({
                                         </div>
                                     )}
 
-                                    {/* Pontos de Atenção / Negativos */}
                                     {(c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps) && (
                                         <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
@@ -705,8 +636,6 @@ export function CandidatePanel({
                                 </section>
                             </>
                         )}
-
-
 
                         {!c.isVagaView && (
                             <section style={{ 
@@ -848,7 +777,6 @@ export function CandidatePanel({
                             </section>
                         )}
 
-                        {/* ─── Tabs: Vagas Aplicadas | Triagem | Comentários ────────────── */}
                         <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
                             {!c.isVagaView ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 16, background: 'var(--bg-main)', borderRadius: 12, padding: 4 }}>
@@ -1051,7 +979,6 @@ export function CandidatePanel({
                                                         <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '4px 16px 16px 16px', padding: '12px 14px', position: 'relative' }}>
                                                             <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>{cm.text}</p>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 24 }}>
-                                                                {/* Esquerda: Gatilho de Reação (Smile ou Emoji Ativo) */}
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
                                                                     {!cm.reaction ? (
                                                                         <div className="comment-actions" style={{ display: 'flex', alignItems: 'center' }}>
@@ -1086,7 +1013,6 @@ export function CandidatePanel({
                                                                     )}
                                                                 </div>
 
-                                                                {/* Direita: Editar/Apagar (Ações em Hover) */}
                                                                 <div className="comment-actions" style={{ display: 'flex', gap: 12 }}>
                                                                     <button onClick={() => { setEditingId(cm.id); setEditText(cm.text); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                                                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>

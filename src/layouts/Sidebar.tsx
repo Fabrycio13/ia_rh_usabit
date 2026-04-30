@@ -6,6 +6,7 @@ import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
 import { useAnalysis } from '../core/contexts/AnalysisContext';
 import { hasPermission } from '../core/config/permissions';
+import toast from 'react-hot-toast';
 
 
 /* ─── Animated Space Talent Logo ────────────────────────────────────────── */

@@ -27,6 +27,9 @@ export interface Application {
     experience?: string | null;
     education?: string | null;
     redFlags?: string | null;
+    jobCode?: string;
+    resume_url?: string | null;
+    positivePoints?: string | null;
 }
 
 export interface CandidateDetail extends Candidate {
@@ -46,6 +49,7 @@ export interface CandidateDetail extends Candidate {
     isVagaView?: boolean;
     status?: string;
     answers?: Record<string, any> | null;
+    questionLabels?: Record<string, string>;
 }
 
 export interface Comment {

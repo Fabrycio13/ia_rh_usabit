@@ -4,7 +4,7 @@ import { useTheme } from '../../core/contexts/ThemeContext';
 import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import { 
-    ArrowLeft, Save, X, Briefcase, FileText, Target, Award, Star, Info, 
+    ArrowLeft, Save, X, FileText, Target, Award, Star, Info, 
     DollarSign, MapPin, Building2, Clock, Kanban, Plus, Trash2, Settings, 
     List, Type, CheckCircle2, GripVertical, Zap
 } from 'lucide-react';
