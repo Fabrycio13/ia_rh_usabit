@@ -633,7 +633,7 @@ export const Dashboard = () => {
                           if (active && payload && payload.length) {
                             return (
                               <div style={{ ...TT, padding: '10px 14px' }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{label}</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{_label}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                   {payload.map((p: any) => (
                                     <p key={p.dataKey} style={{ color: p.color, fontSize: 12, fontWeight: 600 }}>

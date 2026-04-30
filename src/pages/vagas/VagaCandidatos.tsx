@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { ArrowLeft, UserPlus, Check } from 'lucide-react';
+import { ArrowLeft, UserPlus, User, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
