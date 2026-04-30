@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { ArrowLeft, User, Phone, FileText, Star, ExternalLink, TrendingUp, Clock, Bot, Mail, MapPin, UserPlus, Check } from 'lucide-react';
+import { ArrowLeft, UserPlus, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
@@ -337,7 +337,7 @@ export const VagaCandidatos = () => {
                     onNotesChange={(cid, notes) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
                     }}
-                    onEligibleChange={async (cid, val) => {
+                    onEligibleChange={async (_cid, val) => {
                         // Logic handled within CandidatePanel or via parent refresh
                         toast.success(val ? 'Candidato marcado como apto' : 'Candidato removido de aptos');
                     }}

@@ -174,7 +174,6 @@ export const Dashboard = () => {
   
   // Layout customization state
   const [isCustomizing, setIsCustomizing] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [layout, setLayout] = useState(() => {
     const saved = localStorage.getItem(`dash-layout-${profile.userId}`);
@@ -182,7 +181,6 @@ export const Dashboard = () => {
   });
 
   useEffect(() => {
-    setIsMounted(true);
     const t = setTimeout(() => setShowCharts(true), 500);
     return () => clearTimeout(t);
   }, []);
@@ -631,7 +629,7 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip 
-                        content={({ active, payload, label }) => {
+                        content={({ active, payload, label: _label }) => {
                           if (active && payload && payload.length) {
                             return (
                               <div style={{ ...TT, padding: '10px 14px' }}>
@@ -755,7 +753,7 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                         <Tooltip 
-                        content={({ active, payload, label }) => {
+                        content={({ active, payload, label: _label }) => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (

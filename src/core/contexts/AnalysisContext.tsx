@@ -21,6 +21,7 @@ export interface Candidate {
     attention_points: string | null;
     source: 'pdf' | 'excel';
     resumeUrl: string | null;
+    resume_file_name?: string | null;
     dbId: string | null;
     isBlacklisted?: boolean;
 }
