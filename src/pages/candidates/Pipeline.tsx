@@ -324,7 +324,7 @@ export const Pipeline = () => {
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
     
     // Filtro de Status para os pipelines
-    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string }>>([]);
+    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string }>>([]);
     const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
     
     const [showStatusSelect, setShowStatusSelect] = useState(false);
@@ -754,36 +754,6 @@ export const Pipeline = () => {
         if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, notes } : null);
     }
 
-    async function handleEligibleChange(id: string, val: boolean, jobInfo?: { jobId: string; jobName: string; score: number }, pipelineId?: string) {
-        if (val) {
-            const cand = eligibles.find(e => e.id === id);
-            const targetPipeline = pipelineId || selectedPipelineId;
-            const targetCol = columns[0]?.id;
-            if (cand && targetCol && targetPipeline) {
-                const newCard = await addCard(targetCol, cand, jobInfo, targetPipeline);
-
-                if (newCard && selectedCandidate?.id === id) {
-                    setSelectedCandidate(prev => {
-                        if (!prev) return null;
-                        return {
-                            ...prev,
-                            pipelineCards: [
-                                ...(prev.pipelineCards || []),
-                                {
-                                    id: newCard.id,
-                                    jobId: jobInfo?.jobId,
-                                    jobName: jobInfo?.jobName,
-                                    score: jobInfo?.score,
-                                    pipelineName: pipelines.find(p => p.id === targetPipeline)?.name
-                                }
-                            ]
-                        };
-                    });
-                }
-            }
-        }
-        if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, interview_eligible: val } : null);
-    }
 
     function handleFieldChange(id: string, field: string, val: any) {
         if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val } : c));
@@ -1572,8 +1542,6 @@ export const Pipeline = () => {
                     onClose={() => setSelectedCandidate(null)}
                     navigate={navigate}
                     onNotesChange={handleNotesChange}
-                    onEligibleChange={handleEligibleChange}
-                    onRemoveCard={removeCard}
                     onFieldChange={handleFieldChange}
                     onTransferSuccess={() => {
                         if (profile.userId && selectedPipelineId) {

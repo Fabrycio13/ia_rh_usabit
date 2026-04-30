@@ -11,7 +11,7 @@ import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
 import { hasPermission } from '../../core/config/permissions';
-import { logScreening, logActivity } from '../../core/services/logger';
+import { logActivity } from '../../core/services/logger';
 
 interface Job {
   id: string;
@@ -568,109 +568,6 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           onNotesChange={(id, notes) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
             setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, notes } : prev);
-          }}
-          onEligibleChange={async (id, val, jobInfo, pipelineId) => {
-            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, interview_eligible: val } : cand));
-            setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, interview_eligible: val } : prev);
-            if (val && jobInfo && profile.userId) {
-              try {
-                let targetPipelineId = pipelineId;
-                let targetPipelineName = '';
-
-                if (!targetPipelineId) {
-                  const { data: pips } = await supabase.from('pipelines')
-                    .select('id, name').eq('user_id', profile.userId).order('created_at').limit(1);
-                  targetPipelineId = pips?.[0]?.id;
-                  targetPipelineName = pips?.[0]?.name || '';
-                } else {
-                  const { data: pip } = await supabase.from('pipelines')
-                    .select('name').eq('id', targetPipelineId).single();
-                  targetPipelineName = pip?.name || '';
-                }
-
-                if (!targetPipelineId) return;
-
-                const { data: cols } = await supabase.from('pipeline_columns')
-                  .select('id, name').eq('pipeline_id', targetPipelineId).order('position').limit(1);
-
-                const colId = cols?.[0]?.id;
-                if (colId) {
-                  const { data: cardsInCol } = await supabase.from('pipeline_cards')
-                    .select('id').eq('column_id', colId);
-                  const pos = cardsInCol?.length || 0;
-
-                  const notesJson = JSON.stringify({
-                    selected_job_id: jobInfo.jobId,
-                    selected_job_name: jobInfo.jobName,
-                    selected_job_score: jobInfo.score
-                  });
-
-                  const { data: newCard } = await supabase.from('pipeline_cards').insert({
-                    user_id: profile.userId,
-                    pipeline_id: targetPipelineId,
-                    column_id: colId,
-                    candidate_id: id,
-                    position: pos,
-                    notes: notesJson
-                  }).select().single();
-
-                  if (newCard) {
-                    await supabase.from('candidates').update({ interview_eligible: true }).eq('id', id);
-                    logScreening(
-                      profile.userId,
-                      id,
-                      'inclusion',
-                      null,
-                      cols?.[0]?.name || 'Triagem',
-                      {
-                        job_id: jobInfo.jobId,
-                        job_name: jobInfo.jobName,
-                        pipeline_id: targetPipelineId,
-                        pipeline_name: targetPipelineName
-                      }
-                    );
-                    logActivity(profile.userId, `Adicionou "${selectedCandidate.name}" ao processo "${targetPipelineName}"`);
-                    setSelectedCandidate(prev => {
-                      if (!prev || prev.id !== id) return prev;
-                      return {
-                        ...prev,
-                        interview_eligible: true,
-                        pipelineCards: [...(prev.pipelineCards || []), {
-                          id: newCard.id,
-                          jobId: jobInfo.jobId,
-                          jobName: jobInfo.jobName,
-                          score: jobInfo.score,
-                          pipelineName: targetPipelineName
-                        }]
-                      };
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error("Error adding to pipeline:", err);
-              }
-            }
-          }}
-          onRemoveCard={async (cardId, candidateId) => {
-            const currentCards = selectedCandidate?.pipelineCards || [];
-            const card = currentCards.find(pc => pc.id === cardId);
-            await supabase.from('pipeline_cards').delete().eq('id', cardId);
-            if (profile.userId && card) {
-              logActivity(profile.userId, `Removeu "${selectedCandidate?.name}" do processo "${card.pipelineName || 'Pipeline'}"`);
-            }
-            const filteredCards = currentCards.filter(pc => pc.id !== cardId);
-            const stillInPipeline = filteredCards.length > 0;
-            if (!stillInPipeline) {
-              await supabase.from('candidates').update({ interview_eligible: false }).eq('id', candidateId);
-            }
-            setSelectedCandidate(prev => {
-              if (!prev || prev.id !== candidateId) return prev;
-              return {
-                ...prev,
-                interview_eligible: stillInPipeline,
-                pipelineCards: filteredCards
-              };
-            });
           }}
           onFieldChange={(id, field, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));

@@ -38,6 +38,8 @@ interface Candidato {
     candidate_gender: string | null;
     candidate_age: string | null;
     answers?: Record<string, any> | null;
+    internal_notes?: string | null;
+    ai_analysis?: any;
 }
 
 const getMatchColor = (score: number) => {
@@ -198,7 +200,7 @@ export const VagaCandidatos = () => {
                 isVagaView: true,
                 status: c.status,
                 answers: c.answers,
-                questionLabels: (vaga.custom_questions || []).reduce((acc: any, q: any) => {
+                questionLabels: (vaga?.custom_questions || []).reduce((acc: any, q: any) => {
                     acc[q.id] = q.label;
                     return acc;
                 }, {})
@@ -459,23 +461,10 @@ export const VagaCandidatos = () => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
                         setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, internal_notes: notes } : cand));
                     }}
-                    onEligibleChange={async (_cid, val) => {
-                        // Logic handled within CandidatePanel or via parent refresh
-                        toast.success(val ? 'Candidato marcado como apto' : 'Candidato removido de aptos');
-                    }}
-                    onRemoveCard={async (cardId, cid) => {
-                        await supabase.from('pipeline_cards').delete().eq('id', cardId);
-                        setSelectedCandDetail(prev => {
-                            if (!prev || prev.id !== cid) return prev;
-                            const filtered = (prev.pipelineCards || []).filter(p => p.id !== cardId);
-                            return { ...prev, pipelineCards: filtered };
-                        });
-                        toast.success('Removido do processo com sucesso');
-                    }}
-                    onFieldChange={(cid, field, val) => {
+                    onFieldChange={(cid: string, field: string, val: any) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
                     }}
-                    onBlacklistChange={(cid, val) => {
+                    onBlacklistChange={(cid: string, val: boolean) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
                     }}
                 />
