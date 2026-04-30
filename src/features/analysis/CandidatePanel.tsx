@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
-    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus
+    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
+    ChevronLeft
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -23,7 +24,8 @@ export function CandidatePanel({
     onEligibleChange,
     onRemoveCard,
     onFieldChange,
-    onBlacklistChange
+    onBlacklistChange,
+    onTransferSuccess
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -33,6 +35,7 @@ export function CandidatePanel({
     onRemoveCard: (cardId: string, candidateId: string) => void;
     onFieldChange: (id: string, field: string, val: any) => void;
     onBlacklistChange: (id: string, val: boolean) => void;
+    onTransferSuccess?: () => void;
 }) {
     const skillsList = parseSkills(c.skills);
 
@@ -48,7 +51,19 @@ export function CandidatePanel({
     const [editFieldVal, setEditFieldVal] = useState('');
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
-    const [localC, setLocalC] = useState({ email: c.email, phone: c.phone, location: c.location, address: c.address, linkedin: c.linkedin, age: c.age, gender: c.gender });
+    const [localC, setLocalC] = useState({ 
+        email: c.email, 
+        phone: c.phone, 
+        location: c.location, 
+        address: c.address, 
+        linkedin: c.linkedin, 
+        age: c.age, 
+        gender: c.gender,
+        portfolio: c.portfolio,
+        cep: c.cep,
+        address_number: c.address_number,
+        complement: c.complement
+    });
     const [togglingEligible, setTogglingEligible] = useState(false);
     const [inclusionStep, setInclusionStep] = useState<'initial' | 'job' | 'pipeline'>('initial');
     const [pendingJob, setPendingJob] = useState<{ jobId: string; jobName: string; score: number } | null>(null);
@@ -152,9 +167,21 @@ export function CandidatePanel({
     }
 
     useEffect(() => {
-        setLocalC({ email: c.email, phone: c.phone, location: c.location, address: c.address, linkedin: c.linkedin, age: c.age, gender: c.gender });
+        setLocalC({ 
+            email: c.email, 
+            phone: c.phone, 
+            location: c.location, 
+            address: c.address, 
+            linkedin: c.linkedin, 
+            age: c.age, 
+            gender: c.gender,
+            portfolio: c.portfolio,
+            cep: c.cep,
+            address_number: c.address_number,
+            complement: c.complement
+        });
         setChatActive(!!c.conversations?.length);
-    }, [c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.conversations]);
+    }, [c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement, c.conversations]);
 
     useEffect(() => {
         setPhoneError(null);
@@ -377,13 +404,26 @@ export function CandidatePanel({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
                             <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{initials(c.name)}</div>
                             <div style={{ minWidth: 0 }}>
-                                <h2 style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontSize: 18, fontWeight: 700, margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    {c.name}
-                                    {c.is_blacklisted && <Ban size={16} />}
-                                </h2>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                    <button 
+                                        onClick={onClose}
+                                        style={{ 
+                                            background: 'none', border: 'none', padding: 0, 
+                                            color: 'var(--primary)', fontSize: 13, fontWeight: 600, 
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 
+                                        }}
+                                    >
+                                        <ChevronLeft size={14} /> Voltar
+                                    </button>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>|</span>
+                                    <h2 style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontSize: 18, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {c.name}
+                                        {c.is_blacklisted && <Ban size={16} />}
+                                    </h2>
+                                </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                                     {c.location && <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><MapPin size={11} />{c.location}</span>}
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><Calendar size={11} />{(c.age && !['Não informado', 'não informado', '—'].includes(c.age)) ? `${c.age} anos` : 'Não informado'}</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><Calendar size={11} />{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : 'Não informado'}</span>
                                     {c.gender && <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><UserRound size={11} />{c.gender}</span>}
                                 </div>
                             </div>
@@ -425,9 +465,17 @@ export function CandidatePanel({
                                     { key: 'phone', label: 'Telefone', icon: <Phone size={14} />, value: localC.phone },
                                     { key: 'linkedin', label: 'LinkedIn', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>, value: localC.linkedin },
                                     { key: 'location', label: 'Local', icon: <MapPin size={14} />, value: localC.location },
-                                    { key: 'address', label: 'Endereço', icon: <MapPin size={14} />, value: localC.address },
+                                    { 
+                                        key: 'address', 
+                                        label: 'Endereço', 
+                                        icon: <MapPin size={14} />, 
+                                        value: localC.address ? (
+                                            `${localC.address}${localC.address_number ? ', ' + localC.address_number : ''}${localC.complement ? ' - ' + localC.complement : ''}`
+                                        ) : null 
+                                    },
                                     { key: 'gender', label: 'Gênero', icon: <UserRound size={14} />, value: localC.gender },
                                     { key: 'age', label: 'Idade', icon: <Calendar size={14} />, value: (localC.age && !['Não informado', 'não informado', '—'].includes(localC.age ?? '')) ? localC.age : null },
+                                    { key: 'portfolio', label: 'Portfólio', icon: <Briefcase size={14} />, value: localC.portfolio },
                                 ] as { key: string; label: string; icon: React.ReactNode; value: string | null | undefined }[]).map(({ key, label, icon, value }) => (
                                     <div key={key} style={{
                                         background: 'var(--bg-main)',
@@ -450,7 +498,7 @@ export function CandidatePanel({
                                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 2, display: 'flex', transition: 'color 0.15s' }}
                                                     onMouseEnter={e => (e.currentTarget.style.color = '#6366f1')}
                                                     onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 0 0 0 2 2h14a2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                 </button>
                                             )}
                                         </div>
@@ -469,8 +517,14 @@ export function CandidatePanel({
                                             </div>
                                         ) : (
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                                                <span style={{ fontSize: 14, fontWeight: 600, color: value ? 'var(--text-main)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {value ?? 'Não informado'}
+                                                <span style={{ fontSize: 14, fontWeight: 600, color: value ? 'var(--text-main)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                                    {(value && (key === 'linkedin' || key === 'portfolio') && value.startsWith('http')) ? (
+                                                        <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+                                                            {value.replace(/^https?:\/\/(www\.)?/, '')}
+                                                        </a>
+                                                    ) : (
+                                                        value ?? 'Não informado'
+                                                    )}
                                                 </span>
                                             </div>
                                         )}
@@ -999,7 +1053,7 @@ export function CandidatePanel({
                                                                 {/* Direita: Editar/Apagar (Ações em Hover) */}
                                                                 <div className="comment-actions" style={{ display: 'flex', gap: 12 }}>
                                                                     <button onClick={() => { setEditingId(cm.id); setEditText(cm.text); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 0 0 0 2 2h14a2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                                                         Editar
                                                                     </button>
                                                                     <button onClick={() => handleDelete(cm.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.7)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1079,6 +1133,13 @@ export function CandidatePanel({
                         phone: localC.phone,
                         location: localC.location,
                         linkedin: localC.linkedin,
+                        age: localC.age,
+                        gender: localC.gender,
+                        address: localC.address,
+                        portfolio: localC.portfolio,
+                        cep: localC.cep,
+                        address_number: localC.address_number,
+                        complement: localC.complement,
                         resume_url: c.resume_url,
                         match_score: c.score || 0,
                         answers: { _ai_analysis: c.analysis }
@@ -1090,7 +1151,7 @@ export function CandidatePanel({
                     onClose={() => setTransferringToBank(null as any)}
                     onSuccess={() => {
                         setTransferringToBank(false);
-                        // window.location.reload();
+                        if (onTransferSuccess) onTransferSuccess();
                     }}
                 />
             )}

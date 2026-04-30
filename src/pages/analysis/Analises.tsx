@@ -156,9 +156,9 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           .select('id, name, created_at, organization_id')
           .eq('id', jobId);
 
-        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização
+        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização (ou as que eles mesmos criaram)
         if (profile.user_role !== 'owner' && profile.organization_id) {
-          jobQuery = jobQuery.eq('organization_id', profile.organization_id);
+          jobQuery = jobQuery.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
         }
 
         const { data: jobData, error: jobErr } = await jobQuery.single();
@@ -307,7 +307,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       score: c.score,
       enriched: false,
       applications: [],
-      hideBankButton: true
+      hideBankButton: false
     };
     setSelectedCandidate(base);
     try {
@@ -473,7 +473,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Idade */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: '#94a3b8' }}>
-                    {(c.age && !/não\s*informado/i.test(c.age)) ? `${c.age} anos` : '—'}
+                    {(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : '—'}
                   </td>
                   {/* Localização */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-dim)' }}>
@@ -485,7 +485,18 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Score */}
                   <td style={{ padding: '14px 16px' }}>
-                    <span style={{ background: `${scoreColor(c.score)}22`, color: scoreColor(c.score), border: `1px solid ${scoreColor(c.score)}44`, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>
+                    <span style={{ 
+                        background: `${scoreColor(c.score)}22`, 
+                        color: scoreColor(c.score), 
+                        border: `1px solid ${scoreColor(c.score)}44`, 
+                        borderRadius: 20, 
+                        padding: '4px 16px', 
+                        fontSize: '13px', 
+                        fontWeight: 800,
+                        display: 'inline-block',
+                        minWidth: '54px',
+                        textAlign: 'center'
+                    }}>
                       {c.score}%
                     </span>
                   </td>
@@ -712,11 +723,19 @@ export const Analises = () => {
       setLoading(true);
       setError(null);
 
-      const { data: jobsData, error: jobsError } = await supabase
+      let query = supabase
         .from('jobs')
-        .select('id, name, filters, created_at')
-        .eq('user_id', userId)
+        .select('id, name, filters, created_at, organization_id')
         .order('created_at', { ascending: false });
+
+      // Se tiver organização, traz tudo da org. Se não, traz só do usuário.
+      if (profile.organization_id) {
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+      } else {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data: jobsData, error: jobsError } = await query;
 
       if (jobsError) throw jobsError;
       if (!jobsData || jobsData.length === 0) { setJobs([]); return; }

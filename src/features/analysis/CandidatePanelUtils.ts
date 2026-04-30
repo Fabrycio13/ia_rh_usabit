@@ -9,6 +9,10 @@ export interface Candidate {
     age: string | null;
     gender: string | null;
     score: number | null;
+    portfolio?: string | null;
+    cep?: string | null;
+    address_number?: string | null;
+    complement?: string | null;
     vagas: string[];
     interview_eligible: boolean;
     is_blacklisted?: boolean;
@@ -66,8 +70,10 @@ export function formatDate(iso: string) {
 }
 
 /** Separa qualquer texto de skills em chips individuais */
-export function parseSkills(raw: string | null | undefined): string[] {
+export function parseSkills(raw: string | string[] | null | undefined): string[] {
     if (!raw) return [];
+    if (Array.isArray(raw)) return raw.map(s => s.trim()).filter(s => s.length > 1);
+    
     let cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')

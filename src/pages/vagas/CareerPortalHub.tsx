@@ -330,9 +330,9 @@ export const CareerPortalHub = () => {
     });
 
     return (
-        <div style={{ padding: '0 32px 32px' }}>
+        <div style={{ width: '100%' }}>
             {/* Header Area */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', paddingTop: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
                         <Briefcase size={32} style={{ color: 'var(--primary)' }} />

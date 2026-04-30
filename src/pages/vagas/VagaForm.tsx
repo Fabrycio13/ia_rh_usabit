@@ -575,7 +575,7 @@ export const VagaForm = () => {
                 position: 'relative',
                 zIndex: 10
             }}>
-                <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
                         <div style={{
                             width: '72px',
@@ -607,7 +607,7 @@ export const VagaForm = () => {
                     style={{
                         position: 'absolute',
                         bottom: '24px',
-                        left: '40px',
+                        left: '0',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px',
@@ -640,7 +640,7 @@ export const VagaForm = () => {
             </div>
 
             {/* Form Content */}
-            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 32px 32px', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 32px', position: 'relative', zIndex: 1 }}>
                 {/* Step Indicator */}
                 <StepIndicator steps={steps} currentStep={currentStep} />
 

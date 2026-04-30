@@ -52,6 +52,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
   const [education, setEducation] = useState('');
   const [notes, setNotes] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+  const [portfolio, setPortfolio] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   const validate = (): boolean => {
@@ -85,6 +87,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     setEducation('');
     setNotes('');
     setResumeUrl('');
+    setLinkedin('');
+    setPortfolio('');
     setUploadedFileName(null);
     setFormErrors({});
     setError(null);
@@ -287,6 +291,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       if (education.trim()) candidateData.education = education.trim();
       if (notes.trim()) candidateData.notes = notes.trim();
       if (resumeUrl.trim()) candidateData.resume_url = resumeUrl.trim();
+      if (linkedin.trim()) candidateData.linkedin = linkedin.trim();
+      if (portfolio.trim()) candidateData.portfolio = portfolio.trim();
 
       const { error: insertError } = await supabase
         .from('candidates')
@@ -1101,13 +1107,31 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
               <div style={{
                 background: 'var(--bg-main)',
                 border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 2,
+              }}>
+                <StickyNote style={{ width: 14, height: 14, color: 'var(--text-dim)' }} />
+                <p style={{
+                  fontSize: 11,
+                  color: 'var(--text-dim)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  margin: 0,
+                }}>
+                  Anotações Internas
+                </p>
+              </div>
+
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border)',
                 borderRadius: 14,
                 padding: '16px 18px',
+                transition: 'all 0.2s',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <StickyNote style={{ width: 14, height: 14, color: 'var(--text-dim)' }} />
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase' }}>Observações</span>
-                </div>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

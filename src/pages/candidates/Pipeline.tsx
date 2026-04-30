@@ -602,7 +602,7 @@ export const Pipeline = () => {
             vagas: card.candidate_vagas,
             enriched: false,
             applications: [],
-            hideBankButton: true
+            hideBankButton: false
         };
         setSelectedCandidate(base);
         try {
@@ -1555,6 +1555,11 @@ export const Pipeline = () => {
                     onEligibleChange={handleEligibleChange}
                     onRemoveCard={removeCard}
                     onFieldChange={handleFieldChange}
+                    onTransferSuccess={() => {
+                        if (profile.userId && selectedPipelineId) {
+                            loadPipelineData(profile.userId, selectedPipelineId);
+                        }
+                    }}
                     onBlacklistChange={(id: string, val: boolean) => {
                         setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
                         setSelectedCandidate(prev => (prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev));

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck
+  X, Eye, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, FileText
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -16,8 +16,6 @@ const PAGE_SIZE = 10;
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
 }
-
-/** Separa qualquer texto de skills em chips individuais */
 
 function toStr(v: any): string | null {
   if (!v) return null;
@@ -35,11 +33,16 @@ interface Candidate {
   address: string | null;
   age: string | null;
   gender: string | null;
+  portfolio: string | null;
+  cep: string | null;
+  address_number: string | null;
+  complement: string | null;
   score: number | null;
   vagas: string[];
   interview_eligible: boolean;
   is_blacklisted: boolean;
   resume_url?: string | null;
+  resume_file_name?: string | null;
   phone?: string | null;
   conversations?: any[];
 }
@@ -69,11 +72,6 @@ interface CandidateDetail extends Candidate {
 
 type SortKey = 'name' | 'location' | 'age' | null;
 type SortDir = 'asc' | 'desc';
-
-// ─── Tipos de Comentário ──────────────────────────────────────────────────────
-
-
-
 
 // ─── Sort indicator ───────────────────────────────────────────────────────────
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -193,22 +191,19 @@ export const CandidateBank = () => {
   }, [profile.userId, profile.loaded, profile.user_role]);
 
   async function fetchCandidates(userId: string, userRole?: string) {
-    // Owner vê TODOS; gestor/rh veem sua org; outros filtram por user_id
     const isGlobalViewer = userRole === 'owner';
     const isOrgMember = userRole === 'gestor' || userRole === 'rh';
     try {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
         if (isOrgMember && profile.organization_id) {
-          // Gestor/RH veem candidatos da sua organização
           query = query.eq('organization_id', profile.organization_id);
         } else {
-          // Convidado ou sem org — só vê os próprios
           query = query.eq('user_id', userId);
         }
       }
@@ -216,10 +211,9 @@ export const CandidateBank = () => {
       const { data, error } = await query;
 
       if (error) {
-        // Fallback sem join
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -231,9 +225,12 @@ export const CandidateBank = () => {
         const { data: fallback } = await fallbackQuery;
         setCandidates((fallback ?? []).map((c: any) => ({
           id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-          age: c.age, gender: c.gender, score: c.score,
+          age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
+          address_number: c.address_number, complement: c.complement,
+          score: c.score,
           interview_eligible: false,
           is_blacklisted: false,
+          resume_url: c.resume_url,
           phone: c.phone,
           conversations: c.conversations,
           vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
@@ -243,10 +240,13 @@ export const CandidateBank = () => {
 
       setCandidates((data ?? []).map((c: any) => ({
         id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-        age: c.age, gender: c.gender, score: c.score,
+        age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
+        address_number: c.address_number, complement: c.complement,
+        score: c.score,
         interview_eligible: c.interview_eligible ?? false,
         is_blacklisted: c.is_blacklisted ?? false,
         resume_url: c.resume_url,
+        resume_file_name: c.resume_file_name,
         phone: c.phone,
         conversations: c.conversations,
         vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
@@ -275,6 +275,10 @@ export const CandidateBank = () => {
     setPage(1);
   };
 
+  const handleViewResume = (url: string) => {
+    window.open(url, '_blank');
+  };
+
   const genderOptions = useMemo(() => [...new Set(candidates.map(c => c.gender).filter(Boolean) as string[])].sort(), [candidates]);
   const vagaOptions = useMemo(() => [...new Set(candidates.flatMap(c => c.vagas))].sort(), [candidates]);
 
@@ -290,13 +294,11 @@ export const CandidateBank = () => {
     if (filterGender) list = list.filter(c => c.gender === filterGender);
     if (filterVaga) list = list.filter(c => c.vagas.includes(filterVaga));
 
-    // Tab filtering
     if (activeTab === 'blacklist') {
       list = list.filter(c => c.is_blacklisted);
     } else if (activeTab === 'candidatos') {
       list = list.filter(c => !c.is_blacklisted);
     }
-    // 'todos' shows all
 
     if (sortKey) {
       list.sort((a, b) => {
@@ -321,8 +323,7 @@ export const CandidateBank = () => {
       ...c, 
       phone: null, skills: null, experience: null, education: null, 
       redFlags: null, applications: [], notes: null, enriched: false,
-      is_blacklisted: c.is_blacklisted ?? false,
-      hideBankButton: true
+      is_blacklisted: c.is_blacklisted ?? false
     } as CandidateDetail);
     enrichCandidate(c.id);
   }
@@ -400,8 +401,8 @@ export const CandidateBank = () => {
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <div style={{ marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
             <Users size={32} style={{ color: 'var(--primary)' }} />
@@ -588,7 +589,7 @@ export const CandidateBank = () => {
                   </div>
                 </td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !['Não informado', 'não informado', '—'].includes(c.age)) ? `${c.age} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
                   {c.vagas.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
@@ -633,9 +634,32 @@ export const CandidateBank = () => {
                   </td>
                 )}
                 <td style={{ padding: '0 16px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Eye style={{ width: 15, height: 15, color: '#475569' }} />
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {(c.resume_url || c.resume_file_name) ? (
+                        <button 
+                          title={c.resume_file_name || 'Ver currículo'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewResume(c.resume_url!);
+                          }}
+                          style={{
+                            padding: '6px',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <FileText size={14} />
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
+                      )}
+                    </div>
                 </td>
               </tr>
             ))}
@@ -791,6 +815,9 @@ export const CandidateBank = () => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
           }}
+          onTransferSuccess={() => {
+            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+          }}
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
@@ -810,6 +837,6 @@ export const CandidateBank = () => {
           openCandidate(candidates.find(c => c.id === candidateId)!);
         }}
       />
-    </>
+    </div>
   );
 };

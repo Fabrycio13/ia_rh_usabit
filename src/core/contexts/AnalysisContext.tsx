@@ -192,6 +192,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 .from('jobs')
                 .insert({
                     user_id: session.user.id,
+                    organization_id: profile.organization_id,
                     name: name,
                     description: desc,
                     filters: { total: mode === 'pdf' ? files.length : 0 },
@@ -229,16 +230,20 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         if (mode === 'pdf' && files[idx]) {
                             const file = files[idx];
                             console.log(`[Analysis] Fazendo upload do arquivo: ${file.name}`);
-                            const path = `resumes/${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
-                            const { error: upErr } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
-                            if (upErr) {
-                                console.error(`[Analysis] Erro no upload de ${file.name}:`, upErr);
+                            const path = `${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
+                            const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
+                            if (uploadError) {
+                                console.error(`[Analysis] Erro no upload de ${file.name}:`, uploadError);
+                                toast.error(`Erro ao salvar PDF de ${file.name}. Verifique as permissões de armazenamento.`);
+                                resumeUrl = null;
                             } else {
                                 const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
                                 resumeUrl = publicUrl;
                                 console.log(`[Analysis] Upload concluído: ${resumeUrl}`);
+                            }
 
-                                // Registro no resume_uploads
+                            // Registro no resume_uploads
+                            if (resumeUrl) {
                                 const { data: insUpload } = await supabase.from('resume_uploads').insert({
                                     user_id: session.user.id,
                                     job_id: jobData.id,
@@ -273,6 +278,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             attention_points: combinedAttentionPoints,
                             source: mode,
                             resumeUrl: resumeUrl,
+                            resume_file_name: mode === 'pdf' ? files[idx].name : null,
                             dbId: null,
                             isBlacklisted: false
                         };
@@ -339,6 +345,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             // Regra de Ouro: O score na tabela de candidatos representa a análise MAIS RECENTE.
                             score: normalizedCandidate.score,
                             resume_url: resumeUrl,
+                            resume_file_name: mode === 'pdf' ? files[idx].name : null,
                             resume_upload_id: uploadId,
                             // O campo analysis na raiz conterá os dados da ÚLTIMA análise para compatibilidade,
                             // mas a fonte de verdade para cada vaga será o array history dentro dele.
@@ -423,13 +430,27 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             }
 
                             console.log(`[Analysis] Atualizando candidato ${existingId}...`);
+                            
+                            // PREVENÇÃO DE OVERWRITE: Se o novo resumeUrl for nulo mas o antigo existia, mantém o antigo
+                            if (!candidateRow.resume_url && currentFull?.resume_url) {
+                                console.log(`[Analysis] Mantendo resume_url anterior para ${existingId}:`, currentFull.resume_url);
+                                candidateRow.resume_url = currentFull.resume_url;
+                                candidateRow.resume_file_name = currentFull.resume_file_name;
+                                candidateRow.resume_upload_id = currentFull.resume_upload_id;
+                                resumeUrl = currentFull.resume_url; // ATUALIZA A VARIÁVEL LOCAL PARA O STATE
+                            }
+
                             const { data: upd, error: e4 } = await supabase.from('candidates').update(candidateRow).eq('id', existingId).select().single();
                             if (e4) {
                                 console.error('[Analysis] Erro ao atualizar candidato no Supabase:', e4);
                                 toast.error(`Erro ao atualizar ${normalizedCandidate.name}: ${e4.message}`);
                             }
                             dbRecord = upd;
-                            if (dbRecord) console.log(`[Analysis] Atualização bem-sucedida para ID: ${dbRecord.id}`);
+                            if (dbRecord) {
+                                console.log(`[Analysis] Atualização bem-sucedida para ID: ${dbRecord.id}`);
+                                // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
+                                resumeUrl = dbRecord.resume_url;
+                            }
                         } else {
                             candidateRow.analysis = {
                                 ...analysisData,
@@ -442,7 +463,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 toast.error(`Erro ao salvar ${normalizedCandidate.name}: ${e5.message}`);
                             }
                             dbRecord = ins;
-                            if (dbRecord) console.log(`[Analysis] Inserção bem-sucedida para ID: ${dbRecord.id}`);
+                            if (dbRecord) {
+                                console.log(`[Analysis] Inserção bem-sucedida para ID: ${dbRecord.id}`);
+                                // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
+                                resumeUrl = dbRecord.resume_url;
+                            }
                         }
 
                         if (dbRecord) {
@@ -456,7 +481,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                     ...prev,
                                     candidates: prev.candidates.map(can =>
                                         can.id === normalizedCandidate.id
-                                            ? { ...can, dbId: dbRecord.id, resumeUrl: resumeUrl }
+                                            ? { ...can, dbId: dbRecord.id, resumeUrl: resumeUrl, resume_file_name: dbRecord.resume_file_name }
                                             : can
                                     )
                                 };
