@@ -389,7 +389,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
 
     return (
-        <div style={{ padding: hideHeader ? '0' : '0 32px 32px' }}>
+        <div style={{ padding: hideHeader ? '0' : '0 40px 40px' }}>
             <style>{css}</style>
             
             {/* Header */}

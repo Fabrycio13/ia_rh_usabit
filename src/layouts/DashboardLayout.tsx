@@ -18,11 +18,14 @@ export const DashboardLayout = () => {
             {bgTheme === 'planets' && <SpaceBackground />}
             {bgTheme === 'spatial' && <SpatialBackground />}
             
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%', height: '100%' }}>
-                <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />
-                <div style={{ flex: 1, display: 'flex', minWidth: 0, height: '100vh' }}>
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%', height: '100%', padding: '10px', gap: '10px', boxSizing: 'border-box' }}>
+                {/* Floating sidebar wrapper */}
+                <div style={{ flexShrink: 0, height: '100%', display: 'flex' }}>
+                    <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', minWidth: 0, height: '100%' }}>
                     <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }} className="custom-scrollbar hide-scrollbar">
-                        <div style={{ padding: '40px 40px 60px', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ padding: '30px 30px 60px', width: '100%', boxSizing: 'border-box' }}>
                             <Outlet />
                         </div>
                     </main>

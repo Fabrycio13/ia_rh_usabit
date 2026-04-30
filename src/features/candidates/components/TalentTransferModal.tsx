@@ -13,6 +13,13 @@ interface TalentTransferModalProps {
         location?: string | null;
         linkedin?: string | null;
         resume_url?: string | null;
+        age?: string | null;
+        gender?: string | null;
+        address?: string | null;
+        portfolio?: string | null;
+        cep?: string | null;
+        address_number?: string | null;
+        complement?: string | null;
         match_score?: number;
         answers?: any;
     };
@@ -152,6 +159,13 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 location: candidate.location,
                 linkedin: candidate.linkedin,
                 resume_url: candidate.resume_url,
+                age: candidate.age,
+                gender: candidate.gender,
+                address: candidate.address,
+                portfolio: candidate.portfolio,
+                cep: candidate.cep,
+                address_number: candidate.address_number,
+                complement: candidate.complement,
                 organization_id: profile.organization_id,
                 user_id: profile.userId,
                 score: candidate.match_score || 0

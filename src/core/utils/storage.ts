@@ -23,14 +23,19 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
 
     try {
         let path = url;
+        let bucket = 'job-applications';
 
-        // If it's a full URL, extract the path segment after the bucket name
+        // Detect bucket from URL
         if (url.includes('/job-applications/')) {
+            bucket = 'job-applications';
             path = url.split('/job-applications/')[1];
+        } else if (url.includes('/resumes/')) {
+            bucket = 'resumes';
+            path = url.split('/resumes/')[1];
         }
 
         const { data, error } = await supabase.storage
-            .from('job-applications')
+            .from(bucket)
             .createSignedUrl(path, 3600); // 1 hour validity
 
         if (error) throw error;
