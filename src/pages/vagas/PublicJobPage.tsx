@@ -8,6 +8,7 @@ import { formatSalary } from '../../core/utils/jobFormatter';
 interface Job {
     id: string;
     public_hash: string;
+    organization_id: string;
     title: string;
     description: string | null;
     has_salary_range: boolean;
@@ -264,37 +265,39 @@ export const PublicJobPage = () => {
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
 
-            {/* Back Button */}
-            <div style={{
-                position: 'absolute',
-                top: '16px',
-                left: '16px',
-                zIndex: 10
-            }}>
-                <button
-                    onClick={() => navigate(-1)}
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 16px',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '8px',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
-                >
-                    <ArrowLeft size={16} />
-                    Voltar
-                </button>
-            </div>
+            {/* Back Button - Hidden if accessed from Admin (preview mode) */}
+            {!window.location.hash.includes('preview=true') && (
+                <div style={{
+                    position: 'absolute',
+                    top: '16px',
+                    left: '16px',
+                    zIndex: 10
+                }}>
+                    <button
+                        onClick={() => navigate(`/carreiras/${job.organization_id}`)}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 16px',
+                            background: 'rgba(0, 0, 0, 0.4)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '8px',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                    >
+                        <ArrowLeft size={16} />
+                        Voltar
+                    </button>
+                </div>
+            )}
 
             {/* Header Section - Figma Style */}
             <div style={{ 

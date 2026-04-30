@@ -23,16 +23,34 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
 
     try {
         let path = url;
-        let bucket = 'job-applications';
+        let bucket = 'resumes'; // Default for analyzed candidates
 
-        // Detect bucket from URL
-        if (url.includes('/job-applications/')) {
+        // Detect bucket and path from full Supabase URLs
+        if (url.includes('/storage/v1/object/public/')) {
+            const afterPublic = url.split('/storage/v1/object/public/')[1];
+            const parts = afterPublic.split('/');
+            bucket = parts[0];
+            path = parts.slice(1).join('/');
+        } else if (url.includes('/storage/v1/object/')) {
+            const afterObject = url.split('/storage/v1/object/')[1];
+            const parts = afterObject.split('/');
+            bucket = parts[0];
+            path = parts.slice(1).join('/');
+        } else if (url.includes('/job-applications/')) {
             bucket = 'job-applications';
             path = url.split('/job-applications/')[1];
         } else if (url.includes('/resumes/')) {
             bucket = 'resumes';
             path = url.split('/resumes/')[1];
+        } else if (url.startsWith('resumes/')) {
+            bucket = 'resumes';
+            path = url.replace('resumes/', '');
+        } else if (url.startsWith('job-applications/')) {
+            bucket = 'job-applications';
+            path = url.replace('job-applications/', '');
         }
+        
+        console.log('[Storage] Opening resume:', { bucket, path });
 
         const { data, error } = await supabase.storage
             .from(bucket)

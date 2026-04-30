@@ -86,8 +86,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [userRole, setUserRole] = useState<string>('');
     const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
     const [selectedOrgId, setSelectedOrgId] = useState<string>('');
-    const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
     const [selectedRoleFilter, setSelectedRoleFilter] = useState('');
+    const [roleSearchTerm, setRoleSearchTerm] = useState('');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     
@@ -154,7 +155,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 // 3. Buscar Vagas
                 let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, is_third_party, company_name, company_logo, show_company_name')
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, is_third_party, company_name, company_logo, show_company_name, job_code')
                     .eq('is_active', true)
                     .order('created_at', { ascending: false });
 
@@ -175,6 +176,31 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         };
 
         fetchInitialData();
+
+        // ─── Realtime Subscription for Application Counts ──────────────────────
+        const channel = supabase
+            .channel('vagas-counts-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'vagas_candidaturas'
+                },
+                (payload) => {
+                    const newApplication = payload.new;
+                    setVagas(prev => prev.map(v => 
+                        v.id === newApplication.vaga_id 
+                            ? { ...v, application_count: (v.application_count || 0) + 1 } 
+                            : v
+                    ));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     // Fechar selects ao clicar fora
@@ -338,11 +364,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return type ? labels[type] || type : '-';
     };
 
-    const getPublicJobUrl = (hash: string) => {
+    const getPublicJobUrl = (hash: string, adminMode = false) => {
         // App uses HashRouter, so we need the hash symbol
         // Normalizamos o origin + pathname para evitar barras duplas
         const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
-        return `${baseUrl}/#/v/${hash}`;
+        const url = `${baseUrl}/#/v/${hash}`;
+        return adminMode ? `${url}?preview=true` : url;
     };
 
     const copyPublicLink = (hash: string) => {
@@ -357,7 +384,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         const matchesSearch = !searchTerm || 
             vaga.title.toLowerCase().includes(searchUpper) ||
             (vaga.location || '').toLowerCase().includes(searchUpper) ||
-            (vaga.contract_type || '').toLowerCase().includes(searchUpper);
+            (vaga.contract_type || '').toLowerCase().includes(searchUpper) ||
+            (vaga.job_code || '').toLowerCase().includes(searchUpper);
 
         // 2. Filtro por Organização (Owner only)
         const matchesOrg = !selectedOrgId || vaga.organization_id === selectedOrgId;
@@ -366,8 +394,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         const currentStatus = getStatusFromVaga(vaga);
         const matchesStatus = !selectedStatusFilter || currentStatus === selectedStatusFilter;
 
-        // 4. Filtro por Cargo (Role)
-        const matchesRole = !selectedRoleFilter || vaga.title === selectedRoleFilter;
+        // 4. Filtro por Cargo (Role) ou Código
+        const matchesRole = !selectedRoleFilter || vaga.title === selectedRoleFilter || vaga.id === selectedRoleFilter || vaga.job_code === selectedRoleFilter;
 
         // 5. Filtro por Data (Criada em)
         const vagaDate = vaga.created_at.slice(0, 10); // YYYY-MM-DD
@@ -385,8 +413,16 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const totalPages = Math.ceil(filteredVagas.length / itemsPerPage);
     const paginatedVagas = filteredVagas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    // Lista de cargos únicos para o filtro
-    const uniqueRoles = Array.from(new Set(vagas.map(v => v.title))).sort();
+    // Lista de cargos e códigos para o filtro
+    const roleOptions = vagas.map(v => ({
+        id: v.id,
+        title: v.title,
+        job_code: v.job_code
+    })).filter(v => 
+        !roleSearchTerm || 
+        v.title.toLowerCase().includes(roleSearchTerm.toLowerCase()) || 
+        (v.job_code || '').toLowerCase().includes(roleSearchTerm.toLowerCase())
+    ).sort((a, b) => a.title.localeCompare(b.title));
 
     return (
         <div style={{ padding: hideHeader ? '0' : '0 40px 40px' }}>
@@ -482,37 +518,59 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 )}
 
                 {/* Cargo Filter */}
-                <div className="cs-container" ref={roleRef} style={{ width: '200px' }}>
+                <div className="cs-container" ref={roleRef} style={{ width: '350px' }}>
                     <div className="cs-trigger" onClick={() => setIsRoleSelectOpen(!isRoleSelectOpen)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                             <Briefcase size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {selectedRoleFilter || 'Todos Cargos'}
+                                {selectedRoleFilter ? (() => {
+                                    const v = vagas.find(v => v.id === selectedRoleFilter || v.title === selectedRoleFilter || v.job_code === selectedRoleFilter);
+                                    return v ? `${v.title} ${v.job_code ? `[${v.job_code}]` : ''}` : selectedRoleFilter;
+                                })() : 'Todos Cargos'}
                             </span>
                         </div>
                         <ChevronDown size={14} style={{ transform: isRoleSelectOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                     </div>
-                    {isRoleSelectOpen && (
-                        <div className="cs-dropdown">
-                            <div 
-                                className={`cs-item ${!selectedRoleFilter ? 'active' : ''}`}
-                                onClick={() => { setSelectedRoleFilter(''); setIsRoleSelectOpen(false); }}
-                            >
-                                <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
-                                Todos Cargos
-                            </div>
-                            {uniqueRoles.map(role => (
-                                <div 
-                                    key={role}
-                                    className={`cs-item ${selectedRoleFilter === role ? 'active' : ''}`}
-                                    onClick={() => { setSelectedRoleFilter(role); setIsRoleSelectOpen(false); }}
-                                >
-                                    <div className="cs-dot" style={{ background: '#3b82f6' }} />
-                                    {role}
+                        {isRoleSelectOpen && (
+                            <div className="cs-dropdown" style={{ minWidth: '250px' }}>
+                                <div style={{ padding: '8px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
+                                    <input 
+                                        autoFocus
+                                        placeholder="Pesquisar vaga ou código..."
+                                        value={roleSearchTerm}
+                                        onChange={e => setRoleSearchTerm(e.target.value)}
+                                        onClick={e => e.stopPropagation()}
+                                        style={{ width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none' }}
+                                    />
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                <div 
+                                    className={`cs-item ${!selectedRoleFilter ? 'active' : ''}`}
+                                    onClick={() => { setSelectedRoleFilter(''); setRoleSearchTerm(''); setIsRoleSelectOpen(false); }}
+                                >
+                                    <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
+                                    Todos Cargos
+                                </div>
+                                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    {roleOptions.map(opt => (
+                                        <div 
+                                            key={opt.id}
+                                            className={`cs-item ${selectedRoleFilter === opt.id ? 'active' : ''}`}
+                                            onClick={() => { setSelectedRoleFilter(opt.id); setRoleSearchTerm(''); setIsRoleSelectOpen(false); }}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                                <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.title}</span>
+                                            </div>
+                                            {opt.job_code && <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, marginLeft: 8, flexShrink: 0 }}>{opt.job_code}</span>}
+                                        </div>
+                                    ))}
+                                    {roleOptions.length === 0 && (
+                                        <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>Nenhuma vaga encontrada</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                 </div>
 
                 {/* Status Filter */}
@@ -648,7 +706,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         {/* Table Header */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: '2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.8fr 0.6fr 160px',
+                            gridTemplateColumns: '80px 150px 2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.6fr 160px',
                             padding: '16px 24px',
                             borderBottom: '1px solid var(--border)',
                             color: 'var(--text-muted)',
@@ -657,12 +715,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             textTransform: 'uppercase',
                             letterSpacing: '0.05em'
                         }}>
+                            <div>Código</div>
+                            <div style={{ textAlign: 'center' }}>Status</div>
                             <div>Título</div>
                             <div>Localização</div>
                             <div style={{ textAlign: 'center' }}>Criada em</div>
                             <div style={{ textAlign: 'center' }}>Tipo</div>
                             <div style={{ textAlign: 'center' }}>Candidaturas</div>
-                            <div style={{ textAlign: 'center' }}>Status</div>
                             <div style={{ textAlign: 'center' }}>Link</div>
                             <div style={{ textAlign: 'center' }}>Ações</div>
                         </div>
@@ -678,107 +737,18 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     key={vaga.id}
                                     style={{
                                         display: 'grid',
-                                        gridTemplateColumns: '2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.8fr 0.6fr 160px',
-                                        padding: '16px 24px',
+                                        gridTemplateColumns: '80px 150px 2fr 1.2fr 0.8fr 0.6fr 0.8fr 0.6fr 160px',
+                                        padding: '12px 24px',
                                         borderBottom: '1px solid var(--border)',
                                         alignItems: 'center',
+                                        minHeight: '80px',
                                         transition: 'background 0.2s'
                                     }}
                                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
-                                    <div 
-                                        onClick={() => navigate(`/pipeline?vagaId=${vaga.id}`)}
-                                        style={{ 
-                                            color: 'var(--text-main)', 
-                                            fontWeight: 600, 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            gap: '8px',
-                                            cursor: 'pointer',
-                                            transition: 'color 0.2s'
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-main)')}
-                                    >
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                            <span style={{ display: 'block' }}>{vaga.title}</span>
-                                            {vaga.is_third_party && (
-                                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                                    <span style={{ 
-                                                        fontSize: '10px', 
-                                                        color: 'var(--primary)', 
-                                                        background: 'rgba(59, 130, 246, 0.1)', 
-                                                        padding: '1px 6px', 
-                                                        borderRadius: '4px',
-                                                        fontWeight: 700,
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.02em',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px'
-                                                    }}>
-                                                        RPO: {vaga.company_name || 'Não definido'}
-                                                    </span>
-                                                    {!vaga.show_company_name && (
-                                                        <span style={{ 
-                                                            fontSize: '10px', 
-                                                            color: '#f59e0b', 
-                                                            background: 'rgba(245, 158, 11, 0.1)', 
-                                                            padding: '1px 6px', 
-                                                            borderRadius: '4px',
-                                                            fontWeight: 600,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '3px'
-                                                        }}>
-                                                            <Eye size={10} style={{ opacity: 0.7 }} /> Confidencial
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        {vaga.is_pcd && vaga.is_pcd !== 'no' && (
-                                            <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '2px 8px',
-                                                background: vaga.is_pcd === 'exclusive' 
-                                                    ? 'rgba(236, 72, 153, 0.15)' 
-                                                    : 'rgba(59, 130, 246, 0.15)',
-                                                borderRadius: '12px',
-                                                color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6',
-                                                fontSize: '11px',
-                                                fontWeight: 700
-                                            }}>
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                                    <circle cx="10" cy="4" r="2.5" />
-                                                    <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-                                                    <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
-                                                    <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                                                    <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                                </svg>
-                                                {vaga.is_pcd === 'exclusive' ? 'Exclusiva PcD' : 'Inclusiva'}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-                                        {vaga.location || '-'}
-                                    </div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>
-                                        {new Date(vaga.created_at).toLocaleDateString('pt-BR')}
-                                    </div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center' }}>
-                                        {getContractTypeLabel(vaga.contract_type)}
-                                    </div>
-                                    <div
-                                        onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)}
-                                        style={{ color: 'var(--primary)', fontSize: '14px', textAlign: 'center', cursor: 'pointer', fontWeight: 600 }}
-                                    >
-                                        {vaga.application_count}
+                                    <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '13px' }}>
+                                        {vaga.job_code || '-'}
                                     </div>
 
                                     {/* Status Dropdown */}
@@ -821,6 +791,111 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         </button>
                                     </div>
 
+                                    <div 
+                                        onClick={() => navigate(`/pipeline?vagaId=${vaga.id}`)}
+                                        style={{ 
+                                            display: 'flex', 
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            gap: '4px',
+                                            cursor: 'pointer',
+                                            minWidth: 0,
+                                            height: '100%'
+                                        }}
+                                    >
+                                        <span style={{ 
+                                            fontWeight: 700, 
+                                            fontSize: '15px', 
+                                            color: 'var(--text-main)',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            transition: 'color 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-main)')}
+                                        >
+                                            {vaga.title}
+                                        </span>
+
+                                        {(vaga.is_third_party || !vaga.show_company_name || (vaga.is_pcd && vaga.is_pcd !== 'no')) && (
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                {vaga.is_third_party && (
+                                                    <span style={{ 
+                                                        fontSize: '9px', 
+                                                        color: 'var(--primary)', 
+                                                        background: 'rgba(59, 130, 246, 0.1)', 
+                                                        padding: '1px 6px', 
+                                                        borderRadius: '4px',
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.02em'
+                                                    }}>
+                                                        RPO: {vaga.company_name || 'Não definido'}
+                                                    </span>
+                                                )}
+                                                
+                                                {!vaga.show_company_name && (
+                                                    <span style={{ 
+                                                        fontSize: '9px', 
+                                                        color: '#f59e0b', 
+                                                        background: 'rgba(245, 158, 11, 0.1)', 
+                                                        padding: '1px 6px', 
+                                                        borderRadius: '4px',
+                                                        fontWeight: 700,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '3px'
+                                                    }}>
+                                                        <Eye size={10} /> Confidencial
+                                                    </span>
+                                                )}
+
+                                                {vaga.is_pcd && vaga.is_pcd !== 'no' && (
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '3px',
+                                                        padding: '1px 6px',
+                                                        background: vaga.is_pcd === 'exclusive' 
+                                                            ? 'rgba(236, 72, 153, 0.15)' 
+                                                            : 'rgba(59, 130, 246, 0.15)',
+                                                        borderRadius: '10px',
+                                                        color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700
+                                                    }}>
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="10" cy="4" r="2.5" />
+                                                            <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                                            <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                            <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+                                                            <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                            <path d="M8 11 L8 8" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                            <path d="M14 11 L16 13 L15 14" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                        {vaga.is_pcd === 'exclusive' ? 'Exclusiva' : 'Inclusiva'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {vaga.location || '-'}
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>
+                                        {new Date(vaga.created_at).toLocaleDateString('pt-BR')}
+                                    </div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center' }}>
+                                        {getContractTypeLabel(vaga.contract_type)}
+                                    </div>
+                                    <div
+                                        onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)}
+                                        style={{ color: 'var(--primary)', fontSize: '14px', textAlign: 'center', cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                        {vaga.application_count}
+                                    </div>
+
                                     {/* Link Button */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <button
@@ -845,7 +920,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     {/* Actions */}
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
                                         <button
-                                            onClick={() => window.open(getPublicJobUrl(vaga.public_hash), '_blank')}
+                                            onClick={() => window.open(getPublicJobUrl(vaga.public_hash, true), '_blank')}
                                             title="Visualizar vaga"
                                             style={{
                                                 padding: '6px',

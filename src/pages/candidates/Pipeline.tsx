@@ -367,7 +367,8 @@ export const Pipeline = () => {
             'aberta': { color: '#22c55e', emoji: '', label: 'Aberta' },
             'pausada': { color: '#f59e0b', emoji: '', label: 'Pausada' },
             'fechada': { color: '#ef4444', emoji: '', label: 'Fechada' },
-            'cancelada': { color: '#64748b', emoji: '', label: 'Cancelada' }
+            'cancelada': { color: '#64748b', emoji: '', label: 'Cancelada' },
+            'invisivel': { color: '#6366f1', emoji: '', label: 'Invisível' }
         };
         
         const config = statusConfig[vaga.status] || { color: '#64748b', emoji: '', label: '' };
@@ -394,7 +395,10 @@ export const Pipeline = () => {
     async function init(userId: string) {
         setFetchingPipelines(true);
         try {
-            const { data: pipes } = await supabase.from('pipelines').select('*').eq('user_id', userId).order('name');
+            const { data: pipes } = await supabase.from('pipelines')
+                .select('*')
+                .or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`)
+                .order('name');
             setPipelines(pipes || []);
             if (pipes && pipes.length > 0) {
                 // Se houver um vagaIdParam, tenta encontrar o pipeline correspondente
@@ -420,14 +424,15 @@ export const Pipeline = () => {
         try {
             const { data: vagas } = await supabase
                 .from('vagas_white_label')
-                .select('id, title, status, is_accepting_applications')
+                .select('id, title, status, is_accepting_applications, job_code')
                 .order('title');
             
             if (vagas) {
                 setAvailableVagas(vagas.map(v => ({
                     id: v.id,
                     title: v.title,
-                    status: v.status
+                    status: v.status,
+                    job_code: v.job_code
                 })));
             }
         } catch (err) {
@@ -440,13 +445,22 @@ export const Pipeline = () => {
         setLoading(true);
         try {
             const { data: pipe, error } = await supabase.from('pipelines')
-                .insert({ name: newPipeName.trim(), user_id: profile.userId })
+                .insert({ 
+                    name: newPipeName.trim(), 
+                    user_id: profile.userId,
+                    organization_id: profile.organization_id
+                })
                 .select().single();
             
             if (error) throw error;
 
             if (pipe) {
-                const toInsert = DEFAULT_COLUMNS.map(c => ({ ...c, user_id: profile.userId, pipeline_id: pipe.id }));
+                const toInsert = DEFAULT_COLUMNS.map(c => ({ 
+                    ...c, 
+                    user_id: profile.userId, 
+                    pipeline_id: pipe.id,
+                    organization_id: profile.organization_id
+                }));
                 await supabase.from('pipeline_columns').insert(toInsert);
                 
                 setPipelines(prev => [...prev, pipe].sort((a, b) => a.name.localeCompare(b.name)));
@@ -999,6 +1013,7 @@ export const Pipeline = () => {
                                 {pipelineStatusFilter === 'pausada' && 'Vagas: Pausadas'}
                                 {pipelineStatusFilter === 'fechada' && 'Vagas: Fechadas'}
                                 {pipelineStatusFilter === 'cancelada' && 'Vagas: Canceladas'}
+                                {pipelineStatusFilter === 'invisivel' && 'Vagas: Invisíveis'}
                             </span>
                             <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showStatusSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
                         </div>
@@ -1011,6 +1026,7 @@ export const Pipeline = () => {
                                     { value: 'pausada', label: 'Vagas Pausadas' },
                                     { value: 'fechada', label: 'Vagas Fechadas' },
                                     { value: 'cancelada', label: 'Vagas Canceladas' },
+                                    { value: 'invisivel', label: 'Vagas Invisíveis' },
                                 ].map(opt => (
                                     <div 
                                         key={opt.value} 
@@ -1056,7 +1072,8 @@ export const Pipeline = () => {
                                     if (!p) return 'Selecionar Processo';
                                     const v = availableVagas.find(v => v.id === p.vaga_id);
                                     const statusLabel = v ? `(${v.status})` : '';
-                                    return `${p.name} ${statusLabel}`;
+                                    const codeLabel = v?.job_code ? ` [${v.job_code}]` : '';
+                                    return `${p.name}${codeLabel} ${statusLabel}`;
                                 })()}
                             </span>
                             <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
@@ -1067,7 +1084,7 @@ export const Pipeline = () => {
                                 {pipelines
                                     .map(p => {
                                         const v = availableVagas.find(v => v.id === p.vaga_id);
-                                        return { ...p, status: v ? v.status : 'aberta' };
+                                        return { ...p, status: v ? v.status : 'aberta', job_code: v?.job_code };
                                     })
                                     .filter(p => !pipelineStatusFilter || p.status === pipelineStatusFilter)
                                     .map(p => (
@@ -1078,7 +1095,10 @@ export const Pipeline = () => {
                                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span>{p.name}</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: 600 }}>{p.name}</span>
+                                            {p.job_code && <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}>{p.job_code}</span>}
+                                        </div>
                                             <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
                                                 {p.status}
                                             </span>

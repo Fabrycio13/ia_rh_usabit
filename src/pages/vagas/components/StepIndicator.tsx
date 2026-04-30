@@ -14,16 +14,25 @@ interface StepIndicatorProps {
 
 export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicatorProps) => {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', position: 'relative' }}>
-            {/* Progress Line */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', position: 'relative', width: '100%' }}>
+            <style>{`
+                @keyframes stepPulse {
+                    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+                }
+            `}</style>
+
+            {/* Progress Line Container */}
             <div style={{
                 position: 'absolute',
                 top: '20px',
-                left: '40px',
-                right: '40px',
+                left: '0',
+                right: '0',
                 height: '2px',
                 background: 'var(--border)',
-                zIndex: 0
+                zIndex: 0,
+                margin: '0 40px'
             }}>
                 <div style={{
                     height: '100%',
@@ -49,7 +58,8 @@ export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicator
                             alignItems: 'center',
                             zIndex: 1,
                             cursor: isClickable && index + 1 < currentStep ? 'pointer' : 'default',
-                            flex: 1
+                            width: '80px', // Fixed width for each step container
+                            position: 'relative'
                         }}
                     >
                         {/* Circle */}
@@ -57,21 +67,27 @@ export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicator
                             width: '40px',
                             height: '40px',
                             borderRadius: '50%',
-                            background: isCompleted ? 'var(--primary)' : isCurrent ? 'var(--bg-card)' : 'var(--bg-main)',
+                            background: (isCompleted || isCurrent) ? 'var(--primary)' : 'var(--bg-main)',
                             border: isCurrent ? '2px solid var(--primary)' : '2px solid var(--border)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '8px',
+                            marginBottom: '10px',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            animation: isCurrent ? 'stepPulse 2s infinite' : 'none',
+                            boxShadow: isCurrent ? '0 0 15px rgba(99, 102, 241, 0.5)' : 'none',
+                            position: 'relative',
+                            zIndex: 2
                         }}>
                             {isCompleted ? (
-                                <Check size={18} style={{ color: '#fff' }} />
+                                <Check size={20} strokeWidth={3} style={{ color: '#fff' }} />
                             ) : (
                                 <span style={{
-                                    color: isCurrent ? 'var(--primary)' : 'var(--text-muted)',
-                                    fontSize: '14px',
-                                    fontWeight: 700
+                                    color: isCurrent ? '#fff' : 'var(--text-muted)',
+                                    fontSize: '15px',
+                                    fontWeight: 800,
+                                    lineHeight: 1,
+                                    display: 'block'
                                 }}>
                                     {step.number}
                                 </span>
@@ -81,11 +97,11 @@ export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicator
                         {/* Label */}
                         <p style={{
                             color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)',
-                            fontSize: '12px',
-                            fontWeight: isCurrent ? 600 : 500,
+                            fontSize: '13px',
+                            fontWeight: isCurrent ? 700 : 500,
                             margin: 0,
                             textAlign: 'center',
-                            maxWidth: '100px'
+                            whiteSpace: 'nowrap'
                         }}>
                             {step.title}
                         </p>

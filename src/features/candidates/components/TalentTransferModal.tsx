@@ -21,11 +21,14 @@ interface TalentTransferModalProps {
         address_number?: string | null;
         complement?: string | null;
         match_score?: number;
+        notes?: string | null;
         answers?: any;
     };
     job: {
         id: string;
         title: string;
+        job_code?: string | null;
+        organization_id?: string | null;
     };
     onClose: () => void;
     onSuccess?: () => void;
@@ -38,49 +41,98 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
     const [hasPipeline, setHasPipeline] = useState<boolean | null>(null);
     const [pipelineId, setPipelineId] = useState<string | null>(null);
     const [creatingPipeline, setCreatingPipeline] = useState(false);
+    const [allPipelines, setAllPipelines] = useState<any[]>([]);
+    const [selectedExistingId, setSelectedExistingId] = useState<string>('');
+    const [showSelection, setShowSelection] = useState(false);
 
     useEffect(() => {
         async function checkPipeline() {
             try {
-                // 1. Verificar se a vaga já tem um pipeline_id vinculado
-                const { data: vaga, error: vError } = await supabase
-                    .from('vagas_white_label')
-                    .select('pipeline_id')
-                    .eq('id', job.id)
-                    .single();
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.id);
+                console.log(`[checkPipeline] INICIANDO BUSCA CRÍTICA - Vaga: "${job.title}" (${job.id})`);
 
-                if (!vError && vaga?.pipeline_id) {
-                    setHasPipeline(true);
-                    setPipelineId(vaga.pipeline_id);
-                    return;
-                }
+                // 1. Tentar busca direta por vaga_id (Independente de Org)
+                if (isUuid) {
+                    const { data: directPipes } = await supabase
+                        .from('pipelines')
+                        .select('id, name, organization_id')
+                        .eq('vaga_id', job.id)
+                        .limit(1);
 
-                // 2. Se não tem no campo direto, buscar por vaga_id na tabela de pipelines
-                const { data, error } = await supabase
-                    .from('pipelines')
-                    .select('id')
-                    .eq('vaga_id', job.id)
-                    .maybeSingle();
+                    if (directPipes && directPipes.length > 0) {
+                        const found = directPipes[0];
+                        console.log('[checkPipeline] SUCESSO - Encontrado via vaga_id:', found.id);
+                        setPipelineId(found.id);
+                        setHasPipeline(true);
+                        // Sincronizar na vaga
+                        await supabase.from('vagas_white_label').update({ pipeline_id: found.id }).eq('id', job.id);
+                        return;
+                    }
 
-                if (!error && data) {
-                    setHasPipeline(true);
-                    setPipelineId(data.id);
-                    
-                    // Aproveitar e vincular na vaga para futuras consultas
-                    await supabase
+                    // Tentar ver se a vaga já tem o pipeline_id gravado
+                    const { data: vaga } = await supabase
                         .from('vagas_white_label')
-                        .update({ pipeline_id: data.id })
-                        .eq('id', job.id);
-                } else {
-                    setHasPipeline(false);
+                        .select('pipeline_id')
+                        .eq('id', job.id)
+                        .maybeSingle();
+
+                    if (vaga?.pipeline_id) {
+                        console.log('[checkPipeline] SUCESSO - Encontrado via pipeline_id da vaga:', vaga.pipeline_id);
+                        setPipelineId(vaga.pipeline_id);
+                        setHasPipeline(true);
+                        return;
+                    }
                 }
+
+                // 2. Busca por Nome (Super Relaxada)
+                const normalize = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/^pipeline\s*-\s*/i, '').replace(/[^\w\s]/g, '');
+                const cleanJobTitle = normalize(job.title);
+                console.log(`[checkPipeline] Buscando por nome limpo: "${cleanJobTitle}"`);
+
+                // Tentar buscar em TODOS os pipelines que o usuário tem acesso
+                const { data: allAccessiblePipes } = await supabase
+                    .from('pipelines')
+                    .select('id, name, organization_id');
+
+                if (allAccessiblePipes && allAccessiblePipes.length > 0) {
+                    console.log(`[checkPipeline] Analisando ${allAccessiblePipes.length} pipelines acessíveis...`);
+                    
+                    const match = allAccessiblePipes.find(p => {
+                        const pName = normalize(p.name);
+                        return pName === cleanJobTitle || pName.includes(cleanJobTitle) || cleanJobTitle.includes(pName);
+                    });
+
+                    if (match) {
+                        console.log('[checkPipeline] SUCESSO - Match por nome encontrado:', match.name, match.id);
+                        setPipelineId(match.id);
+                        setHasPipeline(true);
+                        
+                        // Sincronizar para o futuro se tivermos o UUID da vaga
+                        if (isUuid) {
+                            await Promise.all([
+                                supabase.from('vagas_white_label').update({ pipeline_id: match.id }).eq('id', job.id),
+                                supabase.from('pipelines').update({ vaga_id: job.id }).eq('id', match.id)
+                            ]);
+                        }
+                        return;
+                    }
+                    
+                    // Se não achou match, guarda os pipelines da org do job (ou do perfil) para o dropdown
+                    const targetOrgId = job.organization_id || profile?.organization_id;
+                    setAllPipelines(allAccessiblePipes.filter(p => p.organization_id === targetOrgId));
+                }
+
+                console.warn('[checkPipeline] Pipeline não encontrado após busca exaustiva.');
+                setHasPipeline(false);
             } catch (err) {
-                console.error('Erro ao verificar pipeline:', err);
+                console.error('[checkPipeline] Erro fatal:', err);
                 setHasPipeline(false);
             }
         }
-        checkPipeline();
-    }, [job.id]);
+        if (profile?.organization_id || job.organization_id) {
+            checkPipeline();
+        }
+    }, [job.id, profile?.organization_id, job.organization_id, job.title]);
 
     const handleCreatePipeline = async () => {
         setCreatingPipeline(true);
@@ -92,8 +144,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     name: `Pipeline - ${job.title}`,
                     vaga_id: job.id,
                     organization_id: profile.organization_id,
-                    user_id: profile.userId,
-                    stages: ['Triagem', 'Entrevista', 'Proposta', 'Aprovado', 'Reprovado']
+                    user_id: profile.userId
                 })
                 .select()
                 .single();
@@ -133,23 +184,46 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
         }
     };
 
+    const handleLinkExisting = async () => {
+        if (!selectedExistingId) return;
+        setLoading(true);
+        try {
+            await supabase
+                .from('vagas_white_label')
+                .update({ pipeline_id: selectedExistingId })
+                .eq('id', job.id);
+
+            await supabase
+                .from('pipelines')
+                .update({ vaga_id: job.id })
+                .eq('id', selectedExistingId);
+
+            setPipelineId(selectedExistingId);
+            setHasPipeline(true);
+            toast.success('Pipeline vinculado com sucesso!');
+        } catch (err: any) {
+            toast.error('Erro ao vincular pipeline: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleTransfer = async (addToPipeline: boolean) => {
         setLoading(true);
         try {
-            // DEBUG: verificar dados disponíveis
-            console.log('[Transfer] profile:', { userId: profile.userId, orgId: profile.organization_id, role: profile.user_role });
-            console.log('[Transfer] candidate:', candidate);
-            console.log('[Transfer] job:', job);
-
-            // 1. Upsert na tabela candidates
+            // 1. Preparar dados da análise para o histórico
+            const ai = candidate.answers?._ai_analysis || {};
             const analysisData = {
                 score: candidate.match_score || 0,
                 job_id: job.id,
-                job_name: job.title,
-                analyzed_at: new Date().toISOString(),
-                summary: candidate.answers?._ai_analysis?.summary,
-                gaps: candidate.answers?._ai_analysis?.gaps,
-                strengths: candidate.answers?._ai_analysis?.strengths
+                job_title: job.title,
+                job_code: job.job_code,
+                date: new Date().toISOString(),
+                experience: ai.experience || ai.summary || ai.resumo || ai.analise_nota,
+                positivePoints: ai.pontos_positivos || ai.positive_points || ai['Pontos positivos do currículo'],
+                education: ai.education || ai.formacao || ai.escolaridade,
+                redFlags: ai.redFlags || ai.attention_points || ai.pontos_atencao || ai.negative_points || ai.pontos_negativos || ai['Pontos de atenção'] || ai.gaps || ai['Pontos de atenção / negativos'],
+                resume_url: candidate.resume_url
             };
 
             const candidateRow = {
@@ -166,13 +240,13 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 cep: candidate.cep,
                 address_number: candidate.address_number,
                 complement: candidate.complement,
-                organization_id: profile.organization_id,
+                organization_id: job.organization_id || profile.organization_id,
                 user_id: profile.userId,
-                score: candidate.match_score || 0
+                score: candidate.match_score || 0,
+                notes: candidate.notes
             };
 
-            // Verificar se já existe um candidato com este email na organização
-            // Se organizationId não estiver disponível, buscar apenas pelo email
+            // Verificar se já existe um candidato com este email
             let existingQuery = supabase
                 .from('candidates')
                 .select('id, analysis')
@@ -182,29 +256,20 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 existingQuery = existingQuery.eq('organization_id', profile.organization_id);
             }
 
-            const { data: existingByEmail, error: existingError } = await existingQuery.maybeSingle();
-            console.log('[Transfer] existingByEmail:', existingByEmail, 'error:', existingError);
-
-            // Preparar análise para candidato novo
-            const existingHistory = Array.isArray(existingByEmail?.analysis?.history)
-                ? existingByEmail.analysis.history
-                : [];
-            const newAnalysis = {
-                ...analysisData,
-                history: [...existingHistory.filter((h: any) => h.job_id !== job.id), analysisData]
-            };
-
+            const { data: existingByEmail } = await existingQuery.maybeSingle();
 
             let dbCandidate: any;
 
             if (existingByEmail) {
-                // Candidato já existe → atualizar
-                const mergedHistory = Array.isArray(existingByEmail.analysis?.history)
+                // Candidato já existe -> mesclar histórico
+                const existingHistory = Array.isArray(existingByEmail.analysis?.history)
                     ? existingByEmail.analysis.history
                     : [];
+                
                 const mergedAnalysis = {
                     ...analysisData,
-                    history: [...mergedHistory.filter((h: any) => h.job_id !== job.id), analysisData]
+                    history: [...existingHistory.filter((h: any) => h.job_id !== job.id), analysisData],
+                    resume_url: candidate.resume_url
                 };
 
                 const { data: updated, error: updateError } = await supabase
@@ -214,51 +279,54 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     .select()
                     .single();
 
-                console.log('[Transfer] update result:', updated, 'error:', updateError);
                 if (updateError) throw updateError;
                 dbCandidate = updated;
             } else {
-                // Candidato novo → inserir
+                // Candidato novo -> inserir com o primeiro item no histórico
+                const newAnalysis = {
+                    ...analysisData,
+                    history: [analysisData],
+                    resume_url: candidate.resume_url
+                };
+
                 const { data: inserted, error: insertError } = await supabase
                     .from('candidates')
                     .insert({ ...candidateRow, analysis: newAnalysis })
                     .select()
                     .single();
 
-                console.log('[Transfer] insert result:', inserted, 'error:', insertError);
                 if (insertError) throw insertError;
                 dbCandidate = inserted;
             }
 
             // 1.5. Vincular à vaga no Banco de Talentos (tabela job_candidates)
-            // Isso garante que o candidato apareça "vindo desta vaga" no banco
             const { error: jcError } = await supabase
                 .from('job_candidates')
                 .upsert({
                     candidate_id: dbCandidate.id,
                     vaga_id: job.id,
+                    job_id: job.id,
                     user_id: profile.userId,
                     organization_id: profile.organization_id,
                     score: candidate.match_score || 0,
                     status: 'Banco de Talentos'
                 }, { onConflict: 'candidate_id,vaga_id' });
             
-            if (jcError) console.warn('[Transfer] jcError:', jcError);
+            if (jcError) {
+                toast.error('Erro ao vincular vaga ao banco: ' + jcError.message);
+            }
 
-            // 2. Atualizar status na vaga original (não-fatal)
-            const { error: statusError } = await supabase
+            // 2. Atualizar status na vaga original
+            await supabase
                 .from('vagas_candidaturas')
                 .update({ status: 'talent_bank' })
                 .eq('candidate_email', candidate.email)
                 .eq('vaga_id', job.id);
 
-            if (statusError) {
-                console.warn('[Transfer] statusError (não-fatal):', statusError);
-            }
+            toast.success('Candidato movido para o Banco de Talentos!');
 
             // 3. Adicionar ao Pipeline se solicitado
             if (addToPipeline && pipelineId) {
-                // Verificar se já existe no pipeline
                 const { data: existingCard } = await supabase
                     .from('pipeline_cards')
                     .select('id')
@@ -267,7 +335,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     .maybeSingle();
 
                 if (!existingCard) {
-                    // Buscar o ID da primeira coluna (Triagem)
                     const { data: firstCol } = await supabase
                         .from('pipeline_columns')
                         .select('id')
@@ -277,7 +344,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                         .maybeSingle();
 
                     if (firstCol) {
-                        const { error: cardError } = await supabase
+                        await supabase
                             .from('pipeline_cards')
                             .insert({
                                 pipeline_id: pipelineId,
@@ -293,7 +360,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                                     selected_job_score: candidate.match_score
                                 })
                             });
-                        if (cardError) throw cardError;
                     }
                 }
             }
@@ -318,7 +384,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                 overflow: 'hidden', animation: 'modalAppear 0.3s ease-out'
             }}>
-                {/* Header */}
                 <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -331,7 +396,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     </button>
                 </div>
 
-                {/* Content */}
                 <div style={{ padding: '32px 24px' }}>
                     {step === 'confirm' && (
                         <div style={{ textAlign: 'center' }}>
@@ -383,25 +447,73 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                             {!hasPipeline && hasPipeline !== null && (
                                 <div style={{ 
                                     background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', 
-                                    borderRadius: '16px', padding: '16px', marginBottom: '24px', display: 'flex', gap: '12px' 
+                                    borderRadius: '16px', padding: '20px', marginBottom: '24px'
                                 }}>
-                                    <AlertCircle size={20} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                                    <div>
-                                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', margin: '0 0 4px' }}>Pipeline não encontrado</p>
-                                        <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: '0 0 12px' }}>
-                                            Não existe um processo seletivo configurado para esta vaga. Deseja criar um agora?
-                                        </p>
-                                        <button 
-                                            onClick={handleCreatePipeline}
-                                            disabled={creatingPipeline}
-                                            style={{ 
-                                                background: '#f59e0b', border: 'none', borderRadius: '8px', 
-                                                padding: '6px 12px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
-                                            }}
-                                        >
-                                            {creatingPipeline ? 'Criando...' : 'Criar Pipeline Padrão'}
-                                        </button>
+                                    <div style={{ display: 'flex', gap: '12px', marginBottom: showSelection ? '16px' : '0' }}>
+                                        <AlertCircle size={20} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', margin: '0 0 4px' }}>Pipeline não encontrado</p>
+                                            <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: '0 0 12px', lineHeight: '1.4' }}>
+                                                Não conseguimos identificar automaticamente um processo para esta vaga. Deseja criar um novo ou vincular a um existente?
+                                            </p>
+                                            
+                                            {!showSelection && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button 
+                                                        onClick={handleCreatePipeline}
+                                                        disabled={creatingPipeline}
+                                                        style={{ 
+                                                            background: '#f59e0b', border: 'none', borderRadius: '8px', 
+                                                            padding: '8px 12px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                                                            display: 'flex', alignItems: 'center', gap: 6
+                                                        }}
+                                                    >
+                                                        {creatingPipeline ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <PipelineIcon size={12} />}
+                                                        Criar Novo
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setShowSelection(true)}
+                                                        style={{ 
+                                                            background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', 
+                                                            padding: '8px 12px', color: 'var(--text-main)', fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        Vincular Existente
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    {showSelection && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, animation: 'fadeIn 0.2s ease' }}>
+                                            <select
+                                                value={selectedExistingId}
+                                                onChange={(e) => setSelectedExistingId(e.target.value)}
+                                                style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', color: 'var(--text-main)', fontSize: 13, outline: 'none', width: '100%' }}
+                                            >
+                                                <option value="">Selecione um processo...</option>
+                                                {allPipelines.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <button
+                                                    onClick={() => setShowSelection(false)}
+                                                    style={{ flex: 1, background: 'transparent', border: '1px solid var(--border)', borderRadius: 10, padding: '8px', color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={handleLinkExisting}
+                                                    disabled={!selectedExistingId || loading}
+                                                    style={{ flex: 2, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '8px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: (!selectedExistingId || loading) ? 0.5 : 1 }}
+                                                >
+                                                    Vincular
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
