@@ -49,13 +49,13 @@ const css = `
 .nav-lnk:hover .sbico { animation: iconBounce 0.4s ease forwards; }
 
 .nav-lnk { display:flex; align-items:center; gap:10px; padding:10px 14px; margin-bottom:4px; border-radius:10px; text-decoration:none; font-size:14px; font-weight:500; transition: background 0.18s, color 0.18s; color:var(--text-muted); overflow:hidden; white-space:nowrap; position:relative; }
-.nav-lnk:hover { background:var(--bg-card) !important; color:var(--text-main) !important; }
+.nav-lnk:hover { background:rgba(255,255,255,0.05) !important; color:var(--text-main) !important; }
 .nav-lnk.active { background:var(--sidebar-active); color:var(--sidebar-active-text); }
-.nav-lnk.active::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:3px; background:var(--primary); border-radius:0 4px 4px 0; }
+.nav-lnk.active::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:3px; background:var(--primary); border-radius:4px; }
 .dd-row { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:8px; cursor:pointer; color:var(--text-muted); font-size:13px; transition:background 0.15s; white-space:nowrap; }
 .dd-row:hover { background:var(--bg-main); color:var(--text-main); }
-.usr-card:hover { background:var(--bg-main) !important; }
-.tog-btn:hover { color:var(--text-main) !important; background:var(--bg-card) !important; }
+.usr-card:hover { background:rgba(255,255,255,0.05) !important; }
+.tog-btn:hover { color:var(--text-main) !important; background:rgba(255,255,255,0.08) !important; }
 `;
 
 interface NI { to: string; icon: any; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
@@ -176,15 +176,17 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 width: W, 
                 minWidth: W, 
                 background: 'var(--bg-sidebar)', 
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRight: '1px solid var(--border)', 
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255,255,255,0.06)', 
+                borderRadius: '20px',
                 display: 'flex', 
                 flexDirection: 'column', 
-                height: '100vh', 
+                height: '100%', 
                 flexShrink: 0, 
                 transition: 'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)', 
-                overflow: 'hidden' 
+                overflow: 'hidden',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05)'
             }}>
 
                 {/* Logo + Toggle */}
