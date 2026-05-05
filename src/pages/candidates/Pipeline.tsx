@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, GripVertical, ChevronDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, Eye } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -79,7 +79,7 @@ const css = `
 .pipe-col { display:flex; flex-direction:column; min-width:280px; max-width:280px; max-height:calc(100vh - 260px); border-radius:16px; padding:0; background:var(--bg-main); border:1px solid var(--border); transition:border-color 0.2s; }
 .pipe-col.drag-over { border-color:var(--primary); background:rgba(99,102,241,0.04); }
 .pipe-col.dragging { opacity:0.1; }
-.pipe-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px; cursor:grab; user-select:none; position:relative; }
+.pipe-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; cursor:grab; user-select:none; position:relative; }
 .pipe-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.25); border-color:rgba(99,102,241,0.3); }
 .pipe-card.dragging { opacity:0.1; }
 .pipe-card.custom-ghost { position:fixed; pointer-events:none; z-index:9999; width:250px; left:0; top:0; opacity:1 !important; box-shadow: 0 20px 50px rgba(0,0,0,0.5); transform: rotate(3deg); border: 2px solid var(--primary); }
@@ -329,11 +329,16 @@ export const Pipeline = () => {
     
     const [showStatusSelect, setShowStatusSelect] = useState(false);
     const statusSelectRef = useRef<HTMLDivElement>(null);
+    const [cardMenuOpen, setCardMenuOpen] = useState<string | null>(null);
+    const [cardSubmenu, setCardSubmenu] = useState<string | null>(null);
+    const [cardMenuPos, setCardMenuPos] = useState<{ top: number; left: number } | null>(null);
 
     useEffect(() => {
         if (!profile.loaded || !profile.userId) return;
         init(profile.userId);
     }, [profile.userId, profile.loaded]);
+
+    const cardMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -343,10 +348,21 @@ export const Pipeline = () => {
             if (statusSelectRef.current && !statusSelectRef.current.contains(e.target as Node)) {
                 setShowStatusSelect(false);
             }
+            if (cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) {
+                if (cardMenuOpen) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCardMenuOpen(null);
+                    setCardSubmenu(null);
+                    setCardMenuPos(null);
+                    const once = (ev: Event) => { ev.preventDefault(); ev.stopPropagation(); };
+                    document.addEventListener('click', once, { once: true });
+                }
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [cardMenuOpen]);
 
     useEffect(() => {
         if (selectedPipelineId && profile.userId) {
@@ -374,9 +390,9 @@ export const Pipeline = () => {
         const config = statusConfig[vaga.status] || { color: '#64748b', emoji: '', label: '' };
         
         return (
-            <span style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
                 gap: '4px',
                 fontSize: '7px',
                 fontWeight: 700,
@@ -385,7 +401,7 @@ export const Pipeline = () => {
                 background: config.color,
                 color: '#fff',
                 minWidth: '10px',
-                justifyContent: 'center'
+                justifyContent: 'flex-start'
             }} title={`Vaga ${config.label}`}>
                 {config.emoji}
             </span>
@@ -512,7 +528,7 @@ export const Pipeline = () => {
                     notes: c.notes,
                     candidate_name: c.candidates?.name ?? 'Sem nome',
                     candidate_score: c.candidates?.score ?? null,
-                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
+                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc: any) => jc.vagas_white_label?.title || jc.jobs?.name).filter(Boolean),
                     display_job_name: displayJobName,
                     display_job_score: displayJobScore,
                     job_id: jobId,
@@ -616,7 +632,7 @@ export const Pipeline = () => {
             vagas: card.candidate_vagas,
             enriched: false,
             applications: [],
-            hideBankButton: false
+            hideBankButton: true
         };
         setSelectedCandidate(base);
         try {
@@ -806,6 +822,56 @@ export const Pipeline = () => {
                 targetCol?.name,
                 { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name }
             );
+        }
+    }
+
+    async function reorderCard(card: PipelineCard, direction: 'top' | 'up' | 'down' | 'bottom') {
+        const colCards = cards.filter(c => c.column_id === card.column_id && c.id !== card.id).sort((a, b) => a.position - b.position);
+        
+        if (colCards.length === 0) return;
+
+        let newPosition: number;
+
+        switch (direction) {
+            case 'top':
+                newPosition = 0;
+                break;
+            case 'up':
+                newPosition = Math.max(0, card.position - 1);
+                break;
+            case 'down':
+                newPosition = card.position + 1;
+                break;
+            case 'bottom':
+                newPosition = colCards.length;
+                break;
+        }
+
+        const { error } = await supabase
+            .from('pipeline_cards')
+            .update({ position: newPosition })
+            .eq('id', card.id);
+
+        if (!error) {
+            setCards(prev => prev.map(c => {
+                if (c.id === card.id) {
+                    return { ...c, position: newPosition };
+                }
+                if (c.column_id === card.column_id) {
+                    let pos = c.position;
+                    if (direction === 'top' && c.position < card.position) {
+                        pos = c.position + 1;
+                    } else if (direction === 'bottom' && c.position > card.position) {
+                        pos = c.position - 1;
+                    } else if (direction === 'up' && c.position >= newPosition && c.position < card.position) {
+                        pos = c.position + 1;
+                    } else if (direction === 'down' && c.position > card.position && c.position <= newPosition) {
+                        pos = c.position - 1;
+                    }
+                    return { ...c, position: pos };
+                }
+                return c;
+            }));
         }
     }
 
@@ -1076,8 +1142,8 @@ export const Pipeline = () => {
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); deletePipeline(p.id); }}
                                             style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4 }}
-                                            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                                            onMouseLeave={e => e.currentTarget.style.opacity = '0.5'}
+                                            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -1131,8 +1197,8 @@ export const Pipeline = () => {
                                 borderRadius: 10, padding: '8px 14px', color: 'var(--text-main)', 
                                 fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' 
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
                             <Plus size={14} /> Nova Coluna
                         </button>
@@ -1177,7 +1243,7 @@ export const Pipeline = () => {
                                         onDragStart={e => onDragStart(e, 'card', card)}
                                         onDragEnd={onDragEnd}
                                         onDragOver={e => onDragOverCard(e, card.id)}
-                                        onClick={() => openCandidate(card)}
+                                        onClick={() => { if (cardMenuOpen) { setCardMenuOpen(null); setCardSubmenu(null); setCardMenuPos(null); } else { openCandidate(card); } }}
                                         style={{ background: 'var(--bg-card)', opacity: 1, cursor: 'pointer' }}
                                     >
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1186,40 +1252,117 @@ export const Pipeline = () => {
                                                 <div style={{ width: 34, height: 34, borderRadius: '50%', background: `linear-gradient(135deg, ${col.color}, ${col.color}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                                                     {initials(card.candidate_name)}
                                                 </div>
-                                                <p style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{card.candidate_name}</p>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                                <p style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, maxWidth: 'calc(100% - 100px)' }}>{card.candidate_name}</p>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }}>
                                                     {card.is_blacklisted && <Ban size={13} color="#ef4444" />}
                                                     {hasPermission(profile.user_role, 'chat') && (card.candidate_conversations?.length ?? 0) > 0 && (
                                                         <div title="Chat Ativo">
                                                             <Phone size={13} color="#22c55e" fill="#22c55e22" />
                                                         </div>
                                                     )}
-                                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); removeCard(card.id, card.candidate_id); }} title="Remover do pipeline" style={{ color: '#ef4444' }}>
-                                                        <X size={13} />
+                                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); openCandidate(card); }} title="Ver card completo" style={{ color: 'var(--text-dim)' }}>
+                                                        <Eye size={13} />
                                                     </button>
+                                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCardMenuPos({ top: rect.bottom + 4, left: rect.right - 180 }); setCardMenuOpen(cardMenuOpen === card.id ? null : card.id); }} title="Opções" style={{ color: 'var(--text-dim)' }}>
+                                                        <MoreHorizontal size={13} />
+                                                    </button>
+                                                    {cardMenuOpen === card.id && cardMenuPos && (
+                                                        <div ref={cardMenuRef} style={{ position: 'fixed', top: cardMenuPos.top, left: cardMenuPos.left, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 4, zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 }}>
+                                                            <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); openCandidate(card); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                <Eye size={13} /> Ver card completo
+                                                            </button>
+                                                            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                                            <div style={{ position: 'relative' }}>
+                                                                <button
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }}
+                                                                    onClick={(e) => { e.stopPropagation(); setCardSubmenu(cardSubmenu === 'reorder' ? null : 'reorder'); }}
+                                                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }}
+                                                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                                                                >
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}><ArrowUp size={13} /> Reordenar</span>
+                                                                    <ChevronRight size={13} style={{ flexShrink: 0 }} />
+                                                                </button>
+                                                                {cardSubmenu === 'reorder' && (
+                                                                    <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 4, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 4, zIndex: 99999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 150 }}>
+                                                                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6, whiteSpace: 'nowrap' }} onClick={(e) => { e.stopPropagation(); reorderCard(card, 'top'); setCardMenuOpen(null); setCardSubmenu(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                            <ChevronsUp size={13} /> Mover para topo
+                                                                        </button>
+                                                                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6, whiteSpace: 'nowrap' }} onClick={(e) => { e.stopPropagation(); reorderCard(card, 'up'); setCardMenuOpen(null); setCardSubmenu(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                            <ArrowUp size={13} /> Mover para cima
+                                                                        </button>
+                                                                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6, whiteSpace: 'nowrap' }} onClick={(e) => { e.stopPropagation(); reorderCard(card, 'down'); setCardMenuOpen(null); setCardSubmenu(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                            <ArrowDown size={13} /> Mover para baixo
+                                                                        </button>
+                                                                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6, whiteSpace: 'nowrap' }} onClick={(e) => { e.stopPropagation(); reorderCard(card, 'bottom'); setCardMenuOpen(null); setCardSubmenu(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                            <ChevronsDown size={13} /> Mover para fim
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ position: 'relative' }}>
+                                                                <button
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }}
+                                                                    onClick={(e) => { e.stopPropagation(); setCardSubmenu(cardSubmenu === 'move' ? null : 'move'); }}
+                                                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }}
+                                                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                                                                >
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}><Kanban size={13} /> Mover para...</span>
+                                                                    <ChevronRight size={13} style={{ flexShrink: 0 }} />
+                                                                </button>
+                                                                {cardSubmenu === 'move' && (
+                                                                    <div style={{ position: 'absolute', left: '100%', top: 0, marginLeft: 4, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 4, zIndex: 99999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 150 }}>
+                                                                        {columns.filter(c => c.id !== card.column_id).map(col => (
+                                                                            <button key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); moveCard(card, col.id); setCardMenuOpen(null); setCardSubmenu(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
+                                                                                {col.name}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                                            <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: '#ef4444', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); removeCard(card.id, card.candidate_id); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+                                                                <X size={13} /> Remover
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             {/* Linha 2: badge da vaga recuada para alinhar com o nome */}
                                             {(() => {
                                                 const p = pipelines.find(pipe => pipe.id === card.pipeline_id);
                                                 const vId = card.vaga_id || p?.vaga_id;
-                                                return (card.display_job_name || (card.candidate_vagas && card.candidate_vagas.length > 0)) && (
-                                                    <div style={{ paddingLeft: 44, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                const jobCode = availableVagas.find(v => v.id === card.job_id || v.id === card.vaga_id)?.job_code;
+                                                const jobName = card.display_job_name || card.candidate_vagas[0];
+                                                return (jobName) && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 12 }}>
                                                         {getVagaStatusBadge(vId)}
-                                                        <span style={{ 
-                                                            fontSize: 9, 
-                                                            fontWeight: 800, 
-                                                            padding: '3px 8px', 
-                                                            borderRadius: 12, 
-                                                            background: 'rgba(99,102,241,0.1)', 
-                                                            border: '1px solid rgba(99,102,241,0.2)', 
-                                                            color: 'var(--primary)', 
-                                                            whiteSpace: 'nowrap', 
-                                                            overflow: 'hidden', 
-                                                            textOverflow: 'ellipsis', 
-                                                            maxWidth: 'calc(100% - 20px)'
+                                                        {jobCode && (
+                                                            <span style={{
+                                                                fontSize: 9,
+                                                                fontWeight: 800,
+                                                                padding: '3px 8px',
+                                                                borderRadius: 12,
+                                                                background: 'rgba(99,102,241,0.15)',
+                                                                border: '1px solid rgba(99,102,241,0.3)',
+                                                                color: 'var(--primary)'
+                                                            }}>
+                                                                {jobCode.toUpperCase()}
+                                                            </span>
+                                                        )}
+                                                        <span style={{
+                                                            fontSize: 9,
+                                                            fontWeight: 800,
+                                                            padding: '3px 8px',
+                                                            borderRadius: 12,
+                                                            background: 'rgba(99,102,241,0.15)',
+                                                            border: '1px solid rgba(99,102,241,0.3)',
+                                                            color: 'var(--primary)',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis'
                                                         }}>
-                                                            {(card.display_job_name || card.candidate_vagas[0]).toUpperCase()}
+                                                            {jobName.toUpperCase()}
                                                         </span>
                                                     </div>
                                                 );
@@ -1237,12 +1380,7 @@ export const Pipeline = () => {
                                                     </span>
                                                 ) : <span />}
                                             </div>
-                                            <div style={{ display: 'flex', gap: 2 }}>
-                                                <GripVertical size={13} style={{ color: 'var(--text-muted)' }} />
-                                            </div>
                                         </div>
-
-                                        <MoveCardDropdown card={card} columns={columns} onMove={moveCard} />
                                     </div>
                                 ))}
                             </div>
@@ -1311,7 +1449,7 @@ export const Pipeline = () => {
                                 const score = card.display_job_score ?? card.candidate_score;
                                 const scoreCol = scoreColor(score);
                                 return (
-                                    <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} onClick={() => openCandidate(card)}>
+                                    <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
                                                 <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)' }}>
@@ -1559,6 +1697,7 @@ export const Pipeline = () => {
 };
 
 // ─── Move Card Dropdown ────────────────────────────────────────────────────────
+// @ts-ignore
 function MoveCardDropdown({ card, columns, onMove }: {
     card: PipelineCard;
     columns: PipelineColumn[];
@@ -1595,8 +1734,8 @@ function MoveCardDropdown({ card, columns, onMove }: {
                         {others.map(col => (
                             <button key={col.id} onClick={e => { e.stopPropagation(); onMove(card, col.id); setOpen(false); }}
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', borderRadius: 7, padding: '7px 10px', cursor: 'pointer', color: 'var(--text-main)', fontSize: 12, fontWeight: 500, textAlign: 'left', transition: 'background 0.1s' }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.08)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
                             >
                                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
                                 {col.name}

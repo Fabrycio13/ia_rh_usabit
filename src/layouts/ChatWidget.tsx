@@ -157,7 +157,7 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             minWidth: isOpen ? '400px' : '0px',
             height: '100vh',
             background: 'var(--bg-card)',
-            borderLeft: '1px solid var(--border)',
+            borderLeft: isOpen ? '1px solid var(--border)' : 'none',
             display: 'flex',
             flexDirection: 'column',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
