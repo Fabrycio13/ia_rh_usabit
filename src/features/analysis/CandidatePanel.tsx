@@ -607,29 +607,35 @@ export function CandidatePanel({
                                         )}
                                     </div>
                                     
-                                    {(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis) && (
+                                    {(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience) && (
                                         <div>
                                             <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis}
+                                                {c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience}
                                             </div>
                                         </div>
                                     )}
 
-                                    {(c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points) && (
+                                    {(c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points || c.analysis?.positivePoints || c.analysis?.pontos_positivos) && (
                                         <div style={{ borderTop: '1px solid rgba(34, 197, 94, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos Positivos do Currículo</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {Array.isArray(c.analysis?.strengths) ? c.analysis.strengths.join('\n') : (c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points)}
+                                                {(() => {
+                                                    const val = c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points || c.analysis?.positivePoints || c.analysis?.pontos_positivos;
+                                                    return Array.isArray(val) ? val.join('\n') : val;
+                                                })()}
                                             </div>
                                         </div>
                                     )}
 
-                                    {(c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps) && (
+                                    {(c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao) && (
                                         <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {Array.isArray(c.analysis?.gaps) ? c.analysis.gaps.join('\n') : (c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps)}
+                                                {(() => {
+                                                    const val = c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao;
+                                                    return Array.isArray(val) ? val.join('\n') : val;
+                                                })()}
                                             </div>
                                         </div>
                                     )}

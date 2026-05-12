@@ -29,7 +29,7 @@ export const DashboardLayout = () => {
                             <Outlet />
                         </div>
                     </main>
-                    {hasPermission(profile.user_role, 'chat') && (
+                    {hasPermission(profile.user_role, 'chat_widget') && (
                         <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
                     )}
                 </div>

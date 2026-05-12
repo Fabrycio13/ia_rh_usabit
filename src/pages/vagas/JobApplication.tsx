@@ -872,7 +872,26 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     address_number: formData.addressNumber || null,
                     complement: formData.complement || null,
                     vaga_id: job!.id, // Vaga de origem
-                    status: 'active'
+                    status: 'active',
+                    // Sincronizar análise com o Banco de Talentos
+                    skills: aiResult?.skills?.join(', ') || null,
+                    experience: aiResult?.summary || null,
+                    analysis: aiResult ? {
+                        skills: aiResult.skills?.join(', '),
+                        experience: aiResult.summary,
+                        positivePoints: aiResult.strengths,
+                        redFlags: aiResult.gaps,
+                        history: [{
+                            job_id: job!.id,
+                            job_title: job!.title,
+                            score: aiResult.score,
+                            date: new Date().toISOString(),
+                            skills: aiResult.skills?.join(', '),
+                            experience: aiResult.summary,
+                            positivePoints: aiResult.strengths,
+                            redFlags: aiResult.gaps
+                        }]
+                    } : null
                 }, {
                     onConflict: 'email,organization_id'
                 });
