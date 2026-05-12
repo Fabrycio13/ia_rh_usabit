@@ -81,6 +81,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline: false,
         pipeline_edit: false,
         chat: false,
+        chat_widget: false,
         admin: false,
         logs: false,
     },
