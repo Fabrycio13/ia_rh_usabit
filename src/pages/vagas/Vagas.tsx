@@ -186,23 +186,33 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
         fetchInitialData();
 
-        // ─── Realtime Subscription for Application Counts ──────────────────────
+        // ─── Realtime Subscription for Vacancy Updates ──────────────────────
+        // Ouvimos a tabela de vagas diretamente, pois o banco tem um trigger
+        // que atualiza o application_count automaticamente.
         const channel = supabase
-            .channel('vagas-counts-realtime')
+            .channel('vagas-updates-realtime')
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Ouvir Insert, Update e Delete
                     schema: 'public',
-                    table: 'vagas_candidaturas'
+                    table: 'vagas_white_label'
                 },
                 (payload) => {
-                    const newApplication = payload.new;
-                    setVagas(prev => prev.map(v => 
-                        v.id === newApplication.vaga_id 
-                            ? { ...v, application_count: (v.application_count || 0) + 1 } 
-                            : v
-                    ));
+                    if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                        const updatedVaga = payload.new;
+                        setVagas(prev => {
+                            // Se for update, atualiza o item. Se for insert e não estiver na lista, adiciona.
+                            const exists = prev.some(v => v.id === updatedVaga.id);
+                            if (exists) {
+                                return prev.map(v => v.id === updatedVaga.id ? { ...v, ...updatedVaga } : v);
+                            }
+                            // Apenas adiciona se for ativo (regra da listagem)
+                            return updatedVaga.is_active ? [updatedVaga, ...prev] : prev;
+                        });
+                    } else if (payload.eventType === 'DELETE') {
+                        setVagas(prev => prev.filter(v => v.id === payload.old.id));
+                    }
                 }
             )
             .subscribe();
