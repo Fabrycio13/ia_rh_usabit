@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.8.1",
     "@fontsource-variable/geist": "^5.2.8",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.98.0",

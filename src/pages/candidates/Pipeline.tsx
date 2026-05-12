@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, Eye } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
@@ -181,12 +182,11 @@ const css = `
 `;
 
 // ─── Column Header Edit Inline ─────────────────────────────────────────────────
-function ColHeader({ col, onUpdate, onDelete, onDragStart, onDragEnd }: {
+function ColHeader({ col, onUpdate, onDelete, colHeaderRef }: {
     col: PipelineColumn;
     onUpdate: (id: string, name: string, color: string) => void;
     onDelete: (id: string) => void;
-    onDragStart: (e: React.DragEvent, type: 'col', item: PipelineColumn) => void;
-    onDragEnd: () => void;
+    colHeaderRef?: React.RefObject<Map<string, HTMLElement>>;
 }) {
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(col.name);
@@ -217,10 +217,8 @@ function ColHeader({ col, onUpdate, onDelete, onDragStart, onDragEnd }: {
 
     return (
         <div
+            ref={el => { if (el && colHeaderRef) colHeaderRef.current.set(col.id, el); }}
             style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'grab' }}
-            draggable
-            onDragStart={e => onDragStart(e, 'col', col)}
-            onDragEnd={onDragEnd}
         >
             <div className="pipe-col-header-dot" style={{ background: col.color }} />
             <span style={{ flex: 1, color: 'var(--text-main)', fontWeight: 700, fontSize: 13 }}>{col.name}</span>
@@ -312,14 +310,16 @@ export const Pipeline = () => {
     const [newColName, setNewColName] = useState('');
     const [newColColor, setNewColColor] = useState(COLUMN_COLORS[0]);
     const [addCandModal, setAddCandModal] = useState<string | null>(null);
-    const [draggingCard, setDraggingCard] = useState<PipelineCard | null>(null);
-    const [draggingCol, setDraggingCol] = useState<PipelineColumn | null>(null);
-    const [dragOverCol, setDragOverCol] = useState<string | null>(null);
-    const [dragOverCardId, setDragOverCardId] = useState<string | null>(null);
-    const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+    const [activeCardId, setActiveCardId] = useState<string | null>(null);
+    const [, setActiveColumnId] = useState<string | null>(null);
+    const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
     const [showSelect, setShowSelect] = useState(false);
     const selectRef = useRef<HTMLDivElement>(null);
+
+    const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
+    const columnRefs = useRef<Map<string, HTMLElement>>(new Map());
+    const colHeaderRefs = useRef<Map<string, HTMLElement>>(new Map());
 
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
     
@@ -372,6 +372,176 @@ export const Pipeline = () => {
             setCards([]);
         }
     }, [selectedPipelineId, profile.userId]);
+
+    // ─── Drag-and-Drop with @atlaskit ─────────────────────────────────────────
+    useEffect(() => {
+        const cleanupFunctions: Array<() => void> = [];
+
+        cards.forEach(card => {
+            const element = cardRefs.current.get(card.id);
+            if (!element) return;
+
+            const cleanup = draggable({
+                element,
+                getInitialData: () => ({
+                    type: 'card',
+                    cardId: card.id,
+                    columnId: card.column_id
+                }),
+                onDragStart: ({ source }) => {
+                    setActiveCardId(source.data.cardId as string);
+                },
+                onDrop: ({ location, source }) => {
+                    setActiveCardId(null);
+                    setDragOverColumnId(null);
+
+                    const destination = location.current.dropTargets[0];
+                    if (!destination) return;
+
+                    const targetColumnId = destination.data.columnId as string;
+                    const cardId = source.data.cardId as string;
+                    const card = cards.find(c => c.id === cardId);
+                    if (!card) return;
+
+                    // Calculate position based on card dropped over
+                    const dropTargets = location.current.dropTargets;
+                    let targetIndex = 0;
+
+                    if (dropTargets.length > 1) {
+                        const overCardId = dropTargets[1].data.cardId as string;
+                        const columnCards = cards
+                            .filter(c => c.column_id === targetColumnId)
+                            .sort((a, b) => a.position - b.position);
+                        const overIndex = columnCards.findIndex(c => c.id === overCardId);
+                        targetIndex = overIndex >= 0 ? overIndex : columnCards.length;
+                    }
+
+                    // Same column reorder
+                    if (card.column_id === targetColumnId) {
+                        const columnCards = cards
+                            .filter(c => c.column_id === targetColumnId && c.id !== cardId)
+                            .sort((a, b) => a.position - b.position);
+                        columnCards.splice(targetIndex, 0, card);
+                        const updates = columnCards.map((c, idx) => ({
+                            id: c.id,
+                            position: idx
+                        }));
+                        setCards(prev => prev.map(c => {
+                            if (c.id === cardId) return { ...c, position: targetIndex };
+                            const idx = updates.findIndex(u => u.id === c.id);
+                            if (idx >= 0) return { ...c, position: updates[idx].position };
+                            return c;
+                        }));
+                        (async () => {
+                            for (const update of updates) {
+                                await supabase.from('pipeline_cards').update({ position: update.position }).eq('id', update.id);
+                            }
+                        })();
+                    } else {
+                        // Cross-column move
+                        const sourceCol = columns.find(cl => cl.id === card.column_id);
+                        const targetCol = columns.find(cl => cl.id === targetColumnId);
+                        const otherCards = cards.filter(c => c.id !== cardId);
+                        const targetColOtherCards = otherCards.filter(c => c.column_id === targetColumnId).sort((a, b) => a.position - b.position);
+                        targetColOtherCards.splice(targetIndex, 0, { ...card, column_id: targetColumnId });
+                        const updatedCards = [
+                            ...otherCards.filter(c => c.column_id !== targetColumnId),
+                            ...targetColOtherCards.map((c, i) => ({ ...c, position: i }))
+                        ];
+                        setCards(updatedCards);
+                        supabase.from('pipeline_cards').update({ column_id: targetColumnId, position: targetIndex }).eq('id', cardId).then(() => {
+                            for (let i = 0; i < targetColOtherCards.length; i++) {
+                                if (targetColOtherCards[i].position !== i) {
+                                    supabase.from('pipeline_cards').update({ position: i }).eq('id', targetColOtherCards[i].id);
+                                }
+                            }
+                        });
+                        if (profile.userId) {
+                            const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
+                            logScreening(profile.userId, card.candidate_id, 'move', sourceCol?.name, targetCol?.name, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name });
+                            logActivity(profile.userId, `Moveu "${card.candidate_name}" para "${targetCol?.name || 'Etapa'}" no processo "${pipe?.name || 'Pipeline'}"`);
+                        }
+                    }
+                }
+            });
+
+            cleanupFunctions.push(cleanup);
+        });
+
+        return () => cleanupFunctions.forEach(fn => fn());
+    }, [cards, columns, profile, pipelines, selectedPipelineId]);
+
+    useEffect(() => {
+        const cleanupFunctions: Array<() => void> = [];
+
+        columns.forEach(column => {
+            const element = columnRefs.current.get(column.id);
+            if (!element) return;
+
+            const cleanup = dropTargetForElements({
+                element,
+                canDrop: ({ source }) => source.data.type === 'card' || source.data.type === 'col',
+                getData: () => ({ columnId: column.id })
+            });
+
+            cleanupFunctions.push(cleanup);
+        });
+
+        return () => cleanupFunctions.forEach(fn => fn());
+    }, [columns]);
+
+    useEffect(() => {
+        const cleanupFunctions: Array<() => void> = [];
+
+        columns.forEach(col => {
+            const headerEl = colHeaderRefs.current.get(col.id);
+            if (!headerEl) return;
+
+            const cleanup = draggable({
+                element: headerEl,
+                getInitialData: () => ({
+                    type: 'col',
+                    columnId: col.id
+                }),
+                onDragStart: ({ source }) => {
+                    setActiveColumnId(source.data.columnId as string);
+                },
+                onDrop: ({ location, source }) => {
+                    setActiveColumnId(null);
+
+                    const destination = location.current.dropTargets[0];
+                    if (!destination) return;
+
+                    const targetColumnId = destination.data.columnId as string;
+                    const sourceColumnId = source.data.columnId as string;
+
+                    if (sourceColumnId === targetColumnId) return;
+
+                    const sourceIdx = columns.findIndex(c => c.id === sourceColumnId);
+                    const targetIdx = columns.findIndex(c => c.id === targetColumnId);
+
+                    if (sourceIdx === -1 || targetIdx === -1) return;
+
+                    const newCols = [...columns];
+                    const [moved] = newCols.splice(sourceIdx, 1);
+                    newCols.splice(targetIdx, 0, moved);
+
+                    const updatedCols = newCols.map((c, i) => ({ ...c, position: i }));
+                    setColumns(updatedCols);
+
+                    (async () => {
+                        for (const c of updatedCols) {
+                            await supabase.from('pipeline_columns').update({ position: c.position }).eq('id', c.id);
+                        }
+                    })();
+                }
+            });
+
+            cleanupFunctions.push(cleanup);
+        });
+
+        return () => cleanupFunctions.forEach(fn => fn());
+    }, [columns]);
     
     // Helper function para status da vaga
     const getVagaStatusBadge = (vagaId?: string | null) => {
@@ -875,130 +1045,6 @@ export const Pipeline = () => {
         }
     }
 
-    // ─── Drag handlers ────────────────────────────────────────────────────────
-    const onDragStart = (e: React.DragEvent, type: 'card' | 'col', item: PipelineCard | PipelineColumn) => {
-        if (type === 'card') e.stopPropagation();
-        e.dataTransfer.setData('type', type);
-
-        if (type === 'card' && e.dataTransfer.setDragImage) {
-            const img = new Image();
-            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            e.dataTransfer.setDragImage(img, 0, 0);
-        }
-
-        if (type === 'card') {
-            const card = item as PipelineCard;
-            setDragPos({ x: e.clientX, y: e.clientY });
-            e.dataTransfer.setData('cardId', card.id);
-            setTimeout(() => setDraggingCard(card), 0);
-        } else {
-            const col = item as PipelineColumn;
-            e.dataTransfer.setData('colId', col.id);
-            setTimeout(() => setDraggingCol(col), 0);
-        }
-    };
-
-    const onDragEnd = () => {
-        setDraggingCard(null);
-        setDraggingCol(null);
-        setDragOverCol(null);
-        setDragOverCardId(null);
-    };
-
-    const onDragOverCol = (e: React.DragEvent, colId: string) => {
-        e.preventDefault();
-        setDragOverCol(colId);
-        setDragPos({ x: e.clientX, y: e.clientY });
-    };
-
-    const onDragOverCard = (e: React.DragEvent, cardId: string) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragOverCardId(cardId);
-        setDragPos({ x: e.clientX, y: e.clientY });
-    };
-
-    const onDrop = async (e: React.DragEvent, targetColId: string) => {
-        e.preventDefault();
-        const type = e.dataTransfer.getData('type');
-
-        if (type === 'card' && draggingCard) {
-            let targetPos = 0;
-            const currentColCards = cards.filter(c => c.column_id === targetColId).sort((a, b) => a.position - b.position);
-
-            if (dragOverCardId) {
-                const overIdx = currentColCards.findIndex(c => c.id === dragOverCardId);
-                targetPos = overIdx !== -1 ? overIdx : currentColCards.length;
-            } else {
-                targetPos = currentColCards.length;
-            }
-
-            if (draggingCard.column_id === targetColId) {
-                const oldIdx = currentColCards.findIndex(c => c.id === draggingCard.id);
-                if (oldIdx === targetPos || oldIdx === targetPos - 1) {
-                    onDragEnd();
-                    return;
-                }
-            }
-
-            const sourceCol = columns.find(cl => cl.id === draggingCard.column_id);
-            const targetCol = columns.find(cl => cl.id === targetColId);
-
-            const otherCards = cards.filter(c => c.id !== draggingCard.id);
-            const targetColOtherCards = otherCards.filter(c => c.column_id === targetColId).sort((a, b) => a.position - b.position);
-
-            targetColOtherCards.splice(targetPos, 0, { ...draggingCard, column_id: targetColId });
-
-            const updatedCards = [
-                ...otherCards.filter(c => c.column_id !== targetColId),
-                ...targetColOtherCards.map((c, i) => ({ ...c, position: i }))
-            ];
-            setCards(updatedCards);
-
-            await supabase.from('pipeline_cards').update({ column_id: targetColId, position: targetPos }).eq('id', draggingCard.id);
-            
-            if (draggingCard.column_id !== targetColId && profile.userId) {
-                const pipe = pipelines.find(p => p.id === (draggingCard.pipeline_id || selectedPipelineId));
-                logScreening(
-                    profile.userId,
-                    draggingCard.candidate_id,
-                    'move',
-                    sourceCol?.name,
-                    targetCol?.name,
-                    { card_id: draggingCard.id, job_id: draggingCard.job_id, job_name: draggingCard.display_job_name }
-                );
-                logActivity(profile.userId, `Moveu "${draggingCard.candidate_name}" para "${targetCol?.name || 'Etapa'}" no processo "${pipe?.name || 'Pipeline'}"`);
-            }
-
-            for (let i = 0; i < targetColOtherCards.length; i++) {
-                if (targetColOtherCards[i].position !== i) {
-                    await supabase.from('pipeline_cards').update({ position: i }).eq('id', targetColOtherCards[i].id);
-                }
-            }
-        } else if (type === 'col') {
-            const sourceColId = e.dataTransfer.getData('colId');
-            if (sourceColId === targetColId) {
-                onDragEnd();
-                return;
-            }
-            const sourceIdx = columns.findIndex(c => c.id === sourceColId);
-            const targetIdx = columns.findIndex(c => c.id === targetColId);
-            if (sourceIdx === -1 || targetIdx === -1) { onDragEnd(); return; }
-
-            const newCols = [...columns];
-            const [moved] = newCols.splice(sourceIdx, 1);
-            newCols.splice(targetIdx, 0, moved);
-
-            const updatedCols = newCols.map((c, i) => ({ ...c, position: i }));
-            setColumns(updatedCols);
-
-            for (const c of updatedCols) {
-                await supabase.from('pipeline_columns').update({ position: c.position }).eq('id', c.id);
-            }
-        }
-        onDragEnd();
-    };
-
     // ─── Loading ──────────────────────────────────────────────────────────────
     if (fetchingPipelines) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 16 }}>
@@ -1216,12 +1262,10 @@ export const Pipeline = () => {
                     return (
                         <div
                             key={col.id}
-                            className={`pipe-col${dragOverCol === col.id ? ' drag-over' : ''}${draggingCol?.id === col.id ? ' dragging' : ''}`}
-                            onDragEnd={onDragEnd}
-                            onDragOver={e => onDragOverCol(e, col.id)}
-                            onDrop={e => onDrop(e, col.id)}
+                            ref={el => { if (el) columnRefs.current.set(col.id, el); }}
+                            className={`pipe-col${dragOverColumnId === col.id ? ' drag-over' : ''}`}
                         >
-                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} onDragStart={onDragStart} onDragEnd={onDragEnd} />
+                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} colHeaderRef={colHeaderRefs} />
 
                             <div style={{ padding: '0 14px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ background: col.color + '22', color: col.color, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px' }}>{colCards.length} candidato{colCards.length !== 1 ? 's' : ''}</span>
@@ -1238,12 +1282,9 @@ export const Pipeline = () => {
                                 {colCards.map(card => (
                                     <div
                                         key={card.id}
-                                        className={`pipe-card${draggingCard?.id === card.id ? ' dragging' : ''}${dragOverCardId === card.id ? ' drop-target' : ''}`}
-                                        draggable
-                                        onDragStart={e => onDragStart(e, 'card', card)}
-                                        onDragEnd={onDragEnd}
-                                        onDragOver={e => onDragOverCard(e, card.id)}
-                                        onClick={() => { if (cardMenuOpen) { setCardMenuOpen(null); setCardSubmenu(null); setCardMenuPos(null); } else { openCandidate(card); } }}
+                                        ref={el => { if (el) cardRefs.current.set(card.id, el); }}
+                                        className={`pipe-card${activeCardId === card.id ? ' dragging' : ''}`}
+                                        onClick={() => { if (activeCardId || cardMenuOpen) { setCardMenuOpen(null); setCardSubmenu(null); setCardMenuPos(null); } else { openCandidate(card); } }}
                                         style={{ background: 'var(--bg-card)', opacity: 1, cursor: 'pointer' }}
                                     >
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1646,30 +1687,6 @@ export const Pipeline = () => {
                     onAdd={addCard}
                     onClose={() => setAddCandModal(null)}
                 />
-            )}
-
-            {/* Custom Drag Ghost: 100% Opaque rendering */}
-            {draggingCard && (
-                <div
-                    className="pipe-card custom-ghost"
-                    style={{
-                        transform: `translate(${dragPos.x - 20}px, ${dragPos.y - 20}px) rotate(2deg)`,
-                        width: 250,
-                        position: 'fixed'
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                            {initials(draggingCard.candidate_name)}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <p style={{ color: '#fff', fontWeight: 700, fontSize: 13, margin: 0 }}>{draggingCard.candidate_name}</p>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, margin: 0 }}>
-                                {draggingCard.display_job_name || draggingCard.candidate_vagas[0]}
-                            </p>
-                        </div>
-                    </div>
-                </div>
             )}
 
             {/* Candidate Detail Panel */}
