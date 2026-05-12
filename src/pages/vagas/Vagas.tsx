@@ -200,7 +200,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 },
                 (payload) => {
                     if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-                        const updatedVaga = payload.new;
+                        const updatedVaga = payload.new as Vaga;
                         setVagas(prev => {
                             // Se for update, atualiza o item. Se for insert e não estiver na lista, adiciona.
                             const exists = prev.some(v => v.id === updatedVaga.id);
@@ -211,7 +211,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             return updatedVaga.is_active ? [updatedVaga, ...prev] : prev;
                         });
                     } else if (payload.eventType === 'DELETE') {
-                        setVagas(prev => prev.filter(v => v.id === payload.old.id));
+                        const oldId = (payload.old as any).id;
+                        setVagas(prev => prev.filter(v => v.id === oldId));
                     }
                 }
             )
