@@ -219,10 +219,12 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 job_title: job.title,
                 job_code: job.job_code,
                 date: new Date().toISOString(),
-                experience: ai.experience || ai.summary || ai.resumo || ai.analise_nota,
-                positivePoints: ai.pontos_positivos || ai.positive_points || ai['Pontos positivos do currículo'],
+                // Chaves reais do _ai_analysis (JobApplication.tsx): skills, strengths, gaps, summary
+                skills: ai.skills || ai.Skills || ai.habilidades || ai.Habilidades,
+                experience: ai.summary || ai.experience || ai.resumo || ai.analise_nota,
+                positivePoints: ai.strengths || ai.positivePoints || ai.pontos_positivos || ai.positive_points,
                 education: ai.education || ai.formacao || ai.escolaridade,
-                redFlags: ai.redFlags || ai.attention_points || ai.pontos_atencao || ai.negative_points || ai.pontos_negativos || ai['Pontos de atenção'] || ai.gaps || ai['Pontos de atenção / negativos'],
+                redFlags: ai.gaps || ai.redFlags || ai.attention_points || ai.pontos_atencao || ai.negative_points || ai.pontos_negativos,
                 resume_url: candidate.resume_url
             };
 
@@ -307,7 +309,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     vaga_id: job.id,
                     job_id: job.id,
                     user_id: profile.userId,
-                    organization_id: profile.organization_id,
                     score: candidate.match_score || 0,
                     status: 'Banco de Talentos'
                 }, { onConflict: 'candidate_id,vaga_id' });

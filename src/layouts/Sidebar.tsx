@@ -412,7 +412,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 )}
 
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
-                    {hasPermission(profile.user_role, 'chat') && (
+                    {hasPermission(profile.user_role, 'chat_widget') && (
                         <button
                             onClick={onToggleChat}
                             className="nav-lnk"

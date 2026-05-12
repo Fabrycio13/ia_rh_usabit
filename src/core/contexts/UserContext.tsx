@@ -98,8 +98,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 account_type: (data.account_type as any) || 'trial',
                 plan: (data.account_type as any) || 'trial',
                 trial_ends_at: data.trial_ends_at || null,
-                organization_id: data.organization_id || null,
-                organization_name: data.organization_name || null,
+                organization_id: (data.organization_id && data.organization_id !== 'null') ? data.organization_id : null,
+                organization_name: (data.organization_name && data.organization_name !== 'null') ? data.organization_name : null,
                 onboarding_completed: data.onboarding_completed ?? false,
                 isPremium: data.account_type === 'lifetime' ||
                            data.user_role?.toLowerCase() === 'owner' ||

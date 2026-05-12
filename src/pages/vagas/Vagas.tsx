@@ -60,6 +60,7 @@ interface Vaga {
     company_logo: string | null;
     show_company_name: boolean;
     job_code?: string;
+    pipeline_id?: string | null;
 }
 
 export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
@@ -156,13 +157,20 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 // 3. Buscar Vagas
                 let query = supabase
                     .from('vagas_white_label')
-                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, is_third_party, company_name, company_logo, show_company_name, job_code')
+                    .select('id, title, public_hash, status, is_active, is_accepting_applications, location, contract_type, application_count, created_at, organization_id, is_pcd, is_third_party, company_name, company_logo, show_company_name, job_code, pipeline_id')
                     .eq('is_active', true)
                     .order('created_at', { ascending: false });
 
                 // ISOLAMENTO: Usuários que não são Owners só veem vagas da sua organização
-                if (role !== 'owner' && userOrgId) {
-                    query = query.eq('organization_id', userOrgId);
+                // Adicionamos um OR para que o criador (user_id) sempre veja sua própria vaga
+                if (role !== 'owner') {
+                    if (userOrgId && userOrgId !== 'null') {
+                        // Filtra por org OU por ser o criador
+                        query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
+                    } else {
+                        // Se não tem org, vê apenas o que criou
+                        query = query.eq('user_id', user.id);
+                    }
                 }
                 
                 const { data, error } = await query;
@@ -225,7 +233,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         setDeleting(true);
 
         try {
-            // Soft delete: apenas desativa a vaga ao invés de excluir
+            const vaga = vagas.find(v => v.id === vagaToDelete);
+
             const { error } = await supabase
                 .from('vagas_white_label')
                 .update({ is_active: false })
@@ -233,11 +242,16 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
             if (error) throw error;
 
+            if (vaga?.pipeline_id) {
+                await supabase
+                    .from('pipelines')
+                    .update({ is_active: false })
+                    .eq('id', vaga.pipeline_id);
+            }
+
             setVagas(prev => prev.filter(v => v.id !== vagaToDelete));
             toast.success('Vaga desativada com sucesso');
-            
-            // Log de desativação
-            const vaga = vagas.find(v => v.id === vagaToDelete);
+
             const { data: { user } } = await supabase.auth.getUser();
             if (user && vaga) {
                 logActivity(user.id, `Desativou a vaga: "${vaga.title}"`).catch(console.error);

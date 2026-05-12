@@ -626,7 +626,7 @@ export const Analises = () => {
         .order('created_at', { ascending: false });
 
       // Se tiver organização, traz tudo da org. Se não, traz só do usuário.
-      if (profile.organization_id) {
+      if (profile.organization_id && profile.organization_id !== 'null') {
         query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
       } else {
         query = query.eq('user_id', userId);

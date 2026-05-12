@@ -277,7 +277,14 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     try {
       const candidateData: Record<string, unknown> = {
         user_id: profile.userId,
+        organization_id: profile.organization_id,
         name: name.trim(),
+        analysis: {
+          skills: skills.trim(),
+          experience: experience.trim(),
+          education: education.trim(),
+          history: []
+        }
       };
 
       if (email.trim()) candidateData.email = email.trim();

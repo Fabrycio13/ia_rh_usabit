@@ -429,11 +429,16 @@ export const VagaForm = () => {
             }
 
             // Buscar perfil para pegar organization_id
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('organization_id')
                 .eq('id', user.id)
                 .single();
+
+            if (profileError) {
+                console.error('Erro ao buscar perfil do usuário:', profileError);
+                // Não trava o processo, mas avisa no log
+            }
 
             const vagaData: any = {
                 user_id: user.id,
@@ -588,6 +593,11 @@ export const VagaForm = () => {
                 .insert(columnsToInsert);
 
             if (columnsError) throw columnsError;
+
+            await supabase
+                .from('vagas_white_label')
+                .update({ pipeline_id: pipeline.id })
+                .eq('id', createdVagaId);
 
             toast.success('Pipeline criado com sucesso!');
             setShowPipelineModal(false);

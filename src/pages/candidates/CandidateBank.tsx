@@ -178,7 +178,7 @@ export const CandidateBank = () => {
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
-        if (isOrgMember && profile.organization_id) {
+        if (isOrgMember && profile.organization_id && profile.organization_id !== 'null') {
           query = query.eq('organization_id', profile.organization_id);
         } else {
           query = query.eq('user_id', userId);
@@ -345,10 +345,10 @@ export const CandidateBank = () => {
           ...prev,
           phone: toStr(cd?.phone) ?? null,
           address: toStr(cd?.address) ?? null,
-          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades),
-          experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia),
-          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao),
-          redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
+          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cd?.skills),
+          experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? cd?.experience),
+          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cd?.education),
+          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
           applications: validHistory.map((h: any) => ({
@@ -357,12 +357,12 @@ export const CandidateBank = () => {
             jobCode: h.job_code || h.code || '',
             score: h.score ?? h.match_score ?? 0,
             appliedAt: h.analyzed_at || h.date || h.created_at,
-            skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-            experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-            positivePoints: toStr(h.positivePoints ?? h.pontos_positivos ?? h.analysis?.positivePoints ?? h.analysis?.pontos_positivos),
-            education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-            redFlags: toStr(h.redFlags ?? h.pontos_atencao ?? h.analysis?.redFlags ?? h.analysis?.pontos_atencao),
-            resume_url: h.resume_url || h.analysis?.resume_url
+            skills: toStr(h.skills ?? h.habilidades),
+            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+            education: toStr(h.education ?? h.formacao),
+            redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
+            resume_url: h.resume_url
           })),
           pipelineCards,
           enriched: true,

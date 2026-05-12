@@ -237,12 +237,22 @@ export const Dashboard = () => {
       if (ae) throw ae;
 
       // 2. Buscar Vagas do Portal (vagas_white_label)
-      const { data: whiteLabelData, error: we } = await supabase
+      let query = supabase
         .from('vagas_white_label')
-        .select('id, title, created_at, organization_id')
-        .eq('organization_id', profile.organization_id)
+        .select('id, title, created_at, organization_id');
+      
+      if (profile.user_role !== 'owner') {
+        if (profile.organization_id && profile.organization_id !== 'null') {
+          query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
+        } else {
+          query = query.eq('user_id', profile.userId);
+        }
+      }
+
+      const { data: whiteLabelData, error: we } = await query
         .eq('is_active', true)
         .order('created_at', { ascending: false });
+      
       if (we) throw we;
 
       // 3. Buscar estatísticas para Análises

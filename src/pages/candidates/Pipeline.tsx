@@ -583,6 +583,7 @@ export const Pipeline = () => {
         try {
             const { data: pipes } = await supabase.from('pipelines')
                 .select('*')
+                .eq('is_active', true)
                 .or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`)
                 .order('name');
             setPipelines(pipes || []);
