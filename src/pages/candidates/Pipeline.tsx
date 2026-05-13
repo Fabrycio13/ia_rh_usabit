@@ -740,7 +740,7 @@ export const Pipeline = () => {
     async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
-            supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+            supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
             supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
@@ -748,9 +748,15 @@ export const Pipeline = () => {
         if (!cand) return { enriched: true };
 
         const analysis = cand.analysis ?? {};
-        const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+        const validJobIds = new Set();
+        (jcData ?? []).forEach((jc: any) => {
+            if (jc.job_id) validJobIds.add(jc.job_id);
+            if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+        });
         const rawHistory: any[] = analysis?.history ?? [];
-        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+        const validHistory = rawHistory.filter((h: any) =>
+            (h.job_id || h.vaga_id) && validJobIds.has(h.job_id || h.vaga_id)
+        );
 
         const pipelineCards = (pipeData ?? []).map((pc: any) => {
             let jobName = undefined;
