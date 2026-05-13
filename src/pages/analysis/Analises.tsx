@@ -295,6 +295,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       })),
       pipelineCards,
       resume_url: cand.resume_url,
+      hideBankButton: true,
       enriched: true,
       conversations: convData || []
     };
@@ -307,7 +308,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       score: c.score,
       enriched: false,
       applications: [],
-      hideBankButton: false
+      hideBankButton: true
     };
     setSelectedCandidate(base);
     try {

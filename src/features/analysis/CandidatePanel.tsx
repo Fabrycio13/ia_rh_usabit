@@ -1059,7 +1059,7 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                {!c.hideBankButton && c.status !== 'talent_bank' && (
+                {!c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
                     <div style={{ padding: '0 24px 32px' }}>
                         <button
                             onClick={() => setTransferringToBank(true)}
@@ -1089,6 +1089,7 @@ export function CandidatePanel({
                             Mover para Banco de Talentos
                         </button>
                     </div>
+                ) : null
                 )}
             </div>
 
@@ -1114,7 +1115,7 @@ export function CandidatePanel({
                         answers: { _ai_analysis: c.analysis }
                     }}
                     job={{
-                        id: currentJobContext?.id || c.applications[0]?.jobId || 'banco',
+                        id: currentJobContext?.id || c.applications[0]?.jobId,
                         title: currentJobContext?.title || c.applications[0]?.jobName || 'Banco de Talentos',
                         organization_id: profile.organization_id
                     }}
