@@ -1,16 +1,11 @@
-import OpenAI from 'openai';
 import * as pdfjs from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
+import { callOpenAI } from './aiClient';
 
 // @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const openai = new OpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true,
-});
 
 /**
  * Filtra termos comuns usados em ataques de Prompt Injection
@@ -37,10 +32,6 @@ function sanitizeAIInput(text: string): string {
     });
     
     return sanitized;
-}
-
-if (!import.meta.env.VITE_OPENAI_API_KEY) {
-    console.error('OpenAI API Key não encontrada no ambiente (.env.local)!');
 }
 
 // Interface para extração pura de dados (sem scoring)
@@ -317,13 +308,8 @@ Retorne APENAS este JSON, sem texto adicional:
             throw new Error("Nenhum conteúdo (texto ou imagem) fornecido.");
         }
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-5.4-mini",
-            messages,
-            response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0].message.content;
+        const data = await callOpenAI(messages);
+        const content = data.choices[0].message.content;
         if (!content) throw new Error("A IA não retornou conteúdo.");
 
         // Log do JSON RAW para debug
@@ -647,13 +633,8 @@ ${basePrompt}
             throw new Error("Nenhum conteúdo (texto ou imagem) fornecido para análise.");
         }
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-5.4-mini",
-            messages,
-            response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0].message.content;
+        const data = await callOpenAI(messages);
+        const content = data.choices[0].message.content;
         if (!content) throw new Error("A IA não retornou conteúdo.");
 
         // Log do JSON RAW para debug

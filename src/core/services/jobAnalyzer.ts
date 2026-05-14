@@ -1,15 +1,10 @@
-import OpenAI from 'openai';
 import * as pdfjs from 'pdfjs-dist';
+import { callOpenAI } from './aiClient';
 
 // @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const openai = new OpenAI({
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true,
-});
 
 /**
  * Filtra termos comuns usados em ataques de Prompt Injection
@@ -220,20 +215,14 @@ export async function analyzeJobApplication(
             messages.push({ role: "user", content: contentParts });
         } else {
             const sanitizedText = sanitizeAIInput(text);
-            messages.push({
+messages.push({
                 role: "user",
                 content: `${basePrompt}\n\n# CONTEÚDO DO CANDIDATO (EXAME DE DADOS):\n<CANDIDATE_DATA_CONTENT>\n${sanitizedText}\n</CANDIDATE_DATA_CONTENT>`
             });
         }
 
-        // Modelo que entrega excelente analise combinada. O usuário citou "5.2 mini" e explicamos q seria gpt-4o-mini
-        const response = await openai.chat.completions.create({
-            model: "gpt-5.4-mini",
-            messages,
-            response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0].message.content;
+        const data = await callOpenAI(messages);
+        const content = data.choices[0].message.content;
         if (!content) throw new Error("A IA não retornou conteúdo.");
 
         const parsed = JSON.parse(content) as JobMatchResult;

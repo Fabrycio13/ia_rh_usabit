@@ -12,7 +12,7 @@ async function cleanup() {
     const { data: all } = await supabase.from('candidates').select('*');
     if (!all) return;
 
-    const groups = new Map<string, any[]>();
+    const groups = new Map<string, typeof all>();
 
     all.forEach(c => {
         // Find a key to identify the "same" person
