@@ -417,7 +417,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                             candidateRow.analysis = {
                                 ...analysisData,
-                                history: [...history.filter((h: any) => h.job_id !== jobData.id), currentHistoryEntry]
+                                history: [...history.filter((h: Record<string, unknown>) => h.job_id !== jobData.id), currentHistoryEntry]
                             };
 
                             // IMPORTANTE: Ao atualizar um candidato existente, NUNCA sobrescrevemos 
@@ -438,7 +438,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 candidateRow.resume_url = currentFull.resume_url;
                                 candidateRow.resume_file_name = currentFull.resume_file_name;
                                 candidateRow.resume_upload_id = currentFull.resume_upload_id;
-                                resumeUrl = currentFull.resume_url; // ATUALIZA A VARIÁVEL LOCAL PARA O STATE
+                                resumeUrl = currentFull.resume_url as string | null;
                             }
 
                             const { data: upd, error: e4 } = await supabase.from('candidates').update(candidateRow).eq('id', existingId).select().single();
@@ -450,7 +450,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             if (dbRecord) {
                                 console.log(`[Analysis] Atualização bem-sucedida para ID: ${dbRecord.id}`);
                                 // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
-                                resumeUrl = dbRecord.resume_url;
+                                resumeUrl = dbRecord.resume_url as string | null;
                             }
                         } else {
                             candidateRow.analysis = {
@@ -467,13 +467,13 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             if (dbRecord) {
                                 console.log(`[Analysis] Inserção bem-sucedida para ID: ${dbRecord.id}`);
                                 // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
-                                resumeUrl = dbRecord.resume_url;
+                                resumeUrl = dbRecord.resume_url as string | null;
                             }
                         }
 
                         if (dbRecord) {
                             console.log(`[Analysis] Persistido no DB com ID: ${dbRecord.id}`);
-                            normalizedCandidate.dbId = dbRecord.id;
+                            normalizedCandidate.dbId = dbRecord.id as string;
 
                             // Atualizar o estado React com o dbId real (a mutação local não é refletida no state)
                             setResult(prev => {
@@ -482,7 +482,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                     ...prev,
                                     candidates: prev.candidates.map(can =>
                                         can.id === normalizedCandidate.id
-                                            ? { ...can, dbId: dbRecord.id, resumeUrl: resumeUrl, resume_file_name: dbRecord.resume_file_name }
+                                            ? { ...can, dbId: dbRecord?.id as string, resumeUrl: resumeUrl, resume_file_name: dbRecord?.resume_file_name as string | null }
                                             : can
                                     )
                                 };
@@ -531,12 +531,12 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                 const savedCount = count ?? 0;
                 const finalCandidates = (() => {
-                    let c: any[] = [];
+                    let c: Candidate[] = [];
                     setResult(prev => { c = prev?.candidates ?? []; return prev; });
                     return c;
                 })();
 
-                const bestCount = finalCandidates.filter((c: any) => (c.score || 0) >= 70).length;
+                const bestCount = finalCandidates.filter((c) => (c.score || 0) >= 70).length;
 
                 await supabase.from('jobs').update({
                     filters: { total: savedCount, best: bestCount },

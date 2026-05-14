@@ -74,24 +74,36 @@ const PlanetOverlay = ({ type }: { type: string }) => {
   }
 };
 
+import React from 'react';
+
+// Stars generated once at module load (stable, not per-render)
+const STARS = Array.from({ length: 60 }, (_, i) => ({
+    key: i,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    width: `${1 + Math.random() * 2}px`,
+    height: `${1 + Math.random() * 2}px`,
+    duration: `${2 + Math.random() * 4}s`
+}));
+
 export const SpaceBackground = () => {
     return (
         <div className="space-bg-container" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: '#04070c', overflow: 'hidden' }}>
             <style>{css}</style>
-            
+
             {/* Stars Container */}
             <div style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
-                {[...Array(60)].map((_, i) => (
-                    <div 
-                        key={i} 
-                        className="star" 
-                        style={{ 
-                            left: `${Math.random() * 100}%`, 
-                            top: `${Math.random() * 100}%`, 
-                            width: `${1 + Math.random() * 2}px`, 
-                            height: `${1 + Math.random() * 2}px`, 
-                            '--duration': `${2 + Math.random() * 4}s` 
-                        } as any} 
+                {STARS.map((star) => (
+                    <div
+                        key={star.key}
+                        className="star"
+                        style={{
+                            left: star.left,
+                            top: star.top,
+                            width: star.width,
+                            height: star.height,
+                            '--duration': star.duration
+                        } as React.CSSProperties}
                     />
                 ))}
             </div>
