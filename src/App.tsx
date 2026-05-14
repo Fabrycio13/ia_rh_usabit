@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { supabase } from './core/services/supabase';
-import { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { useUser, UserProvider } from './core/contexts/UserContext';
 import { LangProvider } from './core/contexts/LangContext';
 import { AnalysisProvider } from './core/contexts/AnalysisContext';
