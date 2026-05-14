@@ -150,12 +150,12 @@ export const CandidateBank = () => {
     try {
       const stored = localStorage.getItem(`fav-${profile.userId}`);
       if (stored) setFavorites(JSON.parse(stored));
-    } catch { }
+    } catch { /* ignore */ }
   }, [profile.userId]);
 
   const toggle = (id: string) => setFavorites(prev => {
     const next = { ...prev, [id]: !prev[id] };
-    try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { }
+    try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { /* ignore */ }
     return next;
   });
 
@@ -243,7 +243,7 @@ export const CandidateBank = () => {
           setSelected(prev => prev ? { ...prev, is_blacklisted: newVal } : null);
         }
       }
-    } catch { }
+    } catch { /* ignore */ }
   }
 
   const handleSort = (col: SortKey) => {
@@ -337,7 +337,7 @@ export const CandidateBank = () => {
             jobName = parsed.selected_job_name;
             jobId = parsed.selected_job_id;
             score = parsed.selected_job_score;
-          } catch { }
+          } catch { /* ignore */ }
           return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
         });
 

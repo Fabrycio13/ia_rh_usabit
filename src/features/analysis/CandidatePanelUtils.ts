@@ -81,7 +81,7 @@ export function parseSkills(raw: string | string[] | null | undefined): string[]
     if (!raw) return [];
     if (Array.isArray(raw)) return raw.map(s => s.trim()).filter(s => s.length > 1);
     
-    let cleaned = raw
+    const cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')
         .replace(/domínio de/gi, '')

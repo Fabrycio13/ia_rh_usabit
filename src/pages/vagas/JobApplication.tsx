@@ -385,7 +385,7 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
 };
 
 const maskPhone = (val: string, country: { code: string; iso: string }) => {
-    let v = val;
+    const v = val;
     if (!v) return country.code + ' ';
 
     // Remove tudo que não é dígito, exceto o + inicial
@@ -611,8 +611,8 @@ export const JobApplication = () => {
     });
 
     const handlePhoneChange = (val: string) => {
-        let digits = val.replace(/\D/g, '');
-        let currentCountry = selectedCountry;
+        const digits = val.replace(/\D/g, '');
+        let currentCountry: typeof selectedCountry = selectedCountry;
 
         // Detecção Automática de País por Prefixo ao digitar
         if (val.startsWith('+') || digits.length > 0) {

@@ -901,7 +901,7 @@ export const Configuracoes = () => {
                                         showToast('info', 'O modo claro só está disponível no fundo Simples');
                                         return;
                                     }
-                                    theme === 'dark' && toggleTheme();
+                                    if (theme === 'dark') toggleTheme();
                                 }}
                                 style={{
                                     opacity: bgTheme !== 'simple' ? 0.4 : 1,
@@ -1047,7 +1047,7 @@ export const Configuracoes = () => {
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div
                                 onClick={async () => {
-                                    let newState = !notificationsEnabled;
+                                    const newState = !notificationsEnabled;
                                     if (newState && Notification.permission !== 'granted') {
                                         const permission = await Notification.requestPermission();
                                         if (permission !== 'granted') return;
@@ -1195,7 +1195,7 @@ export const Configuracoes = () => {
                                 </div>
                                 <button
                                     onClick={() => {
-+                                       setCreatingUser(false); // Garante que o botão não comece em "Criando"
+                                        setCreatingUser(false);
                                         setNewUser({
                                             name: '',
                                             email: '',

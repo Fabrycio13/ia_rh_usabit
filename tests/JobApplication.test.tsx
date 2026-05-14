@@ -66,7 +66,6 @@ describe('JobApplication UI Alignment', () => {
     // Verification of styles/layout is better done via integration/browser tests,
     // but we can check if the paragraph textarea has the corrected padding style.
     const textarea = await screen.findByPlaceholderText('Sua resposta detalhada');
-    const style = window.getComputedStyle(textarea);
     
     // In JSDOM, computed style for paddingLeft might not perfectly reflect React's inline styles 
     // especially with the spread operator, but let's check the element's style property directly.

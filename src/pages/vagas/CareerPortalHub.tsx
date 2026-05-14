@@ -289,7 +289,7 @@ export const CareerPortalHub = () => {
             const { data: { publicUrl } } = supabase.storage.from('organizations').getPublicUrl(fileName);
             setVagaDesign(prev => ({ ...prev, bgImage: publicUrl }));
             toast.success('Imagem enviada!', { id: toastId });
-        } catch (error: any) {
+        } catch {
             toast.error('Erro ao enviar imagem.', { id: toastId });
         }
     };

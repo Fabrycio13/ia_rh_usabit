@@ -142,7 +142,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   const toggleFav = (id: string) => {
     setFavorites(prev => {
       const next = { ...prev, [id]: !prev[id] };
-      try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { }
+      try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -266,7 +266,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         jobName = parsed.selected_job_name;
         jobId = parsed.selected_job_id;
         score = parsed.selected_job_score;
-      } catch { }
+} catch { /* ignore */ }
       return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
     });
 
@@ -322,7 +322,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   // Re-init favorites if userId arrives late
   useEffect(() => {
     if (profile.userId) {
-      try { setFavorites(JSON.parse(localStorage.getItem(`fav-${profile.userId}`) ?? '{}')); } catch { }
+      try { setFavorites(JSON.parse(localStorage.getItem(`fav-${profile.userId}`) ?? '{}')); } catch { /* ignore */ }
     }
   }, [profile.userId]);
 

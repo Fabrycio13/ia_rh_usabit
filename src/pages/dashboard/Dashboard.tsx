@@ -654,11 +654,11 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip 
-                        content={({ active, payload, label: _label }) => {
+                        content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             return (
                               <div style={{ ...TT, padding: '10px 14px' }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{_label}</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{payload[0].payload.name || payload[0].payload.fullName}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                   {payload.map((p: any) => (
                                     <p key={p.dataKey} style={{ color: p.color, fontSize: 12, fontWeight: 600 }}>
@@ -778,7 +778,7 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                         <Tooltip 
-                        content={({ active, payload, label: _label }) => {
+                        content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (

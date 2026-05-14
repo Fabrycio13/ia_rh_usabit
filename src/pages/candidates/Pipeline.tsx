@@ -688,7 +688,7 @@ export const Pipeline = () => {
                         displayJobScore = parsed.selected_job_score;
                         jobId = parsed.selected_job_id;
                     }
-                } catch { }
+                } catch { /* ignore */ }
 
                 return {
                     id: c.id,
@@ -761,7 +761,7 @@ export const Pipeline = () => {
                 jobName = parsed.selected_job_name;
                 jobId = parsed.selected_job_id;
                 score = parsed.selected_job_score;
-            } catch { }
+            } catch { /* ignore */ }
             return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
         });
 
@@ -1713,55 +1713,3 @@ export const Pipeline = () => {
         </>
     );
 };
-
-// ─── Move Card Dropdown ────────────────────────────────────────────────────────
-// @ts-ignore
-function MoveCardDropdown({ card, columns, onMove }: {
-    card: PipelineCard;
-    columns: PipelineColumn[];
-    onMove: (card: PipelineCard, colId: string) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
-    const btnRef = useRef<HTMLButtonElement>(null);
-    const others = columns.filter(c => c.id !== card.column_id);
-    if (others.length === 0) return null;
-
-    const toggle = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!open && btnRef.current) {
-            const r = btnRef.current.getBoundingClientRect();
-            setPos({ top: r.top - 8 - (others.length * 36 + 12), left: r.left, width: r.width });
-        }
-        setOpen(o => !o);
-    };
-
-    return (
-        <div style={{ position: 'relative', marginTop: 8 }}>
-            <button
-                ref={btnRef}
-                onClick={toggle}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center' }}
-            >
-                Mover para <ChevronDown size={11} />
-            </button>
-            {open && (
-                <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={e => { e.stopPropagation(); setOpen(false); }} />
-                    <div style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 6, zIndex: 1000, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {others.map(col => (
-                            <button key={col.id} onClick={e => { e.stopPropagation(); onMove(card, col.id); setOpen(false); }}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', borderRadius: 7, padding: '7px 10px', cursor: 'pointer', color: 'var(--text-main)', fontSize: 12, fontWeight: 500, textAlign: 'left', transition: 'background 0.1s' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
-                            >
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
-                                {col.name}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
-    );
-}

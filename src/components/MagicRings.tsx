@@ -1,4 +1,4 @@
-// @ts-nocheck - Complex Three.js shader component
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect, useRef, type FC } from 'react';
 import * as THREE from 'three';
 

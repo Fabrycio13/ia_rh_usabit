@@ -75,7 +75,7 @@ export const PublicJobPage = () => {
 
                 const { job: jobData } = await response.json();
                 setJob(jobData as Job);
-            } catch (err) {
+            } catch {
                 setError('Erro ao carregar vaga');
             } finally {
                 setLoading(false);
@@ -416,7 +416,7 @@ export const PublicJobPage = () => {
                             <div className="rich-text-content">
                                 <ul>
                                     {job.description.split('\n').filter(l => l.trim()).map((line, i) => (
-                                        <li key={i}>{line.replace(/^[•\-\*]\s*/, '')}</li>
+                                        <li key={i}>{line.replace(/^[•*-]\s*/, '')}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -429,7 +429,7 @@ export const PublicJobPage = () => {
                             <div className="rich-text-content">
                                 <ul>
                                     {job.responsibilities.split('\n').filter(l => l.trim()).map((line, i) => (
-                                        <li key={i}>{line.replace(/^[•\-\*]\s*/, '')}</li>
+                                        <li key={i}>{line.replace(/^[•*-]\s*/, '')}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -442,7 +442,7 @@ export const PublicJobPage = () => {
                             <div className="rich-text-content">
                                 <ul>
                                     {job.requirements.split('\n').filter(l => l.trim()).map((line, i) => (
-                                        <li key={i}>{line.replace(/^[•\-\*]\s*/, '')}</li>
+                                        <li key={i}>{line.replace(/^[•*-]\s*/, '')}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -455,7 +455,7 @@ export const PublicJobPage = () => {
                             <div className="rich-text-content">
                                 <ul>
                                     {job.differentials.split('\n').filter(l => l.trim()).map((line, i) => (
-                                        <li key={i}>{line.replace(/^[•\-\*]\s*/, '')}</li>
+                                        <li key={i}>{line.replace(/^[•*-]\s*/, '')}</li>
                                     ))}
                                 </ul>
                             </div>
@@ -468,7 +468,7 @@ export const PublicJobPage = () => {
                             <div className="rich-text-content">
                                 <ul>
                                     {job.additional_info.split('\n').filter(l => l.trim()).map((line, i) => (
-                                        <li key={i}>{line.replace(/^[•\-\*]\s*/, '')}</li>
+                                        <li key={i}>{line.replace(/^[•*-]\s*/, '')}</li>
                                     ))}
                                 </ul>
                             </div>

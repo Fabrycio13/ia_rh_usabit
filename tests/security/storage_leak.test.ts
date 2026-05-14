@@ -16,14 +16,12 @@ describe('Storage Vulnerability - Red Team Simulation', () => {
 
     it('DEVE FALHAR (Vulnerabilidade): Política de leitura não deve ser irrestrita', () => {
         // CREATE POLICY "Leitura Pública currículos" ON storage.objects FOR SELECT USING (bucket_id = 'job-applications');
-        const canRead = (bucketId: string, userId: string | null) => {
-            if (bucketId === 'job-applications') return true; // Lógica atual vulnerável
+        const canRead = (bucketId: string) => {
+            if (bucketId === 'job-applications') return true;
             return false;
         };
 
-        const maliciousUser = null; // Usuário não autenticado
-        
         // Se um usuário qualquer consegue ler o arquivo de outro, há falha
-        expect(canRead('job-applications', maliciousUser)).toBe(false); // Também deve falhar no estado atual
+        expect(canRead('job-applications')).toBe(false);
     });
 });

@@ -294,6 +294,7 @@ export const VagaForm = () => {
             .map(q => {
                 if (q.logic?.parentId === id) {
                     const { logic, ...rest } = q;
+                    void logic;
                     return rest;
                 }
                 return q;
@@ -1868,6 +1869,7 @@ export const VagaForm = () => {
                                                                         const newQuestions = formData.customQuestions.map(item => {
                                                                             if (item.id === q.id) {
                                                                                 const { logic, ...rest } = item;
+                                                                                void logic;
                                                                                 return rest;
                                                                             }
                                                                             return item;

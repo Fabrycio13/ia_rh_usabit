@@ -2,7 +2,6 @@ import * as pdfjs from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 import { callOpenAI } from './aiClient';
 
-// @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -717,7 +716,7 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
         const total = files.length;
         for (let i = 0; i < total; i++) {
             try {
-                let text = await extractTextFromPDF(files[i]);
+const text = await extractTextFromPDF(files[i]);
                 let res: AnalysisResult;
 
                 if (!text) {

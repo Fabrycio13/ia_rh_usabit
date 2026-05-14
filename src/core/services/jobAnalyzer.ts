@@ -1,7 +1,6 @@
 import * as pdfjs from 'pdfjs-dist';
 import { callOpenAI } from './aiClient';
 
-// @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -189,7 +188,7 @@ export async function analyzeJobApplication(
     formAnswers: Record<string, string>
 ): Promise<JobMatchResult> {
     try {
-        let text = await extractTextFromPDF(file);
+        const text = await extractTextFromPDF(file);
         let images: string[] = [];
 
         // Se o texto for muito curto, deve ser um PDF de imagem/escaneado. Faremos OCR com Visão da OpenAI

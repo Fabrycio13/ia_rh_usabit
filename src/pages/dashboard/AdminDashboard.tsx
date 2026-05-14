@@ -170,7 +170,7 @@ export const AdminDashboard = () => {
             setJobDateSet(new Set(jobData.map(j => j.created_at.slice(0, 10))));
             const counts: Record<string, number> = {};
             const chartData = [];
-            let current = new Date(start);
+            const current = new Date(start);
             while (current <= end) {
                 const dateStr = current.toISOString().split('T')[0];
                 const label = current.toLocaleDateString('pt-BR', { weekday: 'short' });
