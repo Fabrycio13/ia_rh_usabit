@@ -147,8 +147,9 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
+          const pageText = (textContent.items as Array<{ str?: string }>)
+            .filter((item) => item.str)
+            .map((item) => item.str as string)
             .join(' ');
           extractedText += pageText + '\n';
         }
@@ -166,7 +167,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer);
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(firstSheet) as any[];
+        const data = XLSX.utils.sheet_to_json(firstSheet) as Record<string, unknown>[];
         
         // Convert all rows to text
         extractedText = data.map(row => 
@@ -241,9 +242,9 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       setUploadProgress(100);
       setUploadState('success');
       toast.success('Currículo analisado com sucesso! Dados preenchidos automaticamente.');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error processing CV:', err);
-      const message = err.message || 'Erro ao processar currículo';
+      const message = err instanceof Error ? err.message : 'Erro ao processar currículo';
       setError(message);
       setUploadState('error');
       toast.error(`Erro: ${message}`);
@@ -311,8 +312,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       onSuccess();
       onClose();
       toast.success('Candidato adicionado com sucesso!');
-    } catch (err: any) {
-      const message = err.message || 'Erro ao adicionar candidato';
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao adicionar candidato';
       setError(message);
       toast.error(message);
     } finally {
