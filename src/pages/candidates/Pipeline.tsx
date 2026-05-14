@@ -323,9 +323,12 @@ export const Pipeline = () => {
 
     const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
     
+    const [vagaSearch, setVagaSearch] = useState('');
+
     // Filtro de Status para os pipelines
     const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string }>>([]);
     const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     
     const [showStatusSelect, setShowStatusSelect] = useState(false);
     const statusSelectRef = useRef<HTMLDivElement>(null);
@@ -586,20 +589,32 @@ export const Pipeline = () => {
                 .eq('is_active', true)
                 .or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`)
                 .order('name');
-            setPipelines(pipes || []);
-            if (pipes && pipes.length > 0) {
-                // Se houver um vagaIdParam, tenta encontrar o pipeline correspondente
-                const targetPipe = vagaIdParam ? pipes.find(p => p.vaga_id === vagaIdParam) : null;
-                
+
+            // Buscar vagas disponíveis para filtro PRIMEIRO
+            await loadAvailableVagas();
+
+            // DEPOIS reordenar pipelines por job_code
+            const sorted = (pipes || []).sort((a, b) => {
+                const va = availableVagas.find(v => v.id === a.vaga_id);
+                const vb = availableVagas.find(v => v.id === b.vaga_id);
+                const codeA = va?.job_code || '';
+                const codeB = vb?.job_code || '';
+                if (codeA && codeB) return codeA.localeCompare(codeB, undefined, { numeric: true });
+                if (codeA) return -1;
+                if (codeB) return 1;
+                return (va?.title || a.name || '').localeCompare(vb?.title || b.name || '', undefined, { numeric: true });
+            });
+
+            setPipelines(sorted);
+            if (sorted.length > 0) {
+                const targetPipe = vagaIdParam ? sorted.find(p => p.vaga_id === vagaIdParam) : null;
+
                 if (targetPipe) {
                     setSelectedPipelineId(targetPipe.id);
                 } else {
-                    setSelectedPipelineId(pipes[0].id);
+                    setSelectedPipelineId(sorted[0].id);
                 }
             }
-            
-            // Buscar vagas disponíveis para filtro
-            await loadAvailableVagas();
         } catch (err) {
             console.error('Init error:', err);
         } finally {
@@ -612,7 +627,7 @@ export const Pipeline = () => {
             const { data: vagas } = await supabase
                 .from('vagas_white_label')
                 .select('id, title, status, is_accepting_applications, job_code')
-                .order('title');
+                .order('job_code', { ascending: true, nullsFirst: false });
             
             if (vagas) {
                 setAvailableVagas(vagas.map(v => ({
@@ -956,7 +971,6 @@ export const Pipeline = () => {
     }
 
     async function deletePipeline(id: string) {
-        if (!window.confirm('Tem certeza que deseja excluir este pipeline? Todos os cards e etapas serão removidos.')) return;
         setLoading(true);
         try {
             const { error } = await supabase.from('pipelines').delete().eq('id', id);
@@ -1122,6 +1136,7 @@ export const Pipeline = () => {
                                         className={`pipeline_option${pipelineStatusFilter === opt.value ? ' active' : ''}`}
                                         onClick={() => { 
                                             setPipelineStatusFilter(opt.value); 
+                                            setVagaSearch('');
                                             setShowStatusSelect(false);
                                             
                                             // Atualiza o pipeline selecionado para o primeiro que corresponde ao filtro
@@ -1145,14 +1160,14 @@ export const Pipeline = () => {
                     </div>
 
                     {/* Dropdown 2: Select Pipeline Dropdown */}
-                    <div style={{ position: 'relative', zIndex: 99 }} ref={selectRef}>
-                        <div 
+                    <div style={{ position: 'relative', zIndex: 99, minWidth: 400 }} ref={selectRef}>
+                        <div
                             onClick={() => setShowSelect(!showSelect)}
-                            style={{ 
-                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
-                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13, 
-                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', 
-                                minWidth: 200, justifyContent: 'space-between'
+                            style={{
+                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
+                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
+                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                justifyContent: 'space-between'
                             }}
                         >
                             <span style={{ fontWeight: 600 }}>
@@ -1160,9 +1175,9 @@ export const Pipeline = () => {
                                     const p = pipelines.find(p => p.id === selectedPipelineId);
                                     if (!p) return 'Selecionar Processo';
                                     const v = availableVagas.find(v => v.id === p.vaga_id);
-                                    const statusLabel = v ? `(${v.status})` : '';
-                                    const codeLabel = v?.job_code ? ` [${v.job_code}]` : '';
-                                    return `${p.name}${codeLabel} ${statusLabel}`;
+                                    const codeLabel = v?.job_code ? `${v.job_code}` : '';
+                                    const titleLabel = v?.title ? ` (${v.title})` : '';
+                                    return `${codeLabel}${titleLabel} - ${p.name}`;
                                 })()}
                             </span>
                             <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
@@ -1170,31 +1185,54 @@ export const Pipeline = () => {
 
                         {showSelect && (
                             <div className="pipeline_dropdown">
+                                <div style={{ padding: '8px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
+                                    <input
+                                        autoFocus
+                                        placeholder="Pesquisar por nome ou código..."
+                                        value={vagaSearch}
+                                        onChange={e => setVagaSearch(e.target.value)}
+                                        style={{
+                                            width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)',
+                                            borderRadius: 6, padding: '10px 14px', color: 'var(--text-main)', fontSize: 14, outline: 'none', boxSizing: 'border-box'
+                                        }}
+                                    />
+                                </div>
                                 {pipelines
                                     .map(p => {
                                         const v = availableVagas.find(v => v.id === p.vaga_id);
-                                        return { ...p, status: v ? v.status : 'aberta', job_code: v?.job_code };
+                                        return { ...p, status: v ? v.status : 'aberta', job_code: v?.job_code, vaga_title: v?.title || '' };
                                     })
-                                    .filter(p => !pipelineStatusFilter || p.status === pipelineStatusFilter)
+                                    .filter(p =>
+                                        (!pipelineStatusFilter || p.status === pipelineStatusFilter) &&
+                                        (!vagaSearch ||
+                                            p.name.toLowerCase().includes(vagaSearch.toLowerCase()) ||
+                                            (p.job_code || '').toLowerCase().includes(vagaSearch.toLowerCase()) ||
+                                            p.vaga_title.toLowerCase().includes(vagaSearch.toLowerCase())
+                                        )
+                                    )
                                     .map(p => (
-                                    <div 
-                                        key={p.id} 
+                                    <div
+                                        key={p.id}
                                         className={`pipeline_option${p.id === selectedPipelineId ? ' active' : ''}`}
                                         onClick={() => { setSelectedPipelineId(p.id); setShowSelect(false); }}
-                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}
                                     >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 600 }}>{p.name}</span>
-                                            {p.job_code && <span style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700 }}>{p.job_code}</span>}
-                                        </div>
-                                            <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingRight: 28 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                                                <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                            </div>
+                                            <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase', flexShrink: 0 }}>
                                                 {p.status}
                                             </span>
                                         </div>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); deletePipeline(p.id); }}
-                                            style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4 }}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 20 }}>
+                                            {p.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{p.job_code}</span>}
+                                            {p.vaga_title && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>| {p.vaga_title}</span>}
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4, position: 'absolute', right: 8, top: 8 }}
                                             onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
                                             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
                                         >
@@ -1202,8 +1240,20 @@ export const Pipeline = () => {
                                         </button>
                                     </div>
                                 ))}
-                                {pipelines.filter(p => !pipelineStatusFilter || (availableVagas.find(v => v.id === p.vaga_id)?.status || 'aberta') === pipelineStatusFilter).length === 0 && (
-                                    <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhum processo neste status.</div>
+                                {pipelines
+                                    .map(p => {
+                                        const v = availableVagas.find(v => v.id === p.vaga_id);
+                                        return { ...p, status: v ? v.status : 'aberta', job_code: v?.job_code, vaga_title: v?.title || '' };
+                                    })
+                                    .filter(p =>
+                                        (!pipelineStatusFilter || p.status === pipelineStatusFilter) &&
+                                        (!vagaSearch ||
+                                            p.name.toLowerCase().includes(vagaSearch.toLowerCase()) ||
+                                            (p.job_code || '').toLowerCase().includes(vagaSearch.toLowerCase()) ||
+                                            p.vaga_title.toLowerCase().includes(vagaSearch.toLowerCase())
+                                        )
+                                    ).length === 0 && (
+                                    <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhum processo encontrado.</div>
                                 )}
                             </div>
                         )}
@@ -1685,6 +1735,41 @@ export const Pipeline = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modal: Delete Pipeline Confirmation */}
+            {deleteConfirmId && (() => {
+                const pipe = pipelines.find(p => p.id === deleteConfirmId);
+                if (!pipe) return null;
+                return (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div onClick={() => setDeleteConfirmId(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                        <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                            <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Excluir Processo Seletivo</h3>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>
+                                Tem certeza que deseja excluir <strong>"{pipe.name}"</strong>? Todos os cards e etapas serão removidos permanentemente.
+                            </p>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button 
+                                    onClick={() => setDeleteConfirmId(null)}
+                                    style={{ 
+                                        flex: 1, background: 'transparent', border: '1px solid var(--border)', 
+                                        borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
+                                        fontSize: 14, fontWeight: 700, cursor: 'pointer'
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={() => { deletePipeline(deleteConfirmId); setDeleteConfirmId(null); }}
+                                    style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: '12px 0', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                    Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Add Candidate Modal */}
             {addCandModal && (
