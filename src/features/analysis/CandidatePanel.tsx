@@ -556,7 +556,7 @@ export function CandidatePanel({
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                             {Object.entries(c.answers)
-                                                .filter(([key]) => !key.startsWith('_') && !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .filter(([key]) => !['_ai_analysis', 'address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
                                                 .map(([key, value]) => {
                                                     const questionLabel = (c as any).questionLabels?.[key] || key.replace(/_/g, ' ');
                                                     return (

@@ -1848,7 +1848,7 @@ export const VagaForm = () => {
                                                 </div>
 
                                                 {/* Conditional Logic Section */}
-                                                {index > 0 && formData.customQuestions.slice(0, index).some(prevQ => prevQ.type === 'choice' && prevQ.options && prevQ.options.length > 0) && (
+                                                {index > 0 && q.id !== '__salary_expectation__' && formData.customQuestions.slice(0, index).some(prevQ => prevQ.type === 'choice' && prevQ.options && prevQ.options.length > 0) && (
                                                     <div style={{ marginTop: '4px', padding: '16px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '10px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: q.logic ? '12px' : '0' }}>
                                                             <Zap size={14} style={{ color: 'var(--primary)' }} />

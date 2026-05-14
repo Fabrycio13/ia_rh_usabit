@@ -247,7 +247,7 @@ const BotAvatar = () => (
         border: '1px solid rgba(255,255,255,0.15)'
     }}>
         <img 
-            src="/avatar-recrutador.png" 
+            src={`${import.meta.env.BASE_URL}avatar-recrutador.png`}
             alt="Assistant"
             style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
@@ -1304,9 +1304,11 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         />
                                     </div>
                                     <div style={{ position: 'relative' }} ref={genderRef}>
-                                        <div 
+                                        <div
+                                            tabIndex={0}
                                             className={`cs-trigger-wizard ${genderOpen ? 'open' : ''}`}
                                             onClick={() => setGenderOpen(!genderOpen)}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setGenderOpen(!genderOpen); }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <UserRound size={17} style={{ color: '#64748b', flexShrink: 0 }} />
@@ -1439,7 +1441,20 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                             </label>
 
                                             {q.type === 'text' && (
-                                                <input className="wizard-input" type="text" placeholder="Sua resposta" value={customAnswers[q.id] || ''} onChange={e => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))} />
+                                                <input 
+                                                    className="wizard-input" 
+                                                    type="text" 
+                                                    placeholder="Sua resposta" 
+                                                    value={customAnswers[q.id] || ''} 
+                                                    onChange={e => {
+                                                        let val = e.target.value;
+                                                        if (q.id === '__salary_expectation__') {
+                                                            val = val.replace(/\D/g, '');
+                                                            if (val) val = (parseInt(val) / 100).toFixed(2).replace('.', ',');
+                                                        }
+                                                        setCustomAnswers(p => ({ ...p, [q.id]: val }));
+                                                    }} 
+                                                />
                                             )}
 
                                             {q.type === 'paragraph' && (
