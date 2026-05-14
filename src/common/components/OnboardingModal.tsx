@@ -59,7 +59,7 @@ export const OnboardingModal = () => {
                 window.location.reload(); 
             }, 500);
 
-        } catch (err: any) {
+        } catch (err) {
             console.error('Erro ao finalizar onboarding:', err);
             // Se der qualquer erro crítico, ainda assim tentamos deixar o usuário entrar
             window.location.reload();
@@ -119,7 +119,7 @@ export const OnboardingModal = () => {
             
             // AVANÇA O STEP independente de erro no banco (Escape hatch para o usuário)
             setStep(3); 
-        } catch (err: any) {
+        } catch (err) {
             console.error('ERRO CRÍTICO NO SETUP:', err);
             toast.error('Ocorreu um problema ao configurar. Tentando prosseguir...');
             setStep(3); // Força o avanço mesmo no catch

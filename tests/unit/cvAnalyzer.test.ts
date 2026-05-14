@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { extractCandidateData } from '../../src/core/services/cvAnalyzer';
 
 vi.mock('../../src/core/services/supabase', () => ({
