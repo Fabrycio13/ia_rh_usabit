@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { supabase } from './core/services/supabase';
+import { Session } from '@supabase/supabase-js';
 import { useUser, UserProvider } from './core/contexts/UserContext';
 import { LangProvider } from './core/contexts/LangContext';
 import { AnalysisProvider } from './core/contexts/AnalysisContext';
@@ -37,7 +38,7 @@ const JobDetailRoute = () => {
     return <JobDetailView jobId={jobId} />;
 };
 
-const AppContent = ({ session }: { session: any }) => {
+const AppContent = ({ session }: { session: Session | null }) => {
     const { profile } = useUser();
 
     // Helper to check if trial expired
@@ -108,7 +109,7 @@ const AppContent = ({ session }: { session: any }) => {
 }
 
 export const App = () => {
-    const [session, setSession] = useState<any>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
