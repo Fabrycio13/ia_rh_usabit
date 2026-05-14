@@ -1,8 +1,31 @@
-// @ts-nocheck - Complex Three.js shader component with complex typing
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import * as THREE from 'three';
 
 import './MagicRings.css';
+
+interface MagicRingsProps {
+  color?: string;
+  colorTwo?: string;
+  speed?: number;
+  ringCount?: number;
+  attenuation?: number;
+  lineThickness?: number;
+  baseRadius?: number;
+  radiusStep?: number;
+  scaleRate?: number;
+  opacity?: number;
+  blur?: number;
+  noiseAmount?: number;
+  rotation?: number;
+  ringGap?: number;
+  fadeIn?: number;
+  fadeOut?: number;
+  followMouse?: boolean;
+  mouseInfluence?: number;
+  hoverScale?: number;
+  parallax?: number;
+  clickBurst?: boolean;
+}
 
 const vertexShader = `
 void main() {
@@ -64,7 +87,7 @@ void main() {
 }
 `;
 
-export default function MagicRings({
+const MagicRings: FC<MagicRingsProps> = ({
   color = '#fc42ff',
   colorTwo = '#42fcff',
   speed = 1,
@@ -86,14 +109,14 @@ export default function MagicRings({
   hoverScale = 1.2,
   parallax = 0.05,
   clickBurst = false,
-}) {
-  const mountRef = useRef(null);
-  const propsRef = useRef(null);
-  const mouseRef = useRef([0, 0]);
-  const smoothMouseRef = useRef([0, 0]);
-  const hoverAmountRef = useRef(0);
-  const isHoveredRef = useRef(false);
-  const burstRef = useRef(0);
+}) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const propsRef = useRef<MagicRingsProps | null>(null);
+  const mouseRef = useRef<[number, number]>([0, 0]);
+  const smoothMouseRef = useRef<[number, number]>([0, 0]);
+  const hoverAmountRef = useRef<number>(0);
+  const isHoveredRef = useRef<boolean>(false);
+  const burstRef = useRef<number>(0);
 
   propsRef.current = {
     color, colorTwo, speed, ringCount, attenuation, lineThickness,
@@ -238,4 +261,6 @@ export default function MagicRings({
   }, []);
 
   return <div ref={mountRef} className="magic-rings-container" style={blur > 0 ? { filter: `blur(${blur}px)` } : undefined} />;
-}
+};
+
+export default MagicRings;

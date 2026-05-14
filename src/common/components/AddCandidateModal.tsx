@@ -415,8 +415,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       // Skills já vem como array do prompt, mas se vier string, limpa
       if (typeof raw === 'string') {
         return raw
-          .replace(/[•\-*●]\s*/g, '')  // Remove bullets
-          .replace(/\d+[.)\-]\s*/g, '')  // Remove numeração
+          .replace(/[•*●\-]\s*/g, '')  // Remove bullets
+          .replace(/\d+[.)-]\s*/g, '')  // Remove numeração
           .trim();
       }
       return String(raw);

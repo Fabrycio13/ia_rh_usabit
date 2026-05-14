@@ -49,7 +49,7 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function parseSkills(raw: string | null | undefined): string[] {
     if (!raw) return [];
-    let cleaned = raw
+    const cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')
         .replace(/domínio de/gi, '')
@@ -63,7 +63,7 @@ function parseSkills(raw: string | null | undefined): string[] {
 
 const cleanEmail = (email: string | null | undefined): string | null => {
     if (!email) return null;
-    let cleaned = email.replace(/\s+/g, '').toLowerCase(); // Remove TODOS os espaços
+    const cleaned = email.replace(/\s+/g, '').toLowerCase(); // Remove TODOS os espaços
     if (cleaned === 'nãoinformado' || cleaned === 'n/a' || cleaned === 'desconhecido' || cleaned === '—') return null;
     return cleaned;
 };
@@ -143,7 +143,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 if (data.jobName) setJobName(data.jobName);
                 if (data.jobDescription) setJobDescription(data.jobDescription);
                 if (data.error) setError(data.error);
-            } catch (e) {
+            } catch {
                 localStorage.removeItem('active_analysis');
             }
         }
@@ -335,7 +335,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             analyzed_at: new Date().toISOString()
                         };
 
-                        const candidateRow: any = {
+                        const candidateRow: Record<string, unknown> = {
                             user_id: session.user.id,
                             name: normalizedCandidate.name,
                             email: normalizedCandidate.email,
@@ -406,7 +406,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             }
                         }
 
-                        let dbRecord: any;
+                        let dbRecord: Record<string, unknown> | null = null;
                         const currentHistoryEntry = { ...analysisData };
 
                         if (existingId) {
@@ -508,9 +508,10 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             console.warn(`[Analysis] Candidato ${normalizedCandidate.name} NÃO foi persistido.`);
                         }
 
-                    } catch (innerErr: any) {
-                        console.error(`Erro ao processar/salvar candidato ${idx}:`, innerErr);
-                        toast.error(`Atenção: Erro ao tratar candidato ${idx + 1}: ${innerErr.message || 'Erro desconhecido'}`);
+                    } catch (innerErr) {
+                        const error = innerErr as Error;
+                        console.error(`Erro ao processar/salvar candidato ${idx}:`, error);
+                        toast.error(`Atenção: Erro ao tratar candidato ${idx + 1}: ${error.message || 'Erro desconhecido'}`);
                     }
                 },
                 (err, idx) => {
@@ -596,14 +597,15 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 console.warn('[Analysis] Notificações ativadas mas permissão do navegador não concedida:', Notification.permission);
             }
 
-        } catch (err: any) {
-            console.error('Análise interrompida por erro:', err);
-            setError(err.message);
+        } catch (err) {
+            const error = err as Error;
+            console.error('Análise interrompida por erro:', error);
+            setError(error.message);
             setAnalyzing(false);
             if (profile.userId) {
-                logActivity(profile.userId, `Erro na análise para vaga: ${name}`, {}, err.message);
+                logActivity(profile.userId, `Erro na análise para vaga: ${name}`, {}, error.message);
             }
-            toast.error(err.message);
+            toast.error(error.message);
         }
     };
 
