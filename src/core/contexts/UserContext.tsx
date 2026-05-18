@@ -10,18 +10,25 @@ interface UserProfile {
     email: string;
     initials: string;
     notificationsEnabled: boolean;
-    user_role: 'admin' | 'user';
+    user_role: 'owner' | 'gestor' | 'rh' | 'convidado';
     status: 'active' | 'inactive';
     account_type: 'trial' | 'active' | 'lifetime';
     trial_ends_at: string | null;
+    organization_id: string | null;
+    organization_name: string | null;
+    onboarding_completed: boolean;
     loaded: boolean; // true once the first load completed
     isPremium: boolean;
+    evolution_api_url?: string;
+    evolution_api_key?: string;
+    evolution_instance?: string;
 }
 
 const defaultProfile: UserProfile = {
     userId: '', userName: '', firstName: '', avatarUrl: '',
     plan: 'trial', email: '', initials: '', notificationsEnabled: false,
-    user_role: 'user', status: 'active', account_type: 'trial', trial_ends_at: null, loaded: false,
+    user_role: 'owner', status: 'active', account_type: 'trial', trial_ends_at: null,
+    organization_id: null, organization_name: null, onboarding_completed: false, loaded: false,
     isPremium: false,
 };
 
@@ -48,7 +55,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const name = user.user_metadata?.full_name || user.email || '';
         const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
-        const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || user.user_metadata?.user_role?.toLowerCase() === 'admin';
+        const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || 
+                                    user.user_metadata?.user_role?.toLowerCase() === 'owner' ||
+                                    user.user_metadata?.user_role?.toLowerCase() === 'rh' ||
+                                    user.user_metadata?.user_role?.toLowerCase() === 'gestor';
 
         // Optimistic update with what we already know from the session
         setProfile(prev => ({
@@ -59,13 +69,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             firstName: name.split(' ')[0],
             initials,
             isPremium: isPremiumOptimistic,
-            loaded: true,
+            loaded: prev.loaded, // Preserve loaded state during refetch
         }));
 
         // Then enrich with Supabase profile data (avatarUrl, role etc.)
         const { data } = await supabase
             .from('profiles')
-            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at')
+            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at, organization_id, organization_name, onboarding_completed, evolution_api_url, evolution_api_key, evolution_instance')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -83,18 +93,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 avatarUrl: data.avatar_url || '',
                 initials: profileInitials,
                 notificationsEnabled: data.notifications_enabled ?? false,
-                user_role: (data.user_role as 'admin' | 'user') || 'user',
+                user_role: (data.user_role as any) || 'rh',
                 status: (data.status as 'active' | 'inactive') || 'active',
                 account_type: (data.account_type as any) || 'trial',
                 plan: (data.account_type as any) || 'trial',
                 trial_ends_at: data.trial_ends_at || null,
-                isPremium: data.account_type === 'lifetime' || 
-                           data.user_role?.toLowerCase() === 'admin' || 
-                           user.user_metadata?.user_role?.toLowerCase() === 'admin',
+                organization_id: (data.organization_id && data.organization_id !== 'null') ? data.organization_id : null,
+                organization_name: (data.organization_name && data.organization_name !== 'null') ? data.organization_name : null,
+                onboarding_completed: data.onboarding_completed ?? false,
+                isPremium: data.account_type === 'lifetime' ||
+                           data.user_role?.toLowerCase() === 'owner' ||
+                           data.user_role?.toLowerCase() === 'gestor' ||
+                           data.user_role?.toLowerCase() === 'rh' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'owner' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'gestor' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'rh',
+                evolution_api_url: data.evolution_api_url || '',
+                evolution_api_key: data.evolution_api_key || '',
+                evolution_instance: data.evolution_instance || '',
                 loaded: true,
             }));
             
-            if (data.user_role === 'admin') console.log('[UserContext] Admin detectado:', data);
+        } else {
+            // Case where user exists in Auth but not yet in Profiles (trigger delay)
+            // Still set loaded to true so the app can continue, but with base data
+            setProfile(prev => ({ ...prev, loaded: true }));
         }
     };
 
@@ -107,7 +130,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 loadProfile();
             }
         });
-        return () => subscription.unsubscribe();
+
+        // Subscription realtime para detectar mudanças no perfil
+        const profileSubscription = supabase
+            .channel('profile-changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles',
+                },
+                (payload) => {
+                    // Se o perfil atualizado for o do usuário logado, recarrega
+                    if (payload.new.id === profile.userId) {
+                        console.log('[UserContext] Perfil atualizado em realtime:', payload.new);
+                        loadProfile();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+            supabase.removeChannel(profileSubscription);
+        };
     }, []);
 
     return (

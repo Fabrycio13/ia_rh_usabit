@@ -24,7 +24,7 @@ async function test() {
             counts[key] = (counts[key] || 0) + 1;
         }
     });
-    const duplicates = Object.entries(counts).filter(([_, c]) => c > 1);
+    const duplicates = Object.entries(counts).filter(([, c]) => c > 1);
     console.log('Emails with counts > 1:', duplicates);
 
     if (duplicates.length > 0) {

@@ -5,7 +5,8 @@
 <h1 align="center">🚀 Space Talent AI</h1>
 
 <p align="center">
-  <strong>Elevando o potencial humano com Inteligência Artificial.</strong>
+  <strong>O Futuro do Potencial Humano com Inteligência Artificial.</strong><br>
+  Uma plataforma de nível empresarial para Recrutamento e Seleção modernos.
 </p>
 
 <p align="center">
@@ -13,80 +14,118 @@
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Supabase-181818?style=for-the-badge&logo=supabase&logoColor=3ECF8E" alt="Supabase">
   <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind">
 </p>
 
 ---
 
-## 📖 Sobre o Projeto
+## 📖 Visão
 
-O **Space Talent** é uma plataforma de última geração para Recrutamento e Seleção (R&S). Combinando o poder da Inteligência Artificial com uma interface intuitiva e premium, o sistema foca em transformar a maneira como você descobre e gerencia talentos.
+O **Space Talent AI** é um ecossistema premium projetado para revolucionar o ciclo de vida do recrutamento. Ao integrar Inteligência Artificial avançada com uma arquitetura cloud de alta performance, capacitamos as equipes de RH a descobrir, analisar e contratar talentos de alto nível com velocidade e precisão sem precedentes.
 
-Diga adeus à triagem manual cansativa e receba insights precisos sobre cada candidato em segundos.
+Nossa missão é eliminar a carga administrativa e fornecer insights comportamentais e técnicos profundos, permitindo que os recrutadores foquem no que realmente importa: **a conexão humana**.
 
 ---
 
-## ✨ Funcionalidades
+## ✨ Principais Funcionalidades
 
-| Feature | Descrição |
-| :--- | :--- |
-| **🤖 IA Score** | Ranking inteligente de compatibilidade baseado em currículos. |
-| **📂 Banco de Talentos** | Filtros ultra-rápidos e gestão personalizada de perfis. |
-| **📊 Analytics** | Dashboards completos com KPIs de contratação e diversidade. |
-| **📋 Pipeline Kanban** | Gestão visual do fluxo de etapas do processo seletivo. |
-| **💬 Assistente IA** | Chat integrado para apoio em decisões e automações. |
-| **🔒 Admin Control** | Monitoramento total de logs e controle de acessos. |
+### 🤖 Triagem Inteligente e AI Scoring
+- **Ranking Automatizado**: Algoritmos avançados que pontuam candidatos com base na compatibilidade entre currículo e vaga.
+- **Filtros Inteligentes**: Busca multidimensional por habilidades, senioridade e localização.
+
+### 📋 Gestão de Pipeline Completa
+- **Kanban Visual**: Fluxo de trabalho dinâmico com drag-and-drop para gerenciar candidatos entre as etapas.
+- **Fluxo de Candidatura Personalizado**: Conjuntos de perguntas adaptáveis e lógica de formulário inteligente.
+
+### 📊 Analytics em Tempo Real
+- **KPIs Estratégicos**: Dashboards de Tempo de Contratação (Time-to-Hire), Diversidade e Inclusão, e Eficácia de Fontes.
+- **Insights Preditivos**: Sugestões baseadas em dados para otimização de processos.
+
+### 🔒 Privacidade e Segurança (Proteção de PII)
+- **Armazenamento Seguro de Documentos**: Currículos protegidos via buckets privados no Supabase e URLs Assinadas.
+- **RLS Granular**: Row Level Security (RLS) garante que os dados sejam acessíveis apenas por recrutadores autorizados.
+
+### 🌐 API de Integração Pública
+- **Exposição Externa**: Edge Functions seguras para listar e buscar detalhes de vagas para portais de terceiros.
+- **Visibilidade Híbrida**: Suporte para vagas "Invisíveis" — acessíveis apenas via link direto para recrutamento discreto.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-- **Frontend:** [React](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
-- **Bundler:** [Vite](https://vitejs.dev/)
-- **Backend-as-a-Service:** [Supabase](https://supabase.com/)
-- **Estilização:** CSS Moderno com Variáveis Nativas
-- **Iconografia:** [Lucide React](https://lucide.dev/)
-- **Animações:** CSS Keyframes e Transições Customizadas
+### Ecossistema Frontend
+- **React 18**: Arquitetura de UI baseada em componentes.
+- **TypeScript**: Segurança de tipos em todo o projeto.
+- **Vite**: Ferramenta de build e servidor de desenvolvimento ultra-rápido.
+- **Tailwind CSS**: Estilização utilitária para uma interface premium e responsiva.
+- **Lucide**: Iconografia moderna e minimalista.
+
+### Infraestrutura Backend (BaaS)
+- **Supabase / PostgreSQL**: Banco de dados relacional escalável com RLS avançado.
+- **Edge Functions**: Funções serverless baseadas em Deno para interações de API seguras.
+- **PostgREST**: Camada de API RESTful instantânea e segura.
+- **Supabase Storage**: Gestão segura de documentos dos candidatos.
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Começando
 
-### 1. Clonagem e Dependências
+### 1. Pré-requisitos
+- Node.js (v18 ou superior)
+- Conta e projeto no Supabase
+
+### 2. Instalação
 ```bash
+# Clone o repositório
 git clone https://github.com/usabit/rh-ia-v2.git
+
+# Instale as dependências
 cd rh-ia-v2
 npm install
 ```
 
-### 2. Configuração de Ambiente
-Crie um arquivo `.env` na raiz:
+### 3. Configuração de Ambiente
+Crie um arquivo `.env` na raiz do projeto:
 ```env
-VITE_SUPABASE_URL=seu_projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua_chave_secreta
+VITE_SUPABASE_URL=sua_url_do_projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima
 ```
 
-### 3. Rodar em Desenvolvimento
+### 4. Servidor de Desenvolvimento
 ```bash
 npm run dev
 ```
 
 ---
 
-## 📁 Estrutura de Diretórios
+## 📁 Arquitetura do Projeto
 
-- `src/core`: Lógica de negócios, serviços e contextos.
-- `src/layouts`: Estruturas globais e Design System.
-- `src/pages`: Visualizações e telas principais.
-- `public`: Recursos estáticos e assets globais.
+```text
+├── .agent/              # Configurações de Agentes de IA e workflows
+├── docs/                # Documentação técnica e políticas de segurança
+├── src/
+│   ├── core/           # Lógica de negócio, serviços (Supabase, API)
+│   ├── layouts/        # Componentes de layout global e Design System
+│   ├── pages/          # Views baseadas em funcionalidades
+│   └── common/         # Componentes de UI reutilizáveis
+├── supabase/
+│   ├── functions/      # Edge Functions serverless seguras
+│   └── migrations/     # Esquema de banco de dados versionado
+└── README.md           # Este documento
+```
 
 ---
 
-## 🤝 Contribuição
+## 🔐 Padrões de Segurança
 
-Este é um projeto proprietário desenvolvido pela **Usabit**. Para sugestões de melhorias técnicas, entre em contato com o time de engenharia.
+Este projeto adere a protocolos rígidos de segurança para garantir a proteção dos dados dos candidatos (pronto para LGPD):
+- Todos os dados sensíveis (PII) são protegidos por **Row Level Security (RLS)** do PostgreSQL.
+- APIs externas são filtradas e servidas via **Supabase Edge Functions**.
+- O acesso a arquivos é estritamente controlado via **URLs Assinadas (Signed URLs)**.
 
 ---
 
 <p align="center">
-  Desenvolvido com ❤️ pela <strong>Usabit</strong>
+  <strong>Desenvolvido com Precisão e Paixão pela Usabit ❤️</strong><br>
+  © 2026 Usabit. Todos os direitos reservados.
 </p>

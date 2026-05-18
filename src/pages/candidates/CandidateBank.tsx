@@ -1,21 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
+import { AddCandidateModal } from '../../common/components/AddCandidateModal';
+import { hasPermission } from '../../core/config/permissions';
+import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
 
 const PAGE_SIZE = 10;
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
 }
-
-/** Separa qualquer texto de skills em chips individuais */
 
 function toStr(v: any): string | null {
   if (!v) return null;
@@ -33,42 +33,22 @@ interface Candidate {
   address: string | null;
   age: string | null;
   gender: string | null;
+  portfolio: string | null;
+  cep: string | null;
+  address_number: string | null;
+  complement: string | null;
   score: number | null;
   vagas: string[];
   interview_eligible: boolean;
   is_blacklisted: boolean;
-}
-
-interface Application {
-  jobId: string;
-  jobName: string;
-  score: number;
-  appliedAt: string;
-  skills?: string | null;
-  experience?: string | null;
-  education?: string | null;
-  redFlags?: string | null;
-}
-
-interface CandidateDetail extends Candidate {
-  phone: string | null;
-  skills: string | null;
-  experience: string | null;
-  education: string | null;
-  redFlags: string | null;
-  applications: Application[];
-  notes: string | null;
-  enriched: boolean;
-  pipelineCards?: any[];
+  resume_url?: string | null;
+  resume_file_name?: string | null;
+  phone?: string | null;
+  conversations?: any[];
 }
 
 type SortKey = 'name' | 'location' | 'age' | null;
 type SortDir = 'asc' | 'desc';
-
-// ─── Tipos de Comentário ──────────────────────────────────────────────────────
-
-
-
 
 // ─── Sort indicator ───────────────────────────────────────────────────────────
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -78,12 +58,67 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 
 // ─── SelectFilter ─────────────────────────────────────────────────────────────
 function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: value ? 'var(--text-main)' : 'var(--text-dim)', fontSize: 12, outline: 'none', cursor: 'pointer', minWidth: 110 }}>
-      <option value="">{placeholder}</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
+    <div ref={ref} style={{ width: '160px', position: 'relative' }}>
+      <div onClick={() => setIsOpen(!isOpen)} style={{ 
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: '8px', padding: '7px 12px', color: value ? 'var(--text-main)' : 'var(--text-dim)',
+          fontSize: '12px', cursor: 'pointer', height: '34px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          transition: 'all 0.2s'
+      }}>
+         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || placeholder}</span>
+         <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
+      </div>
+      {isOpen && (
+          <div style={{ 
+              position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '100%',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '10px', padding: '6px', zIndex: 1000,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+              maxHeight: '240px', overflowY: 'auto'
+          }}>
+             <div
+                 onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                 style={{ 
+                     padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                     color: value === '' ? '#3b82f6' : 'var(--text-dim)',
+                     background: value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                     fontWeight: value === '' ? 600 : 400
+                 }} onClick={() => { onChange(''); setIsOpen(false); }}>
+                 {placeholder}
+             </div>
+             {options.map(o => (
+                <div key={o}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    style={{ 
+                        padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                        color: value === o ? '#3b82f6' : 'var(--text-dim)',
+                        background: value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        fontWeight: value === o ? 600 : 400
+                    }} onClick={() => { onChange(o); setIsOpen(false); }}>
+                    {o}
+                </div>
+             ))}
+          </div>
+      )}
+    </div>
   );
 }
 
@@ -97,6 +132,7 @@ export const CandidateBank = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // ─ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -106,6 +142,7 @@ export const CandidateBank = () => {
   const [filterGender, setFilterGender] = useState('');
   const [filterVaga, setFilterVaga] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [activeTab, setActiveTab] = useState<'todos' | 'candidatos' | 'blacklist'>('todos');
 
   // Load favorites from localStorage (per user)
   useEffect(() => {
@@ -126,42 +163,70 @@ export const CandidateBank = () => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const safetyTimer = setTimeout(() => setLoading(false), 8000);
-    fetchCandidates(profile.userId).finally(() => clearTimeout(safetyTimer));
+    fetchCandidates(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
     return () => clearTimeout(safetyTimer);
-  }, [profile.userId, profile.loaded]);
+  }, [profile.userId, profile.loaded, profile.user_role]);
 
-  async function fetchCandidates(userId: string) {
+  async function fetchCandidates(userId: string, userRole?: string) {
+    const isGlobalViewer = userRole === 'owner';
+    const isOrgMember = userRole === 'gestor' || userRole === 'rh';
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, job_candidates(jobs(name))')
-        .eq('user_id', userId)
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
         .order('name', { ascending: true });
 
+      if (!isGlobalViewer) {
+        if (isOrgMember && profile.organization_id && profile.organization_id !== 'null') {
+          query = query.eq('organization_id', profile.organization_id);
+        } else {
+          query = query.eq('user_id', userId);
+        }
+      }
+
+      const { data, error } = await query;
+
       if (error) {
-        // Fallback
-        const { data: fallback } = await supabase
+        let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))')
-          .eq('user_id', userId)
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
           .order('name', { ascending: true });
+        if (!isGlobalViewer) {
+          if (isOrgMember && profile.organization_id) {
+            fallbackQuery = fallbackQuery.eq('organization_id', profile.organization_id);
+          } else {
+            fallbackQuery = fallbackQuery.eq('user_id', userId);
+          }
+        }
+        const { data: fallback } = await fallbackQuery;
         setCandidates((fallback ?? []).map((c: any) => ({
           id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-          age: c.age, gender: c.gender, score: c.score,
+          age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
+          address_number: c.address_number, complement: c.complement,
+          score: c.score,
           interview_eligible: false,
           is_blacklisted: false,
-          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+          resume_url: c.resume_url,
+          phone: c.phone,
+          conversations: c.conversations,
+          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
         })));
         return;
       }
 
       setCandidates((data ?? []).map((c: any) => ({
         id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-        age: c.age, gender: c.gender, score: c.score,
+        age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
+        address_number: c.address_number, complement: c.complement,
+        score: c.score,
         interview_eligible: c.interview_eligible ?? false,
         is_blacklisted: c.is_blacklisted ?? false,
-        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
+        resume_url: c.resume_url,
+        resume_file_name: c.resume_file_name,
+        phone: c.phone,
+        conversations: c.conversations,
+        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
       })));
     } finally {
       setLoading(false);
@@ -201,6 +266,13 @@ export const CandidateBank = () => {
     if (onlyFavorites) list = list.filter(c => favorites[c.id]);
     if (filterGender) list = list.filter(c => c.gender === filterGender);
     if (filterVaga) list = list.filter(c => c.vagas.includes(filterVaga));
+
+    if (activeTab === 'blacklist') {
+      list = list.filter(c => c.is_blacklisted);
+    } else if (activeTab === 'candidatos') {
+      list = list.filter(c => !c.is_blacklisted);
+    }
+
     if (sortKey) {
       list.sort((a, b) => {
         let va: any, vb: any;
@@ -213,7 +285,7 @@ export const CandidateBank = () => {
       });
     }
     return list;
-  }, [candidates, search, onlyFavorites, favorites, filterGender, filterVaga, sortKey, sortDir]);
+  }, [candidates, search, onlyFavorites, favorites, filterGender, filterVaga, sortKey, sortDir, activeTab]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const paginated = processed.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -224,26 +296,39 @@ export const CandidateBank = () => {
       ...c, 
       phone: null, skills: null, experience: null, education: null, 
       redFlags: null, applications: [], notes: null, enriched: false,
-      is_blacklisted: c.is_blacklisted ?? false 
+      is_blacklisted: c.is_blacklisted ?? false,
+      hideBankButton: true,
+      status: 'talent_bank'
     } as CandidateDetail);
     enrichCandidate(c.id);
   }
 
   async function enrichCandidate(id: string) {
     try {
-      const [{ data: cd }, { data: jcData }, { data: pipeData }] = await Promise.all([
+      const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
-        supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+        supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
+        supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
-      const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+      const validJobIds = new Set();
+      (jcData ?? []).forEach((jc: any) => {
+        if (jc.job_id) validJobIds.add(jc.job_id);
+        if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+      });
+      console.log('[enrichCandidate] validJobIds:', Array.from(validJobIds));
 
       setSelected(prev => {
         if (!prev || prev.id !== id) return prev;
         const analysis = cd?.analysis ?? {};
         const rawHistory: any[] = analysis?.history ?? [];
-        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+        console.log('[enrichCandidate] rawHistory IDs:', rawHistory.map((h: any) => h.job_id));
+
+        const validHistory = rawHistory.filter((h: any) =>
+            (h.job_id || h.vaga_id) && validJobIds.has(h.job_id || h.vaga_id)
+        );
+        console.log('[enrichCandidate] validHistory count (unfiltered):', validHistory.length);
 
         const pipelineCards = (pipeData ?? []).map((pc: any) => {
           let jobName = undefined;
@@ -262,24 +347,28 @@ export const CandidateBank = () => {
           ...prev,
           phone: toStr(cd?.phone) ?? null,
           address: toStr(cd?.address) ?? null,
-          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades),
-          experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia),
-          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao),
-          redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
+          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as any)?.skills),
+          experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as any)?.experience),
+          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as any)?.education),
+          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
           applications: validHistory.map((h: any) => ({
             jobId: h.job_id,
-            jobName: h.job_name,
-            score: h.score,
-            appliedAt: h.analyzed_at,
-            skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-            experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-            education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-            redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
+            jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
+            jobCode: h.job_code || h.code || '',
+            score: h.score ?? h.match_score ?? 0,
+            appliedAt: h.analyzed_at || h.date || h.created_at,
+            skills: toStr(h.skills ?? h.habilidades),
+            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+            education: toStr(h.education ?? h.formacao),
+            redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
+            resume_url: h.resume_url
           })),
           pipelineCards,
           enriched: true,
+          conversations: convData || []
         };
       });
     } catch {
@@ -287,7 +376,7 @@ export const CandidateBank = () => {
     }
   }
 
-  const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : ''].filter(Boolean).length;
+  const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : '', activeTab !== 'todos' ? 'tab' : ''].filter(Boolean).length;
 
   if (loading) {
     return (
@@ -300,12 +389,18 @@ export const CandidateBank = () => {
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>Banco de Candidatos</h1>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>
-            {processed.length} candidato{processed.length !== 1 ? 's' : ''} encontrado{processed.length !== 1 ? 's' : ''}
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <Users size={32} style={{ color: 'var(--primary)' }} />
+            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+              Banco de Talentos
+            </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+            {processed.length} candidato{processed.length !== 1 ? 's' : ''}
+            {activeTab === 'blacklist' ? ' na blacklist' : activeTab === 'candidatos' ? ' ativos' : ' encontrado'}{processed.length !== 1 && activeTab === 'todos' ? 's' : ''}
             {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
           </p>
         </div>
@@ -316,7 +411,10 @@ export const CandidateBank = () => {
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
             />
           </div>
-          <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
             <Plus style={{ width: 16, height: 16 }} /> Adicionar
           </button>
         </div>
@@ -332,23 +430,96 @@ export const CandidateBank = () => {
           Apenas favoritos
         </button>
         {activeFilters > 0 && (
-          <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setPage(1); }}
+          <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setActiveTab('todos'); setPage(1); }}
             style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
             <X style={{ width: 12, height: 12 }} /> Limpar
           </button>
         )}
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        {([
+          { key: 'todos' as const, label: 'Todos', icon: Users, color: 'var(--primary)' },
+          { key: 'candidatos' as const, label: 'Candidatos', icon: UserCheck, color: '#10b981' },
+          { key: 'blacklist' as const, label: 'Blacklist', icon: Ban, color: '#ef4444' },
+        ]).map(tab => {
+          const isActive = activeTab === tab.key;
+          const Icon = tab.icon;
+          const statusColor = tab.color;
+          const count = tab.key === 'todos' ? candidates.length :
+                        tab.key === 'candidatos' ? candidates.filter(c => !c.is_blacklisted).length :
+                        candidates.filter(c => c.is_blacklisted).length;
+
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setPage(1); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                background: isActive ? 'var(--bg-card)' : 'transparent',
+                border: 'none',
+                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                borderRadius: '8px 8px 0 0',
+                color: isActive ? statusColor : 'var(--text-muted)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: '-1px',
+                opacity: isActive ? 1 : 0.8
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                    e.currentTarget.style.color = statusColor;
+                    e.currentTarget.style.opacity = '1';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                    e.currentTarget.style.opacity = '0.8';
+                }
+              }}
+            >
+              <Icon size={16} />
+              {tab.label}
+              <span style={{ 
+                  fontSize: '10px', 
+                  background: isActive ? `${statusColor}25` : `${statusColor}15`,
+                  color: statusColor,
+                  padding: '1px 7px',
+                  borderRadius: '20px',
+                  fontWeight: 700,
+                  marginLeft: '8px',
+                  border: `1px solid ${statusColor}30`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '20px',
+                  transition: 'all 0.2s'
+              }}>
+                  {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '25%' }} />
+            <col style={{ width: '22%' }} />
             <col style={{ width: '13%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '20%' }} />
             <col style={{ width: '7%' }} />
-            <col style={{ width: '7%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
             <col style={{ width: '8%' }} />
           </colgroup>
           <thead>
@@ -361,11 +532,12 @@ export const CandidateBank = () => {
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
+                ...(hasPermission(profile.user_role, 'chat') ? [[null, 'Chat'] as [SortKey, string]] : []),
                 [null, 'Visualizar'],
               ] as [SortKey, string][]).map(([col, label]) => (
                 <th key={label}
                   onClick={col ? () => handleSort(col) : undefined}
-                  style={{ padding: '14px 16px', textAlign: (label === 'Favoritos' || label === 'Blacklist' || label === 'Visualizar') ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                  style={{ padding: '14px 16px', textAlign: (['Favoritos', 'Blacklist', 'Chat', 'Visualizar'].includes(label)) ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {label}
                     {col && <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />}
@@ -377,7 +549,13 @@ export const CandidateBank = () => {
           <tbody>
             {paginated.length === 0 ? (
               <tr><td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
-                {search || activeFilters > 0 ? 'Nenhum candidato encontrado com os filtros aplicados.' : 'Nenhum candidato cadastrado ainda.'}
+                {activeTab === 'blacklist'
+                  ? 'Nenhum candidato na blacklist.'
+                  : activeTab === 'candidatos'
+                    ? 'Nenhum candidato ativo encontrado.'
+                    : search || activeFilters > 0
+                      ? 'Nenhum candidato encontrado com os filtros aplicados.'
+                      : 'Nenhum candidato cadastrado ainda.'}
               </td></tr>
             ) : paginated.map(c => (
               <tr key={c.id} onClick={() => openCandidate(c)}
@@ -399,7 +577,7 @@ export const CandidateBank = () => {
                   </div>
                 </td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !['Não informado', 'não informado', '—'].includes(c.age)) ? `${c.age} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
                   {c.vagas.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
@@ -429,10 +607,54 @@ export const CandidateBank = () => {
                     </button>
                   </div>
                 </td>
+                {hasPermission(profile.user_role, 'chat') && (
+                  <td style={{ padding: '0 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div
+                        title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
+                        style={{ 
+                          width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                          color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
+                        }}>
+                        <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                      </div>
+                    </div>
+                  </td>
+                )}
                 <td style={{ padding: '0 16px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Eye style={{ width: 15, height: 15, color: '#475569' }} />
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button 
+                          title="Visualizar Card"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCandidate(c);
+                          }}
+                          style={{
+                            padding: '6px',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'var(--primary-light-bg)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                    </div>
                 </td>
               </tr>
             ))}
@@ -477,116 +699,12 @@ export const CandidateBank = () => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, notes } : prev);
           }}
-          onEligibleChange={async (id, val, jobInfo, pipelineId) => {
-            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, interview_eligible: val } : cand));
-            setSelected(prev => prev && prev.id === id ? { ...prev, interview_eligible: val } : prev);
-
-            if (val && jobInfo && profile.userId) {
-              try {
-                let targetPipelineId = pipelineId;
-                let targetPipelineName = '';
-
-                if (!targetPipelineId) {
-                  const { data: pips } = await supabase.from('pipelines')
-                    .select('id, name').eq('user_id', profile.userId).order('created_at').limit(1);
-                  targetPipelineId = pips?.[0]?.id;
-                  targetPipelineName = pips?.[0]?.name || '';
-                } else {
-                  const { data: pip } = await supabase.from('pipelines')
-                    .select('name').eq('id', targetPipelineId).single();
-                  targetPipelineName = pip?.name || '';
-                }
-
-                if (!targetPipelineId) return;
-
-                const { data: cols } = await supabase.from('pipeline_columns')
-                  .select('id, name').eq('pipeline_id', targetPipelineId).order('position').limit(1);
-
-                const colId = cols?.[0]?.id;
-                if (colId) {
-                  const { data: cardsInCol } = await supabase.from('pipeline_cards')
-                    .select('id').eq('column_id', colId);
-                  const pos = cardsInCol?.length || 0;
-
-                  const notesJson = JSON.stringify({
-                    selected_job_id: jobInfo.jobId,
-                    selected_job_name: jobInfo.jobName,
-                    selected_job_score: jobInfo.score
-                  });
-
-                  const { data: newCard } = await supabase.from('pipeline_cards').insert({
-                    user_id: profile.userId,
-                    pipeline_id: targetPipelineId,
-                    column_id: colId,
-                    candidate_id: id,
-                    position: pos,
-                    notes: notesJson
-                  }).select().single();
-
-                  if (newCard) {
-                    await supabase.from('candidates').update({ interview_eligible: true }).eq('id', id);
-                    logScreening(
-                      profile.userId,
-                      id,
-                      'inclusion',
-                      null,
-                      cols?.[0]?.name || 'Triagem',
-                      {
-                        job_id: jobInfo.jobId,
-                        job_name: jobInfo.jobName,
-                        pipeline_id: targetPipelineId,
-                        pipeline_name: targetPipelineName
-                      }
-                    );
-
-                    logActivity(profile.userId, `Adicionou "${selected.name}" ao processo "${targetPipelineName}"`);
-
-                    setSelected(prev => {
-                      if (!prev || prev.id !== id) return prev;
-                      return {
-                        ...prev,
-                        interview_eligible: true,
-                        pipelineCards: [...(prev.pipelineCards || []), {
-                          id: newCard.id,
-                          jobId: jobInfo.jobId,
-                          jobName: jobInfo.jobName,
-                          score: jobInfo.score,
-                          pipelineName: targetPipelineName
-                        }]
-                      };
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error("Error adding to pipeline from bank:", err);
-              }
-            }
-          }}
-          onRemoveCard={async (cardId, candidateId) => {
-            const currentCards = selected?.pipelineCards || [];
-            const card = currentCards.find(pc => pc.id === cardId);
-            await supabase.from('pipeline_cards').delete().eq('id', cardId);
-            if (profile.userId && card) {
-              logActivity(profile.userId, `Removeu "${selected?.name}" do processo "${card.pipelineName || 'Pipeline'}"`);
-            }
-            const filteredCards = currentCards.filter(pc => pc.id !== cardId);
-            const stillInPipeline = filteredCards.length > 0;
-            if (!stillInPipeline) {
-              await supabase.from('candidates').update({ interview_eligible: false }).eq('id', candidateId);
-              setCandidates(curr => curr.map(c => c.id === candidateId ? { ...c, interview_eligible: false } : c));
-            }
-            setSelected(prev => {
-              if (!prev || prev.id !== candidateId) return prev;
-              return {
-                ...prev,
-                interview_eligible: stillInPipeline,
-                pipelineCards: filteredCards
-              };
-            });
-          }}
           onFieldChange={(id, field, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
+          }}
+          onTransferSuccess={() => {
+            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
           }}
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
@@ -594,6 +712,19 @@ export const CandidateBank = () => {
           }}
         />
       )}
-    </>
+
+      <AddCandidateModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => {
+          if (profile.userId) fetchCandidates(profile.userId);
+        }}
+        onViewCandidate={async (candidateId) => {
+          setShowAddModal(false);
+          // Abre o painel do candidato existente com dados já carregados
+          openCandidate(candidates.find(c => c.id === candidateId)!);
+        }}
+      />
+    </div>
   );
 };

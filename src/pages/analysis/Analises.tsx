@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Mail, Phone, MapPin, Calendar, Search, ChevronLeft, ChevronRight, X, Ban } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, ChevronLeft, ChevronRight, X, Ban, Phone, Activity } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
+import { handleViewResume } from '../../core/utils/storage';
 import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
+import { CandidatePanel } from '../../features/analysis/CandidatePanel';
+import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
+import { hasPermission } from '../../core/config/permissions';
+import { logActivity } from '../../core/services/logger';
 
 interface Job {
   id: string;
@@ -14,6 +21,89 @@ interface Job {
   topCandidates: number;
   filters: { gender?: string; age?: string; location?: string } | null;
 }
+
+// ─── Planet CSS ─────────────────────────────────────────────────────────────
+const planetCss = `
+@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
+.planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
+.planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
+`;
+
+// ─── Planet Details ───────────────────────────────────────────────────────────
+const PlanetOverlay = ({ type }: { type: string }) => {
+  switch (type) {
+    case 'Jupiter':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(124,45,18,0.25) 12px, rgba(124,45,18,0.25) 24px)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 18px, rgba(254,243,199,0.15) 18px, rgba(254,243,199,0.15) 36px)' }} />
+          <div style={{ position: 'absolute', top: '65%', left: '15%', width: '25%', height: '12%', borderRadius: '50%', background: 'rgba(124,45,18,0.45)', filter: 'blur(2px)', transform: 'rotate(-3deg)' }} />
+          <div style={{ position: 'absolute', top: '30%', left: '55%', width: '28%', height: '6%', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', filter: 'blur(1px)' }} />
+        </div>
+      );
+    case 'Earth':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, 
+            backgroundImage: `
+              radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
+              radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
+              radial-gradient(ellipse 18px 12px at 45% 45%, #3f6212 0%, transparent 100%),
+              radial-gradient(ellipse 12px 08px at 80% 20%, #14532d 0%, transparent 100%),
+              radial-gradient(circle 7px at 22% 72%, #166534 0%, transparent 100%)
+            `,
+            opacity: 0.85, filter: 'blur(1px)'
+          }} />
+          <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
+          <div style={{ position: 'absolute', inset: 0, 
+            backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
+            filter: 'blur(2px)', animation: 'float 30s linear infinite'
+          }} />
+        </div>
+      );
+    case 'Moon':
+      return (
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.7 }}>
+          <div style={{ position: 'absolute', top: '15%', left: '25%', width: '18%', height: '18%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
+          <div style={{ position: 'absolute', top: '45%', left: '60%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 3px rgba(0,0,0,0.3)' }} />
+          <div style={{ position: 'absolute', top: '70%', left: '30%', width: '22%', height: '22%', borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.25)' }} />
+        </div>
+      );
+    case 'Mars':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '15%', left: '15%', width: '35%', height: '15%', background: 'rgba(69,10,10,0.35)', filter: 'blur(4px)', transform: 'rotate(-5deg)' }} />
+          <div style={{ position: 'absolute', top: '65%', left: '50%', width: '25%', height: '15%', background: 'rgba(69,10,10,0.3)', filter: 'blur(3px)', transform: 'rotate(10deg)' }} />
+          <div style={{ position: 'absolute', top: '35%', left: '55%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(69,10,10,0.2)', boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.3)' }} />
+        </div>
+      );
+    case 'Neptune':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(160deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px)', filter: 'blur(1.5px)', animation: 'float 45s linear infinite' }} />
+          <div style={{ position: 'absolute', top: '40%', left: '10%', width: '80%', height: '4%', background: 'rgba(255,255,255,0.15)', filter: 'blur(3px)' }} />
+        </div>
+      );
+    case 'Venus':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.12) 0%, transparent 60%)', filter: 'blur(2px)' }} />
+          <div style={{ position: 'absolute', inset: -10, background: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.05) 12px, rgba(0,0,0,0.05) 24px)', filter: 'blur(4px)', opacity: 0.4 }} />
+        </div>
+      );
+    case 'Saturn':
+      return (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
+          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
+        </div>
+      );
+    default:
+      return null;
+  }
+};
 
 interface Candidate {
   id: string;
@@ -31,28 +121,10 @@ interface Candidate {
   attention_points: string | null;
   resumeUrl: string | null;
   isBlacklisted?: boolean;
+  conversations?: any[];
 }
 
-const scoreColor = (s: number) =>
-  s >= 70 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444';
 
-const initials = (name: string) =>
-  name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
-
-/** Separa qualquer texto de skills em chips individuais */
-function parseSkills(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  let cleaned = raw
-    .replace(/experiência em/gi, '')
-    .replace(/conhecimento em/gi, '')
-    .replace(/domínio de/gi, '')
-    .replace(/habilidade em/gi, '')
-    .replace(/proficiência em/gi, '');
-  const parts = cleaned.split(/,|;|\se\/ou\s|\sou\s|\se\s|\//);
-  return parts
-    .map(s => s.replace(/[.]/g, '').trim())
-    .filter(s => s.length > 1 && s.length < 60);
-}
 
 // ─── Detail View ──────────────────────────────────────────────────────────────
 export function JobDetailView({ jobId }: { jobId: string }) {
@@ -62,7 +134,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'best' | 'mid' | 'worst'>('best');
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateDetail | null>(null);
   const [favorites, setFavorites] = useState<Record<string, boolean>>(() => {
     try { return profile.userId ? JSON.parse(localStorage.getItem(`fav-${profile.userId}`) ?? '{}') : {}; } catch { return {}; }
   });
@@ -79,11 +151,17 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     async function load() {
       try {
         // Load job info
-        const { data: jobData, error: jobErr } = await supabase
+        let jobQuery = supabase
           .from('jobs')
-          .select('name, created_at')
-          .eq('id', jobId)
-          .single();
+          .select('id, name, created_at, organization_id')
+          .eq('id', jobId);
+
+        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização (ou as que eles mesmos criaram)
+        if (profile.user_role !== 'owner' && profile.organization_id) {
+          jobQuery = jobQuery.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
+        }
+
+        const { data: jobData, error: jobErr } = await jobQuery.single();
 
         if (jobErr) throw jobErr;
         setJob(jobData);
@@ -91,7 +169,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         // Load candidates via join: job_candidates → candidates
         const { data: jcData, error: candErr } = await supabase
           .from('job_candidates')
-          .select('candidates(id, name, email, phone, location, address, age, gender, is_blacklisted, analysis)')
+          .select('candidates(id, name, email, phone, location, address, age, gender, is_blacklisted, analysis, conversations:candidate_conversations(candidate_id))')
           .eq('job_id', jobId);
 
         if (candErr) throw candErr;
@@ -126,6 +204,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               attention_points: analysis.redFlags ?? null,
               resumeUrl: null,
               isBlacklisted: c.is_blacklisted,
+              conversations: c.conversations,
             };
           })
           .sort((a: Candidate, b: Candidate) => b.score - a.score);
@@ -162,6 +241,84 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     }
     load();
   }, [jobId]);
+
+  async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
+    const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
+      supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
+      supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+      supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
+      supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
+    ]);
+
+    if (!cand) return { enriched: true };
+
+    const analysis = cand.analysis ?? {};
+    const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+    const rawHistory: any[] = analysis?.history ?? [];
+    const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+
+    const pipelineCards = (pipeData ?? []).map((pc: any) => {
+      let jobName = undefined;
+      let jobId = undefined;
+      let score = undefined;
+      try {
+        const parsed = JSON.parse(pc.notes || '');
+        jobName = parsed.selected_job_name;
+        jobId = parsed.selected_job_id;
+        score = parsed.selected_job_score;
+      } catch { }
+      return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
+    });
+
+    return {
+      email: toStr(cand.email) || '',
+      location: toStr(cand.location) || null,
+      address: toStr(cand.address) || null,
+      age: toStr(cand.age) || null,
+      gender: toStr(cand.gender) || null,
+      phone: toStr(cand.phone) || null,
+      skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
+      experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
+      education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
+      redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
+      notes: cand.notes || null,
+      is_blacklisted: cand.is_blacklisted ?? false,
+      applications: validHistory.map((h: any) => ({
+        jobId: h.job_id,
+        jobName: h.job_name,
+        score: h.score,
+        appliedAt: h.analyzed_at,
+        skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
+        experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
+        education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
+        redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
+      })),
+      pipelineCards,
+      resume_url: cand.resume_url,
+      hideBankButton: true,
+      enriched: true,
+      conversations: convData || []
+    };
+  }
+
+  async function openCandidate(c: Candidate) {
+    const base: any = {
+      id: c.id,
+      name: c.name,
+      score: c.score,
+      enriched: false,
+      applications: [],
+      hideBankButton: true
+    };
+    setSelectedCandidate(base);
+    try {
+      const extra = await enrichCandidate(c.id);
+      setSelectedCandidate(prev => prev && prev.id === c.id ? { ...prev, ...extra } : prev);
+    } catch (err) {
+      console.error('Error enriching candidate:', err);
+      setSelectedCandidate(prev => prev && prev.id === c.id ? { ...prev, enriched: true } : prev);
+    }
+  }
 
   // Re-init favorites if userId arrives late
   useEffect(() => {
@@ -266,17 +423,18 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '6%' }} />
-              <col style={{ width: '26%' }} />
+              <col style={{ width: '22%' }} />
               <col style={{ width: '9%' }} />
-              <col style={{ width: '18%' }} />
+              <col style={{ width: '14%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '11%' }} />
-              <col style={{ width: '18%' }} />
+              {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
+              <col style={{ width: hasPermission(profile.user_role, 'chat') ? '18%' : '26%' }} />
             </colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', 'Ações'].map(h => (
-                  <th key={h} style={{ padding: '14px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', ...(hasPermission(profile.user_role, 'chat') ? ['Chat'] : []), 'Ações'].map(h => (
+                  <th key={h} style={{ padding: '14px 16px', textAlign: h === 'Chat' ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -287,7 +445,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                 </td></tr>
               ) : displayed.map((c) => (
                 <tr key={c.id}
-                  onClick={() => setSelectedCandidate(c)}
+                  onClick={() => openCandidate(c)}
                   style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--row-hover)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -316,7 +474,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Idade */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: '#94a3b8' }}>
-                    {(c.age && !/não\s*informado/i.test(c.age)) ? `${c.age} anos` : '—'}
+                    {(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : '—'}
                   </td>
                   {/* Localização */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-dim)' }}>
@@ -328,10 +486,37 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Score */}
                   <td style={{ padding: '14px 16px' }}>
-                    <span style={{ background: `${scoreColor(c.score)}22`, color: scoreColor(c.score), border: `1px solid ${scoreColor(c.score)}44`, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>
+                    <span style={{ 
+                        background: `${scoreColor(c.score)}22`, 
+                        color: scoreColor(c.score), 
+                        border: `1px solid ${scoreColor(c.score)}44`, 
+                        borderRadius: 20, 
+                        padding: '4px 16px', 
+                        fontSize: '13px', 
+                        fontWeight: 800,
+                        display: 'inline-block',
+                        minWidth: '54px',
+                        textAlign: 'center'
+                    }}>
                       {c.score}%
                     </span>
                   </td>
+                  {/* Chat */}
+                  {hasPermission(profile.user_role, 'chat') && (
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {c.conversations?.length ? (
+                          <div title="Chat Ativo">
+                            <Phone size={16} color="#22c55e" fill="#22c55e22" />
+                          </div>
+                        ) : (
+                          <div title="Chat Inativo">
+                            <Phone size={16} color="#64748b" opacity={0.5} />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {/* Ações */}
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -348,13 +533,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                         title={c.resumeUrl ? 'Abrir Currículo' : 'PDF não disponível'}
                         onClick={e => {
                           e.stopPropagation();
-                          if (c.resumeUrl) {
-                            const a = document.createElement('a');
-                            a.href = c.resumeUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                          } else {
-                            toast.error('PDF não disponível para este candidato.');
-                          }
+                          handleViewResume(c.resumeUrl);
                         }}
                         style={{ background: 'none', border: 'none', cursor: c.resumeUrl ? 'pointer' : 'not-allowed', color: c.resumeUrl ? '#818cf8' : '#2d3147', padding: 6, borderRadius: 6 }}
                         onMouseEnter={e => { if (c.resumeUrl) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.1)'; }}
@@ -364,7 +543,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                       </button>
                       <button
                         title="Ver Perfil Completo"
-                        onClick={e => { e.stopPropagation(); setSelectedCandidate(c); }}
+                        onClick={e => { e.stopPropagation(); openCandidate(c); }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 6, borderRadius: 6 }}
                         onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.1)'}
                         onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'none'}
@@ -383,112 +562,23 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
       {/* Candidate Detail Side Panel */}
       {selectedCandidate && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-          <div onClick={() => setSelectedCandidate(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-          <div style={{
-            position: 'relative', zIndex: 1, width: 'clamp(400px, 35vw, 95vw)', height: '100vh',
-            background: 'var(--bg-card)', borderLeft: '1px solid var(--border)', overflowY: 'auto',
-            padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 20,
-            boxShadow: '-20px 0 60px rgba(0,0,0,0.5)'
-          }}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[var(--primary)] flex items-center justify-center text-lg font-bold text-white">
-                  {initials(selectedCandidate.name)}
-                </div>
-                <div>
-                  <p className="text-[var(--text-main)] font-bold text-lg">{selectedCandidate.name}</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: `${scoreColor(selectedCandidate.score)}22`, color: scoreColor(selectedCandidate.score), border: `1px solid ${scoreColor(selectedCandidate.score)}44` }}>
-                    Score: {selectedCandidate.score}%
-                  </span>
-                </div>
-              </div>
-              <button onClick={() => setSelectedCandidate(null)} className="transition-colors rounded-lg p-2" style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>✕</button>
-            </div>
-
-            {/* Contact */}
-            <div>
-              <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-3">Contato</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                {[
-                  { icon: <Mail size={13} />, label: 'Email', value: selectedCandidate.email },
-                  { icon: <Phone size={13} />, label: 'Telefone', value: selectedCandidate.phone },
-                  { icon: <MapPin size={13} />, label: 'Local', value: selectedCandidate.location },
-                  { icon: <MapPin size={13} />, label: 'Endereço', value: selectedCandidate.address },
-                  { icon: <UserRound size={13} />, label: 'Gênero', value: selectedCandidate.gender },
-                  { icon: <Calendar size={13} />, label: 'Idade', value: (selectedCandidate.age && !['Não informado', '—'].includes(selectedCandidate.age)) ? `${selectedCandidate.age} anos` : null },
-                ].map((item, idx) => (
-                  <div key={idx} style={{
-                    background: 'var(--bg-main)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    padding: '12px 14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4,
-                    minHeight: 60,
-                    justifyContent: 'center',
-                    boxSizing: 'border-box'
-                  }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.icon}{item.label}</span>
-                    <span style={{ fontSize: 13, color: item.value ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value ?? 'Não informado'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {selectedCandidate.skills && (
-              <div>
-                <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-3">Habilidades</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {parseSkills(selectedCandidate.skills).map(s => (
-                    <span key={s} style={{
-                      background: 'rgba(99, 102, 241, 0.15)',
-                      border: '1px solid rgba(99, 102, 241, 0.25)',
-                      borderRadius: 8,
-                      padding: '5px 14px',
-                      fontSize: 12,
-                      color: '#fff',
-                      fontWeight: 600,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selectedCandidate.experience && (
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest mb-3">Experiência</p>
-                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{selectedCandidate.experience}</p>
-              </div>
-            )}
-
-            {selectedCandidate.education && (
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest mb-3">Formação</p>
-                <p className="text-sm text-slate-300">{selectedCandidate.education}</p>
-              </div>
-            )}
-
-            {selectedCandidate.attention_points && (
-              <div>
-                <p className="text-xs text-[var(--text-error)] uppercase tracking-widest mb-3">Pontos de Atenção</p>
-                <div style={{ padding: '0 0' }}>
-                  {selectedCandidate.attention_points && !selectedCandidate.attention_points.includes('Não existem pontos de atenção') ? (
-                    <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
-                      {selectedCandidate.attention_points.split('\n').filter(Boolean).map((p, i) => (
-                        <li key={i} style={{ fontSize: 13, color: '#fca5a5', marginBottom: 6, lineHeight: '1.4' }}>• {p}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>Não existem pontos de atenção identificados pela IA.</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <CandidatePanel
+          c={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+          navigate={navigate}
+          onNotesChange={(id, notes) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
+            setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, notes } : prev);
+          }}
+          onFieldChange={(id, field, val) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
+            setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
+          }}
+          onBlacklistChange={(id, val) => {
+            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
+            setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
+          }}
+        />
       )}
     </div>
   );
@@ -498,6 +588,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 export const Analises = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -530,11 +621,19 @@ export const Analises = () => {
       setLoading(true);
       setError(null);
 
-      const { data: jobsData, error: jobsError } = await supabase
+      let query = supabase
         .from('jobs')
-        .select('id, name, filters, created_at')
-        .eq('user_id', userId)
+        .select('id, name, filters, created_at, organization_id')
         .order('created_at', { ascending: false });
+
+      // Se tiver organização, traz tudo da org. Se não, traz só do usuário.
+      if (profile.organization_id && profile.organization_id !== 'null') {
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+      } else {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data: jobsData, error: jobsError } = await query;
 
       if (jobsError) throw jobsError;
       if (!jobsData || jobsData.length === 0) { setJobs([]); return; }
@@ -591,13 +690,16 @@ export const Analises = () => {
 
       toast.success('Análise excluída com sucesso');
       setJobs(prev => prev.filter(j => j.id !== jId));
+      if (profile.userId) {
+        logActivity(profile.userId, `Excluiu a análise: "${jName}"`);
+      }
     } catch (err) {
       console.error('Erro ao excluir análise:', err);
       toast.error('Ocorreu um erro ao excluir a análise.');
     }
   }
 
-  const recent = jobs.slice(0, 3);
+  const recent = jobs.slice(0, 8);
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString('pt-BR') + ' - ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -646,11 +748,19 @@ export const Analises = () => {
 
   return (
     <div className="text-[var(--text-main)]">
+      <style>{planetCss}</style>
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
-          <p className="text-[var(--text-dim)] text-sm mb-1">Bem-vindo à</p>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">IA Análise de Currículos</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <Activity size={32} style={{ color: 'var(--primary)' }} />
+            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+              IA Análise de Currículos
+            </h1>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+            Gerencie e analise currículos de forma inteligente.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div style={{ position: 'relative' }}>
@@ -679,75 +789,106 @@ export const Analises = () => {
       {recent.length > 0 && (
         <>
           <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-4">Acessados recentemente</p>
-            <div className="flex gap-3 mb-10 flex-wrap">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
             {recent.map((j, i) => {
               // Cycle through planets for variety
               const planetVariants = [
                 { name: 'Saturn', color: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #d97706 40%, #78350f 100%)', shadow: 'rgba(217,119,6,0.15)', ring: true },
                 { name: 'Jupiter', color: 'radial-gradient(circle at 30% 30%, #fff7ed 0%, #f59e0b 35%, #7c2d12 100%)', shadow: 'rgba(124,45,18,0.2)' },
                 { name: 'Earth', color: 'radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 50%, #1e3a8a 100%)', shadow: 'rgba(37,99,235,0.2)' },
+                { name: 'Mars', color: 'radial-gradient(circle at 35% 35%, #f87171 0%, #b91c1c 50%, #450a0a 100%)', shadow: 'rgba(185,28,28,0.15)' },
+                { name: 'Neptune', color: 'radial-gradient(circle at 35% 35%, #38bdf8 0%, #1d4ed8 50%, #1e3a8a 100%)', shadow: 'rgba(29,78,216,0.2)' },
+                { name: 'Venus', color: 'radial-gradient(circle at 35% 35%, #fde68a 0%, #d97706 50%, #78350f 100%)', shadow: 'rgba(217,119,6,0.15)' },
                 { name: 'Moon', color: 'radial-gradient(circle at 30% 30%, #f3f4f6 0%, #9ca3af 50%, #374151 100%)', shadow: 'rgba(156,163,175,0.15)' }
               ];
-              const p = planetVariants[i % planetVariants.length];
+              const p = planetVariants[j.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % planetVariants.length];
 
               return (
                 <div
                   key={j.id}
                   onClick={() => navigate(`/analise/${j.id}`)}
-                  className="d-card group"
+                  className={`d-card group ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
                   style={{ 
+                    position: 'relative',
+                    overflow: 'hidden',
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '12px', 
-                    padding: '16px 20px', 
-                    cursor: 'pointer', 
-                    width: '220px',
-                    flex: '0 0 auto',
-                    minWidth: '220px'
+                    gap: '8px', 
+                    padding: '14px 16px', 
+                    cursor: 'pointer',
+                    minHeight: 80,
+                    transition: 'all 0.3s ease'
                   }}
                   onMouseEnter={e => { 
                     (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)'; 
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.3)'; 
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 35px -5px rgba(0,0,0,0.4)'; 
+                    (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.3)';
                   }}
                   onMouseLeave={e => { 
                     (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
                     (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; 
+                    (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
                   }}
                 >
-                  {/* Stars Background - Full Coverage */}
-                  {[...Array(25)].map((_, si) => (
-                    <div 
-                      key={si} 
-                      className="star" 
-                      style={{ 
-                        width: si % 7 === 0 ? 2 : 1, 
-                        height: si % 7 === 0 ? 2 : 1, 
-                        top: `${(si * 17) % 100}%`, 
-                        left: `${(si * 37 + i * 13) % 100}%`, 
-                        '--duration': `${1.5 + (si % 4)}s`, 
-                        animationDelay: `${si * 0.1}s`, 
-                        opacity: (si % 5) * 0.1 
-                      } as any} 
-                    />
-                  ))}
+                  {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                  {/* Theme-based backgrounds */}
+                  {bgTheme === 'planets' && (
+                    <>
+                      {/* Stars Background - Full Coverage */}
+                      {[...Array(25)].map((_, si) => (
+                        <div 
+                          key={si} 
+                          className="star" 
+                          style={{ 
+                            width: si % 7 === 0 ? 2 : 1, 
+                            height: si % 7 === 0 ? 2 : 1, 
+                            top: `${(si * 17) % 100}%`, 
+                            left: `${(si * 37 + i * 13) % 100}%`, 
+                            '--duration': `${1.5 + (si % 4)}s`, 
+                            animationDelay: `${si * 0.1}s`, 
+                            opacity: (si % 5) * 0.1 
+                          } as any} 
+                        />
+                      ))}
+                    </>
+                  )}
 
                   {/* Mini Planet Segment - Solid to hide stars */}
-                  <div 
-                    className="mini-planet" 
-                    style={{ 
-                      position: 'absolute', 
-                      width: 60, 
-                      height: 60, 
-                      borderRadius: '50%', 
-                      background: `transparent`, // Transparent base
-                      backgroundImage: p.color, // Planet texture
-                      right: -15, 
-                      bottom: -15, 
-                      opacity: 0.9, 
-                      boxShadow: `inset -5px -5px 15px rgba(0,0,0,0.5), 0 0 15px ${p.shadow}`, 
-                      zIndex: 2 // Higher than stars
-                    } as any} 
-                  />
+                  {bgTheme === 'planets' && (
+                    <div 
+                      className="planet" 
+                      style={{ 
+                        position: 'absolute', 
+                        width: 65, 
+                        height: 65, 
+                        borderRadius: '50%', 
+                        background: 'black',
+                        backgroundImage: p.color, 
+                        right: -15, 
+                        bottom: -15, 
+                        opacity: 1, 
+                        boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, 
+                        zIndex: 2,
+                        animation: 'float 25s ease-in-out infinite'
+                      } as any} 
+                    >
+                      <PlanetOverlay type={p.name} />
+                      {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                    </div>
+                  )}
+
+                  {bgTheme === 'spatial' && (
+                    <div style={{
+                      position: 'absolute',
+                      right: -10,
+                      bottom: -10,
+                      width: 80,
+                      height: 80,
+                      background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                      filter: 'blur(20px)',
+                      zIndex: 1
+                    }} />
+                  )}
 
                   <div style={{ position: 'relative', zIndex: 3 }}>
                     <p className="font-bold text-sm text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">{j.name}</p>
@@ -765,24 +906,16 @@ export const Analises = () => {
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar período:</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => { setStartDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+          <DatePicker 
+            value={startDate} 
+            onChange={val => { setStartDate(val); setPage(1); }} 
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); setPage(1); }}
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-main)', fontSize: 12, outline: 'none', transition: 'border-color 0.2s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+          <DatePicker 
+            value={endDate} 
+            onChange={val => { setEndDate(val); setPage(1); }} 
           />
         </div>
         {(startDate || endDate || (search && !paginated.length)) && (

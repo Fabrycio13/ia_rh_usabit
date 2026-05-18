@@ -21,6 +21,7 @@ export interface Candidate {
     attention_points: string | null;
     source: 'pdf' | 'excel';
     resumeUrl: string | null;
+    resume_file_name?: string | null;
     dbId: string | null;
     isBlacklisted?: boolean;
 }
@@ -48,7 +49,7 @@ const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function parseSkills(raw: string | null | undefined): string[] {
     if (!raw) return [];
-    let cleaned = raw
+    const cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')
         .replace(/domínio de/gi, '')
@@ -62,7 +63,7 @@ function parseSkills(raw: string | null | undefined): string[] {
 
 const cleanEmail = (email: string | null | undefined): string | null => {
     if (!email) return null;
-    let cleaned = email.replace(/\s+/g, '').toLowerCase(); // Remove TODOS os espaços
+    const cleaned = email.replace(/\s+/g, '').toLowerCase(); // Remove TODOS os espaços
     if (cleaned === 'nãoinformado' || cleaned === 'n/a' || cleaned === 'desconhecido' || cleaned === '—') return null;
     return cleaned;
 };
@@ -142,7 +143,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 if (data.jobName) setJobName(data.jobName);
                 if (data.jobDescription) setJobDescription(data.jobDescription);
                 if (data.error) setError(data.error);
-            } catch (e) {
+            } catch {
                 localStorage.removeItem('active_analysis');
             }
         }
@@ -183,13 +184,16 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             const batchId = crypto.randomUUID();
             console.log(`[Analysis] Iniciando análise de lote: ${batchId}`);
-            await logActivity(session.user.id, `Iniciou análise para vaga ${name}`, { mode, files_count: files.length });
+            
+            // Log de início - sem await para não travar a UI se o logger demorar
+            logActivity(session.user.id, `Criou e iniciou análise da vaga: "${name}"`, { mode, files_count: files.length }).catch(console.error);
 
             // 1. Criar a vaga IMEDIATAMENTE antes de começar o processamento
             const { data: jobData, error: jobError } = await supabase
                 .from('jobs')
                 .insert({
                     user_id: session.user.id,
+                    organization_id: profile.organization_id,
                     name: name,
                     description: desc,
                     filters: { total: mode === 'pdf' ? files.length : 0 },
@@ -227,16 +231,20 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         if (mode === 'pdf' && files[idx]) {
                             const file = files[idx];
                             console.log(`[Analysis] Fazendo upload do arquivo: ${file.name}`);
-                            const path = `resumes/${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
-                            const { error: upErr } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
-                            if (upErr) {
-                                console.error(`[Analysis] Erro no upload de ${file.name}:`, upErr);
+                            const path = `${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
+                            const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
+                            if (uploadError) {
+                                console.error(`[Analysis] Erro no upload de ${file.name}:`, uploadError);
+                                toast.error(`Erro ao salvar PDF de ${file.name}. Verifique as permissões de armazenamento.`);
+                                resumeUrl = null;
                             } else {
                                 const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
                                 resumeUrl = publicUrl;
                                 console.log(`[Analysis] Upload concluído: ${resumeUrl}`);
+                            }
 
-                                // Registro no resume_uploads
+                            // Registro no resume_uploads
+                            if (resumeUrl) {
                                 const { data: insUpload } = await supabase.from('resume_uploads').insert({
                                     user_id: session.user.id,
                                     job_id: jobData.id,
@@ -271,6 +279,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             attention_points: combinedAttentionPoints,
                             source: mode,
                             resumeUrl: resumeUrl,
+                            resume_file_name: mode === 'pdf' ? files[idx].name : null,
                             dbId: null,
                             isBlacklisted: false
                         };
@@ -326,7 +335,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             analyzed_at: new Date().toISOString()
                         };
 
-                        const candidateRow: any = {
+                        const candidateRow: Record<string, unknown> = {
                             user_id: session.user.id,
                             name: normalizedCandidate.name,
                             email: normalizedCandidate.email,
@@ -337,6 +346,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             // Regra de Ouro: O score na tabela de candidatos representa a análise MAIS RECENTE.
                             score: normalizedCandidate.score,
                             resume_url: resumeUrl,
+                            resume_file_name: mode === 'pdf' ? files[idx].name : null,
                             resume_upload_id: uploadId,
                             // O campo analysis na raiz conterá os dados da ÚLTIMA análise para compatibilidade,
                             // mas a fonte de verdade para cada vaga será o array history dentro dele.
@@ -396,7 +406,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             }
                         }
 
-                        let dbRecord: any;
+                        let dbRecord: Record<string, unknown> | null = null;
                         const currentHistoryEntry = { ...analysisData };
 
                         if (existingId) {
@@ -407,7 +417,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                             candidateRow.analysis = {
                                 ...analysisData,
-                                history: [...history.filter((h: any) => h.job_id !== jobData.id), currentHistoryEntry]
+                                history: [...history.filter((h: Record<string, unknown>) => h.job_id !== jobData.id), currentHistoryEntry]
                             };
 
                             // IMPORTANTE: Ao atualizar um candidato existente, NUNCA sobrescrevemos 
@@ -421,13 +431,27 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             }
 
                             console.log(`[Analysis] Atualizando candidato ${existingId}...`);
+                            
+                            // PREVENÇÃO DE OVERWRITE: Se o novo resumeUrl for nulo mas o antigo existia, mantém o antigo
+                            if (!candidateRow.resume_url && currentFull?.resume_url) {
+                                console.log(`[Analysis] Mantendo resume_url anterior para ${existingId}:`, currentFull.resume_url);
+                                candidateRow.resume_url = currentFull.resume_url;
+                                candidateRow.resume_file_name = currentFull.resume_file_name;
+                                candidateRow.resume_upload_id = currentFull.resume_upload_id;
+                                resumeUrl = currentFull.resume_url as string | null;
+                            }
+
                             const { data: upd, error: e4 } = await supabase.from('candidates').update(candidateRow).eq('id', existingId).select().single();
                             if (e4) {
                                 console.error('[Analysis] Erro ao atualizar candidato no Supabase:', e4);
                                 toast.error(`Erro ao atualizar ${normalizedCandidate.name}: ${e4.message}`);
                             }
                             dbRecord = upd;
-                            if (dbRecord) console.log(`[Analysis] Atualização bem-sucedida para ID: ${dbRecord.id}`);
+                            if (dbRecord) {
+                                console.log(`[Analysis] Atualização bem-sucedida para ID: ${dbRecord.id}`);
+                                // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
+                                resumeUrl = dbRecord.resume_url as string | null;
+                            }
                         } else {
                             candidateRow.analysis = {
                                 ...analysisData,
@@ -440,12 +464,16 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 toast.error(`Erro ao salvar ${normalizedCandidate.name}: ${e5.message}`);
                             }
                             dbRecord = ins;
-                            if (dbRecord) console.log(`[Analysis] Inserção bem-sucedida para ID: ${dbRecord.id}`);
+                            if (dbRecord) {
+                                console.log(`[Analysis] Inserção bem-sucedida para ID: ${dbRecord.id}`);
+                                // Sincroniza o resumeUrl final do DB de volta para a variável local para o setResult
+                                resumeUrl = dbRecord.resume_url as string | null;
+                            }
                         }
 
                         if (dbRecord) {
                             console.log(`[Analysis] Persistido no DB com ID: ${dbRecord.id}`);
-                            normalizedCandidate.dbId = dbRecord.id;
+                            normalizedCandidate.dbId = dbRecord.id as string;
 
                             // Atualizar o estado React com o dbId real (a mutação local não é refletida no state)
                             setResult(prev => {
@@ -454,7 +482,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                     ...prev,
                                     candidates: prev.candidates.map(can =>
                                         can.id === normalizedCandidate.id
-                                            ? { ...can, dbId: dbRecord.id, resumeUrl: resumeUrl }
+                                            ? { ...can, dbId: dbRecord?.id as string, resumeUrl: resumeUrl, resume_file_name: dbRecord?.resume_file_name as string | null }
                                             : can
                                     )
                                 };
@@ -480,9 +508,10 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             console.warn(`[Analysis] Candidato ${normalizedCandidate.name} NÃO foi persistido.`);
                         }
 
-                    } catch (innerErr: any) {
-                        console.error(`Erro ao processar/salvar candidato ${idx}:`, innerErr);
-                        toast.error(`Atenção: Erro ao tratar candidato ${idx + 1}: ${innerErr.message || 'Erro desconhecido'}`);
+                    } catch (innerErr) {
+                        const error = innerErr as Error;
+                        console.error(`Erro ao processar/salvar candidato ${idx}:`, error);
+                        toast.error(`Atenção: Erro ao tratar candidato ${idx + 1}: ${error.message || 'Erro desconhecido'}`);
                     }
                 },
                 (err, idx) => {
@@ -502,12 +531,12 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
                 const savedCount = count ?? 0;
                 const finalCandidates = (() => {
-                    let c: any[] = [];
+                    let c: Candidate[] = [];
                     setResult(prev => { c = prev?.candidates ?? []; return prev; });
                     return c;
                 })();
 
-                const bestCount = finalCandidates.filter((c: any) => (c.score || 0) >= 70).length;
+                const bestCount = finalCandidates.filter((c) => (c.score || 0) >= 70).length;
 
                 await supabase.from('jobs').update({
                     filters: { total: savedCount, best: bestCount },
@@ -515,7 +544,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }).eq('id', jobData.id);
 
                 console.log(`[Analysis] Job atualizado: ${savedCount} candidatos salvos, ${bestCount} melhores.`);
-                await logActivity(session.user.id, `Fez análise para vaga ${name}`, { total: savedCount, best: bestCount });
+                await logActivity(session.user.id, `Concluiu análise para vaga "${name}"`, { 
+                    job_id: jobData.id, 
+                    total_candidates: savedCount, 
+                    best_candidates: bestCount 
+                });
             } catch (e) {
                 console.error('[Analysis] Erro ao atualizar contagem do job:', e);
             }
@@ -564,14 +597,15 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 console.warn('[Analysis] Notificações ativadas mas permissão do navegador não concedida:', Notification.permission);
             }
 
-        } catch (err: any) {
-            console.error('Análise interrompida por erro:', err);
-            setError(err.message);
+        } catch (err) {
+            const error = err as Error;
+            console.error('Análise interrompida por erro:', error);
+            setError(error.message);
             setAnalyzing(false);
             if (profile.userId) {
-                logActivity(profile.userId, `Erro na análise para vaga: ${name}`, {}, err.message);
+                logActivity(profile.userId, `Erro na análise para vaga: ${name}`, {}, error.message);
             }
-            toast.error(err.message);
+            toast.error(error.message);
         }
     };
 

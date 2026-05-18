@@ -9,6 +9,7 @@ import {
     Download, Zap, Trophy, ArrowLeft, Star, ClipboardList, Check,
     UserRound, Mail, Phone, MapPin, Calendar, ChevronRight, XCircle, X, Ban
 } from 'lucide-react';
+import { handleViewResume } from '../../core/utils/storage';
 import {
     PieChart, Pie, Cell, Legend, Tooltip as RechartTooltip,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer
@@ -122,7 +123,7 @@ function CandidatePanel({ candidate, onClose }: { candidate: Candidate; onClose:
                             <MapPin size={13} />{candidate.location ?? 'Não informado'}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#94a3b8' }}>
-                            <Calendar size={13} />{(candidate.age && !['Não informado', 'não informado', '—'].includes(candidate.age)) ? `${candidate.age} anos` : 'Não informado'}
+                            <Calendar size={13} />{(candidate.age && !['Não informado', 'não informado', '—'].includes(candidate.age)) ? `${String(candidate.age).replace(/\s*anos?/i, '')} anos` : 'Não informado'}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#94a3b8' }}>
                             <UserRound size={13} />{candidate.gender ?? 'Não informado'}
@@ -151,7 +152,7 @@ function CandidatePanel({ candidate, onClose }: { candidate: Candidate; onClose:
                                 { icon: <Mail size={14} />, label: 'Email', value: candidate.email },
                                 { icon: <Phone size={14} />, label: 'Telefone', value: candidate.phone },
                                 { icon: <MapPin size={14} />, label: 'Local', value: candidate.location },
-                                { icon: <Calendar size={14} />, label: 'Idade', value: (candidate.age && !['Não informado', '—'].includes(candidate.age)) ? `${candidate.age} anos` : null },
+                                { icon: <Calendar size={14} />, label: 'Idade', value: (candidate.age && !['Não informado', '—'].includes(candidate.age)) ? `${String(candidate.age).replace(/\s*anos?/i, '')} anos` : null },
                                 { icon: <UserRound size={14} />, label: 'Gênero', value: candidate.gender },
                             ].map((item, idx) => (
                                 <div key={idx} style={{
@@ -259,19 +260,25 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
     const displayed = activeTab === 'best' ? best : activeTab === 'mid' ? mid : worst;
     const sortedAll = [...result.candidates].sort(byScore);
 
-    // Chart data
+    // Chart data - Normalização para evitar chaves duplicadas por case
     const genderMap: Record<string, number> = {};
     result.candidates.forEach(c => {
-        const g = c.gender ?? 'Não informado';
+        let g = c.gender || 'Não informado';
+        // Normalizar para Capital Case (Masculino, Feminino, etc)
+        g = g.charAt(0).toUpperCase() + g.slice(1).toLowerCase();
         genderMap[g] = (genderMap[g] ?? 0) + 1;
     });
-    // Garantir ordem específica para cores fixas: Masculino (Azul), Feminino (Rosa), outros...
-    const genderOrder = ['Masculino', 'Feminino', 'Outro', 'Não informado'];
-    const genderData = genderOrder
-        .filter(g => genderMap[g] !== undefined)
-        .map(name => ({ name, value: genderMap[name] }));
 
-    // Adicionar os que sobraram (caso a IA retorne algo diferente)
+    const genderOrder = ['Masculino', 'Feminino', 'Outro', 'Não informado'];
+    const genderData: { name: string, value: number }[] = [];
+    
+    genderOrder.forEach(name => {
+        if (genderMap[name]) {
+            genderData.push({ name, value: genderMap[name] });
+        }
+    });
+
+    // Adicionar os que sobraram
     Object.keys(genderMap).forEach(g => {
         if (!genderOrder.includes(g)) genderData.push({ name: g, value: genderMap[g] });
     });
@@ -281,21 +288,30 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
         'Feminino': '#ec4899',   // Rosa
         'Não informado': '#64748b'
     };
-    const PIE_COLORS = ['var(--primary)', 'var(--secondary)', 'var(--bg-main)'];
+    const PIE_COLORS = ['var(--primary)', 'var(--secondary)', '#10b981', '#f59e0b', '#ef4444'];
 
     const ageMap: Record<string, number> = {};
     result.candidates.forEach(c => {
-        const a = c.age ?? 'N/A';
+        const a = c.age || 'Não informado';
         ageMap[a] = (ageMap[a] ?? 0) + 1;
     });
-    const ageData = Object.entries(ageMap).map(([name, value]) => ({ name, value }));
+    const ageData = Object.entries(ageMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => {
+            const na = parseInt(a.name) || 0;
+            const nb = parseInt(b.name) || 0;
+            return na - nb;
+        });
 
     const locMap: Record<string, number> = {};
     result.candidates.forEach(c => {
-        const l = c.location ?? 'N/A';
+        const l = c.location || 'Não informado';
         locMap[l] = (locMap[l] ?? 0) + 1;
     });
-    const locData = Object.entries(locMap).slice(0, 5).map(([name, value]) => ({ name, value }));
+    const locData = Object.entries(locMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
 
     const tabs = [
         { key: 'best' as const, label: `Melhores`, count: best.length, color: '#10b981' },
@@ -454,14 +470,14 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                     </div>
 
                     {/* Location */}
-                    <div style={{ background: '#15171e', border: '1px solid #1f2332', borderRadius: 16, padding: '20px 16px' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>Localidades Principais</p>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 16px' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>Localidades Principais</p>
                         <div style={{ height: 200 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={locData} layout="vertical" barCategoryGap="30%">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2332" horizontal={false} />
-                                    <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                                    <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                                    <XAxis type="number" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                    <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <RechartTooltip
                                         contentStyle={{ ...TT_STYLE, border: 'none' }}
                                         itemStyle={{ color: 'var(--text-main)' }}
@@ -530,7 +546,7 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                                     </td>
                                     {/* Idade */}
                                     <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-dim)' }}>
-                                        {(c.age && !/n[ãa]o\s*informado/i.test(c.age)) ? `${c.age} anos` : '—'}
+                                        {(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : '—'}
                                     </td>
                                     {/* Localização */}
                                     <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -542,7 +558,18 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                                     </td>
                                     {/* Score */}
                                     <td style={{ padding: '14px 16px' }}>
-                                        <span style={{ background: `${scoreColor(c.score)}22`, color: scoreColor(c.score), border: `1px solid ${scoreColor(c.score)}44`, borderRadius: 20, padding: '3px 12px', fontWeight: 700 }}>
+                                        <span style={{ 
+                                            background: `${scoreColor(c.score)}22`, 
+                                            color: scoreColor(c.score), 
+                                            border: `1px solid ${scoreColor(c.score)}44`, 
+                                            borderRadius: 20, 
+                                            padding: '4px 16px', 
+                                            fontWeight: 800,
+                                            fontSize: '13px',
+                                            display: 'inline-block',
+                                            minWidth: '54px',
+                                            textAlign: 'center'
+                                        }}>
                                             {c.score}%
                                         </span>
                                     </td>
@@ -563,9 +590,7 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                                                 onClick={e => {
                                                     e.stopPropagation();
                                                     if (c.resumeUrl) {
-                                                        const a = document.createElement('a');
-                                                        a.href = c.resumeUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
-                                                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                                                        handleViewResume(c.resumeUrl);
                                                     } else {
                                                         toast.error(c.source === 'excel' ? 'Currículos do Excel não possuem PDF.' : 'PDF não disponível para este candidato.');
                                                     }
@@ -660,7 +685,8 @@ export const AnaliseNova = () => {
     const [monthlyJobCount, setMonthlyJobCount] = useState(0);
     useEffect(() => {
         const checkMonthlyLimit = async () => {
-            if (profile.account_type !== 'trial' || !profile.userId) return;
+            // Trial limit check - DESATIVADO POR ENQUANTO (uso interno)
+        // if (profile.account_type !== 'trial' || !profile.userId) return;
             
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
@@ -682,43 +708,49 @@ export const AnaliseNova = () => {
     // Local validation error (different from context error)
     const [formError, setFormError] = useState<string | null>(null);
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
+    const handleDrop = useCallback((e: any) => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
-        const maxFiles = profile.isPremium ? 200 : 5;
+        // Trial limit - DESATIVADO POR ENQUANTO (uso interno)
+        const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            const pdfs = dropped.filter(f => f.type === 'application/pdf');
-            if (!profile.isPremium && (files.length + pdfs.length) > 5) {
-                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
-            }
+            const pdfs: File[] = dropped.filter((f: any) => f.type === 'application/pdf') as File[];
+            // Trial check desativado
+            // if (!profile.isPremium && (files.length + pdfs.length) > 5) {
+            //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            // }
             setFiles(prev => [...prev, ...pdfs].slice(0, maxFiles));
         } else {
-            if (!profile.isPremium) {
-                toast.error('Análise via Excel não está disponível no plano Trial.');
-                return;
-            }
-            const xlsx = dropped.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+            // Trial check desativado
+            // if (!profile.isPremium) {
+            //     toast.error('Análise via Excel não está disponível no plano Trial.');
+            //     return;
+            // }
+            const xlsx: File[] = dropped.filter((f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
-    }, [uploadMode, files.length, profile.account_type]);
+    }, [uploadMode, files.length]);
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const picked = Array.from(e.target.files);
-        const maxFiles = profile.isPremium ? 200 : 5;
+        // Trial limit - DESATIVADO POR ENQUANTO (uso interno)
+        const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            if (!profile.isPremium && (files.length + picked.length) > 5) {
-                toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
-            }
+            // Trial check desativado
+            // if (!profile.isPremium && (files.length + picked.length) > 5) {
+            //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
+            // }
             setFiles(prev => [...prev, ...picked].slice(0, maxFiles));
         } else {
-            if (!profile.isPremium) {
-                toast.error('Análise via Excel não está disponível no plano Trial.');
-                return;
-            }
+            // Trial check desativado
+            // if (!profile.isPremium) {
+            //     toast.error('Análise via Excel não está disponível no plano Trial.');
+            //     return;
+            // }
             setFiles([picked[0]]);
         }
         e.target.value = '';
@@ -766,16 +798,41 @@ export const AnaliseNova = () => {
 
             {/* Main Content Container */}
             <div style={{
-                maxWidth: 1200,
-                margin: '0 auto',
-                padding: '40px 24px 80px',
                 width: '100%',
                 boxSizing: 'border-box'
             }}>
                 {/* Page Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <h1 style={{ color: 'var(--text-main)', fontSize: 22, fontWeight: 700, margin: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <button 
+                            onClick={() => {
+                                clearAnalysis();
+                                setJobName('');
+                                setJobDesc('');
+                                setFiles([]);
+                                setFormError(null);
+                                navigate('/analises');
+                            }}
+                            style={{ 
+                                background: 'none', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 8, 
+                                color: '#94a3b8', 
+                                fontSize: 16, 
+                                padding: 0,
+                                transition: 'color 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                        >
+                            <ArrowLeft size={20} />
+                            <span>Voltar</span>
+                        </button>
+                        <span style={{ color: 'var(--border)', fontSize: 24, fontWeight: 300 }}>|</span>
+                        <h1 style={{ color: 'var(--text-main)', fontSize: 32, fontWeight: 800, margin: 0 }}>
                             {analyzing ? 'Analisando currículos...' : (jobName || 'Nova Análise')}
                         </h1>
                     </div>
@@ -789,31 +846,6 @@ export const AnaliseNova = () => {
                             </div>
                         </div>
                     )}
-                    <button
-                        onClick={() => {
-                            clearAnalysis();
-                            setJobName('');
-                            setJobDesc('');
-                            setFiles([]);
-                            setFormError(null);
-                            navigate('/analises');
-                        }}
-                        style={{
-                            padding: '10px 24px', background: 'transparent', border: '1px solid #ef4444',
-                            color: '#ef4444', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                            transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = '#ef4444';
-                            e.currentTarget.style.color = '#fff';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = '#ef4444';
-                        }}
-                    >
-                        Sair da análise
-                    </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 32, alignItems: 'stretch' }}>
 
@@ -930,14 +962,16 @@ export const AnaliseNova = () => {
                                 </div>
                             )}
 
-                            {/* File count */}
+                            {/* File count - Trial badge desativado */}
                             {uploadMode === 'pdf' && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    {/* Trial badge desativado
                                     {!profile.isPremium && (
                                         <span style={{ fontSize: 10, background: '#f59e0b22', color: '#f59e0b', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>TRIAL</span>
                                     )}
-                                    <span style={{ fontSize: 11, color: (!profile.isPremium && files.length >= 5) ? '#ef4444' : '#64748b' }}>
-                                        {files.length}/{!profile.isPremium ? 5 : 200} arquivos
+                                    */}
+                                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                                        {files.length}/200 arquivos
                                     </span>
                                 </div>
                             )}
