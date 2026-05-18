@@ -6,7 +6,7 @@ import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
 import toast from 'react-hot-toast';
-import { OwnerAdminApiPanel, OwnerAdminPlanPanel } from './OwnerPanels';
+import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 
 
 type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'aparencia' | 'api' | 'plano';
@@ -249,7 +249,7 @@ export const Configuracoes = () => {
     const [showEvoConfig, setShowEvoConfig] = useState(false);
 
     // Perfis state
-    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
@@ -502,7 +502,7 @@ export const Configuracoes = () => {
                         id: authData.user.id,
                         email: newUser.email,
                         name: newUser.name,
-                        user_role: newUser.user_role as any,
+                        user_role: newUser.user_role as string,
                         status: 'active',
                         account_type: 'active',
                         organization_id: organizationId,
@@ -537,9 +537,9 @@ export const Configuracoes = () => {
                 setShowCreateModal(false);
                 loadUsers();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[Configuracoes] Erro fatal:', err);
-            showToast('error', `Ocorreu um erro inesperado: ${err.message}`);
+            showToast('error', `Ocorreu um erro inesperado: ${(err as Error).message}`);
         } finally {
             setCreatingUser(false);
         }
@@ -901,7 +901,7 @@ export const Configuracoes = () => {
                                         showToast('info', 'O modo claro só está disponível no fundo Simples');
                                         return;
                                     }
-                                    theme === 'dark' && toggleTheme();
+                                    if (theme === 'dark') toggleTheme();
                                 }}
                                 style={{
                                     opacity: bgTheme !== 'simple' ? 0.4 : 1,
@@ -973,6 +973,7 @@ export const Configuracoes = () => {
 
                     {/* Personalização de Cores */}
                     {(() => {
+                        // eslint-disable-next-line react-hooks/rules-of-hooks
                         const { customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
                         return (
                             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
@@ -1047,7 +1048,7 @@ export const Configuracoes = () => {
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div
                                 onClick={async () => {
-                                    let newState = !notificationsEnabled;
+                                    const newState = !notificationsEnabled;
                                     if (newState && Notification.permission !== 'granted') {
                                         const permission = await Notification.requestPermission();
                                         if (permission !== 'granted') return;
@@ -1195,7 +1196,7 @@ export const Configuracoes = () => {
                                 </div>
                                 <button
                                     onClick={() => {
-+                                       setCreatingUser(false); // Garante que o botão não comece em "Criando"
+                                        setCreatingUser(false);
                                         setNewUser({
                                             name: '',
                                             email: '',

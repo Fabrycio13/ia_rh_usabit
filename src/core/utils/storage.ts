@@ -64,7 +64,7 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
             newTab.close();
             throw new Error('Não foi possível gerar o link de visualização.');
         }
-    } catch (err: any) {
+    } catch (err: unknown) {
         newTab.close();
         console.error('Erro ao gerar URL assinada:', err);
         toast.error('Erro ao abrir currículo. Verifique suas permissões.');

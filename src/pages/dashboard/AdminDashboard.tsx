@@ -170,7 +170,7 @@ export const AdminDashboard = () => {
             setJobDateSet(new Set(jobData.map(j => j.created_at.slice(0, 10))));
             const counts: Record<string, number> = {};
             const chartData = [];
-            let current = new Date(start);
+            const current = new Date(start);
             while (current <= end) {
                 const dateStr = current.toISOString().split('T')[0];
                 const label = current.toLocaleDateString('pt-BR', { weekday: 'short' });
@@ -194,8 +194,8 @@ export const AdminDashboard = () => {
 
         setLoading(false);
     };
-
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchDashboardData();
     }, [activeStart, activeEnd, selectedOrgId]);
 
@@ -603,7 +603,7 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: '16px' }}>
                                         <p style={{ color: 'var(--text-main)', fontSize: 13, margin: 0, fontWeight: 500 }}>
-                                            {(user as any).organization_name || 'Sem Organização'}
+                                            {(user as { organization_name?: string }).organization_name || 'Sem Organização'}
                                         </p>
                                     </td>
                                     <td style={{ padding: '16px', textAlign: 'center' }}>

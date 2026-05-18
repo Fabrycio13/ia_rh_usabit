@@ -302,7 +302,7 @@ export const Dashboard = () => {
       );
 
       setJobs(merged);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Erro no Dashboard:', e);
       setError('Não foi possível carregar os dados.');
     } finally {
@@ -510,12 +510,12 @@ export const Dashboard = () => {
                         '--duration': `${1.5 + (i % 5) * 0.4}s`,
                         animationDelay: `${i * 0.1}s`,
                         opacity: 0.15 + (i % 5) * 0.15
-                      } as any} 
+                      } as React.CSSProperties}
                     />
                   ))}
 
                   {/* Rotating Planet */}
-                  <div 
+                  <div
                     className="planet" 
                     style={{ 
                       width: k.planet.size, 
@@ -528,7 +528,7 @@ export const Dashboard = () => {
                       animationDelay: `${idx * 1.2}s`,
                       zIndex: 2,
                       ...(k.planet.style || {})
-                    } as any}
+                    } as React.CSSProperties}
                   >
                     <PlanetOverlay type={k.planet.name} />
                     {k.planet.ring && (
@@ -654,15 +654,15 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip 
-                        content={({ active, payload, label: _label }) => {
+                        content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             return (
                               <div style={{ ...TT, padding: '10px 14px' }}>
-                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{_label}</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{payload[0].payload.name || payload[0].payload.fullName}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {payload.map((p: any) => (
-                                    <p key={p.dataKey} style={{ color: p.color, fontSize: 12, fontWeight: 600 }}>
-                                      {p.name}: {p.value}
+                                  {payload.map((p: Record<string, unknown>) => (
+                                    <p key={p.dataKey as string} style={{ color: p.color as string, fontSize: 12, fontWeight: 600 }}>
+                                      {p.name as string}: {String(p.value)}
                                     </p>
                                   ))}
                                 </div>
@@ -778,7 +778,7 @@ export const Dashboard = () => {
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                         <Tooltip 
-                        content={({ active, payload, label: _label }) => {
+                        content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
@@ -906,7 +906,7 @@ export const Dashboard = () => {
                       <>
                         {/* Stars Background */}
                         {[...Array(12)].map((si) => (
-                          <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as any} />
+                          <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as React.CSSProperties} />
                         ))}
                       </>
                     )}
@@ -954,7 +954,7 @@ export const Dashboard = () => {
 
                     {/* Mini Planet Segment - Compact */}
                     {bgTheme === 'planets' && (
-                      <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as any}>
+                      <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as React.CSSProperties}>
                         <PlanetOverlay type={p.name} />
                         {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
                       </div>

@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { AI_SYSTEM_PROMPT } from '../core/config/aiPrompt';
 import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
+import { type OpenAIMessage } from '../core/services/aiClient';
 
 interface ChatMessage {
     id: string;
@@ -76,10 +77,10 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 throw new Error('Chave de API da OpenAI não encontrada no .env.local');
             }
 
-            const apiMessages: any[] = [
+            const apiMessages: OpenAIMessage[] = [
                 { role: 'system', content: AI_SYSTEM_PROMPT },
                 ...messages.map(m => ({
-                    role: m.sender === 'user' ? 'user' : 'assistant',
+                    role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
                     content: m.text
                 })),
                 { role: 'user', content: currentInput }
@@ -87,24 +88,27 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
             let response = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
-                messages: apiMessages,
-                tools: openAiToolDefinitions as any,
+                messages: apiMessages as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
+                tools: openAiToolDefinitions as unknown as OpenAI.Chat.ChatCompletionTool[],
                 tool_choice: "auto",
             });
 
             let assistantMessage = response.choices[0].message;
 
             while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-                apiMessages.push(assistantMessage);
+                apiMessages.push({
+                    role: (assistantMessage.role ?? 'assistant') as 'assistant',
+                    content: assistantMessage.content ?? ''
+                });
 
-                for (const toolCall of (assistantMessage.tool_calls as any[])) {
+                for (const toolCall of (assistantMessage.tool_calls as unknown as Array<{ id: string; function: { name: string; arguments: string } }>)) {
                     const toolName = toolCall.function.name as keyof typeof assistantTools;
                     const args = JSON.parse(toolCall.function.arguments);
 
                     let result;
                     if (assistantTools[toolName]) {
                         try {
-                            result = await (assistantTools[toolName] as any)(args);
+                            result = await (assistantTools[toolName] as (args: Record<string, unknown>) => Promise<unknown>)(args);
                         } catch (err) {
                             console.error(`Tool ${toolName} failed:`, err);
                             result = { error: "Erro ao acessar o banco de dados." };
@@ -122,8 +126,8 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
                 response = await openai.chat.completions.create({
                     model: "gpt-4o-mini",
-                    messages: apiMessages,
-                    tools: openAiToolDefinitions as any,
+                    messages: apiMessages as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
+                    tools: openAiToolDefinitions as unknown as OpenAI.Chat.ChatCompletionTool[],
                 });
                 assistantMessage = response.choices[0].message;
             }
@@ -137,11 +141,11 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, botMsg]);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('OpenAI Error:', error);
             const errorMsg: ChatMessage = {
                 id: Date.now().toString(),
-                text: `Ops! Ocorreu um erro: ${error.message || 'Erro desconhecido'}.`,
+                text: `Ops! Ocorreu um erro: ${(error as Error).message || 'Erro desconhecido'}.`,
                 sender: 'ia',
                 timestamp: new Date()
             };

@@ -125,8 +125,8 @@ export const CareerPortalHub = () => {
                     setFontFamily(orgData.font_family || 'Inter');
                     setFontColor(orgData.font_color || '#0f172a');
                     setLogoScale(orgData.logo_scale ?? 1.0);
-                    setCoverFit(orgData.cover_fit as any || 'cover');
-                    setBackgroundFit(orgData.background_fit as any || 'cover');
+                    setCoverFit((orgData.cover_fit as 'cover' | 'contain') || 'cover');
+                    setBackgroundFit((orgData.background_fit as 'cover' | 'contain') || 'cover');
                     setHeaderPadding(orgData.header_padding ?? 24);
                     setPageBackgroundUrl(orgData.page_background_url || '');
                 }
@@ -139,9 +139,9 @@ export const CareerPortalHub = () => {
                     .in('status', ['aberta', 'pausada'])
                     .order('created_at', { ascending: false });
                 
-                if (vagasData) setOrgVagas(vagasData as any);
+                if (vagasData) setOrgVagas(vagasData as { id: string; title: string; category: string | null; status: string; created_at: string | null; vaga_primary_color: string | null; vaga_gradient_end: string | null; vaga_bg_color: string | null; vaga_bg_image: string | null; }[]);
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('[CareerPortalHub] Erro:', err);
                 toast.error('Erro ao carregar dados do portal.');
             } finally {
@@ -175,8 +175,8 @@ export const CareerPortalHub = () => {
 
             if (error) throw error;
             toast.success('Configurações do portal salvas!');
-        } catch (err: any) {
-            toast.error('Erro ao salvar: ' + err.message);
+        } catch (err: unknown) {
+            toast.error('Erro ao salvar: ' + (err as Error).message);
         } finally {
             setSaving(false);
         }
@@ -215,7 +215,7 @@ export const CareerPortalHub = () => {
                 .eq('id', profile.organization_id);
 
             toast.success('Imagem enviada e salva com sucesso!', { id: toastId });
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Erro no upload:', error);
             toast.error('Erro ao enviar imagem. Verifique o tamanho ou tente novamente.', { id: toastId });
         }
@@ -268,8 +268,8 @@ export const CareerPortalHub = () => {
                 vaga_bg_image: vagaDesign.bgImage || null,
             } : v));
             toast.success('Design da vaga salvo!');
-        } catch (err: any) {
-            toast.error('Erro ao salvar: ' + err.message);
+        } catch (err: unknown) {
+            toast.error('Erro ao salvar: ' + (err as Error).message);
         } finally {
             setSavingVaga(false);
         }
@@ -289,7 +289,7 @@ export const CareerPortalHub = () => {
             const { data: { publicUrl } } = supabase.storage.from('organizations').getPublicUrl(fileName);
             setVagaDesign(prev => ({ ...prev, bgImage: publicUrl }));
             toast.success('Imagem enviada!', { id: toastId });
-        } catch (error: any) {
+        } catch {
             toast.error('Erro ao enviar imagem.', { id: toastId });
         }
     };

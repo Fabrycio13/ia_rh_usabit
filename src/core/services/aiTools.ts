@@ -34,14 +34,14 @@ export const get_assistant_tools = (userId: string) => {
             const { data, error } = await query.order('score', { ascending: false });
             if (error) throw error;
 
-            // Filter by jobName in JS since it's a nested relation filter which is trickier in simple select
-            let filtered = (data ?? []).map((c: any) => ({
+            type CandidateRow = { id: string; name?: string; email?: string; location?: string; score?: number; job_candidates?: { jobs?: { name?: string } }[] };
+            let filtered = ((data ?? []) as CandidateRow[]).map((c) => ({
                 ...c,
-                vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean)
+                vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name).filter(Boolean) as string[]
             }));
 
             if (params.jobName) {
-                filtered = filtered.filter(c =>
+                filtered = filtered.filter((c: { vagas: string[] }) =>
                     c.vagas.some((v: string) => v.toLowerCase().includes(params.jobName!.toLowerCase()))
                 );
             }
@@ -82,12 +82,20 @@ export const get_assistant_tools = (userId: string) => {
     };
 };
 
-export const toolDefinitions = [
+export const toolDefinitions: {
+    name: string;
+    description: string;
+    parameters: {
+        type: 'OBJECT';
+        properties: Record<string, { type: string; description?: string }>;
+        required?: string[];
+    };
+}[] = [
     {
         name: "list_jobs",
         description: "Lista todas as vagas/análises criadas pelo usuário. Útil para saber quais processos seletivos estão ativos.",
         parameters: {
-            type: "OBJECT" as any,
+            type: "OBJECT",
             properties: {},
         },
     },
@@ -95,11 +103,11 @@ export const toolDefinitions = [
         name: "search_candidates",
         description: "Busca candidatos no banco de dados por nome, localização ou nome da vaga. Retorna os 10 melhores resultados.",
         parameters: {
-            type: "OBJECT" as any,
+            type: "OBJECT",
             properties: {
-                query: { type: "STRING" as any, description: "Nome ou parte do nome do candidato" },
-                jobName: { type: "STRING" as any, description: "Nome da vaga (ex: 'Design', 'Padeiro')" },
-                location: { type: "STRING" as any, description: "Cidade ou estado do candidato" }
+                query: { type: "STRING", description: "Nome ou parte do nome do candidato" },
+                jobName: { type: "STRING", description: "Nome da vaga (ex: 'Design', 'Padeiro')" },
+                location: { type: "STRING", description: "Cidade ou estado do candidato" }
             },
         },
     },
@@ -107,9 +115,9 @@ export const toolDefinitions = [
         name: "get_candidate_details",
         description: "Retorna todos os detalhes de um candidato específico (experiência, habilidades, educação, e-mail, telefone) usando o ID retornado na busca.",
         parameters: {
-            type: "OBJECT" as any,
+            type: "OBJECT",
             properties: {
-                candidateId: { type: "STRING" as any, description: "O ID único do candidato" }
+                candidateId: { type: "STRING", description: "O ID único do candidato" }
             },
             required: ["candidateId"]
         },
@@ -118,13 +126,24 @@ export const toolDefinitions = [
         name: "get_dashboard_stats",
         description: "Retorna estatísticas rápidas do dashboard (total de vagas e candidatos).",
         parameters: {
-            type: "OBJECT" as any,
+            type: "OBJECT",
             properties: {},
         },
     }
 ];
 
-export const openAiToolDefinitions: any[] = [
+export const openAiToolDefinitions: {
+    type: 'function';
+    function: {
+        name: string;
+        description: string;
+        parameters: {
+            type: 'object';
+            properties: Record<string, { type: string; description?: string }>;
+            required: string[];
+        };
+    };
+}[] = [
     {
         type: "function",
         function: {

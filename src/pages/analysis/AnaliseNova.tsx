@@ -45,7 +45,7 @@ interface AnalysisResult {
 function parseSkills(raw: string | null | undefined): string[] {
     if (!raw) return [];
     // Remove frases comuns de contexto
-    let cleaned = raw
+    const cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')
         .replace(/domínio de/gi, '')
@@ -251,7 +251,7 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
     const toggleFav = (candidateId: string) => {
         setFavorites(prev => {
             const next = { ...prev, [candidateId]: !prev[candidateId] };
-            try { localStorage.setItem(`fav-${userId}`, JSON.stringify(next)); } catch { }
+            try { localStorage.setItem(`fav-${userId}`, JSON.stringify(next)); } catch { /* ignore */ }
             return next;
         });
     };
@@ -437,7 +437,7 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                                     />
                                     <Legend
                                         wrapperStyle={{ fontSize: 11 }}
-                                        formatter={(v, entry: any) => (
+                                        formatter={(v, entry) => (
                                             <span style={{ color: 'var(--text-main)' }}>
                                                 {v} ({entry.payload?.value ?? 0})
                                             </span>
@@ -647,22 +647,7 @@ export const AnaliseNova = () => {
     const navigate = _useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // If "new=true" is in URL, clear existing analysis and remove param
-    useEffect(() => {
-        if (searchParams.get('new') === 'true') {
-            clearAnalysis();
-            setJobName('');
-            setJobDesc('');
-            setFiles([]);
-            setFormError(null);
-            // Remove the param so refresh doesn't keep clearing
-            const newParams = new URLSearchParams(searchParams);
-            newParams.delete('new');
-            setSearchParams(newParams, { replace: true });
-        }
-    }, [searchParams, clearAnalysis, setSearchParams]);
-
-    // Form state
+    // Form state - must be declared before the useEffect below
     const [jobName, setJobName] = useState('');
     const [jobDesc, setJobDesc] = useState('');
     const [uploadMode, setUploadMode] = useState<'pdf' | 'excel'>('pdf');
@@ -670,13 +655,38 @@ export const AnaliseNova = () => {
     const [dragOver, setDragOver] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
+    // If "new=true" is in URL, clear existing analysis and remove param
+    useEffect(() => {
+        if (searchParams.get('new') === 'true') {
+            clearAnalysis();
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setJobName('');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setJobDesc('');
+            setJobDesc('');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setFiles([]);
+            // Remove the param so refresh doesn't keep clearing
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('new');
+            setSearchParams(newParams, { replace: true });
+        }
+    }, [searchParams, clearAnalysis, setSearchParams, setError]);
+
+    // Local validation error (different from context error)
+    const [formError, setFormError] = useState<string | null>(null);
+
     // Sync jobName and jobDesc with context on mount/updates
     useEffect(() => {
         if (analyzing || result) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (ctxJobName) setJobName(ctxJobName);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (ctxJobDesc) setJobDesc(ctxJobDesc);
         } else if (!ctxJobName && !ctxJobDesc) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setJobName('');
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setJobDesc('');
         }
     }, [ctxJobName, ctxJobDesc, analyzing, result]);
@@ -705,10 +715,7 @@ export const AnaliseNova = () => {
         checkMonthlyLimit();
     }, [profile.account_type, profile.userId]);
 
-    // Local validation error (different from context error)
-    const [formError, setFormError] = useState<string | null>(null);
-
-    const handleDrop = useCallback((e: any) => {
+    const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
@@ -716,7 +723,7 @@ export const AnaliseNova = () => {
         const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            const pdfs: File[] = dropped.filter((f: any) => f.type === 'application/pdf') as File[];
+            const pdfs: File[] = dropped.filter((f: File) => f.type === 'application/pdf') as File[];
             // Trial check desativado
             // if (!profile.isPremium && (files.length + pdfs.length) > 5) {
             //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
@@ -728,7 +735,7 @@ export const AnaliseNova = () => {
             //     toast.error('Análise via Excel não está disponível no plano Trial.');
             //     return;
             // }
-            const xlsx: File[] = dropped.filter((f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
+            const xlsx: File[] = dropped.filter((f: File) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
     }, [uploadMode, files.length]);

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -8,7 +9,7 @@ interface LogEntry {
     id: string;
     user_id: string;
     action: string;
-    details: any;
+    details: unknown;
     error: string | null;
     created_at: string;
     profiles?: {

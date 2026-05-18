@@ -385,7 +385,7 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
 };
 
 const maskPhone = (val: string, country: { code: string; iso: string }) => {
-    let v = val;
+    const v = val;
     if (!v) return country.code + ' ';
 
     // Remove tudo que não é dígito, exceto o + inicial
@@ -449,13 +449,20 @@ const maskCep = (val: string) => {
     return v.substring(0, 9);
 };
 
-const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }: any) => {
+interface AutoResizeEffectProps {
+    step: number;
+    contentVisible: boolean;
+    customAnswers?: Record<string, string>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }: AutoResizeEffectProps) => {
     useEffect(() => {
         if (!contentVisible) return;
         
         const timer = setTimeout(() => {
             const textareas = containerRef.current?.querySelectorAll('textarea');
-            textareas?.forEach((ta: any) => {
+            textareas?.forEach((ta) => {
                 ta.style.height = 'auto';
                 ta.style.height = ta.scrollHeight + 'px';
             });
@@ -611,8 +618,8 @@ export const JobApplication = () => {
     });
 
     const handlePhoneChange = (val: string) => {
-        let digits = val.replace(/\D/g, '');
-        let currentCountry = selectedCountry;
+        const digits = val.replace(/\D/g, '');
+        let currentCountry: typeof selectedCountry = selectedCountry;
 
         // Detecção Automática de País por Prefixo ao digitar
         if (val.startsWith('+') || digits.length > 0) {

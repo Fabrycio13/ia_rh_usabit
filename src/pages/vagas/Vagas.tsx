@@ -211,7 +211,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             return updatedVaga.is_active ? [updatedVaga, ...prev] : prev;
                         });
                     } else if (payload.eventType === 'DELETE') {
-                        const oldId = (payload.old as any).id;
+                        const oldId = (payload.old as { id?: string }).id;
                         setVagas(prev => prev.filter(v => v.id === oldId));
                     }
                 }

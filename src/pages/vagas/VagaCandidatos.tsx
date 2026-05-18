@@ -23,6 +23,9 @@ interface Vaga {
     job_code: string | null;
 }
 
+interface AIAnalysis { skills?: string; experience?: string; summary?: string; education?: string; redFlags?: string; gaps?: string; attention_points?: string; habilidades?: string; formacao?: string }
+interface CustomQuestion { id: string; label: string }
+
 interface Candidato {
     id: string;
     candidate_name: string;
@@ -37,9 +40,9 @@ interface Candidato {
     match_score: number;
     candidate_gender: string | null;
     candidate_age: string | null;
-    answers?: Record<string, any> | null;
+    answers?: Record<string, unknown> | null;
     internal_notes?: string | null;
-    ai_analysis?: any;
+    ai_analysis?: AIAnalysis;
 }
 
 const getMatchColor = (score: number) => {
@@ -163,44 +166,50 @@ export const VagaCandidatos = () => {
         }
     };
 
+    function optStr(v: unknown): string | null {
+        return v != null ? String(v) : null;
+    }
+
     const fetchCandidateDetail = async (c: Candidato) => {
         try {
-            // Usamos apenas os dados da inscrição (vagas_candidaturas).
-            // O candidato só vira "Talent Bank" após o clique no botão de transferência.
+            const answersRaw = c.answers ?? {};
+            const aiRaw = (c.ai_analysis ?? {}) as Record<string, unknown>;
+            const aiFromAnswers = answersRaw['_ai_analysis'] as Record<string, unknown> | undefined;
+
             const detail: CandidateDetail = {
                 id: c.id, 
                 name: c.candidate_name,
                 email: c.candidate_email,
                 phone: c.candidate_phone,
                 location: c.candidate_location,
-                address: c.answers?.address || null,
+                address: String(answersRaw.address ?? ''),
                 linkedin: c.candidate_linkedin,
                 age: c.candidate_age,
                 gender: c.candidate_gender,
                 score: c.match_score,
-                portfolio: c.answers?.portfolio || null,
-                cep: c.answers?.cep || null,
-                address_number: c.answers?.address_number || null,
-                complement: c.answers?.complement || null,
+                portfolio: optStr(answersRaw['portfolio']),
+                cep: optStr(answersRaw['cep']),
+                address_number: optStr(answersRaw['address_number']),
+                complement: optStr(answersRaw['complement']),
                 vagas: [],
                 interview_eligible: false,
                 is_blacklisted: false,
-                skills: (c as any).ai_analysis?.skills || c.answers?._ai_analysis?.skills || (c as any).ai_analysis?.habilidades || null,
-                experience: (c as any).ai_analysis?.experience || c.answers?._ai_analysis?.experience || (c as any).ai_analysis?.summary || c.answers?._ai_analysis?.summary || null,
-                education: (c as any).ai_analysis?.education || c.answers?._ai_analysis?.education || (c as any).ai_analysis?.formacao || null,
-                redFlags: (c as any).ai_analysis?.redFlags || c.answers?._ai_analysis?.redFlags || (c as any).ai_analysis?.gaps || c.answers?._ai_analysis?.gaps || (c as any).ai_analysis?.attention_points || null,
+                skills: optStr(aiRaw['skills'] ?? aiFromAnswers?.['skills'] ?? aiRaw['habilidades']),
+                experience: optStr(aiRaw['experience'] ?? aiFromAnswers?.['experience'] ?? aiRaw['summary'] ?? aiFromAnswers?.['summary']),
+                education: optStr(aiRaw['education'] ?? aiFromAnswers?.['education'] ?? aiRaw['formacao']),
+                redFlags: optStr(aiRaw['redFlags'] ?? aiFromAnswers?.['redFlags'] ?? aiRaw['gaps'] ?? aiFromAnswers?.['gaps'] ?? aiRaw['attention_points']),
                 applications: [],
                 pipelineCards: [],
-                notes: (c as any).candidate?.notes || c.internal_notes || null,
+                notes: c.internal_notes || null,
                 resume_url: c.resume_url,
                 enriched: true,
-                analysis: (c as any).ai_analysis || c.answers?._ai_analysis || null,
+                analysis: aiRaw || aiFromAnswers || null,
                 conversations: [],
                 hideBankButton: c.status === 'talent_bank',
                 isVagaView: true,
                 status: c.status,
-                answers: c.answers,
-                questionLabels: (vaga?.custom_questions || []).reduce((acc: any, q: any) => {
+                answers: answersRaw as Record<string, string> | null,
+                questionLabels: (vaga?.custom_questions || []).reduce((acc: Record<string, string>, q: CustomQuestion) => {
                     acc[q.id] = q.label;
                     return acc;
                 }, {})
@@ -461,7 +470,7 @@ export const VagaCandidatos = () => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
                         setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, internal_notes: notes } : cand));
                     }}
-                    onFieldChange={(cid: string, field: string, val: any) => {
+                    onFieldChange={(cid: string, field: string, val: unknown) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
                     }}
                     onBlacklistChange={(cid: string, val: boolean) => {
@@ -482,13 +491,13 @@ export const VagaCandidatos = () => {
                         resume_url: transferringCand.resume_url,
                         age: transferringCand.candidate_age,
                         gender: transferringCand.candidate_gender,
-                        address: transferringCand.answers?.address,
-                        portfolio: transferringCand.answers?.portfolio,
-                        cep: transferringCand.answers?.cep,
-                        address_number: transferringCand.answers?.address_number,
-                        complement: transferringCand.answers?.complement,
+                        address: (transferringCand.answers as Record<string, string | null | undefined>)?.address ?? null,
+                        portfolio: (transferringCand.answers as Record<string, string | null | undefined>)?.portfolio ?? null,
+                        cep: (transferringCand.answers as Record<string, string | null | undefined>)?.cep ?? null,
+                        address_number: (transferringCand.answers as Record<string, string | null | undefined>)?.address_number ?? null,
+                        complement: (transferringCand.answers as Record<string, string | null | undefined>)?.complement ?? null,
                         match_score: transferringCand.match_score,
-                        answers: transferringCand.answers
+                        answers: (transferringCand.answers as Record<string, string>) ?? null
                     }}
                     job={{
                         id: id!,

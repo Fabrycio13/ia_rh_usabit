@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -100,7 +101,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const direction = nextTheme === 'dark' ? 'ltr' : 'rtl';
 
         // Suporte para View Transitions API
-        const doc = document as any;
+        const doc = document as Document & { startViewTransition?: (callback: () => void) => void };
         
         const executeToggle = () => {
             setTheme(nextTheme);

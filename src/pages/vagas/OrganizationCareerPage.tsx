@@ -96,16 +96,16 @@ export const OrganizationCareerPage = () => {
                     font_family: orgInfo.font_family || 'Inter',
                     font_color: orgInfo.font_color || '#0f172a',
                     logo_scale: orgInfo.logo_scale ?? 1.0,
-                    cover_fit: orgInfo.cover_fit as any || 'cover',
-                    background_fit: orgInfo.background_fit as any || 'cover',
+                    cover_fit: (orgInfo.cover_fit as 'cover' | 'contain') || 'cover',
+                    background_fit: (orgInfo.background_fit as 'cover' | 'contain') || 'cover',
                     header_padding: orgInfo.header_padding ?? 24,
                     page_background_url: orgInfo.page_background_url || '',
                 });
 
                 setVagas(vagas || []);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Erro ao carregar página de carreiras da API:', err);
-                setError(err.message);
+                setError((err as Error).message);
             } finally {
                 setLoading(false);
             }

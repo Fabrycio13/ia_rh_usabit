@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../services/supabase';
 
@@ -93,10 +94,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 avatarUrl: data.avatar_url || '',
                 initials: profileInitials,
                 notificationsEnabled: data.notifications_enabled ?? false,
-                user_role: (data.user_role as any) || 'rh',
-                status: (data.status as 'active' | 'inactive') || 'active',
-                account_type: (data.account_type as any) || 'trial',
-                plan: (data.account_type as any) || 'trial',
+                user_role: (data.user_role as UserProfile['user_role']) || 'rh',
+                status: (data.status as UserProfile['status']) || 'active',
+                account_type: (data.account_type as UserProfile['account_type']) || 'trial',
+                plan: (data.account_type as UserProfile['account_type']) || 'trial',
                 trial_ends_at: data.trial_ends_at || null,
                 organization_id: (data.organization_id && data.organization_id !== 'null') ? data.organization_id : null,
                 organization_name: (data.organization_name && data.organization_name !== 'null') ? data.organization_name : null,
@@ -112,7 +113,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 evolution_api_key: data.evolution_api_key || '',
                 evolution_instance: data.evolution_instance || '',
                 loaded: true,
-            }));
+            } as UserProfile));
             
         } else {
             // Case where user exists in Auth but not yet in Profiles (trigger delay)
@@ -120,8 +121,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             setProfile(prev => ({ ...prev, loaded: true }));
         }
     };
-
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadProfile();
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_OUT') {

@@ -11,7 +11,7 @@ describe('RLS Isolation - Security Simulation', () => {
         const mockVagaAtiva = { is_active: true, is_accepting_applications: true };
         const mockVagaInativa = { is_active: false, is_accepting_applications: true };
         
-        const canSelectPublic = (v: any) => v.is_active === true && v.is_accepting_applications === true;
+        const canSelectPublic = (v: { is_active: boolean; is_accepting_applications: boolean }) => v.is_active === true && v.is_accepting_applications === true;
         
         expect(canSelectPublic(mockVagaAtiva)).toBe(true);
         expect(canSelectPublic(mockVagaInativa)).toBe(false);
@@ -22,7 +22,7 @@ describe('RLS Isolation - Security Simulation', () => {
         const getMyRole = () => null; // Simulação de usuário não logado ou sem perfil
         const authUid = () => null;
         
-        const canAccess = (role: any, uid: any, candidateData: any) => {
+        const canAccess = (role: string | null, uid: string | null, candidateData: { organization_id: string; user_id: string }) => {
             if (role === 'owner') return true;
             if (['gestor', 'rh'].includes(role)) {
                 return candidateData.organization_id === 'my-org' || candidateData.user_id === uid;

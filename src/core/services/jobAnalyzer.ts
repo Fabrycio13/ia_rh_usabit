@@ -1,7 +1,6 @@
 import * as pdfjs from 'pdfjs-dist';
-import { callOpenAI } from './aiClient';
+import { callOpenAI, type OpenAIMessage } from './aiClient';
 
-// @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
@@ -66,9 +65,10 @@ async function pdfToImages(file: File): Promise<string[]> {
         canvas.width = viewport.width;
 
         await page.render({
+            canvas: null,
             canvasContext: context,
             viewport: viewport,
-        } as any).promise;
+        }).promise;
 
         images.push(canvas.toDataURL('image/jpeg', 0.8));
     }
@@ -89,14 +89,14 @@ async function extractTextFromPDF(file: File): Promise<string> {
         for (let i = 1; i <= pagesToProcess; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const pageText = textContent.items.map((item: any) => item.str).join(' ');
+            const pageText = textContent.items.map((item) => (item as { str: string }).str).join(' ');
             fullText += pageText + '\n';
         }
 
         return fullText.trim().slice(0, 30000);
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('Erro na extração de PDF:', err);
-        throw new Error(`Falha ao ler PDF "${file.name}": ${err.message}`);
+        throw new Error(`Falha ao ler PDF "${file.name}": ${(err as Error).message}`);
     }
 }
 
@@ -189,7 +189,7 @@ export async function analyzeJobApplication(
     formAnswers: Record<string, string>
 ): Promise<JobMatchResult> {
     try {
-        let text = await extractTextFromPDF(file);
+        const text = await extractTextFromPDF(file);
         let images: string[] = [];
 
         // Se o texto for muito curto, deve ser um PDF de imagem/escaneado. Faremos OCR com Visão da OpenAI
@@ -199,10 +199,10 @@ export async function analyzeJobApplication(
         }
 
         const basePrompt = createPrompt(jobTitle, jobDescription, formAnswers);
-        const messages: any[] = [];
+        const messages: OpenAIMessage[] = [];
 
         if (images.length > 0) {
-            const contentParts: any[] = [
+            const contentParts: { type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }[] = [
                 { type: "text", text: `${basePrompt}\n\n# CONTEÚDO DO CANDIDATO (EXAME DE DADOS):\n<CANDIDATE_DATA_CONTENT>` }
             ];
             images.forEach(img => {
@@ -230,8 +230,8 @@ messages.push({
         
         return parsed;
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error('Erro na análise da candidatura:', err);
-        throw new Error(`Erro na IA: ${err.message}`);
+        throw new Error(`Erro na IA: ${(err as Error).message}`);
     }
 }

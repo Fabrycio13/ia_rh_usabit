@@ -7,21 +7,8 @@ import type { EvolutionMessage } from '../../core/services/evolutionApi';
 
 // Interface Message removida em favor de EvolutionMessage
 
-interface Conversation {
-    id: string; // candidate_id
-    name: string;
-    initials: string;
-    color: string;
-    online: boolean;
-    time: string;
-    preview: string;
-    unread: number;
-    candidate: string;
-    vaga: string;
-    score: number;
-    msgs: EvolutionMessage[];
-    phone: string;
-}
+interface CandidateRow { name?: string; phone?: string }
+interface AvailableCandidate { id: string; name: string; phone?: string }
 
 // initialConvs removido para usar dados do banco
 
@@ -38,10 +25,12 @@ export function Chat() {
     const [filter, setFilter] = useState<'todos' | 'nao-lidos' | 'agendados'>('todos');
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    
+
+    interface Conversation { id: string; name: string; initials: string; color: string; online: boolean; time: string; preview: string; unread: number; candidate: string; vaga: string; score: number; msgs: EvolutionMessage[]; phone: string; candidate_id?: string; updated_at?: string }
+
     // Novas conversas
     const [showNewChatModal, setShowNewChatModal] = useState(false);
-    const [availableCandidates, setAvailableCandidates] = useState<any[]>([]);
+    const [availableCandidates, setAvailableCandidates] = useState<AvailableCandidate[]>([]);
     const [candSearch, setCandSearch] = useState('');
     const [loadingCands, setLoadingCands] = useState(false);
     const [inputText, setInputText] = useState('');
@@ -86,15 +75,16 @@ export function Chat() {
 
             if (error) throw error;
 
-            const mapped: Conversation[] = (data || []).map(row => {
-                const c = row.candidate as any;
-                const msgs = (row.messages || []) as EvolutionMessage[];
+            type ConversationQueryRow = { candidate_id: string; messages?: EvolutionMessage[]; updated_at?: string; candidate?: CandidateRow[] };
+            const mapped: Conversation[] = (data || []).map((row: ConversationQueryRow) => {
+                const c = row.candidate?.[0];
+                const msgs = row.messages ?? [];
                 const lastMsg = msgs[msgs.length - 1];
-                
+
                 return {
                     id: row.candidate_id,
                     name: c?.name || 'Candidato Desconhecido',
-                    initials: c?.name ? c.name.split(' ').map((n:any) => n[0]).join('').toUpperCase().slice(0, 2) : '?',
+                    initials: c?.name ? c.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : '?',
                     color: '#6366f1',
                     online: false,
                     time: row.updated_at ? new Date(row.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
@@ -146,9 +136,9 @@ export function Chat() {
             
             await api.saveLocalHistory(activeId, profile.userId, updatedMsgs);
             setInputText('');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[Chat] Erro ao enviar:', err);
-            alert(`Falha ao enviar: ${err.message}`);
+            alert(`Falha ao enviar: ${(err as Error).message}`);
         } finally {
             setSending(false);
         }
@@ -174,7 +164,7 @@ export function Chat() {
         }
     }
 
-    async function startNewChat(cand: any) {
+    async function startNewChat(cand: { id: string; name: string }) {
         if (!profile?.userId) return;
         try {
             const { data: existing } = await supabase
@@ -612,7 +602,7 @@ export function Chat() {
                                     <div style={{
                                         width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(99,102,241,0.1)', color: '#6366f1',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700
-                                    }}>{cand.name.split(' ').map((n:any)=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                                    }}>{cand.name.split(' ').map((n: string)=>n[0]).join('').toUpperCase().slice(0,2)}</div>
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{cand.name}</div>
                                         <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{cand.phone}</div>
