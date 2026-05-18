@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 // ─── TIPOS ──────────────────────────────────────────────────────────────────
 
-interface AdminUser {
+export interface AdminUser {
     id: string;
     name?: string;
     email: string;
@@ -15,12 +15,14 @@ interface AdminUser {
     evo_url?: string;
     evo_key?: string;
     evo_instance?: string;
+    organization_id?: string;
+    organization_name?: string;
 }
 
 interface Plan {
     key: string;
     name: string;
-    icon: any;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
     price: string;
     period: string;
     color: string;

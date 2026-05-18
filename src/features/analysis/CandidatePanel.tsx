@@ -15,6 +15,20 @@ import {
     type CandidateDetail, type Comment
 } from './CandidatePanelUtils';
 
+interface ScreeningLog {
+    id: string;
+    action: string;
+    to_stage?: string | null;
+    from_stage?: string | null;
+    created_at: string;
+    details?: Record<string, unknown>;
+}
+
+interface ScreeningLogGroup {
+    name: string;
+    logs: ScreeningLog[];
+}
+
 // ─── Candidate Panel Component ────────────────────────────────────────────────
 export function CandidatePanel({
     c,
@@ -30,7 +44,7 @@ export function CandidatePanel({
     onClose: () => void;
     navigate: (path: string) => void;
     onNotesChange: (id: string, notes: string) => void;
-    onFieldChange: (id: string, field: string, val: any) => void;
+    onFieldChange: (id: string, field: string, val: unknown) => void;
     onBlacklistChange: (id: string, val: boolean) => void;
     onTransferSuccess?: () => void;
     currentJobContext?: { id: string; title: string };
@@ -128,7 +142,7 @@ export function CandidatePanel({
                 onFieldChange(c.id, 'phone', digits);
                 onFieldChange(c.id, 'conversations', [{ candidate_id: c.id }]);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[Chat] Erro ao ativar:', err);
             setPhoneError('Erro ao habilitar o chat. Verifique a conexão.');
         } finally {
@@ -198,7 +212,7 @@ export function CandidatePanel({
     const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
     const [vagasOpen, setVagasOpen] = useState(true);
 
-    const [screeningLogs, setScreeningLogs] = useState<any[]>([]);
+    const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [expandedLogJob, setExpandedLogJob] = useState<string | null>(null);
 
@@ -558,7 +572,7 @@ export function CandidatePanel({
                                             {Object.entries(c.answers)
                                                 .filter(([key]) => !key.startsWith('_') && !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
                                                 .map(([key, value]) => {
-                                                    const questionLabel = (c as any).questionLabels?.[key] || key.replace(/_/g, ' ');
+                                                    const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
                                                     return (
                                                         <div key={key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 12 }}>
                                                             <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.03em' }}>
@@ -607,34 +621,34 @@ export function CandidatePanel({
                                         )}
                                     </div>
                                     
-                                    {(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience) && (
+                                    {[c.analysis?.match_rationale, c.analysis?.score_justification, c.analysis?.summary, c.analysis?.general_analysis, c.analysis?.reasoning, c.analysis?.feedback, c.analysis?.analysis, c.analysis?.experience].some(Boolean) && (
                                         <div>
                                             <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience}
+                                                {String(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience || '')}
                                             </div>
                                         </div>
                                     )}
 
-                                    {(c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points || c.analysis?.positivePoints || c.analysis?.pontos_positivos) && (
+                                    {[c.analysis?.strengths, c.analysis?.pros, c.analysis?.positive_points, c.analysis?.positivePoints, c.analysis?.pontos_positivos].some(Boolean) && (
                                         <div style={{ borderTop: '1px solid rgba(34, 197, 94, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos Positivos do Currículo</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                                 {(() => {
                                                     const val = c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points || c.analysis?.positivePoints || c.analysis?.pontos_positivos;
-                                                    return Array.isArray(val) ? val.join('\n') : val;
+                                                    return Array.isArray(val) ? val.join('\n') : String(val ?? '');
                                                 })()}
                                             </div>
                                         </div>
                                     )}
 
-                                    {(c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao) && (
+                                    {[c.analysis?.redFlags, c.analysis?.weaknesses, c.analysis?.cons, c.analysis?.negative_points, c.analysis?.gaps, c.analysis?.pontos_atencao].some(Boolean) && (
                                         <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
                                             <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                                 {(() => {
                                                     const val = c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao;
-                                                    return Array.isArray(val) ? val.join('\n') : val;
+                                                    return Array.isArray(val) ? val.join('\n') : String(val ?? '');
                                                 })()}
                                             </div>
                                         </div>
@@ -891,13 +905,14 @@ export function CandidatePanel({
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                             {(Object.entries(
                                                 screeningLogs.reduce((acc, log) => {
-                                                    const groupId = log.details?.pipeline_id || log.details?.job_id || 'unknown';
-                                                    const groupName = log.details?.pipeline_name || log.details?.job_name || (log.action === 'inclusion' ? log.to_stage : null) || 'Vaga não identificada';
+                                                    const details = log.details ?? {};
+                                                    const groupId = String(details['pipeline_id'] ?? details['job_id'] ?? 'unknown');
+                                                    const groupName = String(details['pipeline_name'] ?? details['job_name'] ?? (log.action === 'inclusion' ? log.to_stage : null) ?? 'Vaga não identificada');
                                                     if (!acc[groupId]) acc[groupId] = { name: groupName, logs: [] };
                                                     acc[groupId].logs.push(log);
                                                     return acc;
-                                                }, {} as Record<string, {name: string, logs: any[]}>)
-                                            ) as [string, {name: string, logs: any[]}][]).map(([jobId, group]) => (
+                                                }, {} as Record<string, ScreeningLogGroup>)
+                                            ) as [string, ScreeningLogGroup][]).map(([jobId, group]) => (
                                                 <div key={jobId} style={{ 
                                                     background: 'var(--bg-main)', 
                                                     border: '1px solid var(--border)', 
@@ -929,7 +944,7 @@ export function CandidatePanel({
                                                     {expandedLogJob === jobId && (
                                                         <div style={{ padding: '16px 20px', position: 'relative' }}>
                                                             <div style={{ position: 'absolute', left: 24.5, top: 16, bottom: 16, width: 1, background: 'var(--border)' }} />
-                                                            {group.logs.map((log: any, i: number) => (
+                                                            {group.logs.map((log: ScreeningLog, i: number) => (
                                                                 <div key={log.id} style={{ position: 'relative', paddingLeft: 24, paddingBottom: i === group.logs.length - 1 ? 0 : 20 }}>
                                                                     <div style={{ 
                                                                         position: 'absolute', left: -4, top: 2, width: 9, height: 9, borderRadius: '50%', 
@@ -1118,7 +1133,7 @@ export function CandidatePanel({
                         title: currentJobContext?.title || c.applications[0]?.jobName || 'Banco de Talentos',
                         organization_id: profile.organization_id
                     }}
-                    onClose={() => setTransferringToBank(null as any)}
+                    onClose={() => setTransferringToBank(false)}
                     onSuccess={() => {
                         setTransferringToBank(false);
                         if (onTransferSuccess) onTransferSuccess();

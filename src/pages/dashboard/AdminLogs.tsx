@@ -9,7 +9,7 @@ interface LogEntry {
     id: string;
     user_id: string;
     action: string;
-    details: any;
+    details: unknown;
     error: string | null;
     created_at: string;
     profiles?: {

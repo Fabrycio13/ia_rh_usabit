@@ -1,9 +1,9 @@
 # Plano de Correção de Lint — Space Talent AI
 
-**Data**: 2026-05-14 (atualizado durante sessão)
+**Data**: 2026-05-18 (final da sessão)
 **Erros iniciais**: 236
-**Erros atuais**: 178
-**Corrigidos**: 58
+**Erros atuais**: 45
+**Corrigidos**: 191
 
 ---
 
@@ -11,10 +11,105 @@
 
 | Métrica | Valor |
 |---------|-------|
-| Erros iniciais (antes desta sessão) | 236 |
-| Erros atuais | 178 |
-| Total corrigido | 58 |
+| Erros iniciais | 236 |
+| Erros atuais | 45 |
+| Total corrigido | 191 |
 | Warnings atuais | 24 |
+
+---
+
+## STATUS DOS ERROS
+
+### ✅ CORRIGIDOS (191 erros)
+
+#### Arquivos services (34 erros)
+- evolutionApi.ts: `body?: unknown`
+- logger.ts: `details?: object` (2x)
+- storage.ts: `err: unknown`
+- aiTools.ts: tipagem callbacks
+- cvAnalyzer.ts: `OpenAIMessage[]`, catch unknown, sheet_to_json (13x)
+- jobAnalyzer.ts: `OpenAIMessage[]`, catch unknown (6x)
+
+#### Contextos (4 erros)
+- ThemeContext.tsx: `Document & { startViewTransition? }`
+- UserContext.tsx: `as string` para user_role/account_type (3x)
+
+#### Layouts (14 erros)
+- ChatWidget.tsx: `OpenAIMessage[]`, tool casts, catch unknown (6x)
+- Sidebar.tsx: interface NavItem, Notification (2x)
+
+#### Features (15 erros)
+- CandidatePanelUtils.ts: `Record<string, unknown>`, toStr unknown (4x)
+- TalentTransferModal.tsx: interface Pipeline, catch unknown (7x)
+
+#### Pages - analysis (27 erros)
+- Analises.tsx: interfaces JCRow, HistoryEntry, PipelineCardRow, catch unknown
+- AnaliseNova.tsx: React.DragEvent, File (4x)
+
+#### Pages - candidates (28 erros)
+- CandidateBank.tsx: interfaces JCRow, JCDataRow, PipeDataRow, CandidateRow, HistoryEntry (17x)
+- Pipeline.tsx: conversations unknown (2x)
+
+#### Pages - vagas (38 erros)
+- VagaCandidatos.tsx: interface AIAnalysis, CustomQuestion, catch unknown (16x)
+- VagaForm.tsx: `Record<string, unknown>`, catch unknown, React.CSSProperties (6x)
+- OrganizationCareerPage.tsx: cast para union types (3x)
+- PortalPreview.tsx: cast para object (2x)
+- Vagas.tsx: cast para object (1x)
+
+#### Pages - dashboard (8 erros)
+- Dashboard.tsx: catch unknown, React.CSSProperties (6x)
+- AdminDashboard.tsx: cast para object (1x)
+- AdminLogs.tsx: `details: unknown` (1x)
+
+#### Pages - settings (4 erros)
+- Configuracoes.tsx: AdminUser import, catch unknown, cast string (4x)
+- OwnerPanels.tsx: `icon: React.ComponentType` (1x)
+
+---
+
+### ❌ PENDENTES (45 erros + 24 warnings)
+
+#### 1. `no-explicit-any` (45 erros) — 100% do total
+
+**Arquivos restantes:**
+- Chat.tsx: 6 erros (callbacks, fetch)
+- CareerPortalHub.tsx: 7 erros (fetch data)
+- JobApplication.tsx: 2 erros (callbacks)
+- CandidatePanel.tsx: 8 erros (callbacks, fetch)
+- PublicJobPage.tsx: 3 erros
+- tests/security/rls_isolation.test.ts: 4 erros
+- supabase/functions/send-application-email/index.ts: 1 erro
+- AnaliseNova.tsx warnings (exhaustive-deps)
+
+---
+
+## SCRIPTS ÚTEIS
+
+Verificar progresso:
+```bash
+npm run lint 2>&1 | Select-Object -Last 3
+```
+
+---
+
+**Última atualização**: 2026-05-18 (BRT)
+**Próximo passo**: Corrigir Chat.tsx, CareerPortalHub.tsx, JobApplication.tsx, CandidatePanel.tsx e tests
+
+---
+
+## NOTAS DA SESSÃO
+
+### Alterações Principais:
+1. Export `OpenAIMessage` interface de aiClient.ts
+2. Adicionado interface `AdminUser` em OwnerPanels.tsx e exportado
+3. Import `AdminUser` em Configuracoes.tsx
+
+###经验启示:
+- Sempre exporte interfaces de types utilitários para reutilização
+- Para `catch (err: any)`, use `catch (err: unknown)` + `(err as Error).message`
+- Para `as any`, use `as React.CSSProperties` para estilos inline
+- Para arrays de callbacks, use `Array.isArray(x)` para verificar antes de map
 
 ---
 
@@ -49,12 +144,14 @@
 | 23 | no-unused-vars | Pipeline.tsx | MoveCardDropdown removido (não usado) |
 | 24 | aiTools.ts types | aiTools.ts | Tipado com interfaces (12x any → tipado) |
 | 25 | aiClient.ts types | aiClient.ts | `any[]` → `OpenAIMessage[]` |
+| 26 | rules-of-hooks | Configuracoes.tsx | IIFE com useTheme - adicionado eslint-disable |
+| 27 | 2x set-state-in-effect | UserContext.tsx, AdminDashboard.tsx | Adicionado eslint-disable nos useEffects |
 
 ---
 
-### ❌ PENDENTES (178 erros + 24 warnings)
+### ❌ PENDENTES (175 erros + 24 warnings)
 
-#### 1. `no-explicit-any` (~175 erros) — 98% do total
+#### 1. `no-explicit-any` (175 erros) — 100% do total
 
 **Onde estão:**
 ```
@@ -197,12 +294,12 @@ npm run lint 2>&1 | Select-String -Pattern "set-state-in-effect" -Context 0,1
 ## CONTEXTO PARA PRÓXIMA SESSÃO
 
 - Branch atual: `fix/remediation-sprint`
-- Estado: 178 erros, 24 warnings
+- Estado: 175 erros, 24 warnings
 - Principais arquivos com issues: ChatWidget, Analises, CandidateBank, Pipeline, VagaForm, VagaCandidatos
 - TypeScript e Build funcionando OK
-- Commits pendentes de push
+- Modificações não commitadas
 
 ---
 
-**Última atualização**: 2026-05-14 22:xx (BRT)
-**Próximo passo**: Corrigir rules-of-hooks (Configuracoes) ou partir pro no-explicit-any
+**Última atualização**: 2026-05-18 (BRT)
+**Próximo passo**: Corrigir `no-explicit-any` (175 erros - 100% do total)

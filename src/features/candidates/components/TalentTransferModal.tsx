@@ -22,7 +22,7 @@ interface TalentTransferModalProps {
         complement?: string | null;
         match_score?: number;
         notes?: string | null;
-        answers?: any;
+        answers?: Record<string, unknown>;
     };
     job: {
         id: string;
@@ -41,7 +41,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
     const [hasPipeline, setHasPipeline] = useState<boolean | null>(null);
     const [pipelineId, setPipelineId] = useState<string | null>(null);
     const [creatingPipeline, setCreatingPipeline] = useState(false);
-    const [allPipelines, setAllPipelines] = useState<any[]>([]);
+    interface Pipeline { id: string; name: string; organization_id: string }
+    const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
     const [selectedExistingId, setSelectedExistingId] = useState<string>('');
     const [showSelection, setShowSelection] = useState(false);
 
@@ -177,8 +178,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 .eq('id', job.id);
 
             toast.success('Pipeline e colunas criados com sucesso!');
-        } catch (err: any) {
-            toast.error('Erro ao criar pipeline: ' + err.message);
+        } catch (err: unknown) {
+            toast.error('Erro ao criar pipeline: ' + (err as Error).message);
         } finally {
             setCreatingPipeline(false);
         }
@@ -201,8 +202,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
             setPipelineId(selectedExistingId);
             setHasPipeline(true);
             toast.success('Pipeline vinculado com sucesso!');
-        } catch (err: any) {
-            toast.error('Erro ao vincular pipeline: ' + err.message);
+        } catch (err: unknown) {
+            toast.error('Erro ao vincular pipeline: ' + (err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -212,7 +213,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
         setLoading(true);
         try {
             // 1. Preparar dados da análise para o histórico
-            const ai = candidate.answers?._ai_analysis || {};
+            const ai = (candidate.answers?._ai_analysis || {}) as Record<string, unknown>;
             const analysisData = {
                 score: candidate.match_score || 0,
                 job_id: job.id,
@@ -260,7 +261,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
             const { data: existingByEmail } = await existingQuery.maybeSingle();
 
-            let dbCandidate: any;
+            interface CandidateRecord { id: string; analysis?: { history?: Array<{ job_id: string }> }; resume_url?: string }
+            let dbCandidate: CandidateRecord | null = null;
 
             if (existingByEmail) {
                 // Candidato já existe -> mesclar histórico
@@ -270,7 +272,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 
                 const mergedAnalysis = {
                     ...analysisData,
-                    history: [...existingHistory.filter((h: any) => h.job_id !== job.id), analysisData],
+                    history: [...existingHistory.filter((h: { job_id: string }) => h.job_id !== job.id), analysisData],
                     resume_url: candidate.resume_url
                 };
 
@@ -300,6 +302,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 if (insertError) throw insertError;
                 dbCandidate = inserted;
             }
+
+            if (!dbCandidate) throw new Error('Falha ao salvar candidato');
 
             // 1.5. Vincular à vaga no Banco de Talentos (tabela job_candidates)
             const { error: jcError } = await supabase
@@ -367,9 +371,9 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
             setStep('success');
             if (onSuccess) onSuccess();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Erro na transferência:', err);
-            toast.error('Erro ao transferir: ' + err.message);
+            toast.error('Erro ao transferir: ' + (err as Error).message);
         } finally {
             setLoading(false);
         }

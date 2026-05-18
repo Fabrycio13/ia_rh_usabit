@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export async function logActivity(userId: string, action: string, details?: any, errorMessage?: string) {
+export async function logActivity(userId: string, action: string, details?: string | object, errorMessage?: string) {
     try {
         const { error } = await supabase.from('activity_logs').insert({
             user_id: userId,
@@ -17,7 +17,7 @@ export async function logActivity(userId: string, action: string, details?: any,
     }
 }
 
-export async function logScreening(userId: string, candidateId: string, action: string, fromStage?: string | null, toStage?: string | null, details?: any) {
+export async function logScreening(userId: string, candidateId: string, action: string, fromStage?: string | null, toStage?: string | null, details?: object) {
     if (!userId || !candidateId) {
         console.error('logScreening: userId or candidateId missing', { userId, candidateId });
         return;

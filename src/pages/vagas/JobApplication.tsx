@@ -449,13 +449,20 @@ const maskCep = (val: string) => {
     return v.substring(0, 9);
 };
 
-const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }: any) => {
+interface AutoResizeEffectProps {
+    step: number;
+    contentVisible: boolean;
+    customAnswers?: Record<string, string>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }: AutoResizeEffectProps) => {
     useEffect(() => {
         if (!contentVisible) return;
         
         const timer = setTimeout(() => {
             const textareas = containerRef.current?.querySelectorAll('textarea');
-            textareas?.forEach((ta: any) => {
+            textareas?.forEach((ta) => {
                 ta.style.height = 'auto';
                 ta.style.height = ta.scrollHeight + 'px';
             });

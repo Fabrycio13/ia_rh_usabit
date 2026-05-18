@@ -43,12 +43,12 @@ export interface CandidateDetail extends Candidate {
     notes: string | null;
     resume_url?: string | null;
     enriched: boolean;
-    analysis?: any;
-    conversations?: any[];
+    analysis?: Record<string, unknown>;
+    conversations?: unknown[];
     hideBankButton?: boolean;
     isVagaView?: boolean;
     status?: string;
-    answers?: Record<string, any> | null;
+    answers?: Record<string, string> | null;
     questionLabels?: Record<string, string>;
 }
 
@@ -117,7 +117,7 @@ export function relativeTime(iso: string): string {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-export function toStr(v: any): string | null {
+export function toStr(v: unknown): string | null {
     if (!v) return null;
     if (typeof v === 'string') return v;
     if (Array.isArray(v)) return v.join(', ');

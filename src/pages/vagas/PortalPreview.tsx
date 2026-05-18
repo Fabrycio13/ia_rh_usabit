@@ -163,9 +163,9 @@ export const PortalPreview = ({
                             <div key={vaga.id} style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(8px)', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
                                     <h3 style={{ fontSize: '18px', fontWeight: 800, color: fontColor, margin: 0, lineHeight: 1.2 }}>{vaga.title}</h3>
-                                    {(vaga as any).company_name && (
+                                    {(vaga as { company_name?: string }).company_name && (
                                         <p style={{ margin: 0, fontSize: '12px', color: primaryColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            na {(vaga as any).company_name}
+                                            na {(vaga as { company_name?: string }).company_name}
                                         </p>
                                     )}
                                 </div>

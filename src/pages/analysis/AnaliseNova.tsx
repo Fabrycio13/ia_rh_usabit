@@ -437,7 +437,7 @@ function ResultsView({ result, jobName, onBack, onExit, userId }: { result: Anal
                                     />
                                     <Legend
                                         wrapperStyle={{ fontSize: 11 }}
-                                        formatter={(v, entry: any) => (
+                                        formatter={(v, entry) => (
                                             <span style={{ color: 'var(--text-main)' }}>
                                                 {v} ({entry.payload?.value ?? 0})
                                             </span>
@@ -715,7 +715,7 @@ export const AnaliseNova = () => {
         checkMonthlyLimit();
     }, [profile.account_type, profile.userId]);
 
-    const handleDrop = useCallback((e: any) => {
+    const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setDragOver(false);
         const dropped = Array.from(e.dataTransfer.files);
@@ -723,7 +723,7 @@ export const AnaliseNova = () => {
         const maxFiles = 200; // profile.isPremium ? 200 : 5;
 
         if (uploadMode === 'pdf') {
-            const pdfs: File[] = dropped.filter((f: any) => f.type === 'application/pdf') as File[];
+            const pdfs: File[] = dropped.filter((f: File) => f.type === 'application/pdf') as File[];
             // Trial check desativado
             // if (!profile.isPremium && (files.length + pdfs.length) > 5) {
             //     toast.error('O plano Trial permite no máximo 5 candidatos por análise.', { id: 'trial-limit' });
@@ -735,7 +735,7 @@ export const AnaliseNova = () => {
             //     toast.error('Análise via Excel não está disponível no plano Trial.');
             //     return;
             // }
-            const xlsx: File[] = dropped.filter((f: any) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
+            const xlsx: File[] = dropped.filter((f: File) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
     }, [uploadMode, files.length]);

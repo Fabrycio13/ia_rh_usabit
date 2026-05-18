@@ -34,9 +34,10 @@ export const get_assistant_tools = (userId: string) => {
             const { data, error } = await query.order('score', { ascending: false });
             if (error) throw error;
 
-            let filtered = (data ?? []).map((c: any) => ({
+            type CandidateRow = { id: string; name?: string; email?: string; location?: string; score?: number; job_candidates?: { jobs?: { name?: string } }[] };
+            let filtered = ((data ?? []) as CandidateRow[]).map((c) => ({
                 ...c,
-                vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean) as string[]
+                vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name).filter(Boolean) as string[]
             }));
 
             if (params.jobName) {

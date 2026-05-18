@@ -60,7 +60,7 @@ const css = `
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
-interface NI { to: string; icon: any; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
+interface NI { to: string; icon: React.ComponentType<{ size?: number; className?: string }>; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
 const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
     if (disabled) {
         return (
@@ -72,7 +72,7 @@ const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) =
                     opacity: 0.5,
                     cursor: 'not-allowed'
                 }}>
-                <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: 'gray' }} />
+                <span style={{ flexShrink: 0, color: 'gray', display: 'flex' }}><Icon className="sbico" size={18} /></span>
                 {!collapsed && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ fontSize: '13px' }}>{label}</span>
@@ -88,7 +88,7 @@ const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) =
             style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 14px' }}>
             {({ isActive }) => (
                 <>
-                    <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: isActive ? 'white' : undefined }} />
+                    <span style={{ flexShrink: 0, color: isActive ? 'white' : undefined, display: 'flex' }}><Icon className="sbico" size={18} /></span>
                     {!collapsed && label}
                 </>
             )}
@@ -116,7 +116,8 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
     const [ddPos, setDdPos] = useState({ bottom: 0, left: 0, right: 0 });
 
     // ─── Realtime Notifications ──────────────────────────────────────────────
-    const [notifications, setNotifications] = useState<any[]>([]);
+    interface Notification { id: string; candidate_name: string; applied_at: string; vaga_id: string; status: string; vaga: { title: string } }
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showNotifDd, setShowNotifDd] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
@@ -133,7 +134,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 .order('applied_at', { ascending: false })
                 .limit(5);
             
-            if (data) setNotifications(data);
+            if (data) setNotifications(data as unknown as Notification[]);
         };
         fetchRecent();
 
@@ -158,7 +159,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         .eq('id', newCand.vaga_id)
                         .single();
 
-                    const fullNotif = { ...newCand, vaga: vagaData };
+                    const fullNotif = { ...newCand, vaga: (vagaData as { title: string }) ?? { title: 'Vaga' } } as Notification;
                     
                     setNotifications(prev => [fullNotif, ...prev].slice(0, 5));
                     setUnreadCount(prev => prev + 1);
@@ -426,7 +427,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                                 opacity: 1
                             }}
                         >
-                            <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: '#22c55e' }} />
+                            <Bot className="sbico" size={18} style={{ flexShrink: 0, color: '#22c55e' }} />
                             {!collapsed && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                                     <span style={{ color: '#22c55e', fontWeight: 600 }}>Assistente IA</span>
@@ -467,7 +468,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
                                 onMouseLeave={e => e.currentTarget.style.color = unreadCount > 0 ? 'var(--primary)' : 'var(--text-dim)'}
                             >
-                                <Bell style={{ width: 18, height: 18 }} />
+                                <Bell size={18} />
                                 {unreadCount > 0 && (
                                     <div style={{ 
                                         position: 'absolute', 

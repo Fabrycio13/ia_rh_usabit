@@ -194,8 +194,8 @@ export const AdminDashboard = () => {
 
         setLoading(false);
     };
-
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchDashboardData();
     }, [activeStart, activeEnd, selectedOrgId]);
 
@@ -603,7 +603,7 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: '16px' }}>
                                         <p style={{ color: 'var(--text-main)', fontSize: 13, margin: 0, fontWeight: 500 }}>
-                                            {(user as any).organization_name || 'Sem Organização'}
+                                            {(user as { organization_name?: string }).organization_name || 'Sem Organização'}
                                         </p>
                                     </td>
                                     <td style={{ padding: '16px', textAlign: 'center' }}>

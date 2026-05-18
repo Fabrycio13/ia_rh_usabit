@@ -250,7 +250,7 @@ export const VagaForm = () => {
                     differentials: data.differentials || '',
                     additionalInfo: data.additional_info || '',
                     category: data.category || '',
-                    initialStatus: data.status as any || 'aberta',
+                    initialStatus: (data.status as 'aberta' | 'fechada' | 'invisivel') || 'aberta',
                     isThirdParty: data.is_third_party || !!data.company_name,
                     companyName: data.company_name || '',
                     companyLogo: data.company_logo || '',
@@ -441,7 +441,7 @@ export const VagaForm = () => {
                 // Não trava o processo, mas avisa no log
             }
 
-            const vagaData: any = {
+            const vagaData: Record<string, unknown> = {
                 user_id: user.id,
                 title: formData.title.trim(),
                 description: formData.description.trim(),
@@ -605,7 +605,7 @@ export const VagaForm = () => {
             navigate('/vagas');
         } catch (error) {
             console.error('Erro ao criar pipeline:', error);
-            const errMsg = error instanceof Error ? error.message : (error as any)?.message || 'Erro desconhecido';
+            const errMsg = error instanceof Error ? error.message : (error as { message?: string }).message || 'Erro desconhecido';
             toast.error(`Erro ao criar pipeline: ${errMsg}`);
             setShowPipelineModal(false);
             navigate('/vagas');
@@ -722,12 +722,12 @@ export const VagaForm = () => {
                                     '--duration': `${1.5 + (i % 5) * 0.4}s`,
                                     animationDelay: `${i * 0.1}s`,
                                     opacity: 0.2 + (i % 5) * 0.15
-                                } as any} 
+                                } as React.CSSProperties}
                             />
                         ))}
 
                         {/* Floating Planet (Saturn) - Exactly like Dashboard KPI */}
-                        <div 
+                        <div
                             className="planet" 
                             style={{ 
                                 width: 120, 
@@ -739,7 +739,7 @@ export const VagaForm = () => {
                                 animation: 'float 18s ease-in-out infinite',
                                 zIndex: 2,
                                 boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(217,119,6,0.15)'
-                            } as any}
+                            } as React.CSSProperties}
                         >
                             <PlanetOverlay type="Saturn" />
                             <div className="planet-ring" style={{ 
@@ -1805,7 +1805,7 @@ export const VagaForm = () => {
                                                                     key={opt.value}
                                                                     type="button"
                                                                     onClick={() => {
-                                                                        const updates: any = { type: opt.value };
+                                                                        const updates: Partial<VagaFormData['customQuestions'][0]> = { type: opt.value as 'text' | 'paragraph' | 'choice' };
                                                                         if (opt.value === 'choice' && (!q.options || q.options.length === 0)) {
                                                                             updates.options = ['', ''];
                                                                         }

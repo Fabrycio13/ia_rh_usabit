@@ -17,7 +17,7 @@ function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
 }
 
-function toStr(v: any): string | null {
+function toStr(v: unknown): string | null {
   if (!v) return null;
   if (typeof v === 'string') return v;
   if (Array.isArray(v)) return v.join(', ');
@@ -25,6 +25,10 @@ function toStr(v: any): string | null {
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
+interface JCDataRow { job_id?: string; vaga_id?: string }
+interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
+interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
+interface HistoryEntry { job_id: string; job_name?: string; job_title?: string; score?: number; match_score?: number; analyzed_at?: string; date?: string; created_at?: string; skills?: string; habilidades?: string; summary?: string; experience?: string; experiencia?: string; strengths?: string; positivePoints?: string; pontos_positivos?: string; positive_points?: string; education?: string; formacao?: string; gaps?: string; redFlags?: string; pontos_atencao?: string; attention_points?: string; job_code?: string; code?: string; resume_url?: string | null }
 interface Candidate {
   id: string;
   name: string;
@@ -44,7 +48,7 @@ interface Candidate {
   resume_url?: string | null;
   resume_file_name?: string | null;
   phone?: string | null;
-  conversations?: any[];
+  conversations?: unknown[];
 }
 
 type SortKey = 'name' | 'location' | 'age' | null;
@@ -200,34 +204,11 @@ export const CandidateBank = () => {
           }
         }
         const { data: fallback } = await fallbackQuery;
-        setCandidates((fallback ?? []).map((c: any) => ({
-          id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-          age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
-          address_number: c.address_number, complement: c.complement,
-          score: c.score,
-          interview_eligible: false,
-          is_blacklisted: false,
-          resume_url: c.resume_url,
-          phone: c.phone,
-          conversations: c.conversations,
-          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
-        })));
+        setCandidates((fallback ?? []) as unknown as Candidate[]);
         return;
       }
 
-      setCandidates((data ?? []).map((c: any) => ({
-        id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-        age: c.age, gender: c.gender, linkedin: c.linkedin, portfolio: c.portfolio, cep: c.cep,
-        address_number: c.address_number, complement: c.complement,
-        score: c.score,
-        interview_eligible: c.interview_eligible ?? false,
-        is_blacklisted: c.is_blacklisted ?? false,
-        resume_url: c.resume_url,
-        resume_file_name: c.resume_file_name,
-        phone: c.phone,
-        conversations: c.conversations,
-        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
-      })));
+      setCandidates((data ?? []) as unknown as Candidate[]);
     } finally {
       setLoading(false);
     }
@@ -275,10 +256,11 @@ export const CandidateBank = () => {
 
     if (sortKey) {
       list.sort((a, b) => {
-        let va: any, vb: any;
+        let va: string | number, vb: string | number;
         if (sortKey === 'name') { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
         else if (sortKey === 'location') { va = (a.location ?? '').toLowerCase(); vb = (b.location ?? '').toLowerCase(); }
         else if (sortKey === 'age') { va = parseFloat(a.age ?? '0'); vb = parseFloat(b.age ?? '0'); }
+        else { va = ''; vb = ''; }
         if (va < vb) return sortDir === 'asc' ? -1 : 1;
         if (va > vb) return sortDir === 'asc' ? 1 : -1;
         return 0;
@@ -313,7 +295,7 @@ export const CandidateBank = () => {
       ]);
 
       const validJobIds = new Set();
-      (jcData ?? []).forEach((jc: any) => {
+      (jcData ?? []).forEach((jc: JCDataRow) => {
         if (jc.job_id) validJobIds.add(jc.job_id);
         if (jc.vaga_id) validJobIds.add(jc.vaga_id);
       });
@@ -322,13 +304,13 @@ export const CandidateBank = () => {
       setSelected(prev => {
         if (!prev || prev.id !== id) return prev;
         const analysis = cd?.analysis ?? {};
-        const rawHistory: any[] = analysis?.history ?? [];
-        console.log('[enrichCandidate] rawHistory IDs:', rawHistory.map((h: any) => h.job_id));
+        const rawHistory = Array.isArray(analysis?.history) ? analysis.history : [];
+        console.log('[enrichCandidate] rawHistory IDs:', (rawHistory as HistoryEntry[]).map((h: HistoryEntry) => h.job_id));
 
-        const validHistory = rawHistory.filter((h: any) => h.job_id);
+        const validHistory = rawHistory.filter((h: HistoryEntry) => h.job_id);
         console.log('[enrichCandidate] validHistory count (unfiltered):', validHistory.length);
 
-        const pipelineCards = (pipeData ?? []).map((pc: any) => {
+        const pipelineCards = (pipeData ?? []).map((pc: PipeDataRow) => {
           let jobName = undefined;
           let jobId = undefined;
           let score = undefined;
@@ -338,20 +320,20 @@ export const CandidateBank = () => {
             jobId = parsed.selected_job_id;
             score = parsed.selected_job_score;
           } catch { /* ignore */ }
-          return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
+          return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.[0]?.name };
         });
 
         return {
           ...prev,
           phone: toStr(cd?.phone) ?? null,
           address: toStr(cd?.address) ?? null,
-          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as any)?.skills),
-          experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as any)?.experience),
-          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as any)?.education),
+          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as unknown as CandidateRow)?.skills),
+          experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as unknown as CandidateRow)?.experience),
+          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as unknown as CandidateRow)?.education),
           redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
-          applications: validHistory.map((h: any) => ({
+          applications: validHistory.map((h: HistoryEntry) => ({
             jobId: h.job_id,
             jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
             jobCode: h.job_code || h.code || '',
@@ -578,9 +560,9 @@ export const CandidateBank = () => {
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
-                  {c.vagas.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
+                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
-                      {c.vagas.slice(0, 2).map(v => (
+                      {(c.vagas || []).slice(0, 2).map(v => (
                         <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
                           {v}
                         </span>

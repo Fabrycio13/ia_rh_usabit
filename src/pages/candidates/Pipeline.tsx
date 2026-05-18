@@ -7,7 +7,7 @@ import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
-import { type CandidateDetail, toStr } from '../../features/analysis/CandidatePanelUtils';
+import { type CandidateDetail, type Application, toStr } from '../../features/analysis/CandidatePanelUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Pipeline {
@@ -40,8 +40,43 @@ interface PipelineCard {
     job_id?: string;
     is_blacklisted?: boolean;
     candidate_phone?: string | null;
-    candidate_conversations?: any[];
+    candidate_conversations?: unknown[];
     vaga_id?: string | null;
+}
+
+interface CandidateQueryRow {
+    id: string;
+    name: string;
+    score: number | null;
+    is_blacklisted?: boolean;
+    phone?: string | null;
+    conversations?: unknown[];
+    job_candidates?: { jobs?: { name?: string }; vagas_white_label?: { title?: string } }[];
+}
+
+interface PipeQueryRow {
+    id: string;
+    notes?: string | null;
+    pipelines?: { name?: string }[] | null;
+}
+
+interface RawCardRow {
+    id: string;
+    column_id: string;
+    candidate_id: string;
+    position: number;
+    notes: string | null;
+    candidates: {
+        name: string | null;
+        score: number | null;
+        is_blacklisted: boolean;
+        phone: string | null;
+        conversations: unknown[];
+        job_candidates: Array<{
+            jobs: { name: string } | null;
+            vagas_white_label: { title: string } | null;
+        }>;
+    } | null;
 }
 
 interface EligibleCandidate {
@@ -52,7 +87,25 @@ interface EligibleCandidate {
     already_in_pipeline: boolean;
     is_blacklisted?: boolean;
     phone?: string | null;
-    conversations?: any[];
+    conversations?: unknown[];
+}
+
+
+
+interface HistoryItem {
+    job_id: string;
+    job_name?: string;
+    score?: number;
+    analyzed_at?: string;
+    skills?: string;
+    habilidades?: string;
+    experience?: string;
+    experiencia?: string;
+    education?: string;
+    formacao?: string;
+    redFlags?: string;
+    attention_points?: string;
+    analysis?: Record<string, unknown>;
 }
 
 // ─── Default columns ──────────────────────────────────────────────────────────
@@ -656,9 +709,9 @@ export const Pipeline = () => {
                 setShowCreatePipeline(false);
                 logActivity(profile.userId, `Criou o processo "${pipe.name}"`);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Create pipeline error:', err);
-            alert('Erro ao criar pipeline: ' + (err.message || 'Verifique sua conexão'));
+            alert('Erro ao criar pipeline: ' + (err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -677,44 +730,44 @@ export const Pipeline = () => {
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
-            setCards((cardData ?? []).map((c: any) => {
-                let displayJobName = undefined;
-                let displayJobScore = undefined;
-                let jobId = undefined;
+            const raw = (cardData ?? []) as unknown as RawCardRow[];
+            const mapped: PipelineCard[] = raw.map((c) => {
+                let displayJobName: string | undefined;
+                let displayJobScore: number | undefined;
+                let jobId: string | undefined;
                 try {
-                    const parsed = JSON.parse(c.notes || '');
+                    const parsed: Record<string, unknown> = JSON.parse(c.notes || '');
                     if (parsed.selected_job_id) {
-                        displayJobName = parsed.selected_job_name;
-                        displayJobScore = parsed.selected_job_score;
-                        jobId = parsed.selected_job_id;
+                        displayJobName = parsed.selected_job_name as string;
+                        displayJobScore = parsed.selected_job_score as number;
+                        jobId = parsed.selected_job_id as string;
                     }
-                } catch { /* ignore */ }
+                // eslint-disable-next-line no-empty
+                } catch { }
 
                 return {
                     id: c.id,
                     column_id: c.column_id,
                     candidate_id: c.candidate_id,
                     position: c.position,
-                    pipeline_id: pipelineId,
                     notes: c.notes,
+                    pipeline_id: pipelineId,
                     candidate_name: c.candidates?.name ?? 'Sem nome',
                     candidate_score: c.candidates?.score ?? null,
-                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc: any) => jc.vagas_white_label?.title || jc.jobs?.name).filter(Boolean),
+                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc) => jc.vagas_white_label?.title || jc.jobs?.name).filter((s): s is string => !!s),
                     display_job_name: displayJobName,
                     display_job_score: displayJobScore,
                     job_id: jobId,
-                    is_blacklisted: c.candidates?.is_blacklisted,
-                    candidate_phone: c.candidates?.phone,
-                    candidate_conversations: c.candidates?.conversations,
                 };
-            }));
-            await loadEligibles(userId, cardData ?? []);
+            });
+            setCards(mapped);
+            await loadEligibles(userId, mapped);
         } finally {
             setLoading(false);
         }
     }
 
-    async function loadEligibles(userId: string, currentCards: any[]) {
+    async function loadEligibles(userId: string, currentCards: PipelineCard[]) {
         const { data } = await supabase
             .from('candidates')
             .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
@@ -722,13 +775,13 @@ export const Pipeline = () => {
             .eq('interview_eligible', true)
             .order('name');
 
-        const inPipeline = new Set(currentCards.map((c: any) => c.candidate_id));
+        const inPipeline = new Set(currentCards.map((c) => c.candidate_id));
 
-        setEligibles((data ?? []).map((c: any) => ({
+        setEligibles(((data ?? []) as CandidateQueryRow[]).map((c) => ({
             id: c.id,
             name: c.name,
             score: c.score,
-            vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name || jc.vagas_white_label?.title).filter(Boolean),
+            vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name || jc.vagas_white_label?.title).filter((s): s is string => !!s),
             already_in_pipeline: inPipeline.has(c.id),
             is_blacklisted: c.is_blacklisted,
             phone: c.phone,
@@ -748,11 +801,11 @@ export const Pipeline = () => {
         if (!cand) return { enriched: true };
 
         const analysis = cand.analysis ?? {};
-        const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
-        const rawHistory: any[] = analysis?.history ?? [];
-        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+        const validJobIds = new Set((jcData ?? []).map((jc) => (jc as { job_id: string }).job_id));
+        const rawHistory: HistoryItem[] = analysis?.history ?? [];
+        const validHistory = rawHistory.filter((h) => h.job_id && validJobIds.has(h.job_id));
 
-        const pipelineCards = (pipeData ?? []).map((pc: any) => {
+        const pipelineCards = (pipeData ?? []).map((pc: PipeQueryRow) => {
             let jobName = undefined;
             let jobId = undefined;
             let score = undefined;
@@ -762,7 +815,7 @@ export const Pipeline = () => {
                 jobId = parsed.selected_job_id;
                 score = parsed.selected_job_score;
             } catch { /* ignore */ }
-            return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
+            return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.[0]?.name };
         });
 
         return {
@@ -778,16 +831,16 @@ export const Pipeline = () => {
             redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
             notes: cand.notes || null,
             is_blacklisted: cand.is_blacklisted ?? false,
-            applications: validHistory.map((h: any) => ({
+            applications: validHistory.map((h) => ({
                 jobId: h.job_id,
                 jobName: h.job_name,
                 score: h.score,
                 appliedAt: h.analyzed_at,
-                skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-                experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-                education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-                redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
-            })),
+                skills: toStr(h.skills ?? h.habilidades),
+                experience: toStr(h.experience ?? h.experiencia),
+                education: toStr(h.education ?? h.formacao),
+                redFlags: toStr(h.redFlags ?? h.attention_points),
+            })) as unknown as Application[],
             pipelineCards,
             resume_url: cand.resume_url,
             enriched: true,
@@ -796,7 +849,7 @@ export const Pipeline = () => {
     }
 
     async function openCandidate(card: PipelineCard) {
-        const base: any = {
+        const base = {
             id: card.candidate_id,
             name: card.candidate_name,
             score: card.candidate_score,
@@ -804,7 +857,7 @@ export const Pipeline = () => {
             enriched: false,
             applications: [],
             hideBankButton: true
-        };
+        } as unknown as CandidateDetail;
         setSelectedCandidate(base);
         try {
             const extra = await enrichCandidate(card.candidate_id);
@@ -942,10 +995,10 @@ export const Pipeline = () => {
     }
 
 
-    function handleFieldChange(id: string, field: string, val: any) {
-        if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val } : c));
-        if (field === 'conversations') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_conversations: val } : c));
-        if (field === 'phone') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_phone: val } : c));
+    function handleFieldChange(id: string, field: string, val: unknown) {
+        if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val as string } : c));
+        if (field === 'conversations') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_conversations: val as unknown[] } : c));
+        if (field === 'phone') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_phone: val as string } : c));
         if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, [field]: val } : null);
     }
 
@@ -966,9 +1019,9 @@ export const Pipeline = () => {
                 }
                 return filtered;
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Delete pipeline error:', err);
-            alert('Erro ao excluir pipeline: ' + err.message);
+            alert('Erro ao excluir pipeline: ' + (err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -1694,7 +1747,7 @@ export const Pipeline = () => {
             {selectedCandidate && (
                 <CandidatePanel
                     key={selectedCandidate.id + (selectedCandidate.enriched ? '-full' : '-base')}
-                    c={selectedCandidate as any}
+                    c={selectedCandidate}
                     onClose={() => setSelectedCandidate(null)}
                     navigate={navigate}
                     onNotesChange={handleNotesChange}

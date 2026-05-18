@@ -121,8 +121,28 @@ interface Candidate {
   attention_points: string | null;
   resumeUrl: string | null;
   isBlacklisted?: boolean;
-  conversations?: any[];
+  conversations?: unknown[];
 }
+
+interface JCRow {
+  candidates: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    location: string | null;
+    address: string | null;
+    age: string | null;
+    gender: string | null;
+    is_blacklisted?: boolean;
+    conversations?: unknown[];
+    analysis?: Record<string, unknown>;
+  };
+}
+
+interface JCDataRow { job_id: string }
+interface HistoryEntry { job_id: string; job_name?: string; score?: number; analyzed_at?: string; skills?: string; experiencia?: string; formacao?: string; redFlags?: string }
+interface PipelineCardRow { id: string; notes?: string; pipelines?: { name?: string } }
 
 
 
@@ -174,16 +194,16 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
         if (candErr) throw candErr;
 
-        const mapped: Candidate[] = (jcData ?? [])
-          .map((row: any) => row.candidates)
+        const mapped: Candidate[] = (jcData as unknown as JCRow[] ?? [])
+          .map((row: JCRow) => row.candidates)
           .filter(Boolean)
-          .map((c: any) => {
+          .map((c) => {
             // Busca o score e dados desta vaga específica pelo histórico (se disponível)
-            const history: any[] = Array.isArray(c.analysis?.history) ? c.analysis.history : [];
-            const jobEntry = history.find((h: any) => h.job_id === jobId);
+            const history = Array.isArray(c.analysis?.history) ? c.analysis.history : [];
+            const jobEntry = history.find((h) => h.job_id === jobId);
 
             // Prioriza o jobEntry do histórico, caso contrário tenta a raiz (compatibilidade)
-            const analysis = jobEntry ?? c.analysis ?? {};
+            const analysis = (jobEntry ?? c.analysis ?? {}) as Record<string, unknown>;
 
             // O score agora é pego exclusivamente da análise vinculada a este job
             const score = typeof analysis.score === 'number' ? analysis.score : 0;
@@ -198,10 +218,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               age: c.age ?? null,
               gender: c.gender ?? null,
               score,
-              skills: analysis.skills ?? null,
-              experience: analysis.experience ?? null,
-              education: analysis.education ?? null,
-              attention_points: analysis.redFlags ?? null,
+              skills: analysis['skills'] as string | null ?? null,
+              experience: analysis['experience'] as string | null ?? null,
+              education: analysis['education'] as string | null ?? null,
+              attention_points: analysis['redFlags'] as string | null ?? null,
               resumeUrl: null,
               isBlacklisted: c.is_blacklisted,
               conversations: c.conversations,
@@ -225,16 +245,16 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               .in('id', candidateIds);
             if (candWithUrl) {
               const urlMap: Record<string, string> = {};
-              candWithUrl.forEach((r: any) => { if (r.resume_url) urlMap[r.id] = r.resume_url; });
+              candWithUrl.forEach((r) => { if (r.resume_url) urlMap[r.id] = r.resume_url; });
               mapped.forEach(c => { c.resumeUrl = urlMap[c.id] ?? null; });
             }
           }
         }
 
         setCandidates(mapped);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Erro ao carregar análise:', err);
-        toast.error('Erro ao carregar análise: ' + (err.message ?? 'erro desconhecido'));
+        toast.error('Erro ao carregar análise: ' + ((err as Error).message ?? 'erro desconhecido'));
       } finally {
         setLoading(false);
       }
@@ -253,11 +273,11 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     if (!cand) return { enriched: true };
 
     const analysis = cand.analysis ?? {};
-    const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
-    const rawHistory: any[] = analysis?.history ?? [];
-    const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+    const validJobIds = new Set((jcData ?? []).map((jc: JCDataRow) => jc.job_id));
+    const rawHistory: HistoryEntry[] = analysis?.history ?? [];
+    const validHistory = rawHistory.filter((h: HistoryEntry) => h.job_id && validJobIds.has(h.job_id));
 
-    const pipelineCards = (pipeData ?? []).map((pc: any) => {
+    const pipelineCards = (pipeData as unknown as PipelineCardRow[] ?? []).map((pc: PipelineCardRow) => {
       let jobName = undefined;
       let jobId = undefined;
       let score = undefined;
@@ -283,16 +303,20 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
       notes: cand.notes || null,
       is_blacklisted: cand.is_blacklisted ?? false,
-      applications: validHistory.map((h: any) => ({
-        jobId: h.job_id,
-        jobName: h.job_name,
-        score: h.score,
-        appliedAt: h.analyzed_at,
-        skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-        experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-        education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-        redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
-      })),
+      applications: validHistory.map((h: HistoryEntry) => {
+        const hAny = h as unknown as Record<string, unknown>;
+        const histAnalysis = hAny['analysis'] as Record<string, unknown> | undefined;
+        return {
+          jobId: h.job_id,
+          jobName: (h['job_name'] as string) || '',
+          score: h.score ?? 0,
+          appliedAt: h.analyzed_at ?? '',
+          skills: toStr(hAny['skills'] ?? hAny['habilidades'] ?? histAnalysis?.['skills'] ?? histAnalysis?.['habilidades']),
+          experience: toStr(hAny['experience'] ?? hAny['experiencia'] ?? histAnalysis?.['experience'] ?? histAnalysis?.['experiencia']),
+          education: toStr(hAny['education'] ?? hAny['formacao'] ?? histAnalysis?.['education'] ?? histAnalysis?.['formacao']),
+          redFlags: toStr(hAny['redFlags'] ?? hAny['attention_points'] ?? histAnalysis?.['redFlags'] ?? histAnalysis?.['Pontos de atenção'] ?? histAnalysis?.['attention_points']),
+        };
+      }),
       pipelineCards,
       resume_url: cand.resume_url,
       enriched: true,
@@ -301,7 +325,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   }
 
   async function openCandidate(c: Candidate) {
-    const base: any = {
+    const base: Record<string, unknown> = {
       id: c.id,
       name: c.name,
       score: c.score,
@@ -309,7 +333,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       applications: [],
       hideBankButton: false
     };
-    setSelectedCandidate(base);
+    setSelectedCandidate(base as unknown as CandidateDetail);
     try {
       const extra = await enrichCandidate(c.id);
       setSelectedCandidate(prev => prev && prev.id === c.id ? { ...prev, ...extra } : prev);
@@ -650,9 +674,9 @@ export const Analises = () => {
       setJobs(jobsData.map(j => ({
         ...j,
         totalCandidates: countByJob[j.id] ?? 0,
-        topCandidates: (j.filters as any)?.best ?? 0,
+        topCandidates: (j.filters as { best?: number })?.best ?? 0,
       })));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar análises:', err);
       setError('Não foi possível carregar as análises.');
     } finally {
@@ -675,10 +699,10 @@ export const Analises = () => {
 
       if (affectedCandidates) {
         for (const candidate of affectedCandidates) {
-          const history: any[] = candidate.analysis?.history ?? [];
-          const hadJob = history.some((h: any) => h.job_id === jId);
+          const history = Array.isArray(candidate.analysis?.history) ? candidate.analysis.history : [];
+          const hadJob = history.some((h: { job_id: string }) => h.job_id === jId);
           if (hadJob) {
-            const newHistory = history.filter((h: any) => h.job_id !== jId);
+            const newHistory = history.filter((h: { job_id: string }) => h.job_id !== jId);
             await supabase
               .from('candidates')
               .update({ analysis: { ...candidate.analysis, history: newHistory } })
@@ -843,10 +867,10 @@ export const Analises = () => {
                             height: si % 7 === 0 ? 2 : 1, 
                             top: `${(si * 17) % 100}%`, 
                             left: `${(si * 37 + i * 13) % 100}%`, 
-                            '--duration': `${1.5 + (si % 4)}s`, 
-                            animationDelay: `${si * 0.1}s`, 
-                            opacity: (si % 5) * 0.1 
-                          } as any} 
+                            '--duration': `${1.5 + (si % 4)}s`,
+                            animationDelay: `${si * 0.1}s`,
+                            opacity: (si % 5) * 0.1
+                          } as React.CSSProperties}
                         />
                       ))}
                     </>
@@ -864,12 +888,12 @@ export const Analises = () => {
                         background: 'black',
                         backgroundImage: p.color, 
                         right: -15, 
-                        bottom: -15, 
-                        opacity: 1, 
-                        boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, 
+                        bottom: -15,
+                        opacity: 1,
+                        boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`,
                         zIndex: 2,
                         animation: 'float 25s ease-in-out infinite'
-                      } as any} 
+                      } as React.CSSProperties}
                     >
                       <PlanetOverlay type={p.name} />
                       {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
