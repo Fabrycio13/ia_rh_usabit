@@ -570,7 +570,7 @@ export function CandidatePanel({
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                             {Object.entries(c.answers)
-                                                .filter(([key]) => !key.startsWith('_') && !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .filter(([key]) => !['_ai_analysis', 'address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
                                                 .map(([key, value]) => {
                                                     const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
                                                     return (
@@ -1074,7 +1074,7 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                {!c.hideBankButton && c.status !== 'talent_bank' && (
+                {!c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
                     <div style={{ padding: '0 24px 32px' }}>
                         <button
                             onClick={() => setTransferringToBank(true)}
@@ -1104,6 +1104,7 @@ export function CandidatePanel({
                             Mover para Banco de Talentos
                         </button>
                     </div>
+                ) : null
                 )}
             </div>
 
@@ -1129,7 +1130,7 @@ export function CandidatePanel({
                         answers: { _ai_analysis: c.analysis }
                     }}
                     job={{
-                        id: currentJobContext?.id || c.applications[0]?.jobId || 'banco',
+                        id: currentJobContext?.id || c.applications[0]?.jobId,
                         title: currentJobContext?.title || c.applications[0]?.jobName || 'Banco de Talentos',
                         organization_id: profile.organization_id
                     }}

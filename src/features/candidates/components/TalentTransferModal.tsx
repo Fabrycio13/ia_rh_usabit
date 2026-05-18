@@ -3,6 +3,7 @@ import { X, CheckCircle2, AlertCircle, Loader, GitMerge as PipelineIcon, UserPlu
 import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
 import toast from 'react-hot-toast';
+import { logScreening, logActivity } from '../../../core/services/logger';
 
 interface TalentTransferModalProps {
     candidate: {
@@ -40,6 +41,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
     const [step, setStep] = useState<'confirm' | 'pipeline' | 'success'>('confirm');
     const [hasPipeline, setHasPipeline] = useState<boolean | null>(null);
     const [pipelineId, setPipelineId] = useState<string | null>(null);
+    const [pipelineName, setPipelineName] = useState<string | null>(null);
     const [creatingPipeline, setCreatingPipeline] = useState(false);
     interface Pipeline { id: string; name: string; organization_id: string }
     const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
@@ -64,6 +66,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                         const found = directPipes[0];
                         console.log('[checkPipeline] SUCESSO - Encontrado via vaga_id:', found.id);
                         setPipelineId(found.id);
+                        setPipelineName(found.name);
                         setHasPipeline(true);
                         // Sincronizar na vaga
                         await supabase.from('vagas_white_label').update({ pipeline_id: found.id }).eq('id', job.id);
@@ -81,6 +84,14 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                         console.log('[checkPipeline] SUCESSO - Encontrado via pipeline_id da vaga:', vaga.pipeline_id);
                         setPipelineId(vaga.pipeline_id);
                         setHasPipeline(true);
+
+                        const { data: pipeNameData } = await supabase
+                            .from('pipelines')
+                            .select('name')
+                            .eq('id', vaga.pipeline_id)
+                            .maybeSingle();
+                        setPipelineName(pipeNameData?.name || null);
+
                         return;
                     }
                 }
@@ -106,6 +117,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     if (match) {
                         console.log('[checkPipeline] SUCESSO - Match por nome encontrado:', match.name, match.id);
                         setPipelineId(match.id);
+                        setPipelineName(match.name);
                         setHasPipeline(true);
                         
                         // Sincronizar para o futuro se tivermos o UUID da vaga
@@ -169,6 +181,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
             if (colError) throw colError;
 
             setPipelineId(newPipelineId);
+            setPipelineName(`Pipeline - ${job.title}`);
             setHasPipeline(true);
 
             // VINCULAR PIPELINE À VAGA
@@ -200,6 +213,8 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 .eq('id', selectedExistingId);
 
             setPipelineId(selectedExistingId);
+            const selectedPipe = allPipelines.find(p => p.id === selectedExistingId);
+            setPipelineName(selectedPipe?.name || null);
             setHasPipeline(true);
             toast.success('Pipeline vinculado com sucesso!');
         } catch (err: unknown) {
@@ -311,7 +326,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 .upsert({
                     candidate_id: dbCandidate.id,
                     vaga_id: job.id,
-                    job_id: job.id,
                     user_id: profile.userId,
                     score: candidate.match_score || 0,
                     status: 'Banco de Talentos'
@@ -342,7 +356,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 if (!existingCard) {
                     const { data: firstCol } = await supabase
                         .from('pipeline_columns')
-                        .select('id')
+                        .select('id, name')
                         .eq('pipeline_id', pipelineId)
                         .order('position', { ascending: true })
                         .limit(1)
@@ -365,6 +379,17 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                                     selected_job_score: candidate.match_score
                                 })
                             });
+
+                        await logScreening(profile.userId, dbCandidate.id, 'inclusion', null, firstCol.name || 'Triagem', {
+                            job_id: job.id,
+                            job_name: job.title,
+                            pipeline_id: pipelineId,
+                            pipeline_name: pipelineName
+                        });
+                        await logActivity(profile.userId, `Iniciou triagem de "${candidate.name}" em "${pipelineName || job.title}"`, {
+                            pipeline_id: pipelineId,
+                            vaga_id: job.id
+                        });
                     }
                 }
             }

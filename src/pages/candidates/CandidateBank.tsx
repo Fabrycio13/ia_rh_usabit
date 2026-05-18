@@ -307,7 +307,9 @@ export const CandidateBank = () => {
         const rawHistory = Array.isArray(analysis?.history) ? analysis.history : [];
         console.log('[enrichCandidate] rawHistory IDs:', (rawHistory as HistoryEntry[]).map((h: HistoryEntry) => h.job_id));
 
-        const validHistory = rawHistory.filter((h: HistoryEntry) => h.job_id);
+        const validHistory = rawHistory.filter((h: HistoryEntry) =>
+            (h.job_id || (h as unknown as Record<string, string>).vaga_id) && validJobIds.has(h.job_id || (h as unknown as Record<string, string>).vaga_id)
+        );
         console.log('[enrichCandidate] validHistory count (unfiltered):', validHistory.length);
 
         const pipelineCards = (pipeData ?? []).map((pc: PipeDataRow) => {
