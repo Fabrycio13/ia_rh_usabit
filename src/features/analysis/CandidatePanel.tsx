@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
     Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
-    ChevronLeft, FileText
+    ChevronLeft, FileText, GitBranch
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -57,6 +57,15 @@ export function CandidatePanel({
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editText, setEditText] = useState('');
     const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
+    const [inputExpanded, setInputExpanded] = useState(false);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (inputExpanded && textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    }, [inputExpanded]);
 
     // Edição de campos do candidato
     const [editField, setEditField] = useState<string | null>(null);
@@ -210,6 +219,11 @@ export function CandidatePanel({
 
     const [expandedJob, setExpandedJob] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
+    useEffect(() => {
+      if (!c.isVagaView && c.applications?.length && activeTab === 'triagem') {
+        setActiveTab('vagas');
+      }
+    }, [c.applications]);
     const [vagasOpen, setVagasOpen] = useState(true);
 
     const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
@@ -286,6 +300,11 @@ export function CandidatePanel({
                 logActivity(profile.userId, `Adicionou um comentário em "${c.name}"`);
             }
         } finally { setSaving(false); }
+    }
+
+    function insertEmoji(emoji: string) {
+        setNewText(prev => prev + emoji);
+        setEmojiPickerOpen(false);
     }
 
     async function handleDelete(id: string) {
@@ -802,7 +821,7 @@ export function CandidatePanel({
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 16, background: 'var(--bg-main)', borderRadius: 12, padding: 4 }}>
                                     <button onClick={() => setActiveTab('vagas')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'vagas' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'vagas' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'vagas' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
                                         <Briefcase size={12} />
-                                        Vagas {c.applications.length > 0 && <span style={{ background: activeTab === 'vagas' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'vagas' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{c.applications.length}</span>}
+                                        Vagas {(c.applications.length || c.vagas?.length || 0) > 0 && <span style={{ background: activeTab === 'vagas' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'vagas' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{c.applications.length || c.vagas?.length}</span>}
                                     </button>
                                     <button onClick={() => setActiveTab('triagem')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'triagem' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'triagem' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'triagem' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
                                         <Activity size={12} />
@@ -856,7 +875,8 @@ export function CandidatePanel({
                                                                         <FileText size={14} />
                                                                     </button>
                                                                 )}
-                                                                <button onClick={e => { e.stopPropagation(); navigate(`/analise/${app.jobId}`); }} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><Eye size={14} /></button>
+                                                                <button onClick={e => { e.stopPropagation(); navigate(`/vagas/${app.jobId}/candidatos`); }} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><Eye size={14} /></button>
+                                                                <button onClick={e => { e.stopPropagation(); navigate('/pipeline'); }} title="Pipeline" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><GitBranch size={14} /></button>
                                                                 <span style={{ transition: 'transform 0.2s', transform: expandedJob === app.jobId ? 'rotate(180deg)' : 'none' }}>▾</span>
                                                             </div>
                                                         </div>
@@ -1053,18 +1073,100 @@ export function CandidatePanel({
                                     </div>
                                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                                         {renderAvatar({ name: profile.userName, avatarUrl: profile.avatarUrl, initials: profile.initials })}
-                                        <div style={{ flex: 1, position: 'relative' }}>
-                                            <textarea value={newText} onChange={e => setNewText(e.target.value)} placeholder="Adicione um comentário…" rows={3} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 16, padding: '12px 14px 44px', color: 'var(--text-main)', fontSize: 13, lineHeight: '1.6', resize: 'none', outline: 'none' }} />
-                                            <div style={{ position: 'absolute', right: 10, bottom: 10 }}>
-                                                <button
-                                                    onClick={handleAddComment}
-                                                    disabled={saving || !newText.trim()}
-                                                    className="publish-btn"
-                                                    style={{ border: 'none', borderRadius: 10, padding: '8px 20px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, opacity: newText.trim() ? 1 : 0.5 }}
-                                                >
-                                                    {saving ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <MessageSquare size={15} />}
-                                                    Publicar
-                                                </button>
+                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                            <div
+                                                onClick={() => setInputExpanded(true)}
+                                                style={{
+                                                    cursor: 'text',
+                                                    padding: '12px 14px',
+                                                    background: 'var(--bg-main)',
+                                                    border: '1px solid var(--border)',
+                                                    borderRadius: 16,
+                                                    color: 'var(--text-dim)',
+                                                    fontSize: 13,
+                                                    display: inputExpanded ? 'none' : 'block',
+                                                    transition: 'border-color 0.2s'
+                                                }}
+                                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                                            >
+                                                Adicione um comentário…
+                                            </div>
+                                            <div style={{
+                                                maxHeight: inputExpanded ? '250px' : '0',
+                                                opacity: inputExpanded ? 1 : 0,
+                                                overflow: 'hidden',
+                                                visibility: inputExpanded ? 'visible' : 'hidden',
+                                                transition: 'max-height 0.35s ease, opacity 0.3s ease'
+                                            }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <textarea
+                                                        ref={textareaRef}
+                                                        value={newText}
+                                                        onChange={e => setNewText(e.target.value)}
+                                                        placeholder="Adicione um comentário…"
+                                                        rows={3}
+                                                        onBlur={() => { if (!newText.trim()) setInputExpanded(false); }}
+                                                        style={{
+                                                            width: '100%', boxSizing: 'border-box',
+                                                            background: 'var(--bg-main)',
+                                                            border: '1px solid var(--border)',
+                                                            borderRadius: 16,
+                                                            padding: '12px 14px 44px',
+                                                            color: 'var(--text-main)',
+                                                            fontSize: 13, lineHeight: '1.6',
+                                                            resize: 'none', outline: 'none'
+                                                        }}
+                                                    />
+                                                    <div style={{ position: 'absolute', right: 10, bottom: 10, display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <button
+                                                                onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
+                                                                style={{
+                                                                    background: 'transparent', border: 'none',
+                                                                    cursor: 'pointer', color: 'var(--text-dim)',
+                                                                    padding: 4, display: 'flex'
+                                                                }}
+                                                            >
+                                                                <Smile size={18} />
+                                                            </button>
+                                                            {emojiPickerOpen && (
+                                                                <div style={{
+                                                                    position: 'absolute', bottom: '100%', right: 0,
+                                                                    display: 'flex', gap: 4, padding: '6px 8px',
+                                                                    background: 'var(--bg-card)',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: 12, marginBottom: 6,
+                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                                }}>
+                                                                    {['❤️', '👍', '💡', '👏', '😂', '😮', '🔥', '🚀'].map(emoji => (
+                                                                        <span
+                                                                            key={emoji}
+                                                                            onClick={() => insertEmoji(emoji)}
+                                                                            style={{ cursor: 'pointer', fontSize: 18, padding: 2 }}
+                                                                        >
+                                                                            {emoji}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => { handleAddComment(); setInputExpanded(false); setEmojiPickerOpen(false); }}
+                                                            disabled={saving || !newText.trim()}
+                                                            className="publish-btn"
+                                                            style={{
+                                                                border: 'none', borderRadius: 10, padding: '8px 20px',
+                                                                color: '#fff', fontSize: 12, fontWeight: 700,
+                                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7,
+                                                                opacity: newText.trim() ? 1 : 0.5
+                                                            }}
+                                                        >
+                                                            {saving ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <MessageSquare size={15} />}
+                                                            Publicar
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

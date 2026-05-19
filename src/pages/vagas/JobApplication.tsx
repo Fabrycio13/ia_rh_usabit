@@ -840,6 +840,13 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             };
 
             // 1. Salvar na tabela de candidaturas (vínculo com a vaga)
+            console.log('[DEBUG] Saving analysis to vagas_candidaturas:', {
+                hasAiResult: !!aiResult,
+                match_score: aiResult?.score,
+                hasAiAnalysis: !!finalAnswers._ai_analysis,
+                aiKeys: finalAnswers._ai_analysis ? Object.keys(finalAnswers._ai_analysis as object) : 'n/a'
+            });
+
             const { error: err } = await supabase.from('vagas_candidaturas').insert({
                 vaga_id: job!.id,
                 organization_id: job!.organization_id, // Adicionado vínculo direto com a org
@@ -882,21 +889,27 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     status: 'active',
                     // Sincronizar análise com o Banco de Talentos
                     skills: aiResult?.skills?.join(', ') || null,
-                    experience: aiResult?.summary || null,
+                    experience: aiResult?.experience || null,
                     analysis: aiResult ? {
                         skills: aiResult.skills?.join(', '),
-                        experience: aiResult.summary,
-                        positivePoints: aiResult.strengths,
-                        redFlags: aiResult.gaps,
+                        experience: aiResult.experience,
+                        education: aiResult.education,
+                        summary: aiResult.summary,
+                        classification: aiResult.classification,
+                        strengths: aiResult.strengths,
+                        gaps: aiResult.gaps,
                         history: [{
                             job_id: job!.id,
                             job_title: job!.title,
                             score: aiResult.score,
                             date: new Date().toISOString(),
+                            classification: aiResult.classification,
+                            summary: aiResult.summary,
                             skills: aiResult.skills?.join(', '),
-                            experience: aiResult.summary,
-                            positivePoints: aiResult.strengths,
-                            redFlags: aiResult.gaps
+                            experience: aiResult.experience,
+                            education: aiResult.education,
+                            strengths: aiResult.strengths,
+                            gaps: aiResult.gaps
                         }]
                     } : null
                 }, {

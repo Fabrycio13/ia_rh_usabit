@@ -640,7 +640,14 @@ ${basePrompt}
         // Log do JSON RAW para debug
         console.log('[CV Analyzer] RAW JSON from AI:', content);
 
-        const parsed = JSON.parse(content) as AnalysisResult;
+        let parsed: AnalysisResult;
+        try {
+          parsed = JSON.parse(content) as AnalysisResult;
+        } catch {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error("IA não retornou JSON válido.");
+          parsed = JSON.parse(jsonMatch[0]) as AnalysisResult;
+        }
         
         // Log para debug de consistência
         console.log('[CV Analyzer] Parsed Result:', {
