@@ -16,7 +16,7 @@ export async function callOpenAI(messages: OpenAIMessage[], model = 'gpt-4o') {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session?.access_token}`,
     },
-    body: JSON.stringify({ messages, model }),
+    body: JSON.stringify({ messages, model, max_tokens: 8192 }),
   });
   if (!response.ok) throw new Error(`OpenAI proxy error: ${response.status}`);
   return response.json();

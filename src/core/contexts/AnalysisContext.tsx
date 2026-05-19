@@ -20,6 +20,11 @@ export interface Candidate {
     experience: string | null;
     education: string | null;
     attention_points: string | null;
+    summary?: string | null;
+    strengths?: string[];
+    gaps?: string[];
+    classification?: string | null;
+    recommendation?: string | null;
     source: 'pdf' | 'excel';
     resumeUrl: string | null;
     resume_file_name?: string | null;
@@ -278,6 +283,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             experience: combinedExperience,
                             education: c.education,
                             attention_points: combinedAttentionPoints,
+                            summary: c.summary || null,
+                            strengths: Array.isArray(c.strengths) ? c.strengths : [],
+                            gaps: Array.isArray(c.gaps) ? c.gaps : [],
+                            classification: c.classification || null,
+                            recommendation: c.recommendation || null,
                             source: mode,
                             resumeUrl: resumeUrl,
                             resume_file_name: mode === 'pdf' ? files[idx].name : null,
@@ -330,6 +340,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             experience: normalizedCandidate.experience,
                             education: normalizedCandidate.education,
                             redFlags: normalizedCandidate.attention_points,
+                            summary: normalizedCandidate.summary,
+                            strengths: normalizedCandidate.strengths,
+                            gaps: normalizedCandidate.gaps,
+                            classification: normalizedCandidate.classification,
+                            recommendation: normalizedCandidate.recommendation,
                             score: normalizedCandidate.score,
                             job_id: jobData.id,
                             job_name: name,

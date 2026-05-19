@@ -303,6 +303,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
       notes: cand.notes || null,
       is_blacklisted: cand.is_blacklisted ?? false,
+      analysis: cand.analysis || {},
       applications: validHistory.map((h: HistoryEntry) => {
         const hAny = h as unknown as Record<string, unknown>;
         const histAnalysis = hAny['analysis'] as Record<string, unknown> | undefined;
@@ -315,6 +316,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           experience: toStr(hAny['experience'] ?? hAny['experiencia'] ?? histAnalysis?.['experience'] ?? histAnalysis?.['experiencia']),
           education: toStr(hAny['education'] ?? hAny['formacao'] ?? histAnalysis?.['education'] ?? histAnalysis?.['formacao']),
           redFlags: toStr(hAny['redFlags'] ?? hAny['attention_points'] ?? histAnalysis?.['redFlags'] ?? histAnalysis?.['Pontos de atenção'] ?? histAnalysis?.['attention_points']),
+          positivePoints: toStr(hAny['strengths'] ?? hAny['positivePoints'] ?? histAnalysis?.['strengths'] ?? histAnalysis?.['positivePoints']),
         };
       }),
       pipelineCards,

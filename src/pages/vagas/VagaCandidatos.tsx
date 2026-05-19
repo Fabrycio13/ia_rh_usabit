@@ -172,9 +172,20 @@ export const VagaCandidatos = () => {
 
     const fetchCandidateDetail = async (c: Candidato) => {
         try {
-            const answersRaw = c.answers ?? {};
+            const answersRaw = (typeof c.answers === 'string' ? JSON.parse(c.answers) : c.answers) ?? {};
             const aiRaw = (c.ai_analysis ?? {}) as Record<string, unknown>;
-            const aiFromAnswers = answersRaw['_ai_analysis'] as Record<string, unknown> | undefined;
+            const aiFromAnswersRaw = answersRaw['_ai_analysis'];
+            const aiFromAnswers = (typeof aiFromAnswersRaw === 'string' ? JSON.parse(aiFromAnswersRaw) : aiFromAnswersRaw) as Record<string, unknown> | undefined;
+
+            console.log('[DEBUG] fetchCandidateDetail:', {
+                hasAnswers: !!c.answers,
+                answersType: typeof c.answers,
+                answersKeys: typeof c.answers === 'object' && c.answers ? Object.keys(c.answers) : 'n/a',
+                hasAiFromAnswers: !!aiFromAnswers,
+                aiFromAnswersKeys: aiFromAnswers && typeof aiFromAnswers === 'object' ? Object.keys(aiFromAnswers) : 'n/a',
+                hasAiRaw: Object.keys(aiRaw).length > 0,
+                match_score: c.match_score
+            });
 
             const detail: CandidateDetail = {
                 id: c.id, 
@@ -203,7 +214,7 @@ export const VagaCandidatos = () => {
                 notes: c.internal_notes || null,
                 resume_url: c.resume_url,
                 enriched: true,
-                analysis: aiRaw || aiFromAnswers || null,
+                analysis: (aiFromAnswers && typeof aiFromAnswers === 'object' && Object.keys(aiFromAnswers).length > 0) ? aiFromAnswers : (aiRaw || null),
                 conversations: [],
                 hideBankButton: c.status === 'talent_bank',
                 isVagaView: true,

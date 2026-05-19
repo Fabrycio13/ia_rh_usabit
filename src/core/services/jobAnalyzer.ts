@@ -225,7 +225,14 @@ messages.push({
         const content = data.choices[0].message.content;
         if (!content) throw new Error("A IA não retornou conteúdo.");
 
-        const parsed = JSON.parse(content) as JobMatchResult;
+        let parsed: JobMatchResult;
+        try {
+          parsed = JSON.parse(content) as JobMatchResult;
+        } catch {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error("IA não retornou JSON válido.");
+          parsed = JSON.parse(jsonMatch[0]) as JobMatchResult;
+        }
         console.log("[Job Analyzer] Resumo do Match:", parsed);
         
         return parsed;
