@@ -36,6 +36,7 @@ import DatePicker from '../../common/components/ui/DatePicker';
 
 import { Vagas } from './Vagas';
 import { PortalPreview } from './PortalPreview';
+
 import { useLocation } from 'react-router-dom';
 
 export const CareerPortalHub = () => {
@@ -43,12 +44,13 @@ export const CareerPortalHub = () => {
     const location = useLocation();
     
     // Tabs state
-    const [activeTab, setActiveTab] = useState<'vagas' | 'design'>('vagas');
+    const [activeTab, setActiveTab] = useState<'vagas' | 'pool' | 'design'>('vagas');
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
-        if (tab === 'design') setActiveTab('design');
+        if (tab === 'pool') setActiveTab('pool');
+        else if (tab === 'design') setActiveTab('design');
         else if (tab === 'vagas') setActiveTab('vagas');
     }, [location]);
     const [designSubTab, setDesignSubTab] = useState<'portal' | 'vagas'>('portal');
@@ -340,7 +342,7 @@ export const CareerPortalHub = () => {
                     </div>
                     <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginTop: '6px' }}>Gerencie suas oportunidades e personalize seu portal de carreiras.</p>
                 </div>
-                {(activeTab === 'vagas' || activeTab === 'design') && (
+                {(activeTab === 'vagas' || activeTab === 'pool' || activeTab === 'design') && (
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <button 
                             onClick={copyPortalLink}
@@ -362,13 +364,20 @@ export const CareerPortalHub = () => {
 
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '32px' }}>
-                <button onClick={() => setActiveTab('vagas')} style={tabStyle(activeTab === 'vagas')}>Vagas</button>
+                <button onClick={() => setActiveTab('vagas')} style={tabStyle(activeTab === 'vagas')}>Gestão de Vagas</button>
+                <button onClick={() => setActiveTab('pool')} style={tabStyle(activeTab === 'pool')}>Pool de Talentos</button>
                 <button disabled style={{ ...tabStyle(activeTab === 'design'), opacity: 0.5, cursor: 'not-allowed' }} title="Em breve">Personalizar Design</button>
             </div>
 
             {activeTab === 'vagas' ? (
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
                     <Vagas hideHeader={true} />
+                </div>
+            ) : activeTab === 'pool' ? (
+                <div style={{ animation: 'fadeIn 0.3s ease-out', padding: '80px 40px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📥</div>
+                    <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Pool de Talentos</h2>
+                    <p style={{ color: 'var(--text-dim)', fontSize: '14px', maxWidth: '400px', margin: '0 auto' }}>Espaço para receber currículos de candidatos que não se enquadram em nenhuma vaga específica. Configure em breve.</p>
                 </div>
             ) : (
                 <div style={{ animation: 'fadeIn 0.3s ease-out', position: 'relative' }}>
