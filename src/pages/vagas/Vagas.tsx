@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
-import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X } from 'lucide-react';
+import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Mail } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -83,6 +83,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [pipelineDeleteModalOpen, setPipelineDeleteModalOpen] = useState(false);
     const [vagaForPipelineDelete, setVagaForPipelineDelete] = useState<string | null>(null);
     const [deletingPipeline, setDeletingPipeline] = useState(false);
+
+    // States for Thank You Email Modal
+    const [closeEmailVaga, setCloseEmailVaga] = useState<{ id: string; title: string } | null>(null);
+    const [closeEmailVagaCount, setCloseEmailVagaCount] = useState<number | null>(null);
+    const [sendingCloseEmails, setSendingCloseEmails] = useState(false);
+    const [userOrgId, setUserOrgId] = useState<string>('');
     
     // Filtros Avançados
     const [userRole, setUserRole] = useState<string>('');
@@ -127,8 +133,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .single();
                 
                 const role = profile?.user_role || 'rh';
-                const userOrgId = profile?.organization_id;
+                const fetchedOrgId = profile?.organization_id;
                 setUserRole(role);
+                setUserOrgId(fetchedOrgId || '');
 
                 // 2. Se for Owner, buscar organizações
                 if (role === 'owner') {
@@ -316,6 +323,21 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             if (status === 'cancelada' || status === 'fechada') {
                 setVagaForPipelineDelete(id);
                 setPipelineDeleteModalOpen(true);
+                
+                // Buscar organization_id se ainda não tiver
+                if (!userOrgId) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('organization_id')
+                            .eq('id', user.id)
+                            .single();
+                        if (profile?.organization_id) {
+                            setUserOrgId(profile.organization_id);
+                        }
+                    }
+                }
             }
 
             setVagas(prev => prev.map(v =>
@@ -363,12 +385,34 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         } finally {
             setDeletingPipeline(false);
             setPipelineDeleteModalOpen(false);
+            const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
+            if (vaga) {
+                const { count } = await supabase
+                    .from('vagas_candidaturas')
+                    .select('id', { count: 'exact' })
+                    .eq('vaga_id', vagaForPipelineDelete!)
+                    .eq('organization_id', userOrgId || '')
+                    .neq('status', 'talent_bank');
+                setCloseEmailVagaCount(count || 0);
+                setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
+            }
             setVagaForPipelineDelete(null);
         }
     };
 
-    const cancelPipelineDelete = () => {
+    const cancelPipelineDelete = async () => {
         setPipelineDeleteModalOpen(false);
+        const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
+        if (vaga) {
+            const { count } = await supabase
+                .from('vagas_candidaturas')
+                .select('id', { count: 'exact' })
+                .eq('vaga_id', vagaForPipelineDelete!)
+                .eq('organization_id', userOrgId || '')
+                .neq('status', 'talent_bank');
+            setCloseEmailVagaCount(count || 0);
+            setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
+        }
         setVagaForPipelineDelete(null);
     };
 
@@ -402,6 +446,54 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         navigator.clipboard.writeText(getPublicJobUrl(hash));
         toast.success('Link copiado!');
     };
+
+    async function sendCloseEmails(vagaId: string, vagaTitle: string, organizationId: string) {
+        if (sendingCloseEmails) return;
+        setSendingCloseEmails(true);
+        try {
+            const { data: candidates } = await supabase
+                .from('vagas_candidaturas')
+                .select('candidate_name, candidate_email')
+                .eq('vaga_id', vagaId)
+                .eq('organization_id', organizationId)
+                .neq('status', 'talent_bank');
+
+            if (!candidates?.length) {
+                toast.success('Nenhum candidato pendente para enviar e-mail');
+                setCloseEmailVaga(null);
+                setCloseEmailVagaCount(null);
+                return;
+            }
+
+            const results = await Promise.allSettled(
+                candidates.map(c =>
+                    supabase.functions.invoke('send-candidate-thankyou-email', {
+                        body: {
+                            candidateName: c.candidate_name,
+                            candidateEmail: c.candidate_email,
+                            jobTitle: vagaTitle,
+                        }
+                    })
+                )
+            );
+
+            const sent = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+
+            if (failed > 0) {
+                toast.success(`${sent} e-mails enviados, ${failed} falhas`);
+            } else {
+                toast.success(`${sent} e-mail${sent !== 1 ? 's' : ''} de agradecimento enviado${sent !== 1 ? 's' : ''}`);
+            }
+        } catch (err) {
+            console.error('Erro ao enviar e-mails:', err);
+            toast.error('Erro ao enviar e-mails');
+        } finally {
+            setSendingCloseEmails(false);
+            setCloseEmailVaga(null);
+            setCloseEmailVagaCount(null);
+        }
+    }
 
     // Lógica de Filtragem Avançada
     const filteredVagas = vagas.filter(vaga => {
@@ -1409,6 +1501,52 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     Não, manter histórico do Pipeline
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Thank You Email Modal */}
+            {closeEmailVaga && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'fadeIn 0.2s ease-out' }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', textAlign: 'center', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                        <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                            <Mail size={40} color="var(--primary)" />
+                        </div>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Enviar e-mails de agradecimento?</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
+                            Deseja enviar e-mails de agradecimento para os candidatos que não foram selecionados para o Banco de Talentos?
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <button
+                                onClick={() => {
+                                    if (sendingCloseEmails) return;
+                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, userOrgId);
+                                }}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: sendingCloseEmails ? '#6366f1' : 'var(--primary)',
+                                    border: 'none', borderRadius: 12, color: '#fff',
+                                    cursor: sendingCloseEmails ? 'not-allowed' : 'pointer',
+                                    fontSize: 16, fontWeight: 700,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                                    opacity: sendingCloseEmails ? 0.7 : 1
+                                }}
+                            >
+                                {sendingCloseEmails ? 'Enviando...' : `Sim, enviar para ${closeEmailVagaCount ?? '...'} candidato${closeEmailVagaCount !== 1 ? 's' : ''}`}
+                            </button>
+                            <button
+                                onClick={() => { setCloseEmailVaga(null); setCloseEmailVagaCount(null); }}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: 'transparent', border: '1px solid var(--border)', borderRadius: 12,
+                                    color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+                                    opacity: sendingCloseEmails ? 0.5 : 1
+                                }}
+                            >
+                                Não
+                            </button>
                         </div>
                     </div>
                 </div>
