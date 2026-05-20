@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { formatSalary } from '../../core/utils/jobFormatter';
@@ -47,12 +47,24 @@ export const OrganizationCareerPage = () => {
     const [activeCategory, setActiveCategory] = useState('Todos');
     const [error, setError] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const tabsRef = useRef<HTMLDivElement>(null);
+    const [tabsOverflowing, setTabsOverflowing] = useState(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    useEffect(() => {
+        const el = tabsRef.current;
+        if (!el) return;
+        const check = () => setTabsOverflowing(el.scrollWidth > el.clientWidth);
+        check();
+        const observer = new ResizeObserver(check);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [vagas]);
 
     useEffect(() => {
         if (orgInfo?.name) {
@@ -181,8 +193,8 @@ export const OrganizationCareerPage = () => {
                     <path d="M-1304.14 405.498C-1197.64 48.9343 -644.279 -100.653 -68.1689 71.3844C507.941 243.422 888.637 671.939 782.139 1028.5C675.642 1385.07 122.279 1534.65 -453.831 1362.62C-1029.94 1190.58 -1410.64 762.061 -1304.14 405.498Z" fill="url(#paint0_radial_career_ultra)"/>
                     <defs>
                         <radialGradient id="paint0_radial_career_ultra" cx="0" cy="0" r="1" gradientTransform="matrix(192.831 -645.616 1043.14 311.502 -261 717)" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#2C58FD"/>
-                            <stop offset="1" stop-color="#1A3597" stop-opacity="0"/>
+                            <stop stopColor="#2C58FD"/>
+                            <stop offset="1" stopColor="#1A3597" stopOpacity="0"/>
                         </radialGradient>
                     </defs>
                 </svg>
@@ -201,6 +213,13 @@ export const OrganizationCareerPage = () => {
                 h1, h2, h3, h4 { 
                     font-family: 'Space Grotesk', sans-serif !important; 
                     color: #ffffff !important;
+                }
+
+                .category-tabs-container {
+                    scrollbar-width: none;
+                }
+                .category-tabs-container::-webkit-scrollbar {
+                    display: none;
                 }
                 
                 .category-tab {
@@ -281,15 +300,19 @@ export const OrganizationCareerPage = () => {
 
             <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
                 {/* Tabs de Categoria */}
-                <div style={{ 
+                <div 
+                    ref={tabsRef}
+                    className="category-tabs-container"
+                    style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    justifyContent: 'center',
-                    gap: isMobile ? '10px' : '40px', 
-                    marginBottom: '60px', 
+                    justifyContent: isMobile ? 'center' : (tabsOverflowing ? 'flex-start' : 'center'),
+                    flexWrap: isMobile ? 'wrap' : 'nowrap',
+                    gap: isMobile ? '8px' : '40px', 
+                    marginBottom: isMobile ? '40px' : '60px', 
                     borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                    overflowX: 'auto',
-                    scrollbarWidth: 'none'
+                    overflowX: isMobile ? 'hidden' : (tabsOverflowing ? 'auto' : 'hidden'),
+                    padding: isMobile ? '0 0 12px 0' : (tabsOverflowing ? '0 32px' : '0')
                 }}>
                     {categories.map(cat => {
                         const isActive = activeCategory === cat;

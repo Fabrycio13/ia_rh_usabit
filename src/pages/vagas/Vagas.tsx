@@ -70,7 +70,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [openStatusId, setOpenStatusId] = useState<string | null>(null);
-    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; openUpward: boolean } | null>(null);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [vagaToDelete, setVagaToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -881,9 +881,17 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                                     const btn = statusBtnRefs.current[vaga.id];
                                                     if (btn) {
                                                         const rect = btn.getBoundingClientRect();
+                                                        const STATUS_ITEMS = 5;
+                                                        const ITEM_HEIGHT = 42;
+                                                        const DROPDOWN_PAD = 12;
+                                                        const estimatedHeight = DROPDOWN_PAD + STATUS_ITEMS * ITEM_HEIGHT;
+                                                        const spaceBelow = window.innerHeight - rect.bottom;
+                                                        const spaceAbove = rect.top;
+                                                        const openUpward = spaceBelow < estimatedHeight && spaceAbove >= estimatedHeight;
                                                         setDropdownPos({
-                                                            top: rect.bottom + 8,
+                                                            top: openUpward ? rect.top - 8 : rect.bottom + 8,
                                                             left: rect.left + rect.width / 2,
+                                                            openUpward,
                                                         });
                                                     }
                                                     setOpenStatusId(vaga.id);
@@ -1223,7 +1231,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             position: 'fixed',
                             top: dropdownPos.top,
                             left: dropdownPos.left,
-                            transform: 'translateX(-50%)',
+                            transform: `translateX(-50%) ${dropdownPos.openUpward ? 'translateY(-100%)' : ''}`,
                             background: 'var(--bg-card)',
                             border: '1px solid var(--border)',
                             borderRadius: '10px',
