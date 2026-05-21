@@ -9,7 +9,7 @@ import { hasPermission } from './core/config/permissions';
 import { Login } from './pages/auth/Login';
 import { LandingPage } from './pages/marketing/LandingPage';
 import { Dashboard } from './pages/dashboard/Dashboard';
-import { Analises, JobDetailView } from './pages/analysis/Analises';
+import { JobDetailView } from './pages/analysis/Analises';
 import { CandidateBank } from './pages/candidates/CandidateBank';
 import { AnaliseNova } from './pages/analysis/AnaliseNova';
 import { Configuracoes } from './pages/settings/Configuracoes';
@@ -29,6 +29,7 @@ import { PublicJobPage } from './pages/vagas/PublicJobPage';
 import { JobApplication } from './pages/vagas/JobApplication';
 import { OrganizationCareerPage } from './pages/vagas/OrganizationCareerPage';
 import { CareerPortalHub } from './pages/vagas/CareerPortalHub';
+import { SpontaneousApplication } from './pages/vagas/SpontaneousApplication';
 import { Toaster } from 'react-hot-toast';
 import { OnboardingModal } from './common/components/OnboardingModal';
 
@@ -76,6 +77,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
                 <Route path="/v/:hash" element={<PublicJobPage />} />
                 <Route path="/v/:hash/candidatar" element={<JobApplication />} />
                 <Route path="/carreiras/:orgId" element={<OrganizationCareerPage />} />
+                <Route path="/carreiras/:orgId/candidatar" element={<SpontaneousApplication />} />
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
@@ -84,7 +86,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
                     <Route path="/vagas/nova" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/editar/:id" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/:id/candidatos" element={hasPermission(profile.user_role, 'vagas') ? <VagaCandidatos /> : <Navigate to="/dashboard" />} />
-                    <Route path="/analises" element={hasPermission(profile.user_role, 'analises') ? <Analises /> : <Navigate to="/dashboard" />} />
+                    <Route path="/analises" element={<Navigate to="/vagas?tab=analises" replace />} />
                     <Route path="/candidatos" element={hasPermission(profile.user_role, 'candidatos') ? <CandidateBank /> : <Navigate to="/dashboard" />} />
                     <Route path="/analise/nova" element={hasPermission(profile.user_role, 'analises') ? <AnaliseNova /> : <Navigate to="/dashboard" />} />
                     <Route path="/analise/:jobId" element={hasPermission(profile.user_role, 'analises') ? <JobDetailRoute /> : <Navigate to="/dashboard" />} />

@@ -2,16 +2,16 @@ import { supabase } from './supabase';
 
 /**
  * Tools available for the AI Assistant to query Supabase data.
- * These functions are scoped to the provided userId for security.
+ * The RLS policies (multitenancy_policy) automatically scope queries
+ * to the user's organization — no manual userId/orgId filters needed.
  */
 
-export const get_assistant_tools = (userId: string) => {
+export const get_assistant_tools = () => {
     return {
         list_jobs: async () => {
             const { data, error } = await supabase
                 .from('jobs')
                 .select('id, name, created_at')
-                .eq('user_id', userId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -19,19 +19,14 @@ export const get_assistant_tools = (userId: string) => {
         },
 
         search_candidates: async (params: { query?: string; jobName?: string; location?: string }) => {
-            let query = supabase
+            let q = supabase
                 .from('candidates')
-                .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))')
-                .eq('user_id', userId);
+                .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))');
 
-            if (params.query) {
-                query = query.ilike('name', `%${params.query}%`);
-            }
-            if (params.location) {
-                query = query.ilike('location', `%${params.location}%`);
-            }
+            if (params.query) q = q.ilike('name', `%${params.query}%`);
+            if (params.location) q = q.ilike('location', `%${params.location}%`);
 
-            const { data, error } = await query.order('score', { ascending: false });
+            const { data, error } = await q.order('score', { ascending: false });
             if (error) throw error;
 
             type CandidateRow = { id: string; name?: string; email?: string; location?: string; score?: number; job_candidates?: { jobs?: { name?: string } }[] };
@@ -46,7 +41,7 @@ export const get_assistant_tools = (userId: string) => {
                 );
             }
 
-            return filtered.slice(0, 10); // Limit to top 10 for context window safety
+            return filtered.slice(0, 10);
         },
 
         get_candidate_details: async (params: { candidateId: string }) => {
@@ -54,7 +49,6 @@ export const get_assistant_tools = (userId: string) => {
                 .from('candidates')
                 .select('*')
                 .eq('id', params.candidateId)
-                .eq('user_id', userId)
                 .single();
 
             if (error) throw error;
@@ -62,22 +56,33 @@ export const get_assistant_tools = (userId: string) => {
         },
 
         get_dashboard_stats: async () => {
-            // 1. Jobs count
-            const { count: jobsCount } = await supabase
-                .from('jobs')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId);
-
-            // 2. Candidates count
-            const { count: candidatesCount } = await supabase
-                .from('candidates')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userId);
+            const [{ count: jobsCount }, { count: candidatesCount }] = await Promise.all([
+                supabase.from('jobs').select('*', { count: 'exact', head: true }),
+                supabase.from('candidates').select('*', { count: 'exact', head: true })
+            ]);
 
             return {
                 total_vagas: jobsCount ?? 0,
                 total_candidatos: candidatesCount ?? 0,
             };
+        },
+
+        get_job_candidate_counts: async () => {
+            const { data: jobs, error: jobsError } = await supabase
+                .from('jobs')
+                .select('id, name');
+
+            if (jobsError) throw jobsError;
+
+            const result = await Promise.all((jobs || []).map(async (job) => {
+                const { count } = await supabase
+                    .from('job_candidates')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('job_id', job.id);
+                return { id: job.id, name: job.name, candidate_count: count ?? 0 };
+            }));
+
+            return result.sort((a, b) => b.candidate_count - a.candidate_count);
         }
     };
 };
@@ -125,6 +130,14 @@ export const toolDefinitions: {
     {
         name: "get_dashboard_stats",
         description: "Retorna estatísticas rápidas do dashboard (total de vagas e candidatos).",
+        parameters: {
+            type: "OBJECT",
+            properties: {},
+        },
+    },
+    {
+        name: "get_job_candidate_counts",
+        description: "Retorna a contagem de candidatos por vaga, ordenada da que tem mais candidatos para a que tem menos. Útil para saber qual vaga é mais popular.",
         parameters: {
             type: "OBJECT",
             properties: {},
@@ -191,6 +204,18 @@ export const openAiToolDefinitions: {
         function: {
             name: "get_dashboard_stats",
             description: "Retorna estatísticas rápidas do dashboard (total de vagas e candidatos).",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: [],
+            },
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_job_candidate_counts",
+            description: "Retorna a contagem de candidatos por vaga, ordenada da que tem mais candidatos para a que tem menos. Útil para saber qual vaga é mais popular.",
             parameters: {
                 type: "object",
                 properties: {},

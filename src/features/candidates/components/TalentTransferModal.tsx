@@ -321,15 +321,29 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
             if (!dbCandidate) throw new Error('Falha ao salvar candidato');
 
             // 1.5. Vincular à vaga no Banco de Talentos (tabela job_candidates)
+            // job.id pode ser de vagas_white_label (vaga_id) ou jobs (job_id)
+            const { data: vagaExists } = await supabase
+                .from('vagas_white_label')
+                .select('id')
+                .eq('id', job.id)
+                .maybeSingle();
+
+            const jcPayload: Record<string, unknown> = {
+                candidate_id: dbCandidate.id,
+                user_id: profile.userId,
+                score: candidate.match_score || 0,
+                status: 'Banco de Talentos'
+            };
+
+            if (vagaExists) {
+                jcPayload.vaga_id = job.id;
+            } else {
+                jcPayload.job_id = job.id;
+            }
+
             const { error: jcError } = await supabase
                 .from('job_candidates')
-                .upsert({
-                    candidate_id: dbCandidate.id,
-                    vaga_id: job.id,
-                    user_id: profile.userId,
-                    score: candidate.match_score || 0,
-                    status: 'Banco de Talentos'
-                }, { onConflict: 'candidate_id,vaga_id' });
+                .upsert(jcPayload, { onConflict: vagaExists ? 'candidate_id,vaga_id' : 'candidate_id,job_id' });
             
             if (jcError) {
                 toast.error('Erro ao vincular vaga ao banco: ' + jcError.message);
@@ -380,7 +394,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                                 })
                             });
 
-                        await logScreening(profile.userId, dbCandidate.id, 'inclusion', null, firstCol.name || 'Triagem', {
+                        await logScreening(profile.userId, dbCandidate.id, 'inclusion', null, `${firstCol.name || 'Triagem'} - ${pipelineName || job.title}`, {
                             job_id: job.id,
                             job_name: job.title,
                             pipeline_id: pipelineId,

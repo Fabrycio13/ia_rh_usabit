@@ -367,10 +367,65 @@ export const OrganizationCareerPage = () => {
                                 </div>
                             </div>
                         ))
-                    )}
+)}
+                </div>
+
+                {/* Trabalhe Conosco */}
+                <div style={{
+                    marginTop: '80px',
+                    textAlign: 'center',
+                    padding: '60px 0',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '24px'
+                }}>
+                    <h2 style={{
+                        fontSize: isMobile ? '28px' : '36px',
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        margin: 0,
+                        textAlign: 'center'
+                    }}>
+                        Trabalhe conosco
+                    </h2>
+                    <p style={{
+                        maxWidth: '500px',
+                        fontSize: '16px',
+                        color: '#94a3b8',
+                        lineHeight: 1.6,
+                        margin: 0
+                    }}>
+                        Não encontrou uma vaga ideal? Cadastre seu currículo e entraremos em contato caso surja uma oportunidade.
+                    </p>
+                    <button
+                        onClick={() => navigate(`/carreiras/${orgId}/candidatar`)}
+                        style={{
+                            background: '#2C58FD',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '14px 28px',
+                            borderRadius: '10px',
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            marginTop: '8px',
+                            transition: 'all 0.3s',
+                            boxShadow: '0 8px 24px rgba(44, 88, 253, 0.25)'
+                        }}
+                    >
+                        Cadastrar currículo
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </button>
                 </div>
             </div>
-
 
             <footer style={{ padding: '60px 24px 24px', textAlign: 'center', color: '#475569', fontSize: '13px', position: 'relative', zIndex: 1 }}>
                 <p>Powered by <strong>Space Talent</strong></p>

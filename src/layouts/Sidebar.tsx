@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, memo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase, Bell, X } from 'lucide-react';
+import { LayoutGrid, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase, Bell, X } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
@@ -335,10 +335,6 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <NavItem to="/vagas" icon={Briefcase} label={t('vagas')} collapsed={collapsed} />
                     )}
                     
-                    {/* Análises - admin, rh e gestor */}
-                    {hasPermission(profile.user_role, 'analises') && (
-                        <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
-                    )}
                     
                     {/* Candidatos - admin, rh e gestor */}
                     {hasPermission(profile.user_role, 'candidatos') && (
@@ -350,10 +346,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} />
                     )}
                     
-                    {/* Chat - apenas admin e gestor (premium) */}
-                    {hasPermission(profile.user_role, 'chat') && (
-                        <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} disabled={!profile.isPremium} />
-                    )}
+                    {/* Chat - desabilitado por enquanto */}
 
                     {/* Admin section - apenas admin */}
                     {hasPermission(profile.user_role, 'admin') && (

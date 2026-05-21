@@ -176,8 +176,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           .select('id, name, created_at, organization_id')
           .eq('id', jobId);
 
-        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização (ou as que eles mesmos criaram)
-        if (profile.user_role !== 'owner' && profile.organization_id) {
+        // ISOLAMENTO: Todos os usuários veem apenas jobs da sua organização (ou os que eles mesmos criaram)
+        if (profile.organization_id) {
           jobQuery = jobQuery.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
         }
 
@@ -218,10 +218,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               age: c.age ?? null,
               gender: c.gender ?? null,
               score,
-              skills: analysis['skills'] as string | null ?? null,
-              experience: analysis['experience'] as string | null ?? null,
-              education: analysis['education'] as string | null ?? null,
-              attention_points: analysis['redFlags'] as string | null ?? null,
+              skills: (analysis['skills'] ?? analysis['Skills'] ?? analysis['habilidades'] ?? analysis['Habilidades']) as string | null ?? null,
+              experience: (analysis['experience'] ?? analysis['Experience'] ?? analysis['experiencia'] ?? analysis['Experiencia']) as string | null ?? null,
+              education: (analysis['education'] ?? analysis['Education'] ?? analysis['formacao'] ?? analysis['Formacao'] ?? analysis['Formação'] ?? null) as string | null ?? null,
+              attention_points: (analysis['redFlags'] ?? analysis['RedFlags(Pontos de atenção)'] ?? analysis['Pontos de atenção'] ?? analysis['pontos_de_atencao']) as string | null ?? null,
               resumeUrl: null,
               isBlacklisted: c.is_blacklisted,
               conversations: c.conversations,
@@ -272,9 +272,15 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
     if (!cand) return { enriched: true };
 
-    const analysis = cand.analysis ?? {};
+    let analysis: Record<string, unknown>;
+    try {
+      analysis = (typeof cand.analysis === 'string' ? JSON.parse(cand.analysis) : (cand.analysis ?? {})) as Record<string, unknown>;
+    } catch {
+      analysis = {};
+    }
+    console.log('[enrich] cand.analysis keys:', Object.keys(analysis), ' education:', analysis?.education, ' raw:', analysis);
     const validJobIds = new Set((jcData ?? []).map((jc: JCDataRow) => jc.job_id));
-    const rawHistory: HistoryEntry[] = analysis?.history ?? [];
+    const rawHistory: HistoryEntry[] = (analysis?.history ?? []) as HistoryEntry[];
     const validHistory = rawHistory.filter((h: HistoryEntry) => h.job_id && validJobIds.has(h.job_id));
 
     const pipelineCards = (pipeData as unknown as PipelineCardRow[] ?? []).map((pc: PipelineCardRow) => {
@@ -294,12 +300,17 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       email: toStr(cand.email) || '',
       location: toStr(cand.location) || null,
       address: toStr(cand.address) || null,
+      linkedin: toStr(cand.linkedin) || null,
+      portfolio: toStr(cand.portfolio) || null,
+      cep: toStr(cand.cep) || null,
+      address_number: toStr(cand.address_number) || null,
+      complement: toStr(cand.complement) || null,
       age: toStr(cand.age) || null,
       gender: toStr(cand.gender) || null,
       phone: toStr(cand.phone) || null,
       skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
       experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
-      education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
+      education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? analysis?.['Formação'] ?? cand.education ?? cand.formacao ?? cand.Formação),
       redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
       notes: cand.notes || null,
       is_blacklisted: cand.is_blacklisted ?? false,
@@ -321,7 +332,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       }),
       pipelineCards,
       resume_url: cand.resume_url,
-      hideBankButton: true,
+      hideBankButton: !jobId,
       enriched: true,
       conversations: convData || []
     };
@@ -334,7 +345,6 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       score: c.score,
       enriched: false,
       applications: [],
-      hideBankButton: true
     };
     setSelectedCandidate(base as unknown as CandidateDetail);
     try {
@@ -604,6 +614,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
+          currentJobContext={{ id: jobId, title: job?.name || '' }}
+          onTransferSuccess={() => setSelectedCandidate(null)}
         />
       )}
     </div>
@@ -611,7 +623,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 }
 
 // ─── Main List ─────────────────────────────────────────────────────────────────
-export const Analises = () => {
+export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
   const navigate = useNavigate();
   const { profile } = useUser();
   const { bgTheme } = useTheme();
@@ -777,18 +789,20 @@ export const Analises = () => {
       <style>{planetCss}</style>
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-            <Activity size={32} style={{ color: 'var(--primary)' }} />
-            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-              IA Análise de Currículos
-            </h1>
+        {!hideHeader && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+              <Activity size={32} style={{ color: 'var(--primary)' }} />
+              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                IA Análise de Currículos
+              </h1>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+              Gerencie e analise currículos de forma inteligente.
+            </p>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
-            Gerencie e analise currículos de forma inteligente.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
+        )}
+        <div className="flex items-center gap-4" style={{ marginLeft: hideHeader ? 'auto' : undefined }}>
           <div style={{ position: 'relative' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
             <input

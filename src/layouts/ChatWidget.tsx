@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { AI_SYSTEM_PROMPT } from '../core/config/aiPrompt';
 import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
-import { type OpenAIMessage } from '../core/services/aiClient';
+import { type OpenAIMessage } from '../core/services/ai/types';
 
 interface ChatMessage {
     id: string;
@@ -42,7 +42,10 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         dangerouslyAllowBrowser: true
     });
 
-    const assistantTools = get_assistant_tools(profile.userId || '');
+    const assistantTools = get_assistant_tools();
+    const orgContext = profile.organization_name
+        ? `\n## ORGANIZAÇÃO ATUAL\nVocê está prestando serviços para a organização "${profile.organization_name}" (ID: ${profile.organization_id}).\nTodas as consultas ao banco de dados são automaticamente filtradas para os dados desta organização. Nunca acesse dados de fora dela.\n`
+        : '';
 
     useEffect(() => {
         const style = document.createElement('style');
@@ -78,7 +81,7 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             }
 
             const apiMessages: OpenAIMessage[] = [
-                { role: 'system', content: AI_SYSTEM_PROMPT },
+                { role: 'system', content: AI_SYSTEM_PROMPT + orgContext },
                 ...messages.map(m => ({
                     role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
                     content: m.text
@@ -98,7 +101,8 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
             while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
                 apiMessages.push({
                     role: (assistantMessage.role ?? 'assistant') as 'assistant',
-                    content: assistantMessage.content ?? ''
+                    content: assistantMessage.content ?? '',
+                    tool_calls: assistantMessage.tool_calls as OpenAIMessage['tool_calls']
                 });
 
                 for (const toolCall of (assistantMessage.tool_calls as unknown as Array<{ id: string; function: { name: string; arguments: string } }>)) {
@@ -128,6 +132,7 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                     model: "gpt-4o-mini",
                     messages: apiMessages as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
                     tools: openAiToolDefinitions as unknown as OpenAI.Chat.ChatCompletionTool[],
+                    tool_choice: "auto",
                 });
                 assistantMessage = response.choices[0].message;
             }

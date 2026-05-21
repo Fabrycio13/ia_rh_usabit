@@ -29,8 +29,8 @@ const allTabs: TabItem[] = [
 // Abas visíveis para cada perfil
 const getVisibleTabs = (userRole: string): TabItem[] => {
     const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis', 'aparencia'].includes(tab.key));
-    // Owner e Gestor veem API e Plano
-    if (userRole === 'owner' || userRole === 'gestor') {
+    // Apenas Owner veem API e Plano
+    if (userRole === 'owner') {
         return [...baseTabs, ...allTabs.filter(tab => ['api', 'plano'].includes(tab.key))];
     }
     return baseTabs;
@@ -213,7 +213,7 @@ const roleDefinitions = [
 
 export const Configuracoes = () => {
     const { profile, refetch } = useUser();
-    const { theme, toggleTheme, bgTheme, setBgTheme } = useTheme();
+    const { theme, toggleTheme, bgTheme, setBgTheme, customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabKey>('perfil');
     const [loading, setLoading] = useState(true);
@@ -973,8 +973,8 @@ export const Configuracoes = () => {
 
                     {/* Personalização de Cores */}
                     {(() => {
-                        // eslint-disable-next-line react-hooks/rules-of-hooks
-                        const { customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
+                        const handlePrimary = (e: React.SyntheticEvent<HTMLInputElement>) => setCustomPrimaryColor((e.target as HTMLInputElement).value);
+                        const handleText = (e: React.SyntheticEvent<HTMLInputElement>) => setCustomTextColor((e.target as HTMLInputElement).value);
                         return (
                             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
                                 <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1004,13 +1004,14 @@ export const Configuracoes = () => {
                                             </div>
                                             <div>
                                                 <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor Principal</p>
-                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Botões e destaques</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Botões, abas, destaques e bordas</p>
                                             </div>
                                         </div>
                                         <input 
                                             type="color" 
                                             value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')} 
-                                            onChange={(e) => setCustomPrimaryColor(e.target.value)}
+                                            onChange={handlePrimary}
+                                            onInput={handlePrimary}
                                             style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
                                         />
                                     </div>
@@ -1023,13 +1024,14 @@ export const Configuracoes = () => {
                                             </div>
                                             <div>
                                                 <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor do Texto</p>
-                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Títulos e conteúdos</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Títulos, legendas, textos de apoio — afeta toda a tipografia</p>
                                             </div>
                                         </div>
                                         <input 
                                             type="color" 
-                                            value={customTextColor || (theme === 'dark' ? '#ffffff' : '#0f172a')} 
-                                            onChange={(e) => setCustomTextColor(e.target.value)}
+                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')} 
+                                            onChange={handleText}
+                                            onInput={handleText}
                                             style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
                                         />
                                     </div>

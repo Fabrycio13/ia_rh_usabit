@@ -168,16 +168,11 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .eq('is_active', true)
                     .order('created_at', { ascending: false });
 
-                // ISOLAMENTO: Usuários que não são Owners só veem vagas da sua organização
-                // Adicionamos um OR para que o criador (user_id) sempre veja sua própria vaga
-                if (role !== 'owner') {
-                    if (userOrgId && userOrgId !== 'null') {
-                        // Filtra por org OU por ser o criador
-                        query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
-                    } else {
-                        // Se não tem org, vê apenas o que criou
-                        query = query.eq('user_id', user.id);
-                    }
+                // ISOLAMENTO: Todos os usuários veem apenas vagas da sua organização
+                if (userOrgId && userOrgId !== 'null') {
+                    query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
+                } else {
+                    query = query.eq('user_id', user.id);
                 }
                 
                 const { data, error } = await query;

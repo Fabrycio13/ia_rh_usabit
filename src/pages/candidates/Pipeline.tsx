@@ -522,7 +522,8 @@ export const Pipeline = () => {
                         });
                         if (profile.userId) {
                             const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
-                            logScreening(profile.userId, card.candidate_id, 'move', sourceCol?.name, targetCol?.name, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name });
+                            const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
+                            logScreening(profile.userId, card.candidate_id, 'move', `${sourceCol?.name || ''}${pipeSuffix}`, `${targetCol?.name || ''}${pipeSuffix}`, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name });
                             logActivity(profile.userId, `Moveu "${card.candidate_name}" para "${targetCol?.name || 'Etapa'}" no processo "${pipe?.name || 'Pipeline'}"`);
                         }
                     }
@@ -960,7 +961,7 @@ export const Pipeline = () => {
                 cand.id,
                 'inclusion',
                 null,
-                targetCol?.name || 'Pipeline',
+                `${targetCol?.name || 'Triagem'} - ${targetPipe?.name || 'Pipeline'}`,
                 { 
                     job_name: jobInfo?.jobName, 
                     job_id: jobInfo?.jobId, 
@@ -1096,12 +1097,14 @@ export const Pipeline = () => {
         checkApprovalEmail({ ...card, column_id: targetColId }, targetCol?.name || '');
 
         if (profile.userId) {
+            const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
+            const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
             logScreening(
                 profile.userId,
                 card.candidate_id,
                 'move',
-                sourceCol?.name,
-                targetCol?.name,
+                `${sourceCol?.name || ''}${pipeSuffix}`,
+                `${targetCol?.name || ''}${pipeSuffix}`,
                 { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name }
             );
         }
@@ -1637,6 +1640,8 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                 const isBlacklisted = card.is_blacklisted;
                                 const score = card.display_job_score ?? card.candidate_score;
                                 const scoreCol = scoreColor(score);
+                                let importedFrom = '';
+                                try { const n = JSON.parse(card.notes || '{}'); importedFrom = n.imported_from || ''; } catch { /* ignore */ }
                                 return (
                                     <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
                                         <div>
@@ -1648,6 +1653,11 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                     {card.candidate_name}
                                                 </span>
                                                 {isBlacklisted && <Ban size={14} color="#ef4444" />}
+                                                {importedFrom && (
+                                                    <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: 6, marginLeft: 4 }}>
+                                                        ← {importedFrom}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div style={{ color: 'var(--text-dim)', fontSize: 13, paddingLeft: 2 }}>
                                                 Clique para ver detalhes do perfil

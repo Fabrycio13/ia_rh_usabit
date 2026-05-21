@@ -867,10 +867,9 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             
             if (err) throw err;
 
-            // 2. UPSERT automático no Banco de Talentos (tabela candidates)
-            // Isso garante que o candidato já "nasça" no banco vinculado à organização
+            // 2. UPSERT automático no Banco de Talentos via Edge Function (bypassa RLS)
             if (job!.organization_id) {
-                await supabase.from('candidates').upsert({
+                const candidatePayload = {
                     email: formData.email,
                     organization_id: job!.organization_id,
                     name: formData.name,
@@ -878,6 +877,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     location: formData.location || null,
                     linkedin: formData.linkedin || null,
                     resume_url: resumeUrl,
+                    resume_file_name: resumeFile.name,
                     gender: formData.gender || null,
                     age: formData.age || null,
                     address: formData.address || null,
@@ -885,9 +885,8 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     cep: formData.cep || null,
                     address_number: formData.addressNumber || null,
                     complement: formData.complement || null,
-                    vaga_id: job!.id, // Vaga de origem
+                    vaga_id: job!.id,
                     status: 'active',
-                    // Sincronizar análise com o Banco de Talentos
                     skills: aiResult?.skills?.join(', ') || null,
                     experience: aiResult?.experience || null,
                     analysis: aiResult ? {
@@ -912,9 +911,23 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                             gaps: aiResult.gaps
                         }]
                     } : null
-                }, {
-                    onConflict: 'email,organization_id'
+                };
+
+                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(candidatePayload)
                 });
+
+                if (!res.ok) {
+                    const errBody = await res.text();
+                    console.error('submit-candidate error:', res.status, errBody);
+                    throw new Error('Erro ao salvar candidato no banco de talentos');
+                }
             }
             setSubmitted(true);
 
