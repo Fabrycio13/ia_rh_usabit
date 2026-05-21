@@ -329,6 +329,7 @@ export const CandidateBank = () => {
           ...prev,
           phone: toStr(cd?.phone) ?? null,
           address: toStr(cd?.address) ?? null,
+          analysis: cd?.analysis ?? {},
           skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as unknown as CandidateRow)?.skills),
           experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as unknown as CandidateRow)?.experience),
           education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as unknown as CandidateRow)?.education),
@@ -691,6 +692,14 @@ export const CandidateBank = () => {
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
+          }}
+          onDeleteFromBank={async (id) => {
+            await Promise.all([
+              supabase.from('candidates').delete().eq('id', id),
+              supabase.from('job_candidates').delete().eq('candidate_id', id)
+            ]);
+            setSelected(null);
+            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
           }}
         />
       )}

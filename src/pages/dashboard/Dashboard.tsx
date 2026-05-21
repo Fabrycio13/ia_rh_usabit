@@ -241,12 +241,10 @@ export const Dashboard = () => {
         .from('vagas_white_label')
         .select('id, title, created_at, organization_id');
       
-      if (profile.user_role !== 'owner') {
-        if (profile.organization_id && profile.organization_id !== 'null') {
-          query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
-        } else {
-          query = query.eq('user_id', profile.userId);
-        }
+      if (profile.organization_id && profile.organization_id !== 'null') {
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
+      } else {
+        query = query.eq('user_id', profile.userId);
       }
 
       const { data: whiteLabelData, error: we } = await query
