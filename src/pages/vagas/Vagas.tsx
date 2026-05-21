@@ -300,12 +300,14 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             if (vagaError) throw vagaError;
 
             // Atualizar pipeline associado (se existir)
-            if (status === 'pausada' || status === 'cancelada' || status === 'fechada') {
-                // Desativar pipeline
+            if (status === 'pausada') {
+                // Desativar pipeline (só pausada desativa sem confirmacao)
                 await supabase
                     .from('pipelines')
                     .update({ is_active: false })
                     .eq('vaga_id', id);
+            } else if (status === 'cancelada' || status === 'fechada') {
+                // Ainda nao desativa — aguarda confirmacao do modal
             } else {
                 // Reativar pipeline
                 await supabase
