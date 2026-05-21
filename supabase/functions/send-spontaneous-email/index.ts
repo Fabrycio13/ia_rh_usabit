@@ -47,9 +47,7 @@ serve(async (req) => {
         <div style="max-width: 600px; margin: 0 auto; background: #0b111a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 48px 40px; text-align: left; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
             
             <div style="text-align: center; margin-bottom: 48px;">
-                <img src="https://usabit.com.br/wp-content/uploads/2022/02/Logo-Usabit-White.png" 
-                     alt="Usabit Global" 
-                     style="height: 32px; width: auto; display: block; margin: 0 auto;" />
+                <img src="https://raw.githubusercontent.com/Fabrycio13/ia_rh_usabit/fix/remediation-sprint/public/logos/usabit-logo.svg" alt="Usabit Global" style="height: 32px; width: auto; display: block; margin: 0 auto;" />
             </div>
             
             <div style="background: linear-gradient(135deg, rgba(44, 88, 253, 0.15) 0%, transparent 100%); border-radius: 20px; padding: 2px; margin-bottom: 32px;">

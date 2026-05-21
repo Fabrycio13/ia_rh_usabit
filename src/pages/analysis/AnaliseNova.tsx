@@ -951,7 +951,7 @@ export const AnaliseNova = () => {
                                             <FileSpreadsheet size={14} /> Excel Padronizado
                                         </span>
                                         <button
-                                            onClick={() => window.open('/template_analise.xlsx', '_blank')}
+                                            onClick={() => window.open('/docs/template_analise.xlsx', '_blank')}
                                             style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#1a1c27', border: '1px solid #2d3147', borderRadius: 6, padding: '4px 10px', color: '#94a3b8', fontSize: 11, cursor: 'pointer' }}
                                         >
                                             <Download size={11} /> Baixar Exemplo

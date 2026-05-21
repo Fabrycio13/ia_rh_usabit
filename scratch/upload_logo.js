@@ -24,7 +24,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function uploadLogo() {
-  const filePath = path.join('public', 'Usabit.svg');
+  const filePath = path.join('public', 'logos/usabit-logo.svg');
   if (!fs.existsSync(filePath)) {
     console.error("File not found:", filePath);
     process.exit(1);
@@ -32,11 +32,11 @@ async function uploadLogo() {
 
   const fileBuffer = fs.readFileSync(filePath);
   
-  console.log("Uploading Usabit.svg to 'organizations' bucket...");
+  console.log("Uploading logos/usabit-logo.svg to 'organizations' bucket...");
 
   const { data, error } = await supabase.storage
     .from('organizations')
-    .upload('Usabit.svg', fileBuffer, {
+    .upload('logos/usabit-logo.svg', fileBuffer, {
       contentType: 'image/svg+xml',
       upsert: true
     });
@@ -47,7 +47,7 @@ async function uploadLogo() {
     console.log("Success! File uploaded:", data);
     const { data: publicUrl } = supabase.storage
       .from('organizations')
-      .getPublicUrl('Usabit.svg');
+      .getPublicUrl('logos/usabit-logo.svg');
     console.log("Public URL:", publicUrl.publicUrl);
   }
 }

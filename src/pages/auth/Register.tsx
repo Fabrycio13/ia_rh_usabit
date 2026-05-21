@@ -183,7 +183,7 @@ export const Register = () => {
                         marginBottom: '10px'
                     }}>
                         <img
-                            src={`${import.meta.env.BASE_URL}space-talent-favicon.svg`}
+                            src={`${import.meta.env.BASE_URL}logos/space-talent-favicon.svg`}
                             alt="Logo"
                             style={{ width: 44, height: 44 }}
                         />

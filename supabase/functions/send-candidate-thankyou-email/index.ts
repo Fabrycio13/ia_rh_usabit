@@ -50,9 +50,7 @@ serve(async (req) => {
             
             <!-- Header/Logo -->
             <div style="text-align: center; margin-bottom: 48px;">
-                <img src="https://usabit.com.br/wp-content/uploads/2022/02/Logo-Usabit-White.png" 
-                     alt="Usabit Global" 
-                     style="height: 32px; width: auto; display: block; margin: 0 auto; color: #ffffff; font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: bold;" />
+                <img src="https://raw.githubusercontent.com/Fabrycio13/ia_rh_usabit/fix/remediation-sprint/public/logos/usabit-logo.svg" alt="Usabit Global" style="height: 32px; width: auto; display: block; margin: 0 auto;" />
             </div>
             
             <!-- Content Card -->

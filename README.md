@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/banner.png" alt="Space Talent Banner" width="100%">
+  <img src="public/docs/banner.png" alt="Space Talent Banner" width="100%">
 </p>
 
 <h1 align="center">🚀 Space Talent AI</h1>
