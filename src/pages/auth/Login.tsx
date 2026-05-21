@@ -73,7 +73,7 @@ export const Login = () => {
 
                     <div className="relative w-full max-w-[850px] leading-0">
                         <img
-                            src={`${import.meta.env.BASE_URL}hr-illustration.png`}
+                            src={`${import.meta.env.BASE_URL}illustrations/hr-illustration.png`}
                             alt="RH com IA"
                             className="w-full block mx-auto"
                         />
@@ -101,7 +101,7 @@ export const Login = () => {
                 <div className="w-full max-w-[520px] bg-white rounded-3xl px-11 py-13 shadow-[0_30px_80px_rgba(0,0,0,0.4)]">
                     <div className="text-center mb-0 mt-[-20px] overflow-hidden">
                         <img
-                            src={`${import.meta.env.BASE_URL}usabit-logo.png`}
+                            src={`${import.meta.env.BASE_URL}logos/usabit-logo.png`}
                             alt="usabit"
                             className="w-full max-w-[200px] h-auto object-contain inline-block mix-blend-multiply contrast-125 brightness-110 mx-auto translate-x-[10px]"
                         />
