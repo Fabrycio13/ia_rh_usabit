@@ -5,9 +5,14 @@ export interface Candidate {
     email: string;
     location: string | null;
     address: string | null;
+    linkedin?: string | null;
     age: string | null;
     gender: string | null;
     score: number | null;
+    portfolio?: string | null;
+    cep?: string | null;
+    address_number?: string | null;
+    complement?: string | null;
     vagas: string[];
     interview_eligible: boolean;
     is_blacklisted?: boolean;
@@ -22,6 +27,9 @@ export interface Application {
     experience?: string | null;
     education?: string | null;
     redFlags?: string | null;
+    jobCode?: string;
+    resume_url?: string | null;
+    positivePoints?: string | null;
 }
 
 export interface CandidateDetail extends Candidate {
@@ -35,7 +43,13 @@ export interface CandidateDetail extends Candidate {
     notes: string | null;
     resume_url?: string | null;
     enriched: boolean;
-    conversations?: any[];
+    analysis?: Record<string, unknown>;
+    conversations?: unknown[];
+    hideBankButton?: boolean;
+    isVagaView?: boolean;
+    status?: string;
+    answers?: Record<string, string> | null;
+    questionLabels?: Record<string, string>;
 }
 
 export interface Comment {
@@ -63,9 +77,11 @@ export function formatDate(iso: string) {
 }
 
 /** Separa qualquer texto de skills em chips individuais */
-export function parseSkills(raw: string | null | undefined): string[] {
+export function parseSkills(raw: string | string[] | null | undefined): string[] {
     if (!raw) return [];
-    let cleaned = raw
+    if (Array.isArray(raw)) return raw.map(s => s.trim()).filter(s => s.length > 1);
+    
+    const cleaned = raw
         .replace(/experiência em/gi, '')
         .replace(/conhecimento em/gi, '')
         .replace(/domínio de/gi, '')
@@ -101,7 +117,7 @@ export function relativeTime(iso: string): string {
     return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-export function toStr(v: any): string | null {
+export function toStr(v: unknown): string | null {
     if (!v) return null;
     if (typeof v === 'string') return v;
     if (Array.isArray(v)) return v.join(', ');

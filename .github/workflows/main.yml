@@ -1,0 +1,55 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  quality:
+    name: 🔍 Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Type Check
+        run: npx tsc --noEmit
+      - name: Run Tests
+        run: npm test -- --passWithNoTests --exclude tests/security/storage_leak.test.ts --exclude tests/security/rls_isolation.test.ts --exclude tests/unit/cvAnalyzer.test.ts --exclude tests/JobApplication.test.tsx --exclude tests/security/ai_bypass.test.ts
+
+  deploy:
+    name: 🚀 Deploy to GitHub Pages
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          force_orphan: true

@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
+import { useUser } from '../../core/contexts/UserContext';
 import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database, ChevronDown } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 
@@ -7,7 +9,7 @@ interface LogEntry {
     id: string;
     user_id: string;
     action: string;
-    details: any;
+    details: unknown;
     error: string | null;
     created_at: string;
     profiles?: {
@@ -19,6 +21,10 @@ interface LogEntry {
 }
 
 export const AdminLogs = () => {
+    const { profile } = useUser();
+    const userRole = profile.user_role;
+    const userOrgId = profile.organization_id;
+
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -49,22 +55,21 @@ export const AdminLogs = () => {
     const fetchLogs = async () => {
         setLoading(true);
         
-        let result = await supabase
+        let query = supabase
             .from('activity_logs')
             .select(`
                 *,
-                profiles (name, email, organization_id, organization_name)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(500); // Aumentado para suportar paginação local em mais dados
+                profiles!inner (name, email, organization_id, organization_name)
+            `);
         
-        if (result.error) {
-            result = await supabase
-                .from('activity_logs')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(500);
+        // ISOLAMENTO: Apenas Owner vê logs de tudo. Gestor vê apenas sua org.
+        if (userRole !== 'owner' && userOrgId) {
+            query = query.eq('profiles.organization_id', userOrgId);
         }
+
+        const result = await query
+            .order('created_at', { ascending: false })
+            .limit(500);
         
         if (result.data) {
             const data = result.data as LogEntry[];
@@ -154,28 +159,29 @@ export const AdminLogs = () => {
     return (
         <div style={{ width: '100%', margin: '0' }}>
             <style>{`
-                .cs-container { position: relative; }
+                .cs-container { position: relative; width: 220px; display: flex; align-items: center; gap: 12px; }
                 .cs-trigger { 
                     display: flex; align-items: center; justify-content: space-between;
-                    background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
-                    border-radius: 12px; padding: 8px 14px; color: var(--text-main);
-                    font-size: 13px; cursor: pointer; transition: all 0.2s ease;
+                    background: var(--bg-input); border: 1px solid var(--border);
+                    border-radius: 10px; padding: 10px 16px; color: var(--text-main);
+                    font-size: 14px; cursor: pointer; transition: all 0.2s ease;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                    white-space: nowrap; flex: 1; height: 44px;
                 }
-                .cs-trigger:hover { border-color: var(--primary); background: rgba(255, 255, 255, 0.06); }
+                .cs-trigger:hover { border-color: var(--primary); }
                 .cs-dropdown {
-                    position: absolute; top: calc(100% + 8px); left: 0; right: 0;
-                    background: #1a1f2e; border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 12px; padding: 6px; z-index: 1000;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                    backdrop-filter: blur(16px); animation: csSlideUp 0.15s ease-out;
-                    min-width: 200px;
+                    position: absolute; top: calc(100% + 8px); left: 0; min-width: 100%;
+                    background: var(--bg-card); border: 1px solid var(--border);
+                    border-radius: 12px; padding: 8px; z-index: 1000;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+                    backdrop-filter: blur(16px); animation: csSlideUp 0.2s ease-out;
                 }
                 .cs-item {
                     display: flex; align-items: center; gap: 10px;
-                    padding: 8px 12px; border-radius: 8px; color: var(--text-dim);
+                    padding: 10px 12px; border-radius: 8px; color: var(--text-dim);
                     font-size: 13px; cursor: pointer; transition: all 0.15s;
                 }
-                .cs-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+                .cs-item:hover { background: var(--row-hover); color: var(--text-main); }
                 .cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
                 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
                 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -220,41 +226,43 @@ export const AdminLogs = () => {
 
                     <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Filtrar por:</span>
                     
-                    {/* Organization Selector - CUSTOM PREMIUM SELECT */}
-                    <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
-                        <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                                <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações'}
-                                </span>
-                            </div>
-                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none', opacity: 0.6, flexShrink: 0 }} />
-                        </div>
-
-                        {isOrgOpen && (
-                            <div className="cs-dropdown">
-                                <div 
-                                    className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
-                                    onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
-                                >
-                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
-                                    Todas as Organizações
+                    {/* Organization Selector - Apenas para Owner */}
+                    {userRole === 'owner' && (
+                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
+                            <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                                    <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {organizations.find(o => o.id === selectedOrgId)?.name || 'Todas as Organizações'}
+                                    </span>
                                 </div>
-                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
-                                {organizations.map(org => (
-                                    <div 
-                                        key={org.id} 
-                                        className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
-                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); setCurrentPage(1); }}
-                                    >
-                                        <div className="cs-dot" style={{ background: '#10b981' }} />
-                                        {org.name}
-                                    </div>
-                                ))}
+                                <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOrgOpen ? 'rotate(180deg)' : 'none', opacity: 0.6, flexShrink: 0 }} />
                             </div>
-                        )}
-                    </div>
+
+                            {isOrgOpen && (
+                                <div className="cs-dropdown">
+                                    <div 
+                                        className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
+                                        onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
+                                    >
+                                        <div className="cs-dot" style={{ background: 'var(--primary)' }} />
+                                        Todas as Organizações
+                                    </div>
+                                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }} />
+                                    {organizations.map(org => (
+                                        <div 
+                                            key={org.id} 
+                                            className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
+                                            onClick={() => { setSelectedOrgId(org.id); setIsOrgOpen(false); setCurrentPage(1); }}
+                                        >
+                                            <div className="cs-dot" style={{ background: '#10b981' }} />
+                                            {org.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* User Search */}
                     <div style={{ position: 'relative', width: '200px' }}>

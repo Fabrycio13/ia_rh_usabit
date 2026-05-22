@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
-  X, Eye, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { AddCandidateModal } from '../../common/components/AddCandidateModal';
+import { hasPermission } from '../../core/config/permissions';
+import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
 
 const PAGE_SIZE = 10;
 
@@ -16,9 +17,7 @@ function initials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
 }
 
-/** Separa qualquer texto de skills em chips individuais */
-
-function toStr(v: any): string | null {
+function toStr(v: unknown): string | null {
   if (!v) return null;
   if (typeof v === 'string') return v;
   if (Array.isArray(v)) return v.join(', ');
@@ -26,6 +25,10 @@ function toStr(v: any): string | null {
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
+interface JCDataRow { job_id?: string; vaga_id?: string }
+interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
+interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
+interface HistoryEntry { job_id: string; job_name?: string; job_title?: string; score?: number; match_score?: number; analyzed_at?: string; date?: string; created_at?: string; skills?: string; habilidades?: string; summary?: string; experience?: string; experiencia?: string; strengths?: string; positivePoints?: string; pontos_positivos?: string; positive_points?: string; education?: string; formacao?: string; gaps?: string; redFlags?: string; pontos_atencao?: string; attention_points?: string; job_code?: string; code?: string; resume_url?: string | null }
 interface Candidate {
   id: string;
   name: string;
@@ -34,45 +37,22 @@ interface Candidate {
   address: string | null;
   age: string | null;
   gender: string | null;
+  portfolio: string | null;
+  cep: string | null;
+  address_number: string | null;
+  complement: string | null;
   score: number | null;
   vagas: string[];
   interview_eligible: boolean;
   is_blacklisted: boolean;
   resume_url?: string | null;
+  resume_file_name?: string | null;
   phone?: string | null;
-  conversations?: any[];
-}
-
-interface Application {
-  jobId: string;
-  jobName: string;
-  score: number;
-  appliedAt: string;
-  skills?: string | null;
-  experience?: string | null;
-  education?: string | null;
-  redFlags?: string | null;
-}
-
-interface CandidateDetail extends Candidate {
-  phone: string | null;
-  skills: string | null;
-  experience: string | null;
-  education: string | null;
-  redFlags: string | null;
-  applications: Application[];
-  notes: string | null;
-  enriched: boolean;
-  pipelineCards?: any[];
+  conversations?: unknown[];
 }
 
 type SortKey = 'name' | 'location' | 'age' | null;
 type SortDir = 'asc' | 'desc';
-
-// ─── Tipos de Comentário ──────────────────────────────────────────────────────
-
-
-
 
 // ─── Sort indicator ───────────────────────────────────────────────────────────
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
@@ -82,12 +62,67 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 
 // ─── SelectFilter ─────────────────────────────────────────────────────────────
 function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: value ? 'var(--text-main)' : 'var(--text-dim)', fontSize: 12, outline: 'none', cursor: 'pointer', minWidth: 110 }}>
-      <option value="">{placeholder}</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
+    <div ref={ref} style={{ width: '160px', position: 'relative' }}>
+      <div onClick={() => setIsOpen(!isOpen)} style={{ 
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: '8px', padding: '7px 12px', color: value ? 'var(--text-main)' : 'var(--text-dim)',
+          fontSize: '12px', cursor: 'pointer', height: '34px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          transition: 'all 0.2s'
+      }}>
+         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value || placeholder}</span>
+         <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
+      </div>
+      {isOpen && (
+          <div style={{ 
+              position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '100%',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: '10px', padding: '6px', zIndex: 1000,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+              maxHeight: '240px', overflowY: 'auto'
+          }}>
+             <div
+                 onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                 style={{ 
+                     padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                     color: value === '' ? '#3b82f6' : 'var(--text-dim)',
+                     background: value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                     fontWeight: value === '' ? 600 : 400
+                 }} onClick={() => { onChange(''); setIsOpen(false); }}>
+                 {placeholder}
+             </div>
+             {options.map(o => (
+                <div key={o}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    style={{ 
+                        padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                        color: value === o ? '#3b82f6' : 'var(--text-dim)',
+                        background: value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        fontWeight: value === o ? 600 : 400
+                    }} onClick={() => { onChange(o); setIsOpen(false); }}>
+                    {o}
+                </div>
+             ))}
+          </div>
+      )}
+    </div>
   );
 }
 
@@ -119,12 +154,12 @@ export const CandidateBank = () => {
     try {
       const stored = localStorage.getItem(`fav-${profile.userId}`);
       if (stored) setFavorites(JSON.parse(stored));
-    } catch { }
+    } catch { /* ignore */ }
   }, [profile.userId]);
 
   const toggle = (id: string) => setFavorites(prev => {
     const next = { ...prev, [id]: !prev[id] };
-    try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { }
+    try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { /* ignore */ }
     return next;
   });
 
@@ -137,22 +172,19 @@ export const CandidateBank = () => {
   }, [profile.userId, profile.loaded, profile.user_role]);
 
   async function fetchCandidates(userId: string, userRole?: string) {
-    // Owner vê TODOS; gestor/rh veem sua org; outros filtram por user_id
     const isGlobalViewer = userRole === 'owner';
     const isOrgMember = userRole === 'gestor' || userRole === 'rh';
     try {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, score, interview_eligible, is_blacklisted, resume_url, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
-        if (isOrgMember && profile.organization_id) {
-          // Gestor/RH veem candidatos da sua organização
+        if (isOrgMember && profile.organization_id && profile.organization_id !== 'null') {
           query = query.eq('organization_id', profile.organization_id);
         } else {
-          // Convidado ou sem org — só vê os próprios
           query = query.eq('user_id', userId);
         }
       }
@@ -160,10 +192,9 @@ export const CandidateBank = () => {
       const { data, error } = await query;
 
       if (error) {
-        // Fallback sem join
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, age, gender, score, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name))')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -173,28 +204,11 @@ export const CandidateBank = () => {
           }
         }
         const { data: fallback } = await fallbackQuery;
-        setCandidates((fallback ?? []).map((c: any) => ({
-          id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-          age: c.age, gender: c.gender, score: c.score,
-          interview_eligible: false,
-          is_blacklisted: false,
-          phone: c.phone,
-          conversations: c.conversations,
-          vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
-        })));
+        setCandidates((fallback ?? []) as unknown as Candidate[]);
         return;
       }
 
-      setCandidates((data ?? []).map((c: any) => ({
-        id: c.id, name: c.name, email: c.email, location: c.location, address: c.address,
-        age: c.age, gender: c.gender, score: c.score,
-        interview_eligible: c.interview_eligible ?? false,
-        is_blacklisted: c.is_blacklisted ?? false,
-        resume_url: c.resume_url,
-        phone: c.phone,
-        conversations: c.conversations,
-        vagas: (c.job_candidates ?? []).map((jc: any) => jc.jobs?.name).filter(Boolean),
-      })));
+      setCandidates((data ?? []) as unknown as Candidate[]);
     } finally {
       setLoading(false);
     }
@@ -210,7 +224,7 @@ export const CandidateBank = () => {
           setSelected(prev => prev ? { ...prev, is_blacklisted: newVal } : null);
         }
       }
-    } catch { }
+    } catch { /* ignore */ }
   }
 
   const handleSort = (col: SortKey) => {
@@ -234,20 +248,19 @@ export const CandidateBank = () => {
     if (filterGender) list = list.filter(c => c.gender === filterGender);
     if (filterVaga) list = list.filter(c => c.vagas.includes(filterVaga));
 
-    // Tab filtering
     if (activeTab === 'blacklist') {
       list = list.filter(c => c.is_blacklisted);
     } else if (activeTab === 'candidatos') {
       list = list.filter(c => !c.is_blacklisted);
     }
-    // 'todos' shows all
 
     if (sortKey) {
       list.sort((a, b) => {
-        let va: any, vb: any;
+        let va: string | number, vb: string | number;
         if (sortKey === 'name') { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
         else if (sortKey === 'location') { va = (a.location ?? '').toLowerCase(); vb = (b.location ?? '').toLowerCase(); }
         else if (sortKey === 'age') { va = parseFloat(a.age ?? '0'); vb = parseFloat(b.age ?? '0'); }
+        else { va = ''; vb = ''; }
         if (va < vb) return sortDir === 'asc' ? -1 : 1;
         if (va > vb) return sortDir === 'asc' ? 1 : -1;
         return 0;
@@ -265,7 +278,9 @@ export const CandidateBank = () => {
       ...c, 
       phone: null, skills: null, experience: null, education: null, 
       redFlags: null, applications: [], notes: null, enriched: false,
-      is_blacklisted: c.is_blacklisted ?? false 
+      is_blacklisted: c.is_blacklisted ?? false,
+      hideBankButton: true,
+      status: 'talent_bank'
     } as CandidateDetail);
     enrichCandidate(c.id);
   }
@@ -274,20 +289,30 @@ export const CandidateBank = () => {
     try {
       const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
-        supabase.from('job_candidates').select('job_id').eq('candidate_id', id),
+        supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
         supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
-      const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
+      const validJobIds = new Set();
+      (jcData ?? []).forEach((jc: JCDataRow) => {
+        if (jc.job_id) validJobIds.add(jc.job_id);
+        if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+      });
+      console.log('[enrichCandidate] validJobIds:', Array.from(validJobIds));
 
       setSelected(prev => {
         if (!prev || prev.id !== id) return prev;
         const analysis = cd?.analysis ?? {};
-        const rawHistory: any[] = analysis?.history ?? [];
-        const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+        const rawHistory = Array.isArray(analysis?.history) ? analysis.history : [];
+        console.log('[enrichCandidate] rawHistory IDs:', (rawHistory as HistoryEntry[]).map((h: HistoryEntry) => h.job_id));
 
-        const pipelineCards = (pipeData ?? []).map((pc: any) => {
+        const validHistory = rawHistory.filter((h: HistoryEntry) =>
+            (h.job_id || (h as unknown as Record<string, string>).vaga_id) && validJobIds.has(h.job_id || (h as unknown as Record<string, string>).vaga_id)
+        );
+        console.log('[enrichCandidate] validHistory count (unfiltered):', validHistory.length);
+
+        const pipelineCards = (pipeData ?? []).map((pc: PipeDataRow) => {
           let jobName = undefined;
           let jobId = undefined;
           let score = undefined;
@@ -296,29 +321,33 @@ export const CandidateBank = () => {
             jobName = parsed.selected_job_name;
             jobId = parsed.selected_job_id;
             score = parsed.selected_job_score;
-          } catch { }
-          return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
+          } catch { /* ignore */ }
+          return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.[0]?.name };
         });
 
         return {
           ...prev,
           phone: toStr(cd?.phone) ?? null,
           address: toStr(cd?.address) ?? null,
-          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades),
-          experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia),
-          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao),
-          redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
+          analysis: cd?.analysis ?? {},
+          skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as unknown as CandidateRow)?.skills),
+          experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as unknown as CandidateRow)?.experience),
+          education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as unknown as CandidateRow)?.education),
+          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
-          applications: validHistory.map((h: any) => ({
+          applications: validHistory.map((h: HistoryEntry) => ({
             jobId: h.job_id,
-            jobName: h.job_name,
-            score: h.score,
-            appliedAt: h.analyzed_at,
-            skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-            experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-            education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-            redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
+            jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
+            jobCode: h.job_code || h.code || '',
+            score: h.score ?? h.match_score ?? 0,
+            appliedAt: h.analyzed_at || h.date || h.created_at,
+            skills: toStr(h.skills ?? h.habilidades),
+            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+            education: toStr(h.education ?? h.formacao),
+            redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
+            resume_url: h.resume_url
           })),
           pipelineCards,
           enriched: true,
@@ -343,8 +372,8 @@ export const CandidateBank = () => {
   }
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <div style={{ marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
             <Users size={32} style={{ color: 'var(--primary)' }} />
@@ -473,7 +502,7 @@ export const CandidateBank = () => {
             <col style={{ width: '18%' }} />
             <col style={{ width: '8%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
+            {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
             <col style={{ width: '8%' }} />
           </colgroup>
           <thead>
@@ -486,7 +515,7 @@ export const CandidateBank = () => {
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
-                [null, 'Chat'],
+                ...(hasPermission(profile.user_role, 'chat') ? [[null, 'Chat'] as [SortKey, string]] : []),
                 [null, 'Visualizar'],
               ] as [SortKey, string][]).map(([col, label]) => (
                 <th key={label}
@@ -531,12 +560,12 @@ export const CandidateBank = () => {
                   </div>
                 </td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !['Não informado', 'não informado', '—'].includes(c.age)) ? `${c.age} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
-                  {c.vagas.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
+                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
-                      {c.vagas.slice(0, 2).map(v => (
+                      {(c.vagas || []).slice(0, 2).map(v => (
                         <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
                           {v}
                         </span>
@@ -561,22 +590,54 @@ export const CandidateBank = () => {
                     </button>
                   </div>
                 </td>
-                <td style={{ padding: '0 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div
-                      title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
-                      style={{ 
-                        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
-                      }}>
-                      <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                {hasPermission(profile.user_role, 'chat') && (
+                  <td style={{ padding: '0 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div
+                        title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
+                        style={{ 
+                          width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                          color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
+                        }}>
+                        <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                      </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
+                )}
                 <td style={{ padding: '0 16px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Eye style={{ width: 15, height: 15, color: '#475569' }} />
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button 
+                          title="Visualizar Card"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCandidate(c);
+                          }}
+                          style={{
+                            padding: '6px',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'var(--primary-light-bg)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        >
+                          <Eye size={16} />
+                        </button>
+                    </div>
                 </td>
               </tr>
             ))}
@@ -621,120 +682,24 @@ export const CandidateBank = () => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, notes } : prev);
           }}
-          onEligibleChange={async (id, val, jobInfo, pipelineId) => {
-            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, interview_eligible: val } : cand));
-            setSelected(prev => prev && prev.id === id ? { ...prev, interview_eligible: val } : prev);
-
-            if (val && jobInfo && profile.userId) {
-              try {
-                let targetPipelineId = pipelineId;
-                let targetPipelineName = '';
-
-                if (!targetPipelineId) {
-                  const { data: pips } = await supabase.from('pipelines')
-                    .select('id, name').eq('user_id', profile.userId).order('created_at').limit(1);
-                  targetPipelineId = pips?.[0]?.id;
-                  targetPipelineName = pips?.[0]?.name || '';
-                } else {
-                  const { data: pip } = await supabase.from('pipelines')
-                    .select('name').eq('id', targetPipelineId).single();
-                  targetPipelineName = pip?.name || '';
-                }
-
-                if (!targetPipelineId) return;
-
-                const { data: cols } = await supabase.from('pipeline_columns')
-                  .select('id, name').eq('pipeline_id', targetPipelineId).order('position').limit(1);
-
-                const colId = cols?.[0]?.id;
-                if (colId) {
-                  const { data: cardsInCol } = await supabase.from('pipeline_cards')
-                    .select('id').eq('column_id', colId);
-                  const pos = cardsInCol?.length || 0;
-
-                  const notesJson = JSON.stringify({
-                    selected_job_id: jobInfo.jobId,
-                    selected_job_name: jobInfo.jobName,
-                    selected_job_score: jobInfo.score
-                  });
-
-                  const { data: newCard } = await supabase.from('pipeline_cards').insert({
-                    user_id: profile.userId,
-                    pipeline_id: targetPipelineId,
-                    column_id: colId,
-                    candidate_id: id,
-                    position: pos,
-                    notes: notesJson
-                  }).select().single();
-
-                  if (newCard) {
-                    await supabase.from('candidates').update({ interview_eligible: true }).eq('id', id);
-                    logScreening(
-                      profile.userId,
-                      id,
-                      'inclusion',
-                      null,
-                      cols?.[0]?.name || 'Triagem',
-                      {
-                        job_id: jobInfo.jobId,
-                        job_name: jobInfo.jobName,
-                        pipeline_id: targetPipelineId,
-                        pipeline_name: targetPipelineName
-                      }
-                    );
-
-                    logActivity(profile.userId, `Adicionou "${selected.name}" ao processo "${targetPipelineName}"`);
-
-                    setSelected(prev => {
-                      if (!prev || prev.id !== id) return prev;
-                      return {
-                        ...prev,
-                        interview_eligible: true,
-                        pipelineCards: [...(prev.pipelineCards || []), {
-                          id: newCard.id,
-                          jobId: jobInfo.jobId,
-                          jobName: jobInfo.jobName,
-                          score: jobInfo.score,
-                          pipelineName: targetPipelineName
-                        }]
-                      };
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error("Error adding to pipeline from bank:", err);
-              }
-            }
-          }}
-          onRemoveCard={async (cardId, candidateId) => {
-            const currentCards = selected?.pipelineCards || [];
-            const card = currentCards.find(pc => pc.id === cardId);
-            await supabase.from('pipeline_cards').delete().eq('id', cardId);
-            if (profile.userId && card) {
-              logActivity(profile.userId, `Removeu "${selected?.name}" do processo "${card.pipelineName || 'Pipeline'}"`);
-            }
-            const filteredCards = currentCards.filter(pc => pc.id !== cardId);
-            const stillInPipeline = filteredCards.length > 0;
-            if (!stillInPipeline) {
-              await supabase.from('candidates').update({ interview_eligible: false }).eq('id', candidateId);
-              setCandidates(curr => curr.map(c => c.id === candidateId ? { ...c, interview_eligible: false } : c));
-            }
-            setSelected(prev => {
-              if (!prev || prev.id !== candidateId) return prev;
-              return {
-                ...prev,
-                interview_eligible: stillInPipeline,
-                pipelineCards: filteredCards
-              };
-            });
-          }}
           onFieldChange={(id, field, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
           }}
+          onTransferSuccess={() => {
+            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+          }}
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
+          }}
+          onDeleteFromBank={async (id) => {
+            await Promise.all([
+              supabase.from('candidates').delete().eq('id', id),
+              supabase.from('job_candidates').delete().eq('candidate_id', id)
+            ]);
+            setSelected(null);
+            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
           }}
         />
       )}
@@ -751,6 +716,6 @@ export const CandidateBank = () => {
           openCandidate(candidates.find(c => c.id === candidateId)!);
         }}
       />
-    </>
+    </div>
   );
 };

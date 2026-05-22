@@ -11,7 +11,8 @@ export interface RolePermissions {
     candidatos_edit: boolean;
     pipeline: boolean;
     pipeline_edit: boolean;
-    chat: boolean;
+    chat: boolean;      // Acesso à página completa de chat
+    chat_widget: boolean; // Acesso ao balão do Assistente IA
     admin: boolean;
     logs: boolean;
 }
@@ -29,6 +30,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline: true,
         pipeline_edit: true,
         chat: true,
+        chat_widget: true,
         admin: true,
         logs: true,
     },
@@ -45,6 +47,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline: true,
         pipeline_edit: true,
         chat: false,
+        chat_widget: true,
         admin: true,   // painel de gerenciamento da sua própria org
         logs: true,
     },
@@ -61,6 +64,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline: true,
         pipeline_edit: true,
         chat: false,
+        chat_widget: true,
         admin: false,
         logs: false,
     },
@@ -77,6 +81,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline: false,
         pipeline_edit: false,
         chat: false,
+        chat_widget: false,
         admin: false,
         logs: false,
     },

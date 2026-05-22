@@ -48,201 +48,77 @@ export const Login = () => {
     };
 
     return (
-        <div style={{
-            display: 'flex',
-            height: '100vh',
-            overflow: 'hidden',
-            fontFamily: "'Inter', system-ui, sans-serif",
-            backgroundColor: '#0B1020',
-            position: 'relative',
-        }}>
-            {/* ── Botão voltar ── */}
+        <div className="flex h-screen overflow-hidden font-['Inter',system-ui,sans-serif] bg-[#0B1020] relative">
+            {/* Botão voltar */}
             <button
                 onClick={() => navigate('/')}
-                style={{
-                    position: 'absolute',
-                    top: 20,
-                    left: 24,
-                    zIndex: 50,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 10,
-                    color: 'rgba(255,255,255,0.7)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    fontFamily: 'inherit',
-                    padding: '7px 14px',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s, color 0.2s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.13)'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'; }}
+                className="absolute top-5 left-6 z-50 flex items-center gap-1.5 bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.12)] rounded-[10px] text-[rgba(255,255,255,0.7)] text-[13px] font-medium font-['Inter',system-ui,sans-serif] px-3.5 py-1.5 cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.13)] hover:text-white"
             >
                 ← Voltar
             </button>
 
-            {/* ============ PAINEL ESQUERDO ============ */}
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0', // Removi o padding horizontal para centralização absoluta
-                backgroundColor: '#0B1020',
-                position: 'relative',
-                overflow: 'hidden',
-                minWidth: 0, // Garante que o flex: 1 divida exatamente 50/50
-            }}>
-
-                <div style={{
-                    position: 'relative',
-                    zIndex: 1,
-                    textAlign: 'center',
-                    maxWidth: '850px',
-                    width: '100%',
-                    padding: '0 48px', // O padding fica aqui para proteger as bordas sem deslocar o centro
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    marginTop: '-100px' // Subido ainda mais conforme pedido
-                }}>
-                    {/* Tagline - Deslocada para baixo sem afetar a imagem */}
-                    <div style={{ position: 'relative', top: '50px', width: '100%', zIndex: 2 }}>
-                        <h2 style={{
-                            color: '#ffffff',
-                            fontSize: '36px',
-                            fontWeight: 800,
-                            lineHeight: 1.1,
-                            marginBottom: '8px',
-                            marginTop: 0,
-                            width: '100%'
-                        }}>
+            {/* PAINEL ESQUERDO */}
+            <div className="flex-1 flex flex-col items-center justify-center bg-[#0B1020] relative overflow-hidden min-w-0">
+                <div className="relative z-1 text-center max-w-[850px] w-full px-12 flex flex-col items-center mt-[-100px]">
+                    <div className="relative top-[50px] w-full z-2">
+                        <h2 className="text-white text-[36px] font-extrabold leading-[1.1] mb-2 mt-0 w-full">
                             Analise currículos com{' '}
                             <br />
-                            <span style={{ color: '#3b82f6' }}>inteligência artificial</span>
+                            <span className="text-blue-500">inteligência artificial</span>
                         </h2>
-                        <p style={{
-                            color: '#94a3b8',
-                            fontSize: '18px',
-                            lineHeight: 1.4,
-                            marginBottom: '16px',
-                            marginTop: 0,
-                            width: '100%'
-                        }}>
+                        <p className="text-[#94a3b8] text-[18px] leading-[1.4] mb-4 mt-0 w-full">
                             Encontre os melhores talentos em segundos. Deixe a IA do RH trabalhar por você.
                         </p>
                     </div>
 
-                    {/* Ilustração - expansão e subida */}
-                    <div style={{
-                        position: 'relative',
-                        width: '100%',
-                        maxWidth: '850px',
-                        lineHeight: 0,
-                        margin: '0 auto',
-                    }}>
+                    <div className="relative w-full max-w-[850px] leading-0">
                         <img
-                            src={`${import.meta.env.BASE_URL}hr-illustration.png`}
+                            src={`${import.meta.env.BASE_URL}illustrations/hr-illustration.png`}
                             alt="RH com IA"
-                            style={{
-                                width: '100%',
-                                display: 'block',
-                                margin: '0 auto'
-                            }}
+                            className="w-full block mx-auto"
                         />
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'radial-gradient(circle, transparent 30%, #0B1020 95%)',
-                            pointerEvents: 'none',
-                        }} />
+                        <div className="absolute top-0 left-0 right-0 bottom-0 bg-[radial-gradient(circle,transparent_30%,#0B1020_95%)] pointer-events-none" />
                     </div>
 
-                    {/* Stats rápidas - compactas */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '40px',
-                        justifyContent: 'center',
-                        marginTop: '10px'
-                    }}>
+                    <div className="flex gap-10 justify-center mt-2.5">
                         {[
                             { value: '200+', label: 'Análises/dia' },
                             { value: '95%', label: 'Precisão' },
                             { value: '10x', label: 'Velocidade' },
                         ].map((stat, i) => (
-                            <div key={i} style={{ textAlign: 'center' }}>
-                                <p style={{ color: '#3b82f6', fontSize: '18px', fontWeight: 700, margin: 0 }}>{stat.value}</p>
-                                <p style={{ color: '#64748b', fontSize: '10px', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</p>
+                            <div key={i} className="text-center">
+                                <p className="text-blue-500 text-[18px] font-bold m-0">{stat.value}</p>
+                                <p className="text-[#64748b] text-[10px] mt-0.5 uppercase tracking-[0.5px]">{stat.label}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* ============ PAINEL DIREITO ============ */}
-            <div style={{
-                flex: 1,
-                backgroundColor: '#1a2a5e',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '48px 48px',
-                position: 'relative',
-            }}>
+            {/* PAINEL DIREITO */}
+            <div className="flex-1 bg-[#1a2a5e] flex flex-col items-center justify-center p-12 relative">
                 {/* Card de login */}
-                <div style={{
-                    width: '100%',
-                    maxWidth: '520px',
-                    backgroundColor: '#fff',
-                    borderRadius: '24px',
-                    padding: '52px 44px',
-                    boxShadow: '0 30px 80px rgba(0,0,0,0.4)',
-                }}>
-                    <div style={{ textAlign: 'center', marginBottom: '0px', marginTop: '-20px', overflow: 'hidden' }}>
+                <div className="w-full max-w-[520px] bg-white rounded-3xl px-11 py-13 shadow-[0_30px_80px_rgba(0,0,0,0.4)]">
+                    <div className="text-center mb-0 mt-[-20px] overflow-hidden">
                         <img
-                            src={`${import.meta.env.BASE_URL}usabit-logo.png`}
+                            src={`${import.meta.env.BASE_URL}logos/usabit-logo.png`}
                             alt="usabit"
-                            style={{
-                                width: '100%',
-                                maxWidth: '200px',
-                                height: 'auto',
-                                objectFit: 'contain',
-                                display: 'inline-block',
-                                mixBlendMode: 'multiply',
-                                filter: 'contrast(1.2) brightness(1.1)',
-                                margin: '0 auto',
-                                transform: 'translateX(10px)'
-                            }}
+                            className="w-full max-w-[200px] h-auto object-contain inline-block mix-blend-multiply contrast-125 brightness-110 mx-auto translate-x-[10px]"
                         />
                     </div>
 
-                    <p style={{ textAlign: 'center', color: '#64748b', fontSize: '12px', marginBottom: '28px', marginTop: 0 }}>
+                    <p className="text-center text-[#64748b] text-[12px] mb-7 mt-0">
                         Analista de Currículos · Powered by IA
                     </p>
 
-                    <h1 style={{
-                        textAlign: 'center',
-                        color: '#0f172a',
-                        fontSize: '20px',
-                        fontWeight: 700,
-                        marginBottom: '28px',
-                        marginTop: 0,
-                    }}>
+                    <h1 className="text-center text-[#0f172a] text-[20px] font-bold mb-7 mt-0">
                         Entre na sua conta
                     </h1>
 
-                    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <form onSubmit={handleLogin} className="flex flex-col gap-4">
                         {/* Email */}
                         <div>
-                            <label style={{ display: 'block', color: '#374151', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+                            <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
                                 Email
                             </label>
                             <input
@@ -251,27 +127,13 @@ export const Login = () => {
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
-                                style={{
-                                    width: '100%',
-                                    backgroundColor: '#f8fafc',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '8px',
-                                    padding: '11px 14px',
-                                    color: '#0f172a',
-                                    fontSize: '14px',
-                                    outline: 'none',
-                                    fontFamily: 'inherit',
-                                    boxSizing: 'border-box',
-                                    transition: 'border-color 0.2s',
-                                }}
-                                onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#3b82f6'}
-                                onBlur={e => (e.target as HTMLInputElement).style.borderColor = '#e2e8f0'}
+                                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
                             />
                         </div>
 
                         {/* Senha */}
                         <div>
-                            <label style={{ display: 'block', color: '#374151', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>
+                            <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
                                 Senha
                             </label>
                             <input
@@ -280,48 +142,26 @@ export const Login = () => {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
-                                style={{
-                                    width: '100%',
-                                    backgroundColor: '#f8fafc',
-                                    border: '1px solid #e2e8f0',
-                                    borderRadius: '8px',
-                                    padding: '11px 14px',
-                                    color: '#0f172a',
-                                    fontSize: '14px',
-                                    outline: 'none',
-                                    fontFamily: 'inherit',
-                                    boxSizing: 'border-box',
-                                    transition: 'border-color 0.2s',
-                                }}
-                                onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#3b82f6'}
-                                onBlur={e => (e.target as HTMLInputElement).style.borderColor = '#e2e8f0'}
+                                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
                             />
                         </div>
 
                         {message && (
-                            <p style={{
-                                color: message.type === 'success' ? '#10b981' : '#ef4444',
-                                fontSize: '12px',
-                                textAlign: 'center',
-                                margin: 0,
-                                background: message.type === 'success' ? '#10b98110' : '#ef444410',
-                                padding: '8px',
-                                borderRadius: '6px'
-                            }}>
+                            <p className={`text-[12px] text-center m-0 p-2 rounded-md ${message.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                                 {message.text}
                             </p>
                         )}
 
                         {/* Checkbox + Esqueceu */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                                <input type="checkbox" style={{ width: '14px', height: '14px', accentColor: '#3b82f6' }} />
-                                <span style={{ color: '#64748b', fontSize: '13px' }}>Manter conectado</span>
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input type="checkbox" className="w-3.5 h-3.5 accent-blue-500" />
+                                <span className="text-[#64748b] text-[13px]">Manter conectado</span>
                             </label>
                             <button
                                 type="button"
                                 onClick={handleForgotPassword}
-                                style={{ color: '#3b82f6', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
+                                className="text-blue-500 text-[13px] bg-none border-none cursor-pointer underline font-['Inter',system-ui,sans-serif]"
                             >
                                 Recuperar senha
                             </button>
@@ -331,29 +171,14 @@ export const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                width: '100%',
-                                padding: '13px',
-                                background: 'linear-gradient(90deg, #2563eb, #1d4ed8)',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '15px',
-                                fontWeight: 600,
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                fontFamily: 'inherit',
-                                letterSpacing: '0.3px',
-                                transition: 'opacity 0.2s',
-                                opacity: loading ? 0.7 : 1,
-                            }}
+                            className="w-full py-[13px] bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none rounded-lg text-[15px] font-semibold cursor-pointer font-['Inter',system-ui,sans-serif] tracking-wide transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             {loading ? 'Entrando...' : 'ENTRAR'}
                         </button>
                     </form>
                 </div>
 
-                {/* Footer do painel direito */}
-                <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '24px', textAlign: 'center' }}>
+                <p className="text-[#94a3b8] text-[12px] mt-6 text-center">
                     © 2026 usabit · Todos os direitos reservados
                 </p>
             </div>

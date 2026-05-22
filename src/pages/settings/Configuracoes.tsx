@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, CheckCircle, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Globe } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
-import { OwnerAdminApiPanel, OwnerAdminPlanPanel } from './OwnerPanels';
-import { CareerSettingsPanel } from './CareerSettingsPanel';
+import toast from 'react-hot-toast';
+import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 
-type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'api' | 'plano';
+
+type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'aparencia' | 'api' | 'plano';
 
 interface TabItem {
     key: TabKey;
@@ -19,15 +21,16 @@ const allTabs: TabItem[] = [
     { key: 'perfil', label: 'Perfil', icon: User },
     { key: 'seguranca', label: 'Segurança', icon: Lock },
     { key: 'perfis', label: 'Perfis', icon: Users },
+    { key: 'aparencia', label: 'Aparência', icon: Moon },
     { key: 'api', label: 'API', icon: Key },
     { key: 'plano', label: 'Plano', icon: CreditCard },
 ];
 
 // Abas visíveis para cada perfil
 const getVisibleTabs = (userRole: string): TabItem[] => {
-    const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis'].includes(tab.key));
-    // Owner e Gestor veem API e Plano
-    if (userRole === 'owner' || userRole === 'gestor') {
+    const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis', 'aparencia'].includes(tab.key));
+    // Apenas Owner veem API e Plano
+    if (userRole === 'owner') {
         return [...baseTabs, ...allTabs.filter(tab => ['api', 'plano'].includes(tab.key))];
     }
     return baseTabs;
@@ -64,6 +67,7 @@ const themeBtnCss = `
         cursor: pointer;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 10px;
         font-size: 13px;
         font-weight: 600;
@@ -209,13 +213,19 @@ const roleDefinitions = [
 
 export const Configuracoes = () => {
     const { profile, refetch } = useUser();
-    const { theme, toggleTheme, planetMode, togglePlanetMode } = useTheme();
+    const { theme, toggleTheme, bgTheme, setBgTheme, customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabKey>('perfil');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
-    const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
     const [currentPlan] = useState<string>('trial');
+
+    const showToast = (type: 'success' | 'error' | 'info', msg: string) => {
+        if (type === 'success') toast.success(msg);
+        else if (type === 'info') toast(msg, { icon: 'ℹ️' });
+        else toast.error(msg);
+    };
 
     const userId = profile.userId;
     const email = profile.email;
@@ -239,17 +249,13 @@ export const Configuracoes = () => {
     const [showEvoConfig, setShowEvoConfig] = useState(false);
 
     // Perfis state
-    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const showToast = (type: 'success' | 'error', msg: string) => {
-        setToast({ type, msg });
-        setTimeout(() => setToast(null), 3500);
-    };
 
     useEffect(() => {
         if (!profile.loaded || dataLoaded) return;
@@ -303,7 +309,7 @@ export const Configuracoes = () => {
         const path = `${userId}/avatar.${ext}`;
         const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
         if (uploadError) { 
-            showToast('error', 'Erro ao enviar foto.'); 
+            toast.error('Erro ao enviar foto.'); 
             setUploadingPhoto(false); 
             logActivity(userId, 'Fez alterações na foto', { filename: file.name }, uploadError.message);
             return; 
@@ -313,8 +319,15 @@ export const Configuracoes = () => {
         setAvatarPreview(urlWithCache);
         setAvatarUrl(publicUrl);
         setUploadingPhoto(false);
-        showToast('success', 'Foto atualizada!');
+        toast.success('Foto atualizada!');
         logActivity(userId, 'Fez alterações na foto', { filename: file.name });
+    };
+
+    const handleRemovePhoto = async () => {
+        if (!userId) return;
+        setAvatarPreview('');
+        setAvatarUrl('');
+        toast.success('Foto removida! Lembre-se de salvar as alterações.');
     };
 
     const handleSave = async () => {
@@ -353,16 +366,16 @@ export const Configuracoes = () => {
             setSaving(false);
             if (insertError) { 
                 console.error('[Configuracoes] erro ao inserir perfil:', insertError); 
-                showToast('error', `Erro: ${insertError.message}`); 
+                toast.error(`Erro: ${insertError.message}`); 
                 logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName }, insertError.message);
             }
             else {
-                showToast('success', 'Perfil salvo com sucesso!');
+                toast.success('Perfil salvo com sucesso!');
                 logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
             }
         } else {
             setSaving(false);
-            showToast('success', 'Perfil salvo com sucesso!');
+            toast.success('Perfil salvo com sucesso!');
             logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
         }
     };
@@ -386,9 +399,9 @@ export const Configuracoes = () => {
         setSavingPassword(false);
 
         if (error) {
-            showToast('error', `Erro: ${error.message}`);
+            toast.error(`Erro: ${error.message}`);
         } else {
-            showToast('success', 'Senha alterada com sucesso!');
+            toast.success('Senha alterada com sucesso!');
             setNewPassword('');
             setConfirmPassword('');
         }
@@ -496,7 +509,7 @@ export const Configuracoes = () => {
                         id: authData.user.id,
                         email: newUser.email,
                         name: newUser.name,
-                        user_role: newUser.user_role as any,
+                        user_role: newUser.user_role as string,
                         status: 'active',
                         account_type: 'active',
                         organization_id: organizationId,
@@ -531,9 +544,9 @@ export const Configuracoes = () => {
                 setShowCreateModal(false);
                 loadUsers();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[Configuracoes] Erro fatal:', err);
-            showToast('error', `Ocorreu um erro inesperado: ${err.message}`);
+            showToast('error', `Ocorreu um erro inesperado: ${(err as Error).message}`);
         } finally {
             setCreatingUser(false);
         }
@@ -614,20 +627,6 @@ export const Configuracoes = () => {
                 .upgrade-btn:hover { opacity: 0.85 !important; }
             `}</style>
 
-            {/* Toast */}
-            {toast && (
-                <div style={{
-                    position: 'fixed', top: '24px', right: '28px', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '10px',
-                    background: toast.type === 'success' ? 'var(--success-bg)' : 'var(--error-bg)',
-                    border: `1px solid ${toast.type === 'success' ? 'var(--success)' : 'var(--text-error)'}`,
-                    borderRadius: '10px', padding: '12px 18px',
-                    color: toast.type === 'success' ? 'var(--success)' : 'var(--text-error)',
-                    fontSize: '14px', fontWeight: 500, animation: 'slideIn 0.25s ease', boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
-                }}>
-                    {toast.type === 'success' ? <CheckCircle style={{ width: 16, height: 16 }} /> : <AlertCircle style={{ width: 16, height: 16 }} />}
-                    {toast.msg}
-                </div>
-            )}
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -751,6 +750,32 @@ export const Configuracoes = () => {
                             <Camera style={{ width: 14, height: 14 }} />
                             Trocar foto
                         </button>
+                        {avatarPreview && (
+                            <button
+                                onClick={handleRemovePhoto}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    background: 'transparent',
+                                    color: '#ef4444',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Remover foto
+                        </button>
+                        )}
                     </div>
 
                     {/* Card formulário */}
@@ -828,9 +853,9 @@ export const Configuracoes = () => {
                 </div>
             )}
 
-            {/* ABA 2: SEGURANÇA (Senha, Aparência e Notificações) */}
+            {/* ABA 2: SEGURANÇA (Senha) */}
             {activeTab === 'seguranca' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', maxWidth: '480px', gap: '20px', marginBottom: '24px' }}>
 
                     {/* Segurança */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
@@ -882,7 +907,12 @@ export const Configuracoes = () => {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
 
+            {/* ABA APARÊNCIA: Tema e Notificações */}
+            {activeTab === 'aparencia' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     {/* Aparência */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                         <style>{themeBtnCss}</style>
@@ -899,7 +929,17 @@ export const Configuracoes = () => {
 
                             <button
                                 className={`theme-switch-option ${theme === 'light' ? 'active' : ''}`}
-                                onClick={() => theme === 'dark' && toggleTheme()}
+                                onClick={() => {
+                                    if (bgTheme !== 'simple') {
+                                        showToast('info', 'O modo claro só está disponível no fundo Simples');
+                                        return;
+                                    }
+                                    if (theme === 'dark') toggleTheme();
+                                }}
+                                style={{
+                                    opacity: bgTheme !== 'simple' ? 0.4 : 1,
+                                    cursor: bgTheme !== 'simple' ? 'not-allowed' : 'pointer'
+                                }}
                             >
                                 <Sun className="theme-icon-anim" size={16} />
                                 Claro
@@ -914,37 +954,124 @@ export const Configuracoes = () => {
                             </button>
                         </div>
 
-                        <div style={{ marginTop: '24px', marginBottom: '8px' }}>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Fundo Especial</p>
+                        <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>Temas</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '4px 0 0' }}>Escolha o estilo visual do seu painel</p>
                         </div>
 
-                        <div className="theme-switch-container">
+                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: '44px' }}>
                             <div className="theme-switch-slider" style={{
-                                transform: planetMode ? 'translateX(0)' : 'translateX(calc(100% + 4px))'
+                                width: 'calc(33.33% - 8px)',
+                                transform: bgTheme === 'simple' ? 'translateX(0)' : bgTheme === 'planets' ? 'translateX(calc(100% + 4px))' : 'translateX(calc(200% + 8px))',
+                                height: '32px',
+                                top: '6px',
+                                background: 'var(--primary)',
+                                borderRadius: '10px',
+                                boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.3)'
                             }} />
 
                             <button
-                                className={`theme-switch-option ${planetMode ? 'active' : ''}`}
-                                onClick={() => !planetMode && togglePlanetMode()}
+                                className={`theme-switch-option ${bgTheme === 'simple' ? 'active' : ''}`}
+                                onClick={() => setBgTheme('simple')}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
                             >
-                                <Star className="theme-icon-anim" size={16} />
-                                Planetas
+                                <Layout size={15} />
+                                Simples
                             </button>
 
                             <button
-                                className={`theme-switch-option ${!planetMode ? 'active' : ''}`}
-                                onClick={() => planetMode && togglePlanetMode()}
+                                className={`theme-switch-option ${bgTheme === 'planets' ? 'active' : ''}`}
+                                onClick={() => setBgTheme('planets')}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
                             >
-                                <X className="theme-icon-anim" size={16} />
-                                Simples
+                                <Star size={15} />
+                                Planetário
+                            </button>
+
+                            <button
+                                className={`theme-switch-option ${bgTheme === 'spatial' ? 'active' : ''}`}
+                                onClick={() => setBgTheme('spatial')}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                            >
+                                <Sparkles size={15} />
+                                Espacial
                             </button>
                         </div>
 
                         <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />
-                            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Interface Ativa</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>Ambiente Customizado</span>
                         </div>
                     </div>
+
+                    {/* Personalização de Cores */}
+                    {(() => {
+                        const handlePrimary = (e: React.SyntheticEvent<HTMLInputElement>) => setCustomPrimaryColor((e.target as HTMLInputElement).value);
+                        const handleText = (e: React.SyntheticEvent<HTMLInputElement>) => setCustomTextColor((e.target as HTMLInputElement).value);
+                        return (
+                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+                                <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px' }}>Cores Customizadas</p>
+                                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>Personalize as cores do sistema</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setCustomPrimaryColor(null);
+                                            setCustomTextColor(null);
+                                            toast.success('Cores resetadas para o padrão');
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                                    >
+                                        <RefreshCcw size={14} />
+                                        Resetar
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+                                    {/* Cor Principal */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-light-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                <Palette size={18} />
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor Principal</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Botões, abas, destaques e bordas</p>
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="color" 
+                                            value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')} 
+                                            onChange={handlePrimary}
+                                            onInput={handlePrimary}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                        />
+                                    </div>
+
+                                    {/* Cor do Texto */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-light-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                <div style={{ fontSize: '16px', fontWeight: 700 }}>Aa</div>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor do Texto</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Títulos, legendas, textos de apoio — afeta toda a tipografia</p>
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="color" 
+                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')} 
+                                            onChange={handleText}
+                                            onInput={handleText}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Notificações */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
@@ -956,7 +1083,7 @@ export const Configuracoes = () => {
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div
                                 onClick={async () => {
-                                    let newState = !notificationsEnabled;
+                                    const newState = !notificationsEnabled;
                                     if (newState && Notification.permission !== 'granted') {
                                         const permission = await Notification.requestPermission();
                                         if (permission !== 'granted') return;
@@ -970,9 +1097,9 @@ export const Configuracoes = () => {
                                             .eq('id', userId);
                                         if (error) {
                                             console.error('Erro ao salvar preferência de notificação:', error);
-                                            showToast('error', 'Erro ao salvar preferência');
+                                            toast.error('Erro ao salvar preferência');
                                         } else {
-                                            showToast('success', newState ? 'Notificações ativadas!' : 'Notificações desativadas!');
+                                            toast.success(newState ? 'Notificações ativadas!' : 'Notificações desativadas!');
                                             refetch();
                                         }
                                     }
@@ -1104,7 +1231,7 @@ export const Configuracoes = () => {
                                 </div>
                                 <button
                                     onClick={() => {
-+                                       setCreatingUser(false); // Garante que o botão não comece em "Criando"
+                                        setCreatingUser(false);
                                         setNewUser({
                                             name: '',
                                             email: '',
@@ -1526,11 +1653,6 @@ export const Configuracoes = () => {
                 </div>
             )}
 
-            {/* ABA CARREIRAS: Portal White Label */}
-            {activeTab === 'carreiras' && (
-                <CareerSettingsPanel showToast={showToast} />
-            )}
-
             {/* ABA 4: API (Integrações) */}
             {activeTab === 'api' && (
                 <>
@@ -1606,6 +1728,50 @@ export const Configuracoes = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Card: Link do Banco de Talentos / Portal White Label */}
+                    {profile.organization_id && (
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden', marginTop: '24px' }}>
+                            <div style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+                                <div style={{ flex: 1, minWidth: '280px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Briefcase size={18} />
+                                        </div>
+                                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: 0 }}>Seu Banco de Talentos (Link Público)</p>
+                                    </div>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '0 0 16px' }}>Use este link para vincular ao seu site oficial ou compartilhar diretamente com candidatos nas redes sociais.</p>
+                                    
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ flex: 1, background: 'var(--bg-main)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            <code style={{ color: 'var(--primary)', fontSize: '12px', fontFamily: 'monospace' }}>
+                                                {`${window.location.origin}${window.location.pathname}#/carreiras/${profile.organization_id}`}
+                                            </code>
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                const url = `${window.location.origin}${window.location.pathname}#/carreiras/${profile.organization_id}`;
+                                                navigator.clipboard.writeText(url);
+                                                showToast('success', 'Link copiado!');
+                                            }}
+                                            style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                                        >
+                                            Copiar Link
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <button 
+                                        onClick={() => navigate('/vagas?tab=design')}
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 24px', borderRadius: '10px', background: 'var(--primary)', color: '#fff', border: 'none', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        <Palette size={18} /> Personalizar Site
+                                    </button>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', textAlign: 'center', margin: 0 }}>Altere cores, logo e capas</p>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </>

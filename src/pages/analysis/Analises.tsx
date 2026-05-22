@@ -4,11 +4,14 @@ import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, Chevro
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { supabase } from '../../core/services/supabase';
+import { handleViewResume } from '../../core/utils/storage';
 import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
-import { logScreening, logActivity } from '../../core/services/logger';
+import { hasPermission } from '../../core/config/permissions';
+import { logActivity } from '../../core/services/logger';
 
 interface Job {
   id: string;
@@ -118,8 +121,28 @@ interface Candidate {
   attention_points: string | null;
   resumeUrl: string | null;
   isBlacklisted?: boolean;
-  conversations?: any[];
+  conversations?: unknown[];
 }
+
+interface JCRow {
+  candidates: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    location: string | null;
+    address: string | null;
+    age: string | null;
+    gender: string | null;
+    is_blacklisted?: boolean;
+    conversations?: unknown[];
+    analysis?: Record<string, unknown>;
+  };
+}
+
+interface JCDataRow { job_id: string }
+interface HistoryEntry { job_id: string; job_name?: string; score?: number; analyzed_at?: string; skills?: string; experiencia?: string; formacao?: string; redFlags?: string }
+interface PipelineCardRow { id: string; notes?: string; pipelines?: { name?: string } }
 
 
 
@@ -139,7 +162,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   const toggleFav = (id: string) => {
     setFavorites(prev => {
       const next = { ...prev, [id]: !prev[id] };
-      try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { }
+      try { localStorage.setItem(`fav-${profile.userId}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -153,9 +176,9 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           .select('id, name, created_at, organization_id')
           .eq('id', jobId);
 
-        // ISOLAMENTO: Usuários que não são Owners só veem jobs da sua organização
-        if (profile.user_role !== 'owner' && profile.organization_id) {
-          jobQuery = jobQuery.eq('organization_id', profile.organization_id);
+        // ISOLAMENTO: Todos os usuários veem apenas jobs da sua organização (ou os que eles mesmos criaram)
+        if (profile.organization_id) {
+          jobQuery = jobQuery.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
         }
 
         const { data: jobData, error: jobErr } = await jobQuery.single();
@@ -171,16 +194,16 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
         if (candErr) throw candErr;
 
-        const mapped: Candidate[] = (jcData ?? [])
-          .map((row: any) => row.candidates)
+        const mapped: Candidate[] = (jcData as unknown as JCRow[] ?? [])
+          .map((row: JCRow) => row.candidates)
           .filter(Boolean)
-          .map((c: any) => {
+          .map((c) => {
             // Busca o score e dados desta vaga específica pelo histórico (se disponível)
-            const history: any[] = Array.isArray(c.analysis?.history) ? c.analysis.history : [];
-            const jobEntry = history.find((h: any) => h.job_id === jobId);
+            const history = Array.isArray(c.analysis?.history) ? c.analysis.history : [];
+            const jobEntry = history.find((h) => h.job_id === jobId);
 
             // Prioriza o jobEntry do histórico, caso contrário tenta a raiz (compatibilidade)
-            const analysis = jobEntry ?? c.analysis ?? {};
+            const analysis = (jobEntry ?? c.analysis ?? {}) as Record<string, unknown>;
 
             // O score agora é pego exclusivamente da análise vinculada a este job
             const score = typeof analysis.score === 'number' ? analysis.score : 0;
@@ -195,10 +218,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               age: c.age ?? null,
               gender: c.gender ?? null,
               score,
-              skills: analysis.skills ?? null,
-              experience: analysis.experience ?? null,
-              education: analysis.education ?? null,
-              attention_points: analysis.redFlags ?? null,
+              skills: (analysis['skills'] ?? analysis['Skills'] ?? analysis['habilidades'] ?? analysis['Habilidades']) as string | null ?? null,
+              experience: (analysis['experience'] ?? analysis['Experience'] ?? analysis['experiencia'] ?? analysis['Experiencia']) as string | null ?? null,
+              education: (analysis['education'] ?? analysis['Education'] ?? analysis['formacao'] ?? analysis['Formacao'] ?? analysis['Formação'] ?? null) as string | null ?? null,
+              attention_points: (analysis['redFlags'] ?? analysis['RedFlags(Pontos de atenção)'] ?? analysis['Pontos de atenção'] ?? analysis['pontos_de_atencao']) as string | null ?? null,
               resumeUrl: null,
               isBlacklisted: c.is_blacklisted,
               conversations: c.conversations,
@@ -222,16 +245,16 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               .in('id', candidateIds);
             if (candWithUrl) {
               const urlMap: Record<string, string> = {};
-              candWithUrl.forEach((r: any) => { if (r.resume_url) urlMap[r.id] = r.resume_url; });
+              candWithUrl.forEach((r) => { if (r.resume_url) urlMap[r.id] = r.resume_url; });
               mapped.forEach(c => { c.resumeUrl = urlMap[c.id] ?? null; });
             }
           }
         }
 
         setCandidates(mapped);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Erro ao carregar análise:', err);
-        toast.error('Erro ao carregar análise: ' + (err.message ?? 'erro desconhecido'));
+        toast.error('Erro ao carregar análise: ' + ((err as Error).message ?? 'erro desconhecido'));
       } finally {
         setLoading(false);
       }
@@ -249,12 +272,18 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
     if (!cand) return { enriched: true };
 
-    const analysis = cand.analysis ?? {};
-    const validJobIds = new Set((jcData ?? []).map((jc: any) => jc.job_id));
-    const rawHistory: any[] = analysis?.history ?? [];
-    const validHistory = rawHistory.filter((h: any) => h.job_id && validJobIds.has(h.job_id));
+    let analysis: Record<string, unknown>;
+    try {
+      analysis = (typeof cand.analysis === 'string' ? JSON.parse(cand.analysis) : (cand.analysis ?? {})) as Record<string, unknown>;
+    } catch {
+      analysis = {};
+    }
+    console.log('[enrich] cand.analysis keys:', Object.keys(analysis), ' education:', analysis?.education, ' raw:', analysis);
+    const validJobIds = new Set((jcData ?? []).map((jc: JCDataRow) => jc.job_id));
+    const rawHistory: HistoryEntry[] = (analysis?.history ?? []) as HistoryEntry[];
+    const validHistory = rawHistory.filter((h: HistoryEntry) => h.job_id && validJobIds.has(h.job_id));
 
-    const pipelineCards = (pipeData ?? []).map((pc: any) => {
+    const pipelineCards = (pipeData as unknown as PipelineCardRow[] ?? []).map((pc: PipelineCardRow) => {
       let jobName = undefined;
       let jobId = undefined;
       let score = undefined;
@@ -263,7 +292,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         jobName = parsed.selected_job_name;
         jobId = parsed.selected_job_id;
         score = parsed.selected_job_score;
-      } catch { }
+} catch { /* ignore */ }
       return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.name };
     });
 
@@ -271,41 +300,53 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       email: toStr(cand.email) || '',
       location: toStr(cand.location) || null,
       address: toStr(cand.address) || null,
+      linkedin: toStr(cand.linkedin) || null,
+      portfolio: toStr(cand.portfolio) || null,
+      cep: toStr(cand.cep) || null,
+      address_number: toStr(cand.address_number) || null,
+      complement: toStr(cand.complement) || null,
       age: toStr(cand.age) || null,
       gender: toStr(cand.gender) || null,
       phone: toStr(cand.phone) || null,
       skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
       experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
-      education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
+      education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? analysis?.['Formação'] ?? cand.education ?? cand.formacao ?? cand.Formação),
       redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
       notes: cand.notes || null,
       is_blacklisted: cand.is_blacklisted ?? false,
-      applications: validHistory.map((h: any) => ({
-        jobId: h.job_id,
-        jobName: h.job_name,
-        score: h.score,
-        appliedAt: h.analyzed_at,
-        skills: toStr(h.skills ?? h.habilidades ?? h.analysis?.skills ?? h.analysis?.habilidades),
-        experience: toStr(h.experience ?? h.experiencia ?? h.analysis?.experience ?? h.analysis?.experiencia),
-        education: toStr(h.education ?? h.formacao ?? h.analysis?.education ?? h.analysis?.formacao),
-        redFlags: toStr(h.redFlags ?? h.attention_points ?? h.analysis?.redFlags ?? h.analysis?.['Pontos de atenção'] ?? h.analysis?.attention_points),
-      })),
+      analysis: cand.analysis || {},
+      applications: validHistory.map((h: HistoryEntry) => {
+        const hAny = h as unknown as Record<string, unknown>;
+        const histAnalysis = hAny['analysis'] as Record<string, unknown> | undefined;
+        return {
+          jobId: h.job_id,
+          jobName: (h['job_name'] as string) || '',
+          score: h.score ?? 0,
+          appliedAt: h.analyzed_at ?? '',
+          skills: toStr(hAny['skills'] ?? hAny['habilidades'] ?? histAnalysis?.['skills'] ?? histAnalysis?.['habilidades']),
+          experience: toStr(hAny['experience'] ?? hAny['experiencia'] ?? histAnalysis?.['experience'] ?? histAnalysis?.['experiencia']),
+          education: toStr(hAny['education'] ?? hAny['formacao'] ?? histAnalysis?.['education'] ?? histAnalysis?.['formacao']),
+          redFlags: toStr(hAny['redFlags'] ?? hAny['attention_points'] ?? histAnalysis?.['redFlags'] ?? histAnalysis?.['Pontos de atenção'] ?? histAnalysis?.['attention_points']),
+          positivePoints: toStr(hAny['strengths'] ?? hAny['positivePoints'] ?? histAnalysis?.['strengths'] ?? histAnalysis?.['positivePoints']),
+        };
+      }),
       pipelineCards,
       resume_url: cand.resume_url,
+      hideBankButton: !jobId,
       enriched: true,
       conversations: convData || []
     };
   }
 
   async function openCandidate(c: Candidate) {
-    const base: any = {
+    const base: Record<string, unknown> = {
       id: c.id,
       name: c.name,
       score: c.score,
       enriched: false,
-      applications: []
+      applications: [],
     };
-    setSelectedCandidate(base);
+    setSelectedCandidate(base as unknown as CandidateDetail);
     try {
       const extra = await enrichCandidate(c.id);
       setSelectedCandidate(prev => prev && prev.id === c.id ? { ...prev, ...extra } : prev);
@@ -318,7 +359,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
   // Re-init favorites if userId arrives late
   useEffect(() => {
     if (profile.userId) {
-      try { setFavorites(JSON.parse(localStorage.getItem(`fav-${profile.userId}`) ?? '{}')); } catch { }
+      try { setFavorites(JSON.parse(localStorage.getItem(`fav-${profile.userId}`) ?? '{}')); } catch { /* ignore */ }
     }
   }, [profile.userId]);
 
@@ -423,12 +464,12 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               <col style={{ width: '14%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '11%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '18%' }} />
+              {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
+              <col style={{ width: hasPermission(profile.user_role, 'chat') ? '18%' : '26%' }} />
             </colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', 'Chat', 'Ações'].map(h => (
+                {['Rank', 'Nome', 'Idade', 'Localização', 'Gênero', 'Score', ...(hasPermission(profile.user_role, 'chat') ? ['Chat'] : []), 'Ações'].map(h => (
                   <th key={h} style={{ padding: '14px 16px', textAlign: h === 'Chat' ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -469,7 +510,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Idade */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: '#94a3b8' }}>
-                    {(c.age && !/não\s*informado/i.test(c.age)) ? `${c.age} anos` : '—'}
+                    {(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : '—'}
                   </td>
                   {/* Localização */}
                   <td style={{ padding: '14px 16px', fontSize: 13, color: 'var(--text-dim)' }}>
@@ -481,24 +522,37 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   </td>
                   {/* Score */}
                   <td style={{ padding: '14px 16px' }}>
-                    <span style={{ background: `${scoreColor(c.score)}22`, color: scoreColor(c.score), border: `1px solid ${scoreColor(c.score)}44`, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>
+                    <span style={{ 
+                        background: `${scoreColor(c.score)}22`, 
+                        color: scoreColor(c.score), 
+                        border: `1px solid ${scoreColor(c.score)}44`, 
+                        borderRadius: 20, 
+                        padding: '4px 16px', 
+                        fontSize: '13px', 
+                        fontWeight: 800,
+                        display: 'inline-block',
+                        minWidth: '54px',
+                        textAlign: 'center'
+                    }}>
                       {c.score}%
                     </span>
                   </td>
                   {/* Chat */}
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      {c.conversations?.length ? (
-                        <div title="Chat Ativo">
-                          <Phone size={16} color="#22c55e" fill="#22c55e22" />
-                        </div>
-                      ) : (
-                        <div title="Chat Inativo">
-                          <Phone size={16} color="#64748b" opacity={0.5} />
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                  {hasPermission(profile.user_role, 'chat') && (
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {c.conversations?.length ? (
+                          <div title="Chat Ativo">
+                            <Phone size={16} color="#22c55e" fill="#22c55e22" />
+                          </div>
+                        ) : (
+                          <div title="Chat Inativo">
+                            <Phone size={16} color="#64748b" opacity={0.5} />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {/* Ações */}
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -515,13 +569,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                         title={c.resumeUrl ? 'Abrir Currículo' : 'PDF não disponível'}
                         onClick={e => {
                           e.stopPropagation();
-                          if (c.resumeUrl) {
-                            const a = document.createElement('a');
-                            a.href = c.resumeUrl; a.target = '_blank'; a.rel = 'noopener noreferrer';
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                          } else {
-                            toast.error('PDF não disponível para este candidato.');
-                          }
+                          handleViewResume(c.resumeUrl);
                         }}
                         style={{ background: 'none', border: 'none', cursor: c.resumeUrl ? 'pointer' : 'not-allowed', color: c.resumeUrl ? '#818cf8' : '#2d3147', padding: 6, borderRadius: 6 }}
                         onMouseEnter={e => { if (c.resumeUrl) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.1)'; }}
@@ -558,109 +606,6 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, notes } : cand));
             setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, notes } : prev);
           }}
-          onEligibleChange={async (id, val, jobInfo, pipelineId) => {
-            setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, interview_eligible: val } : cand));
-            setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, interview_eligible: val } : prev);
-            if (val && jobInfo && profile.userId) {
-              try {
-                let targetPipelineId = pipelineId;
-                let targetPipelineName = '';
-
-                if (!targetPipelineId) {
-                  const { data: pips } = await supabase.from('pipelines')
-                    .select('id, name').eq('user_id', profile.userId).order('created_at').limit(1);
-                  targetPipelineId = pips?.[0]?.id;
-                  targetPipelineName = pips?.[0]?.name || '';
-                } else {
-                  const { data: pip } = await supabase.from('pipelines')
-                    .select('name').eq('id', targetPipelineId).single();
-                  targetPipelineName = pip?.name || '';
-                }
-
-                if (!targetPipelineId) return;
-
-                const { data: cols } = await supabase.from('pipeline_columns')
-                  .select('id, name').eq('pipeline_id', targetPipelineId).order('position').limit(1);
-
-                const colId = cols?.[0]?.id;
-                if (colId) {
-                  const { data: cardsInCol } = await supabase.from('pipeline_cards')
-                    .select('id').eq('column_id', colId);
-                  const pos = cardsInCol?.length || 0;
-
-                  const notesJson = JSON.stringify({
-                    selected_job_id: jobInfo.jobId,
-                    selected_job_name: jobInfo.jobName,
-                    selected_job_score: jobInfo.score
-                  });
-
-                  const { data: newCard } = await supabase.from('pipeline_cards').insert({
-                    user_id: profile.userId,
-                    pipeline_id: targetPipelineId,
-                    column_id: colId,
-                    candidate_id: id,
-                    position: pos,
-                    notes: notesJson
-                  }).select().single();
-
-                  if (newCard) {
-                    await supabase.from('candidates').update({ interview_eligible: true }).eq('id', id);
-                    logScreening(
-                      profile.userId,
-                      id,
-                      'inclusion',
-                      null,
-                      cols?.[0]?.name || 'Triagem',
-                      {
-                        job_id: jobInfo.jobId,
-                        job_name: jobInfo.jobName,
-                        pipeline_id: targetPipelineId,
-                        pipeline_name: targetPipelineName
-                      }
-                    );
-                    logActivity(profile.userId, `Adicionou "${selectedCandidate.name}" ao processo "${targetPipelineName}"`);
-                    setSelectedCandidate(prev => {
-                      if (!prev || prev.id !== id) return prev;
-                      return {
-                        ...prev,
-                        interview_eligible: true,
-                        pipelineCards: [...(prev.pipelineCards || []), {
-                          id: newCard.id,
-                          jobId: jobInfo.jobId,
-                          jobName: jobInfo.jobName,
-                          score: jobInfo.score,
-                          pipelineName: targetPipelineName
-                        }]
-                      };
-                    });
-                  }
-                }
-              } catch (err) {
-                console.error("Error adding to pipeline:", err);
-              }
-            }
-          }}
-          onRemoveCard={async (cardId, candidateId) => {
-            const currentCards = selectedCandidate?.pipelineCards || [];
-            const card = currentCards.find(pc => pc.id === cardId);
-            await supabase.from('pipeline_cards').delete().eq('id', cardId);
-            if (profile.userId && card) {
-              logActivity(profile.userId, `Removeu "${selectedCandidate?.name}" do processo "${card.pipelineName || 'Pipeline'}"`);
-            }
-            const filteredCards = currentCards.filter(pc => pc.id !== cardId);
-            const stillInPipeline = filteredCards.length > 0;
-            if (!stillInPipeline) {
-              await supabase.from('candidates').update({ interview_eligible: false }).eq('id', candidateId);
-            }
-            setSelectedCandidate(prev => {
-              if (!prev || prev.id !== candidateId) return prev;
-              return {
-                ...prev,
-                interview_eligible: stillInPipeline,
-                pipelineCards: filteredCards
-              };
-            });
-          }}
           onFieldChange={(id, field, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, [field]: val } : cand));
             setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
@@ -669,6 +614,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
+          currentJobContext={{ id: jobId, title: job?.name || '' }}
+          onTransferSuccess={() => setSelectedCandidate(null)}
         />
       )}
     </div>
@@ -676,9 +623,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 }
 
 // ─── Main List ─────────────────────────────────────────────────────────────────
-export const Analises = () => {
+export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -711,11 +659,19 @@ export const Analises = () => {
       setLoading(true);
       setError(null);
 
-      const { data: jobsData, error: jobsError } = await supabase
+      let query = supabase
         .from('jobs')
-        .select('id, name, filters, created_at')
-        .eq('user_id', userId)
+        .select('id, name, filters, created_at, organization_id')
         .order('created_at', { ascending: false });
+
+      // Se tiver organização, traz tudo da org. Se não, traz só do usuário.
+      if (profile.organization_id && profile.organization_id !== 'null') {
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+      } else {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data: jobsData, error: jobsError } = await query;
 
       if (jobsError) throw jobsError;
       if (!jobsData || jobsData.length === 0) { setJobs([]); return; }
@@ -733,9 +689,9 @@ export const Analises = () => {
       setJobs(jobsData.map(j => ({
         ...j,
         totalCandidates: countByJob[j.id] ?? 0,
-        topCandidates: (j.filters as any)?.best ?? 0,
+        topCandidates: (j.filters as { best?: number })?.best ?? 0,
       })));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar análises:', err);
       setError('Não foi possível carregar as análises.');
     } finally {
@@ -758,10 +714,10 @@ export const Analises = () => {
 
       if (affectedCandidates) {
         for (const candidate of affectedCandidates) {
-          const history: any[] = candidate.analysis?.history ?? [];
-          const hadJob = history.some((h: any) => h.job_id === jId);
+          const history = Array.isArray(candidate.analysis?.history) ? candidate.analysis.history : [];
+          const hadJob = history.some((h: { job_id: string }) => h.job_id === jId);
           if (hadJob) {
-            const newHistory = history.filter((h: any) => h.job_id !== jId);
+            const newHistory = history.filter((h: { job_id: string }) => h.job_id !== jId);
             await supabase
               .from('candidates')
               .update({ analysis: { ...candidate.analysis, history: newHistory } })
@@ -833,18 +789,20 @@ export const Analises = () => {
       <style>{planetCss}</style>
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-            <Activity size={32} style={{ color: 'var(--primary)' }} />
-            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-              IA Análise de Currículos
-            </h1>
+        {!hideHeader && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+              <Activity size={32} style={{ color: 'var(--primary)' }} />
+              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                IA Análise de Currículos
+              </h1>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
+              Gerencie e analise currículos de forma inteligente.
+            </p>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
-            Gerencie e analise currículos de forma inteligente.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
+        )}
+        <div className="flex items-center gap-4" style={{ marginLeft: hideHeader ? 'auto' : undefined }}>
           <div style={{ position: 'relative' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
             <input
@@ -871,7 +829,7 @@ export const Analises = () => {
       {recent.length > 0 && (
         <>
           <p className="text-xs text-[var(--text-dim)] uppercase tracking-widest mb-4">Acessados recentemente</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
             {recent.map((j, i) => {
               // Cycle through planets for variety
               const planetVariants = [
@@ -889,7 +847,7 @@ export const Analises = () => {
                 <div
                   key={j.id}
                   onClick={() => navigate(`/analise/${j.id}`)}
-                  className="d-card group"
+                  className={`d-card group ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
                   style={{ 
                     position: 'relative',
                     overflow: 'hidden',
@@ -912,44 +870,65 @@ export const Analises = () => {
                     (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
                   }}
                 >
-                  {/* Stars Background - Full Coverage */}
-                  {[...Array(25)].map((_, si) => (
-                    <div 
-                      key={si} 
-                      className="star" 
-                      style={{ 
-                        width: si % 7 === 0 ? 2 : 1, 
-                        height: si % 7 === 0 ? 2 : 1, 
-                        top: `${(si * 17) % 100}%`, 
-                        left: `${(si * 37 + i * 13) % 100}%`, 
-                        '--duration': `${1.5 + (si % 4)}s`, 
-                        animationDelay: `${si * 0.1}s`, 
-                        opacity: (si % 5) * 0.1 
-                      } as any} 
-                    />
-                  ))}
+                  {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                  {/* Theme-based backgrounds */}
+                  {bgTheme === 'planets' && (
+                    <>
+                      {/* Stars Background - Full Coverage */}
+                      {[...Array(25)].map((_, si) => (
+                        <div 
+                          key={si} 
+                          className="star" 
+                          style={{ 
+                            width: si % 7 === 0 ? 2 : 1, 
+                            height: si % 7 === 0 ? 2 : 1, 
+                            top: `${(si * 17) % 100}%`, 
+                            left: `${(si * 37 + i * 13) % 100}%`, 
+                            '--duration': `${1.5 + (si % 4)}s`,
+                            animationDelay: `${si * 0.1}s`,
+                            opacity: (si % 5) * 0.1
+                          } as React.CSSProperties}
+                        />
+                      ))}
+                    </>
+                  )}
 
                   {/* Mini Planet Segment - Solid to hide stars */}
-                  <div 
-                    className="planet" 
-                    style={{ 
-                      position: 'absolute', 
-                      width: 65, 
-                      height: 65, 
-                      borderRadius: '50%', 
-                      background: 'black',
-                      backgroundImage: p.color, 
-                      right: -15, 
-                      bottom: -15, 
-                      opacity: 1, 
-                      boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, 
-                      zIndex: 2,
-                      animation: 'float 25s ease-in-out infinite'
-                    } as any} 
-                  >
-                    <PlanetOverlay type={p.name} />
-                    {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
-                  </div>
+                  {bgTheme === 'planets' && (
+                    <div 
+                      className="planet" 
+                      style={{ 
+                        position: 'absolute', 
+                        width: 65, 
+                        height: 65, 
+                        borderRadius: '50%', 
+                        background: 'black',
+                        backgroundImage: p.color, 
+                        right: -15, 
+                        bottom: -15,
+                        opacity: 1,
+                        boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`,
+                        zIndex: 2,
+                        animation: 'float 25s ease-in-out infinite'
+                      } as React.CSSProperties}
+                    >
+                      <PlanetOverlay type={p.name} />
+                      {p.ring && <div className="planet-ring" style={{ width: 110, height: 16, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                    </div>
+                  )}
+
+                  {bgTheme === 'spatial' && (
+                    <div style={{
+                      position: 'absolute',
+                      right: -10,
+                      bottom: -10,
+                      width: 80,
+                      height: 80,
+                      background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                      filter: 'blur(20px)',
+                      zIndex: 1
+                    }} />
+                  )}
 
                   <div style={{ position: 'relative', zIndex: 3 }}>
                     <p className="font-bold text-sm text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">{j.name}</p>

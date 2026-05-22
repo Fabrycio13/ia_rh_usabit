@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer, Cell,
 } from 'recharts';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../core/contexts/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Job {
@@ -16,36 +17,52 @@ interface Job {
   created_at: string;
 }
 interface JobWithStats extends Job {
+  type: 'analysis' | 'job';
   totalCandidates: number;
   topCandidates: number;
 }
 
 // ─── Animated Counter ─────────────────────────────────────────────────────────
-const AnimatedNumber = ({ target, suffix = '' }: { target: number; suffix?: string }) => {
-  const [val, setVal] = useState(0);
-  const ref = useRef<number>(0);
+// Uses a ref to track the previous target so the animation only fires when the
+// actual data value changes — not on re-renders caused by sidebar resizing.
+const AnimatedNumber = memo(({ target, suffix = '' }: { target: number; suffix?: string }) => {
+  const [val, setVal] = useState(target);
+  const prevTarget = useRef<number>(target);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    ref.current = 0;
+    if (prevTarget.current === target) return; // skip re-renders with same value
+    prevTarget.current = target;
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    const start = val;
     const steps = 40;
-    const inc = target / steps;
-    const timer = setInterval(() => {
-      ref.current += inc;
-      if (ref.current >= target) { setVal(target); clearInterval(timer); }
-      else setVal(Math.floor(ref.current));
+    const inc = (target - start) / steps;
+    let current = start;
+    timerRef.current = setInterval(() => {
+      current += inc;
+      const done = inc >= 0 ? current >= target : current <= target;
+      if (done) {
+        setVal(target);
+        clearInterval(timerRef.current!);
+      } else {
+        setVal(Math.floor(current));
+      }
     }, 30);
-    return () => clearInterval(timer);
-  }, [target]);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return <>{val}{suffix}</>;
-};
+});
 
 // ─── Tooltip style ────────────────────────────────────────────────────────────
 const TT = {
-  background: '#1a1c2d',
-  border: '1px solid rgba(99,102,241,0.2)',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
   borderRadius: 10,
-  color: '#e2e8f0',
+  color: 'var(--text-main)',
   fontSize: 12,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  boxShadow: '0 8px 30px rgba(0,0,0,0.12)'
 };
 
 
@@ -157,6 +174,7 @@ const PlanetOverlay = ({ type }: { type: string }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard = () => {
   const { profile } = useUser();
+  const { bgTheme, theme } = useTheme();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<JobWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,15 +189,21 @@ export const Dashboard = () => {
   
   // Layout customization state
   const [isCustomizing, setIsCustomizing] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
   const [layout, setLayout] = useState(() => {
     const saved = localStorage.getItem(`dash-layout-${profile.userId}`);
     return saved ? JSON.parse(saved) : { calendarPos: 'right', rankingPos: 'right' };
   });
 
-  const saveLayout = (newLayout: typeof layout) => {
+  useEffect(() => {
+    const t = setTimeout(() => setShowCharts(true), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const saveLayout = useCallback((newLayout: typeof layout) => {
     setLayout(newLayout);
     localStorage.setItem(`dash-layout-${profile.userId}`, JSON.stringify(newLayout));
-  };
+  }, [profile.userId]);
 
   const totalVagas = jobs.length;
   const totalAvaliados = jobs.reduce((s, j) => s + j.totalCandidates, 0);
@@ -196,6 +220,8 @@ export const Dashboard = () => {
     const ch = supabase.channel('dash-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'job_candidates' }, () => fetchData(profile.userId))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchData(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchData(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchData(profile.userId))
       .subscribe();
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
   }, [profile.userId, profile.loaded]);
@@ -203,27 +229,79 @@ export const Dashboard = () => {
   async function fetchData(userId: string) {
     try {
       setLoading(true); setError(null);
-      const { data: jobsData, error: je } = await supabase
+      
+      // 1. Buscar Análises (jobs)
+      const { data: analysesData, error: ae } = await supabase
         .from('jobs').select('id,name,filters,created_at')
         .eq('user_id', userId).order('created_at', { ascending: false });
-      if (je) throw je;
-      if (!jobsData?.length) { setJobs([]); return; }
+      if (ae) throw ae;
 
-      const ids = jobsData.map(j => j.id);
-      const { data: jcData } = await supabase.from('job_candidates').select('job_id').in('job_id', ids);
-      let topData: any[] = [];
-      try {
-        const { data } = await supabase.from('job_candidates').select('job_id').eq('user_id', userId).gte('score', 70).in('job_id', ids);
-        topData = data ?? [];
-      } catch { /* ignore */ }
+      // 2. Buscar Vagas do Portal (vagas_white_label)
+      let query = supabase
+        .from('vagas_white_label')
+        .select('id, title, created_at, organization_id');
+      
+      if (profile.organization_id && profile.organization_id !== 'null') {
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
+      } else {
+        query = query.eq('user_id', profile.userId);
+      }
 
-      const cnt: Record<string, number> = {};
-      const top: Record<string, number> = {};
-      (jcData ?? []).forEach(({ job_id }) => { cnt[job_id] = (cnt[job_id] ?? 0) + 1; });
-      (topData ?? []).forEach(({ job_id }) => { if (job_id) top[job_id] = (top[job_id] ?? 0) + 1; });
+      const { data: whiteLabelData, error: we } = await query
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      
+      if (we) throw we;
 
-      setJobs(jobsData.map(j => ({ ...j, totalCandidates: cnt[j.id] ?? 0, topCandidates: top[j.id] ?? 0 })));
-    } catch (e: any) {
+      // 3. Buscar estatísticas para Análises
+      let analysisStats: JobWithStats[] = [];
+      if (analysesData?.length) {
+        const ids = analysesData.map(j => j.id);
+        const { data: jcData } = await supabase.from('job_candidates').select('job_id, score').in('job_id', ids);
+        const cnt: Record<string, number> = {};
+        const top: Record<string, number> = {};
+        (jcData ?? []).forEach(row => {
+          cnt[row.job_id] = (cnt[row.job_id] ?? 0) + 1;
+          if ((row.score || 0) >= 70) top[row.job_id] = (top[row.job_id] ?? 0) + 1;
+        });
+        analysisStats = analysesData.map(j => ({
+          ...j,
+          type: 'analysis',
+          totalCandidates: cnt[j.id] ?? 0,
+          topCandidates: top[j.id] ?? 0
+        }));
+      }
+
+      // 4. Buscar estatísticas para Vagas Criadas
+      let whiteLabelStats: JobWithStats[] = [];
+      if (whiteLabelData?.length) {
+        const ids = whiteLabelData.map(j => j.id);
+        const { data: vcData } = await supabase.from('vagas_candidaturas').select('vaga_id, match_score').in('vaga_id', ids);
+        const cnt: Record<string, number> = {};
+        const top: Record<string, number> = {};
+        (vcData ?? []).forEach(row => {
+          cnt[row.vaga_id] = (cnt[row.vaga_id] ?? 0) + 1;
+          if ((row.match_score || 0) >= 70) top[row.vaga_id] = (top[row.vaga_id] ?? 0) + 1;
+        });
+        whiteLabelStats = whiteLabelData.map(j => ({
+          id: j.id,
+          name: j.title,
+          filters: null,
+          created_at: j.created_at,
+          type: 'job',
+          totalCandidates: cnt[j.id] ?? 0,
+          topCandidates: top[j.id] ?? 0
+        }));
+      }
+
+      // Mesclar e ordenar por data
+      const merged = [...analysisStats, ...whiteLabelStats].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setJobs(merged);
+    } catch (e: unknown) {
+      console.error('Erro no Dashboard:', e);
       setError('Não foi possível carregar os dados.');
     } finally {
       setLoading(false);
@@ -231,10 +309,14 @@ export const Dashboard = () => {
   }
 
   // Chart data
-  const barData = jobs.slice(0, 8).map(j => ({
-    name: j.name.length > 14 ? j.name.slice(0, 14) + '…' : j.name,
+  const barData = jobs.slice(0, 20).map(j => ({
+    name: j.type === 'job' ? j.name : `[A] ${j.name}`,
+    shortName: j.name.length > 10 ? j.name.slice(0, 10) + '…' : j.name,
+    fullName: j.name,
+    type: j.type === 'job' ? 'Vaga' : 'Análise',
+    color: j.type === 'job' ? '#6366f1' : '#a78bfa',
     Avaliados: j.totalCandidates,
-    Aprovados: j.topCandidates,
+    Match: j.topCandidates,
   }));
 
   // Dates that have jobs created on them
@@ -251,13 +333,23 @@ export const Dashboard = () => {
     })
     : jobs;
 
-  const areaData = filteredJobs.slice().reverse().map((j, i) => ({
-    name: `V${i + 1}`,
-    Candidatos: j.totalCandidates,
-    Aprovados: j.topCandidates,
-  }));
+  // Group data by date for Area Chart (Volume Histórico)
+  const groupedByDate: Record<string, { name: string, Vagas: number, Analises: number, Match: number }> = {};
+  
+  filteredJobs.slice().reverse().forEach(j => {
+    const date = j.created_at.slice(0, 10);
+    const dayMonth = `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+    if (!groupedByDate[date]) {
+      groupedByDate[date] = { name: dayMonth, Vagas: 0, Analises: 0, Match: 0 };
+    }
+    if (j.type === 'job') groupedByDate[date].Vagas += j.totalCandidates;
+    else groupedByDate[date].Analises += j.totalCandidates;
+    groupedByDate[date].Match += j.topCandidates;
+  });
 
-  const topJobs = [...jobs].sort((a, b) => b.topCandidates - a.topCandidates).slice(0, 5);
+  const areaData = Object.values(groupedByDate);
+
+  const topJobs = [...jobs].sort((a, b) => b.totalCandidates - a.totalCandidates).slice(0, 5);
 
   // Calendar helpers
   const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -349,7 +441,7 @@ export const Dashboard = () => {
       <div className="anim-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { 
-            label: 'Vagas Analisadas', value: totalVagas, suffix: '', icon: Briefcase, 
+            label: 'Vagas Totais', value: totalVagas, suffix: '', icon: Briefcase, 
             orb: '#6366f1', 
             planet: { 
               name: 'Saturn', size: 90, 
@@ -393,58 +485,85 @@ export const Dashboard = () => {
         ].map((k, idx) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="kpi-card d-card" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div key={k.label} 
+              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+              style={{ position: 'relative', overflow: 'hidden', '--card-idx': idx } as React.CSSProperties}
+            >
+              {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
               <div className="kpi-orb" style={{ background: k.orb }} />
               
-              {/* Animated Stars - Maximum Density */}
-              {[...Array(35)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className="star" 
-                  style={{ 
-                    width: (i % 6 === 0 ? 2 : 1), 
-                    height: (i % 6 === 0 ? 2 : 1), 
-                    top: `${(i * 13) % 95}%`, 
-                    left: `${(idx * 23 + i * 31) % 95}%`, 
-                    '--duration': `${1.5 + (i % 5) * 0.4}s`,
-                    animationDelay: `${i * 0.1}s`,
-                    opacity: 0.15 + (i % 5) * 0.15
-                  } as any} 
-                />
-              ))}
+              {/* Theme-based backgrounds */}
+              {bgTheme === 'planets' && (
+                <>
+                  {/* Animated Stars - Maximum Density */}
+                  {[...Array(35)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className="star" 
+                      style={{ 
+                        width: (i % 6 === 0 ? 2 : 1), 
+                        height: (i % 6 === 0 ? 2 : 1), 
+                        top: `${(i * 13) % 95}%`, 
+                        left: `${(idx * 23 + i * 31) % 95}%`, 
+                        '--duration': `${1.5 + (i % 5) * 0.4}s`,
+                        animationDelay: `${i * 0.1}s`,
+                        opacity: 0.15 + (i % 5) * 0.15
+                      } as React.CSSProperties}
+                    />
+                  ))}
 
-              {/* Rotating Planet */}
-              <div 
-                className="planet" 
-                style={{ 
-                  width: k.planet.size, 
-                  height: k.planet.size, 
-                  background: 'black', 
-                  backgroundImage: k.planet.color, 
-                  right: k.planet.right, 
-                  bottom: k.planet.bottom,
-                  animation: 'float 18s ease-in-out infinite',
-                  animationDelay: `${idx * 1.2}s`,
-                  zIndex: 2,
-                  ...(k.planet.style || {})
-                } as any}
-              >
-                <PlanetOverlay type={k.planet.name} />
-                {k.planet.ring && (
-                  <div className="planet-ring" style={{ 
-                    width: k.planet.size * 2.4, 
-                    height: k.planet.size * 0.5, 
-                    background: 'radial-gradient(ellipse at center, transparent 38%, rgba(217,119,6,0.1) 39%, rgba(217,119,6,0.2) 45%, rgba(217,119,6,0.05) 55%, rgba(217,119,6,0.15) 65%, transparent 66%)', 
-                    transform: 'translate(-50%, -50%) rotate(-15deg)', 
-                    filter: 'blur(0.5px)',
-                    boxShadow: '0 0 10px rgba(217,119,6,0.05)'
-                  }} />
-                )}
-              </div>
+                  {/* Rotating Planet */}
+                  <div
+                    className="planet" 
+                    style={{ 
+                      width: k.planet.size, 
+                      height: k.planet.size, 
+                      background: 'black', 
+                      backgroundImage: k.planet.color, 
+                      right: k.planet.right, 
+                      bottom: k.planet.bottom,
+                      animation: 'float 18s ease-in-out infinite',
+                      animationDelay: `${idx * 1.2}s`,
+                      zIndex: 2,
+                      ...(k.planet.style || {})
+                    } as React.CSSProperties}
+                  >
+                    <PlanetOverlay type={k.planet.name} />
+                    {k.planet.ring && (
+                      <div className="planet-ring" style={{ 
+                        width: k.planet.size * 2.4, 
+                        height: k.planet.size * 0.5, 
+                        background: 'radial-gradient(ellipse at center, transparent 38%, rgba(217,119,6,0.1) 39%, rgba(217,119,6,0.2) 45%, rgba(217,119,6,0.05) 55%, rgba(217,119,6,0.15) 65%, transparent 66%)', 
+                        transform: 'translate(-50%, -50%) rotate(-15deg)', 
+                        filter: 'blur(0.5px)',
+                        boxShadow: '0 0 10px rgba(217,119,6,0.05)'
+                      }} />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {bgTheme === 'spatial' && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'radial-gradient(circle at 100% 100%, rgba(44, 88, 253, 0.08) 0%, transparent 60%)',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }} />
+              )}
 
               <div style={{ position: 'relative', zIndex: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12, padding: 10, display: 'flex' }}>
+                  <div style={{ 
+                    background: theme === 'dark' ? 'rgba(7, 15, 42, 0.65)' : 'var(--primary-light-bg)', 
+                    backdropFilter: 'blur(8px)', 
+                    border: '1px solid ' + (theme === 'dark' ? 'rgba(99,102,241,0.3)' : 'var(--primary-border)'), 
+                    borderRadius: 12, 
+                    padding: 10, 
+                    display: 'flex', 
+                    boxShadow: theme === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(37,99,235,0.08)' 
+                  }}>
                     <Icon style={{ width: 18, height: 18, color: 'var(--primary)' }} />
                   </div>
                   <ArrowUpRight style={{ width: 16, height: 16, color: 'var(--text-dim)' }} />
@@ -465,8 +584,11 @@ export const Dashboard = () => {
             <Briefcase style={{ width: 28, height: 28, color: 'var(--primary)' }} />
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nenhuma vaga encontrada</p>
-          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova análise para começar a ver os dados aqui.</p>
-          <button onClick={() => navigate('/analise/nova')} style={{ marginTop: 24, background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Nova Análise</button>
+          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova análise ou vaga para começar a ver os dados aqui.</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24 }}>
+            <button onClick={() => navigate('/analise/nova')} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Nova Análise</button>
+            <button onClick={() => navigate('/vagas/nova')} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Criar Vaga</button>
+          </div>
         </div>
       ) : (
         <>
@@ -485,17 +607,22 @@ export const Dashboard = () => {
             <div className="d-card" style={{ flex: 1, padding: '24px 20px 16px', minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <div>
-                  <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Evolução por Vaga</p>
-                  <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Volume Histórico</p>
+                  <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>Candidatos & Match</p>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: -4 }}>
                     {activeStart
                       ? activeEnd && activeEnd !== activeStart
                         ? `${fmtDate(activeStart)} → ${fmtDate(activeEnd)}`
                         : fmtDate(activeStart)
-                      : 'Candidatos & Aprovados'}
+                      : ''}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 16 }}>
-                  {[{ color: '#6366f1', label: 'Candidatos' }, { color: '#22c55e', label: 'Aprovados' }].map(l => (
+                  {[
+                    { color: '#6366f1', label: 'Vagas' }, 
+                    { color: '#a78bfa', label: 'Análises' }, 
+                    { color: '#22c55e', label: 'Match' }
+                  ].map(l => (
                     <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
                       <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{l.label}</span>
@@ -503,27 +630,52 @@ export const Dashboard = () => {
                   ))}
                 </div>
               </div>
-              <div style={{ height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={areaData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gCand" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gAprov" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={TT} />
-                    <Area type="monotone" dataKey="Candidatos" stroke="#6366f1" strokeWidth={2.5} fill="url(#gCand)" dot={false} activeDot={{ r: 5, fill: '#6366f1' }} />
-                    <Area type="monotone" dataKey="Aprovados" stroke="#22c55e" strokeWidth={2.5} fill="url(#gAprov)" dot={false} activeDot={{ r: 5, fill: '#22c55e' }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div style={{ height: 220, width: '100%' }}>
+                {showCharts && (
+                  <ResponsiveContainer width="100%" height={220} debounce={350}>
+                    <AreaChart data={areaData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gVaga" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gAnalise" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gMatch" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div style={{ ...TT, padding: '10px 14px' }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{payload[0].payload.name || payload[0].payload.fullName}</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {payload.map((p: Record<string, unknown>) => (
+                                    <p key={p.dataKey as string} style={{ color: p.color as string, fontSize: 12, fontWeight: 600 }}>
+                                      {p.name as string}: {String(p.value)}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area type="monotone" dataKey="Vagas" stroke="#6366f1" strokeWidth={2.5} fill="url(#gVaga)" dot={false} activeDot={{ r: 5, fill: '#6366f1' }} />
+                      <Area type="monotone" dataKey="Analises" stroke="#a78bfa" strokeWidth={2.5} fill="url(#gAnalise)" dot={false} activeDot={{ r: 5, fill: '#a78bfa' }} />
+                      <Area type="monotone" dataKey="Match" stroke="#22c55e" strokeWidth={2.5} fill="url(#gMatch)" dot={false} activeDot={{ r: 5, fill: '#22c55e' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
@@ -616,17 +768,41 @@ export const Dashboard = () => {
                 <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Comparativo</p>
                 <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>Candidatos por Vaga</p>
               </div>
-              <div style={{ height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData} barGap={4} barCategoryGap="32%" margin={{ left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={TT} cursor={{ fill: 'rgba(99,102,241,0.05)' }} />
-                    <Bar dataKey="Avaliados" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={42} />
-                    <Bar dataKey="Aprovados" fill="#22c55e" radius={[6, 6, 0, 0]} maxBarSize={42} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div style={{ height: 220, width: '100%' }}>
+                {showCharts && (
+                  <ResponsiveContainer width="100%" height={220} debounce={350}>
+                    <BarChart data={barData} barGap={4} barCategoryGap="32%" margin={{ left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: 'var(--text-dim)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div style={{ ...TT, padding: '10px 14px' }}>
+                                <p style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 2, textTransform: 'uppercase', fontWeight: 700 }}>{data.type}</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{data.fullName}</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <p style={{ color: '#6366f1', fontSize: 12, fontWeight: 600 }}>Total: {data.Avaliados}</p>
+                                  <p style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>Match: {data.Match}</p>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                        cursor={{ fill: 'rgba(99,102,241,0.05)' }} 
+                      />
+                      <Bar dataKey="Avaliados" radius={[6, 6, 0, 0]} maxBarSize={42}>
+                        {barData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="Match" fill="#22c55e" radius={[6, 6, 0, 0]} maxBarSize={42} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
@@ -637,26 +813,33 @@ export const Dashboard = () => {
                   <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Ranking</p>
                   <p style={{ color: 'var(--text-main)', fontSize: 17, fontWeight: 700 }}>Top Vagas</p>
                 </div>
-                <button onClick={() => navigate('/analises')} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                <button onClick={() => navigate('/vagas')} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                   Ver todas <ChevronRight style={{ width: 14, height: 14 }} />
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {topJobs.map((j, i) => {
-                  const pct = j.totalCandidates > 0 ? Math.round((j.topCandidates / j.totalCandidates) * 100) : 0;
+                  const maxTotal = Math.max(...topJobs.map(tj => tj.totalCandidates), 1);
+                  const volumePct = Math.round((j.totalCandidates / maxTotal) * 100);
                   const medals = ['🥇', '🥈', '🥉'];
                   return (
-                    <div key={j.id} className="top-row" style={{ padding: '10px 8px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div key={j.id} 
+                      className="top-row" 
+                      onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')}
+                      style={{ padding: '10px 8px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderRadius: 8, transition: 'all 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
                       <span style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: medals[i] ? 22 : 13, fontWeight: medals[i] ? 400 : 700, color: 'var(--text-muted)', lineHeight: 1 }}>{medals[i] ?? `${i + 1}`}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 4 }}>{j.name}</p>
                         <div style={{ height: 4, background: 'var(--bg-main)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#6366f1,#a78bfa)', borderRadius: 4, transition: 'width 0.8s ease' }} />
+                          <div style={{ height: '100%', width: `${volumePct}%`, background: 'linear-gradient(90deg,#6366f1,#a78bfa)', borderRadius: 4, transition: 'width 0.8s ease' }} />
                         </div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 700 }}>{j.topCandidates}</p>
-                        <p style={{ color: 'var(--text-dim)', fontSize: 10 }}>{pct}%</p>
+                        <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 700 }}>{j.totalCandidates}</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: 10 }}>Total</p>
                       </div>
                     </div>
                   );
@@ -675,11 +858,11 @@ export const Dashboard = () => {
                 <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Recentes</p>
                 <p style={{ color: 'var(--text-main)', fontSize: 17, fontWeight: 700 }}>Últimas Vagas Criadas</p>
               </div>
-              <button onClick={() => navigate('/analises')} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--primary)', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 10, padding: '6px 14px' }}>
+              <button onClick={() => navigate('/vagas')} style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--primary)', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 10, padding: '6px 14px' }}>
                 Ver todas <ChevronRight style={{ width: 14, height: 14 }} />
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 16 }}>
               {jobs.slice(0, 8).map((j, i) => {
                 const pct = j.totalCandidates > 0 ? Math.round((j.topCandidates / j.totalCandidates) * 100) : 0;
                 const date = new Date(j.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
@@ -697,34 +880,66 @@ export const Dashboard = () => {
                 const p = planetVariants[j.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % planetVariants.length];
 
                 return (
-                  <div key={j.id} onClick={() => navigate('/analises')} 
-                    className="d-card"
-                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: '1px solid var(--border)', minHeight: 125, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 40px rgba(0,0,0,0.35)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'; }}>
+                  <div key={j.id} onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')} 
+                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                    onMouseEnter={e => { 
+                      if (bgTheme !== 'spatial') {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; 
+                      }
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
+                    }}
+                    onMouseLeave={e => { 
+                      if (bgTheme !== 'spatial') {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; 
+                      }
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
+                    }}>
+                    {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
                     
-                    {/* Stars Background */}
-                    {[...Array(12)].map((_, si) => (
-                      <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as any} />
-                    ))}
+                    {/* Theme-based backgrounds */}
+                    {bgTheme === 'planets' && (
+                      <>
+                        {/* Stars Background */}
+                        {[...Array(12)].map((si) => (
+                          <div key={si} className="star" style={{ width: 1, height: 1, top: `${(si * 13) % 95}%`, left: `${(si * 29 + i * 11) % 95}%`, '--duration': `${2 + (si % 3)}s`, opacity: 0.15 } as React.CSSProperties} />
+                        ))}
+                      </>
+                    )}
 
                     <div style={{ position: 'relative', zIndex: 3 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                         <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 700, flex: 1, marginRight: 4, lineHeight: 1.2, letterSpacing: '-0.01em', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{j.name}</p>
                         <span style={{ color: 'var(--text-dim)', fontSize: 10, whiteSpace: 'nowrap', fontWeight: 600 }}>{date}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                      <div style={{ marginBottom: 10 }}>
+                        <span style={{ 
+                          fontSize: '9px', 
+                          fontWeight: 800, 
+                          textTransform: 'uppercase', 
+                          padding: '2px 6px', 
+                          borderRadius: '4px',
+                          background: j.type === 'job' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                          color: j.type === 'job' ? '#22c55e' : '#6366f1',
+                          border: `1px solid ${j.type === 'job' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(99, 102, 241, 0.2)'}`
+                        }}>
+                          {j.type === 'job' ? 'Vaga' : 'Análise'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
                         <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Aval.</p>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Total</p>
                           <p style={{ color: 'var(--text-main)', fontSize: 14, fontWeight: 800 }}>{j.totalCandidates}</p>
                         </div>
                         <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Aprov.</p>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Match</p>
                           <p style={{ color: '#22c55e', fontSize: 14, fontWeight: 800 }}>{j.topCandidates}</p>
                         </div>
-                        <div>
-                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>Taxa</p>
-                          <p style={{ color: pct >= 50 ? '#22c55e' : pct >= 25 ? '#f59e0b' : '#ef4444', fontSize: 14, fontWeight: 800 }}>{pct}%</p>
+                        <div style={{ flex: 1, minWidth: 45 }}>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 1 }}>%</p>
+                          <p style={{ color: pct >= 50 ? '#22c55e' : pct >= 25 ? '#f59e0b' : '#ef4444', fontSize: pct >= 100 ? 14 : 15, fontWeight: 800, textAlign: 'right' }}>{pct}%</p>
                         </div>
                       </div>
                     </div>
@@ -736,10 +951,25 @@ export const Dashboard = () => {
                     </div>
 
                     {/* Mini Planet Segment - Compact */}
-                    <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as any}>
-                      <PlanetOverlay type={p.name} />
-                      {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
-                    </div>
+                    {bgTheme === 'planets' && (
+                      <div className="planet" style={{ position: 'absolute', width: 75, height: 75, borderRadius: '50%', background: p.color, right: -12, bottom: -12, opacity: 1, boxShadow: `inset -12px -12px 25px rgba(0,0,0,0.5), 0 0 20px ${p.shadow}`, transition: 'all 0.4s ease', zIndex: 10 } as React.CSSProperties}>
+                        <PlanetOverlay type={p.name} />
+                        {p.ring && <div className="planet-ring" style={{ width: 125, height: 18, background: 'radial-gradient(ellipse, transparent 40%, rgba(217,119,6,0.1) 45%, transparent 60%)', transform: 'translate(-50%, -50%) rotate(-15deg)', filter: 'blur(1px)' }} />}
+                      </div>
+                    )}
+
+                    {bgTheme === 'spatial' && (
+                      <div style={{
+                        position: 'absolute',
+                        right: -10,
+                        bottom: -10,
+                        width: 80,
+                        height: 80,
+                        background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                        filter: 'blur(20px)',
+                        zIndex: 1
+                      }} />
+                    )}
                   </div>
                 );
               })}

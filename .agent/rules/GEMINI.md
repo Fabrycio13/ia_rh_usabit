@@ -27,6 +27,16 @@ Agent activated → Check frontmatter "skills:" → Read SKILL.md (INDEX) → Re
 
 ---
 
+## 🛠️ TIER 0: PROTOCOLO DE TRABALHO OBRIGATÓRIO (MANDATÓRIO)
+
+> 🔴 **REGRA DE OURO:** NUNCA entregue uma tarefa sem testar e documentar.
+
+1. **TESTE ANTES DA ENTREGA**: Todas as alterações devem ser validadas na pasta `tests/`. Se não houver testes automatizados, realize testes manuais e registre-os.
+2. **REGISTRO DE ATIVIDADES**: Cada alteração deve ser registrada em um log diário na pasta `docs/logs/` seguindo o formato `YYYY-MM-DD.md`. O arquivo `docs/logs/ACTIVITY_LOG.md` deve servir apenas como índice.
+3. **DOCUMENTAÇÃO DE PROGRESSO**: Mantenha a documentação em `docs/` sempre atualizada com as decisões técnicas tomadas.
+
+---
+
 ## 📥 REQUEST CLASSIFIER (STEP 1)
 
 **Before ANY action, classify the request:**

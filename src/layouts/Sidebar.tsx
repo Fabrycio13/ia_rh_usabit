@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Activity, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, MessageSquare, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase } from 'lucide-react';
+import { useEffect, useRef, useState, memo } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutGrid, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase, Bell, X } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
 import { useAnalysis } from '../core/contexts/AnalysisContext';
 import { hasPermission } from '../core/config/permissions';
+import toast from 'react-hot-toast';
 
 
 /* ─── Animated Space Talent Logo ────────────────────────────────────────── */
@@ -49,17 +50,18 @@ const css = `
 .nav-lnk:hover .sbico { animation: iconBounce 0.4s ease forwards; }
 
 .nav-lnk { display:flex; align-items:center; gap:10px; padding:10px 14px; margin-bottom:4px; border-radius:10px; text-decoration:none; font-size:14px; font-weight:500; transition: background 0.18s, color 0.18s; color:var(--text-muted); overflow:hidden; white-space:nowrap; position:relative; }
-.nav-lnk:hover { background:var(--bg-card) !important; color:var(--text-main) !important; }
+.nav-lnk:hover { background:rgba(255,255,255,0.05) !important; color:var(--text-main) !important; }
 .nav-lnk.active { background:var(--sidebar-active); color:var(--sidebar-active-text); }
-.nav-lnk.active::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:3px; background:var(--primary); border-radius:0 4px 4px 0; }
+.nav-lnk.active::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:3px; background:var(--primary); border-radius:4px; }
 .dd-row { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:8px; cursor:pointer; color:var(--text-muted); font-size:13px; transition:background 0.15s; white-space:nowrap; }
 .dd-row:hover { background:var(--bg-main); color:var(--text-main); }
-.usr-card:hover { background:var(--bg-main) !important; }
-.tog-btn:hover { color:var(--text-main) !important; background:var(--bg-card) !important; }
+.usr-card:hover { background:rgba(255,255,255,0.05) !important; }
+.tog-btn:hover { color:var(--text-main) !important; background:rgba(255,255,255,0.08) !important; }
+@keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
-interface NI { to: string; icon: any; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
-const NavItem = ({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
+interface NI { to: string; icon: React.ComponentType<{ size?: number; className?: string }>; label: string; collapsed: boolean; end?: boolean; disabled?: boolean; }
+const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
     if (disabled) {
         return (
             <div title={collapsed ? `${label} (Premium)` : undefined}
@@ -70,7 +72,7 @@ const NavItem = ({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
                     opacity: 0.5,
                     cursor: 'not-allowed'
                 }}>
-                <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: 'gray' }} />
+                <span style={{ flexShrink: 0, color: 'gray', display: 'flex' }}><Icon className="sbico" size={18} /></span>
                 {!collapsed && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ fontSize: '13px' }}>{label}</span>
@@ -86,32 +88,22 @@ const NavItem = ({ to, icon: Icon, label, collapsed, end, disabled }: NI) => {
             style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 14px' }}>
             {({ isActive }) => (
                 <>
-                    <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: isActive ? 'white' : undefined }} />
+                    <span style={{ flexShrink: 0, color: isActive ? 'white' : undefined, display: 'flex' }}><Icon className="sbico" size={18} /></span>
                     {!collapsed && label}
                 </>
             )}
         </NavLink>
     );
-};
+});
 
-interface ENI { href: string; icon: any; label: string; collapsed: boolean; }
-const ExternalNavItem = ({ href, icon: Icon, label, collapsed }: ENI) => {
-    return (
-        <a href={href} target="_blank" rel="noreferrer" title={collapsed ? label : undefined}
-            className="nav-lnk"
-            style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 14px' }}>
-            <Icon className="sbico" style={{ width: 18, height: 18, flexShrink: 0 }} />
-            {!collapsed && label}
-        </a>
-    );
-};
+
 
 export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
     const { profile } = useUser();
     const { lang, setLang, t } = useLang();
     const { analyzing, progress, jobName } = useAnalysis();
     const navigate = useNavigate();
-    const location = useLocation();
+
 
     // Persist collapsed state in localStorage so navigation doesn't reset it
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sb-col') === '1');
@@ -122,6 +114,80 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
     const userCardRef = useRef<HTMLButtonElement>(null);
     const ddRef = useRef<HTMLDivElement>(null);
     const [ddPos, setDdPos] = useState({ bottom: 0, left: 0, right: 0 });
+
+    // ─── Realtime Notifications ──────────────────────────────────────────────
+    interface Notification { id: string; candidate_name: string; applied_at: string; vaga_id: string; status: string; vaga: { title: string } }
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [showNotifDd, setShowNotifDd] = useState(false);
+    const notifRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!profile.organization_id) return;
+
+        // Fetch recent notifications
+        const fetchRecent = async () => {
+            const { data } = await supabase
+                .from('vagas_candidaturas')
+                .select('id, candidate_name, applied_at, vaga_id, status, vaga:vagas_white_label(title)')
+                .eq('organization_id', profile.organization_id)
+                .order('applied_at', { ascending: false })
+                .limit(5);
+            
+            if (data) setNotifications(data as unknown as Notification[]);
+        };
+        fetchRecent();
+
+        // Subscribe to new registrations
+        const channel = supabase
+            .channel('global-registrations')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'vagas_candidaturas',
+                    filter: `organization_id=eq.${profile.organization_id}`
+                },
+                async (payload) => {
+                    const newCand = payload.new;
+                    
+                    // Fetch vaga title
+                    const { data: vagaData } = await supabase
+                        .from('vagas_white_label')
+                        .select('title')
+                        .eq('id', newCand.vaga_id)
+                        .single();
+
+                    const fullNotif = { ...newCand, vaga: (vagaData as { title: string }) ?? { title: 'Vaga' } } as Notification;
+                    
+                    setNotifications(prev => [fullNotif, ...prev].slice(0, 5));
+                    setUnreadCount(prev => prev + 1);
+                    
+                    // Play a subtle sound or just show toast? 
+                    // Toast is already handled in pages, but global toast is good too.
+                    toast.success(`Novo cadastro: ${newCand.candidate_name}`, {
+                        icon: '🔔',
+                        duration: 4000
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [profile.organization_id]);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+                setShowNotifDd(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const toggle = () => setCollapsed(c => { const n = !c; localStorage.setItem('sb-col', n ? '1' : '0'); return n; });
     const handleLogout = async () => { await supabase.auth.signOut(); };
@@ -186,15 +252,18 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 width: W, 
                 minWidth: W, 
                 background: 'var(--bg-sidebar)', 
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRight: '1px solid var(--border)', 
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.06)', 
+                borderRadius: '20px',
                 display: 'flex', 
                 flexDirection: 'column', 
-                height: '100vh', 
+                height: '100%', 
                 flexShrink: 0, 
-                transition: 'width 0.25s cubic-bezier(.4,0,.2,1), min-width 0.25s cubic-bezier(.4,0,.2,1)', 
-                overflow: 'hidden' 
+                transition: 'width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1)', 
+                overflow: 'hidden',
+                willChange: 'width, min-width',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05)'
             }}>
 
                 {/* Logo + Toggle */}
@@ -266,10 +335,6 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <NavItem to="/vagas" icon={Briefcase} label={t('vagas')} collapsed={collapsed} />
                     )}
                     
-                    {/* Análises - admin, rh e gestor */}
-                    {hasPermission(profile.user_role, 'analises') && (
-                        <NavItem to="/analises" icon={Activity} label={t('analyses')} collapsed={collapsed} />
-                    )}
                     
                     {/* Candidatos - admin, rh e gestor */}
                     {hasPermission(profile.user_role, 'candidatos') && (
@@ -281,10 +346,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                         <NavItem to="/pipeline" icon={Kanban} label="Pipeline" collapsed={collapsed} />
                     )}
                     
-                    {/* Chat - apenas admin e gestor (premium) */}
-                    {hasPermission(profile.user_role, 'chat') && (
-                        <NavItem to="/chat" icon={MessageSquare} label="Chat" collapsed={collapsed} disabled={!profile.isPremium} />
-                    )}
+                    {/* Chat - desabilitado por enquanto */}
 
                     {/* Admin section - apenas admin */}
                     {hasPermission(profile.user_role, 'admin') && (
@@ -344,9 +406,9 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                 )}
 
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
-                    {hasPermission(profile.user_role, 'chat') && (
+                    {hasPermission(profile.user_role, 'chat_widget') && (
                         <button
-                            onClick={profile.isPremium ? onToggleChat : undefined}
+                            onClick={onToggleChat}
                             className="nav-lnk"
                             style={{
                                 width: '100%',
@@ -354,50 +416,121 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                                 padding: collapsed ? '10px' : '10px 14px',
                                 background: 'none',
                                 border: 'none',
-                                cursor: profile.isPremium ? 'pointer' : 'not-allowed',
-                                opacity: profile.isPremium ? 1 : 0.6
+                                cursor: 'pointer',
+                                opacity: 1
                             }}
                         >
-                            <Bot className="sbico" style={{ width: 18, height: 18, flexShrink: 0, color: profile.isPremium ? '#22c55e' : 'var(--text-dim)' }} />
+                            <Bot className="sbico" size={18} style={{ flexShrink: 0, color: '#22c55e' }} />
                             {!collapsed && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                                    <span style={{ color: profile.isPremium ? '#22c55e' : 'var(--text-dim)', fontWeight: 600 }}>Assistente IA</span>
-                                    {!profile.isPremium && <Zap size={10} fill="#f59e0b" stroke="#f59e0b" />}
+                                    <span style={{ color: '#22c55e', fontWeight: 600 }}>Assistente IA</span>
                                 </div>
                             )}
                         </button>
                     )}
                 </div>
 
-                {/* Bottom */}
+                {/* Bottom profile area */}
                 <div style={{ padding: '0 8px 20px' }}>
                     <div style={{ height: '1px', background: 'var(--border)', margin: '0 4px 10px' }} />
 
-                    {/* User card */}
-                    <button
-                        ref={userCardRef}
-                        className="usr-card"
-                        onClick={openDd}
-                        title={collapsed ? (profile.firstName || 'Usuário') : undefined}
-                        style={{ display: 'flex', alignItems: 'center', gap: collapsed ? '0' : '12px', padding: collapsed ? '8px 0' : '9px 10px 9px 14px', borderRadius: '10px', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'background 0.15s', justifyContent: 'flex-start' }}
-                    >
-                        {/* Avatar — always centered when collapsed */}
-                        <div style={{ width: '100%', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start', alignItems: 'center', gap: collapsed ? '0' : '12px', minWidth: 0 }}>
-                            {profile.avatarUrl ? (
-                                <img src={profile.avatarUrl} alt="avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0, display: 'block' }} />
-                            ) : (
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#fff', flexShrink: 0, border: '2px solid var(--border)' }}>
-                                    {profile.initials || '?'}
-                                </div>
-                            )}
-                            {!collapsed && (
-                                <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                                    <p style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.firstName || '...'}</p>
-                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: 0 }}>{planLabels[profile.plan] || t('planTrial')}</p>
-                                </div>
-                            )}
+                    <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', gap: collapsed ? '12px' : '4px', justifyContent: 'center' }}>
+                        {/* Notification Bell Row - Bottom Left Position */}
+                        <div style={{ position: 'relative' }} ref={notifRef}>
+                            <button
+                                onClick={() => {
+                                    setShowNotifDd(!showNotifDd);
+                                    setUnreadCount(0);
+                                }}
+                                title="Notificações"
+                                style={{ 
+                                    background: 'transparent', 
+                                    border: 'none', 
+                                    cursor: 'pointer', 
+                                    color: unreadCount > 0 ? 'var(--primary)' : 'var(--text-dim)', 
+                                    padding: '8px', 
+                                    borderRadius: '10px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    flexShrink: 0, 
+                                    transition: 'all 0.2s',
+                                    width: collapsed ? '40px' : 'auto',
+                                    height: collapsed ? '40px' : 'auto',
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-main)'}
+                                onMouseLeave={e => e.currentTarget.style.color = unreadCount > 0 ? 'var(--primary)' : 'var(--text-dim)'}
+                            >
+                                <Bell size={18} />
+                                {unreadCount > 0 && (
+                                    <div style={{ 
+                                        position: 'absolute', 
+                                        top: '4px', 
+                                        right: '4px', 
+                                        background: '#ef4444', 
+                                        color: 'white', 
+                                        fontSize: '8px', 
+                                        fontWeight: 700, 
+                                        minWidth: '12px', 
+                                        height: '12px', 
+                                        borderRadius: '6px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        padding: '0 2px',
+                                        border: '1px solid var(--bg-sidebar)',
+                                        animation: 'iconBounce 0.3s ease'
+                                    }}>
+                                        {unreadCount}
+                                    </div>
+                                )}
+                            </button>
+
+
                         </div>
-                    </button>
+
+                        {/* User card - Reduced button */}
+                        <button
+                            ref={userCardRef}
+                            className="usr-card"
+                            onClick={openDd}
+                            title={collapsed ? (profile.firstName || 'Usuário') : undefined}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: collapsed ? '0' : '10px', 
+                                padding: collapsed ? '0' : '9px 10px', 
+                                borderRadius: '10px', 
+                                background: 'transparent', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                width: collapsed ? '40px' : 'auto',
+                                height: collapsed ? '40px' : 'auto',
+                                flex: collapsed ? 'none' : 1, 
+                                minWidth: 0,
+                                textAlign: 'left', 
+                                transition: 'background 0.15s', 
+                                justifyContent: 'center' 
+                            }}
+                        >
+                            {/* Avatar — always centered when collapsed */}
+                            <div style={{ width: '100%', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start', alignItems: 'center', gap: collapsed ? '0' : '10px', minWidth: 0 }}>
+                                {profile.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0, display: 'block' }} />
+                                ) : (
+                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0, border: '2px solid var(--border)' }}>
+                                        {profile.initials || '?'}
+                                    </div>
+                                )}
+                                {!collapsed && (
+                                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                                        <p style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.firstName || '...'}</p>
+                                        <p style={{ color: 'var(--text-dim)', fontSize: '10px', margin: 0 }}>{planLabels[profile.plan] || t('planTrial')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -443,6 +576,69 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                     <div className="dd-row" onMouseEnter={() => setLangSub(false)} onClick={handleLogout} style={{ color: '#ef4444' }}>
                         <LogOut style={{ width: 15, height: 15, flexShrink: 0, color: '#ef4444' }} />
                         <span>{t('logout')}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Notifications Dropdown — Fixed position */}
+            {showNotifDd && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        bottom: '80px', // Above the profile area
+                        left: collapsed ? '20px' : '20px',
+                        width: '300px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '12px',
+                        boxShadow: '0 10px 50px rgba(0,0,0,0.5)',
+                        zIndex: 10000,
+                        backdropFilter: 'blur(24px)',
+                        animation: 'csSlideUp 0.2s ease-out'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', padding: '0 4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Recentes</span>
+                        <button onClick={() => setShowNotifDd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
+                            <X size={14} />
+                        </button>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '380px', overflowY: 'auto' }} className="hide-scrollbar">
+                        {notifications.length === 0 ? (
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                                Nenhuma notificação nova.
+                            </div>
+                        ) : (
+                            notifications.map(n => (
+                                <div 
+                                    key={n.id} 
+                                    onClick={() => {
+                                        setShowNotifDd(false);
+                                        navigate(`/vagas/${n.vaga_id}/candidatos`);
+                                    }}
+                                    style={{ 
+                                        padding: '10px', 
+                                        borderRadius: '10px', 
+                                        background: 'rgba(255,255,255,0.03)', 
+                                        border: '1px solid var(--border)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{n.candidate_name}</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{new Date(n.applied_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        Inscrito em: <span style={{ color: 'var(--primary)' }}>{n.vaga?.title || 'Vaga'}</span>
+                                    </p>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}

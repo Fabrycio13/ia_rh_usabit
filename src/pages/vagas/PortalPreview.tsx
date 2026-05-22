@@ -1,5 +1,5 @@
-import React from 'react';
-import { Briefcase, MapPin, Building2, Clock, Search } from 'lucide-react';
+import { MapPin, Building2, Search } from 'lucide-react';
+import { formatSalary } from '../../core/utils/jobFormatter';
 
 interface PortalPreviewProps {
     logoUrl?: string;
@@ -33,30 +33,20 @@ export const PortalPreview = ({
     
     const sampleVagas = [
         {
-            id: '1',
+            id: '3',
             title: 'Desenvolvedor Full Stack',
             category: 'Tecnologia',
-            location: 'São Paulo, SP',
+            location: 'Remoto',
             work_model: 'Remoto',
             contract_type: 'pj',
-            salary_min: 8000,
-            salary_max: 12000,
-            has_salary_range: true
-        },
-        {
-            id: '2',
-            title: 'Analista de RH Sênior',
-            category: 'RH',
-            location: 'Curitiba, PR',
-            work_model: 'Híbrido',
-            contract_type: 'clt',
-            has_salary_range: false
+            salary_min: 10000,
+            salary_max: 15000,
+            has_salary_range: true,
+            company_name: 'Mileto'
         }
     ];
 
-    const formatCurrency = (val: number) => {
-        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    };
+    // Removido formatCurrency local para usar o do jobFormatter
 
     return (
         <div style={{ 
@@ -171,7 +161,14 @@ export const PortalPreview = ({
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
                         {sampleVagas.map(vaga => (
                             <div key={vaga.id} style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(8px)', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                <h3 style={{ fontSize: '18px', fontWeight: 800, color: fontColor, marginBottom: '16px', lineHeight: 1.2 }}>{vaga.title}</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
+                                    <h3 style={{ fontSize: '18px', fontWeight: 800, color: fontColor, margin: 0, lineHeight: 1.2 }}>{vaga.title}</h3>
+                                    {(vaga as { company_name?: string }).company_name && (
+                                        <p style={{ margin: 0, fontSize: '12px', color: primaryColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            na {(vaga as { company_name?: string }).company_name}
+                                        </p>
+                                    )}
+                                </div>
                                 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {vaga.has_salary_range && (
@@ -180,7 +177,7 @@ export const PortalPreview = ({
                                                 💰
                                             </div>
                                             <span style={{ fontWeight: 600, color: '#475569' }}>
-                                                {formatCurrency(vaga.salary_min)} - {formatCurrency(vaga.salary_max)}
+                                                {formatSalary(vaga.salary_min, vaga.salary_max)}
                                             </span>
                                         </div>
                                     )}

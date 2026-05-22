@@ -38,7 +38,8 @@ export const RadioGroup = ({ label, options, value, onChange, columns = 3 }: Rad
                             style={{
                                 padding: '16px',
                                 background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-main)',
-                                border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                                boxShadow: isSelected ? '0 0 0 1px var(--primary)' : 'none',
                                 borderRadius: '10px',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',

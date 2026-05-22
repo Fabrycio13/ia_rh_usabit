@@ -1,11 +1,10 @@
 
-
 // ─── CSS Animations ──────────────────────────────────────────────────────────
 const css = `
+.space-bg-container .star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
+.space-bg-container .planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
 @keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.star { position: absolute; background: white; border-radius: 50%; pointer-events: none; animation: twinkle var(--duration) ease-in-out infinite; opacity: 0.6; }
-.planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
 `;
 
 // ─── Planet Details ───────────────────────────────────────────────────────────
@@ -75,24 +74,36 @@ const PlanetOverlay = ({ type }: { type: string }) => {
   }
 };
 
+import React from 'react';
+
+// Stars generated once at module load (stable, not per-render)
+const STARS = Array.from({ length: 60 }, (_, i) => ({
+    key: i,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    width: `${1 + Math.random() * 2}px`,
+    height: `${1 + Math.random() * 2}px`,
+    duration: `${2 + Math.random() * 4}s`
+}));
+
 export const SpaceBackground = () => {
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: 'var(--bg-main)', overflow: 'hidden' }}>
+        <div className="space-bg-container" style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: '#04070c', overflow: 'hidden' }}>
             <style>{css}</style>
-            
+
             {/* Stars Container */}
             <div style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
-                {[...Array(60)].map((_, i) => (
-                    <div 
-                        key={i} 
-                        className="star" 
-                        style={{ 
-                            left: `${Math.random() * 100}%`, 
-                            top: `${Math.random() * 100}%`, 
-                            width: `${1 + Math.random() * 2}px`, 
-                            height: `${1 + Math.random() * 2}px`, 
-                            '--duration': `${2 + Math.random() * 4}s` 
-                        } as any} 
+                {STARS.map((star) => (
+                    <div
+                        key={star.key}
+                        className="star"
+                        style={{
+                            left: star.left,
+                            top: star.top,
+                            width: star.width,
+                            height: star.height,
+                            '--duration': star.duration
+                        } as React.CSSProperties}
                     />
                 ))}
             </div>

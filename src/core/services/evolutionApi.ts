@@ -18,7 +18,7 @@ export class EvolutionApiService {
     this.instance = instance;
   }
 
-  private async request(endpoint: string, method: string = 'GET', body?: any) {
+  private async request(endpoint: string, method: string = 'GET', body?: unknown) {
     const url = `${this.apiUrl}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',

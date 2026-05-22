@@ -233,7 +233,7 @@ export const LandingPage = () => {
         <nav className="lp-nav">
           <div className="lp-logo">
             <img
-              src={`${import.meta.env.BASE_URL}space-talent-favicon.svg`}
+              src={`${import.meta.env.BASE_URL}logos/space-talent-favicon.svg`}
               alt="Space Talent"
               style={{ width: 40, height: 40, objectFit: 'contain' }}
             />
