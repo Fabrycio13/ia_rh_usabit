@@ -323,6 +323,13 @@ export const Configuracoes = () => {
         logActivity(userId, 'Fez alterações na foto', { filename: file.name });
     };
 
+    const handleRemovePhoto = async () => {
+        if (!userId) return;
+        setAvatarPreview('');
+        setAvatarUrl('');
+        toast.success('Foto removida! Lembre-se de salvar as alterações.');
+    };
+
     const handleSave = async () => {
         if (!userId) return;
         setSaving(true);
@@ -743,6 +750,32 @@ export const Configuracoes = () => {
                             <Camera style={{ width: 14, height: 14 }} />
                             Trocar foto
                         </button>
+                        {avatarPreview && (
+                            <button
+                                onClick={handleRemovePhoto}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    background: 'transparent',
+                                    color: '#ef4444',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Remover foto
+                        </button>
+                        )}
                     </div>
 
                     {/* Card formulário */}
