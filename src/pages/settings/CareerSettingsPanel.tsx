@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { Loader2, Save, Image as ImageIcon, PaintBucket, Type } from 'lucide-react';
+import { Loader2, Image as ImageIcon, PaintBucket, Type } from 'lucide-react';
 
 interface CareerSettingsPanelProps {
     showToast: (type: 'success' | 'error', msg: string) => void;
