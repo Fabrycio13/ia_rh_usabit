@@ -348,6 +348,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                             score: normalizedCandidate.score,
                             job_id: jobData.id,
                             job_name: name,
+                            source: 'analysis',
                             analyzed_at: new Date().toISOString()
                         };
 

@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
-const ALLOWED_ORIGINS = ['https://spacetalent.com.br', 'http://localhost:5173']
+const ALLOWED_ORIGINS = ['https://spacetalent.com.br', 'https://usabit.github.io', 'http://localhost:5173']
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
