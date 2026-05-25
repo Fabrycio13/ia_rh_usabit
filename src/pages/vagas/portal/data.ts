@@ -1,4 +1,8 @@
 import type { NavbarItem, AreaCard, FooterLinkGroup } from './types';
+import areaDesign from '/illustrations/area-design.png';
+import areaDesenvolvimento from '/illustrations/area-desenvolvimento.png';
+import areaMarketing from '/illustrations/area-marketing.png';
+import areaRelacionamento from '/illustrations/area-relacionamento.png';
 
 export const navbarItems: NavbarItem[] = [
   { label: 'Sobre', href: '#sobre', hasDropdown: false },
@@ -9,10 +13,10 @@ export const navbarItems: NavbarItem[] = [
 ];
 
 export const areas: AreaCard[] = [
-  { title: 'Design', image: '/illustrations/area-design.png' },
-  { title: 'Desenvolvimento', image: '/illustrations/area-desenvolvimento.png' },
-  { title: 'Marketing', image: '/illustrations/area-marketing.png' },
-  { title: 'Relacionamento e Performance', image: '/illustrations/area-relacionamento.png' },
+  { title: 'Design', image: areaDesign },
+  { title: 'Desenvolvimento', image: areaDesenvolvimento },
+  { title: 'Marketing', image: areaMarketing },
+  { title: 'Relacionamento e Performance', image: areaRelacionamento },
 ];
 
 export const footerGroups: FooterLinkGroup[] = [

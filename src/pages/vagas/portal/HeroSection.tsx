@@ -1,3 +1,5 @@
+import heroIllustration from '/illustrations/hero-illustration.png';
+
 interface HeroSectionProps {
   orgName: string;
   isMobile: boolean;
@@ -119,7 +121,7 @@ export const HeroSection = ({ orgName, isMobile, onScrollToVagas, onNavigate }: 
         }}
       >
         <img
-          src="/illustrations/hero-illustration.png"
+          src={heroIllustration}
           alt="Ilustração"
           style={{
             width: '100%',
