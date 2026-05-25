@@ -273,7 +273,16 @@ export const OrganizationCareerPage = () => {
         onNavigate={(path) => navigate(path)}
       />
 
-      <AreasSection isMobile={isMobile} />
+      <AreasSection
+        isMobile={isMobile}
+        onAreaClick={(areaTitle) => {
+          const category = areaTitle === 'Relacionamento e Performance' ? 'Todos' : areaTitle;
+          setActiveCategory(category);
+          setTimeout(() => {
+            document.getElementById('vagas')?.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }}
+      />
 
       <VagasSection
         vagas={vagas}

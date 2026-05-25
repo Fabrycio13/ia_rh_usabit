@@ -2,9 +2,10 @@ import { areas } from './data';
 
 interface AreasSectionProps {
   isMobile: boolean;
+  onAreaClick?: (areaTitle: string) => void;
 }
 
-export const AreasSection = ({ isMobile }: AreasSectionProps) => {
+export const AreasSection = ({ isMobile, onAreaClick }: AreasSectionProps) => {
   return (
     <section
       id="areas"
@@ -60,6 +61,7 @@ export const AreasSection = ({ isMobile }: AreasSectionProps) => {
         {areas.map((area) => (
           <div
             key={area.title}
+            onClick={() => onAreaClick?.(area.title)}
             style={{
               position: 'relative',
               borderRadius: 4,

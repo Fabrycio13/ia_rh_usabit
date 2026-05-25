@@ -3,4 +3,10 @@ For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan.
 Current plan: `docs/architecture/portal-carreiras-figma.md`
 Previous plan: `.opencode/plans/PLAN-008-modularizacao-ia-analises.md`
+
+# Supabase CLI
+- SUPABASE_ACCESS_TOKEN is stored as Windows user env var (set via `setx`)
+- To deploy functions: `npx supabase functions deploy <function-name>`
+- Project ref: dfsqdfetzcwvmfphljzs
+- Edge functions are in `supabase/functions/`
 <!-- SPECKIT END -->
