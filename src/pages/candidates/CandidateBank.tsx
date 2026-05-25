@@ -183,12 +183,10 @@ export const CandidateBank = () => {
 
       if (!isGlobalViewer) {
         if (isOrgMember && profile.organization_id && profile.organization_id !== 'null') {
-          query = query.eq('organization_id', profile.organization_id).or('analysis->>source.is.null|analysis->>source.neq.analysis');
+          query = query.eq('organization_id', profile.organization_id);
         } else {
-          query = query.eq('user_id', userId).or('analysis->>source.is.null|analysis->>source.neq.analysis');
+          query = query.eq('user_id', userId);
         }
-      } else {
-        query = query.or('analysis->>source.is.null|analysis->>source.neq.analysis');
       }
 
       const { data, error } = await query;
@@ -200,12 +198,10 @@ export const CandidateBank = () => {
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
-            fallbackQuery = fallbackQuery.eq('organization_id', profile.organization_id).or('analysis->>source.is.null|analysis->>source.neq.analysis');
+            fallbackQuery = fallbackQuery.eq('organization_id', profile.organization_id);
           } else {
-            fallbackQuery = fallbackQuery.eq('user_id', userId).or('analysis->>source.is.null|analysis->>source.neq.analysis');
+            fallbackQuery = fallbackQuery.eq('user_id', userId);
           }
-        } else {
-          fallbackQuery = fallbackQuery.or('analysis->>source.is.null|analysis->>source.neq.analysis');
         }
         const { data: fallback } = await fallbackQuery;
         setCandidates((fallback ?? []) as unknown as Candidate[]);
