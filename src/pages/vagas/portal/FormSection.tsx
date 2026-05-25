@@ -8,7 +8,7 @@ export const FormSection = ({ orgId, isMobile, onNavigate }: FormSectionProps) =
   return (
     <section
       style={{
-        padding: isMobile ? '60px 24px' : '80px 0',
+        padding: isMobile ? '60px 24px 110px 24px' : '80px 0 130px 0',
         maxWidth: 1440,
         margin: '0 auto',
         position: 'relative',

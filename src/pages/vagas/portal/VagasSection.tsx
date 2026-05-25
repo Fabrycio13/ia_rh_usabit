@@ -81,6 +81,7 @@ export const VagasSection = ({
     return types[type.toLowerCase()] || type;
   };
 
+
   return (
     <section
       id="vagas"
@@ -127,16 +128,14 @@ export const VagasSection = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: isMobile ? 'flex-start' : (tabsOverflowing ? 'flex-start' : 'center'),
-          flexWrap: 'nowrap',
-          gap: isMobile ? 8 : 32,
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          gap: isMobile ? '8px 12px' : '8px 24px',
           marginBottom: isMobile ? 32 : 48,
           borderBottom: '1px solid rgba(255,255,255,0.1)',
-          overflowX: 'auto',
           padding: '0 0 12px 0',
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch',
         }}
+
       >
         {categories.map((cat) => {
           const isActive = activeCategory === cat;
@@ -155,7 +154,7 @@ export const VagasSection = ({
                 color: isActive ? '#F5F6F8' : '#C3C7CD',
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 500,
-                fontSize: 18,
+                fontSize: isMobile ? 15 : 18,
                 cursor: 'pointer',
                 transition: 'color 0.2s',
                 display: 'flex',
@@ -163,6 +162,7 @@ export const VagasSection = ({
                 gap: 8,
                 whiteSpace: 'nowrap',
                 borderBottom: isActive ? '2px solid #2C58FD' : '2px solid transparent',
+                flexShrink: 0,
               }}
             >
               {getDisplayCategory(cat)}
@@ -196,7 +196,7 @@ export const VagasSection = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: 24,
           }}
         >
