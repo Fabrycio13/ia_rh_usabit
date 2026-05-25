@@ -41,7 +41,6 @@ export const VagasSection = ({
   setActiveCategory,
   isMobile,
   tabsRef,
-  tabsOverflowing,
   onNavigate,
 }: VagasSectionProps) => {
   const categories = [
