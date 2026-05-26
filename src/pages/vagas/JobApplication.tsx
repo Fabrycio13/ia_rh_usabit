@@ -867,68 +867,6 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             
             if (err) throw err;
 
-            // 2. UPSERT automático no Banco de Talentos via Edge Function (bypassa RLS)
-            if (job!.organization_id) {
-                const candidatePayload = {
-                    email: formData.email,
-                    organization_id: job!.organization_id,
-                    name: formData.name,
-                    phone: formData.phone || null,
-                    location: formData.location || null,
-                    linkedin: formData.linkedin || null,
-                    resume_url: resumeUrl,
-                    resume_file_name: resumeFile.name,
-                    gender: formData.gender || null,
-                    age: formData.age || null,
-                    address: formData.address || null,
-                    portfolio: formData.portfolio || null,
-                    cep: formData.cep || null,
-                    address_number: formData.addressNumber || null,
-                    complement: formData.complement || null,
-                    vaga_id: job!.id,
-                    status: 'active',
-                    skills: aiResult?.skills?.join(', ') || null,
-                    experience: aiResult?.experience || null,
-                    analysis: aiResult ? {
-                        skills: aiResult.skills?.join(', '),
-                        experience: aiResult.experience,
-                        education: aiResult.education,
-                        summary: aiResult.summary,
-                        classification: aiResult.classification,
-                        strengths: aiResult.strengths,
-                        gaps: aiResult.gaps,
-                        history: [{
-                            job_id: job!.id,
-                            job_title: job!.title,
-                            score: aiResult.score,
-                            date: new Date().toISOString(),
-                            classification: aiResult.classification,
-                            summary: aiResult.summary,
-                            skills: aiResult.skills?.join(', '),
-                            experience: aiResult.experience,
-                            education: aiResult.education,
-                            strengths: aiResult.strengths,
-                            gaps: aiResult.gaps
-                        }]
-                    } : null
-                };
-
-                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(candidatePayload)
-                });
-
-                if (!res.ok) {
-                    const errBody = await res.text();
-                    console.error('submit-candidate error:', res.status, errBody);
-                    throw new Error('Erro ao salvar candidato no banco de talentos');
-                }
-            }
             setSubmitted(true);
 
             // Enviar e-mail de confirmação via Supabase Edge Function
