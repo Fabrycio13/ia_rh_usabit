@@ -365,7 +365,7 @@ export const CandidateBank = () => {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 16 }}>
         <div style={{ width: 40, height: 40, border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Carregando candidatosâ€¦</p>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Carregando candidatos…</p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -390,7 +390,7 @@ export const CandidateBank = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
-            <input type="text" placeholder="Buscar candidatosâ€¦" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            <input type="text" placeholder="Buscar candidatos…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
             />
           </div>
@@ -405,7 +405,7 @@ export const CandidateBank = () => {
 
       <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar por:</span>
-        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="GÃªnero" />
+        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />
         <SelectFilter value={filterVaga} onChange={v => { setFilterVaga(v); setPage(1); }} options={vagaOptions} placeholder="Vaga aplicada" />
         <button onClick={() => { setOnlyFavorites(f => !f); setPage(1); }}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: onlyFavorites ? 'var(--favorite-bg)' : 'transparent', border: `1px solid ${onlyFavorites ? 'var(--favorite)' : 'var(--border)'}`, borderRadius: 8, padding: '7px 12px', color: onlyFavorites ? 'var(--favorite)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -646,7 +646,7 @@ export const CandidateBank = () => {
 
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>PÃ¡gina {page} de {totalPages} Â· {processed.length} candidatos</span>
+            <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {processed.length} candidatos</span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <button onClick={() => goTo(page - 1)} disabled={page === 1}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
