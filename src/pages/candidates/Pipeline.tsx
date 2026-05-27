@@ -390,12 +390,6 @@ export const Pipeline = () => {
     const [linkVagaPipeline, setLinkVagaPipeline] = useState<Pipeline | null>(null);
     const [linkVagaVagaId, setLinkVagaVagaId] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [approvalEmailTarget, setApprovalEmailTarget] = useState<{
-      candidateName: string;
-      candidateEmail: string;
-      jobTitle: string;
-    } | null>(null);
-    const [approvalEmailSending, setApprovalEmailSending] = useState(false);
     
     const [showStatusSelect, setShowStatusSelect] = useState(false);
     const statusSelectRef = useRef<HTMLDivElement>(null);
@@ -524,12 +518,11 @@ export const Pipeline = () => {
                                     supabase.from('pipeline_cards').update({ position: i }).eq('id', targetColOtherCards[i].id);
                                 }
                             }
-                            checkApprovalEmail({ ...card, column_id: targetColumnId }, targetCol?.name || '');
                         });
                         if (profile.userId) {
                             const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
                             const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
-                            logScreening(profile.userId, card.candidate_id, 'move', `${sourceCol?.name || ''}${pipeSuffix}`, `${targetCol?.name || ''}${pipeSuffix}`, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name });
+                            logScreening(profile.userId, card.candidate_id, 'move', `${sourceCol?.name || ''}${pipeSuffix}`, `${targetCol?.name || ''}${pipeSuffix}`, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name, pipeline_id: pipe?.id, pipeline_name: pipe?.name });
                             logActivity(profile.userId, `Moveu "${card.candidate_name}" para "${targetCol?.name || 'Etapa'}" no processo "${pipe?.name || 'Pipeline'}"`);
                         }
                     }
@@ -1125,7 +1118,6 @@ export const Pipeline = () => {
                 display_job_score: jobInfo?.score
             };
             setCards(prev => [...prev, newCard]);
-            checkApprovalEmail(newCard, targetCol?.name || '');
             setEligibles(prev => prev.map(e => e.id === cand.id ? { ...e, already_in_pipeline: true } : e));
             setAddCandModal(null);
             return newCard;
@@ -1177,33 +1169,6 @@ export const Pipeline = () => {
         setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
     }
 
-    async function checkApprovalEmail(card: PipelineCard, colName: string) {
-      if (!colName.toLowerCase().includes('aprovado')) return;
-
-      const { data } = await supabase
-        .from('candidates')
-        .select('email')
-        .eq('id', card.candidate_id)
-        .single();
-
-      if (!data?.email) {
-        toast.error('Candidato não possui e-mail cadastrado');
-        return;
-      }
-
-      let jobTitle = '';
-      try {
-        const notes = JSON.parse(card.notes || '{}');
-        jobTitle = notes.selected_job_name || '';
-      } catch { /* ignore parse errors */ }
-
-      setApprovalEmailTarget({
-        candidateName: card.candidate_name,
-        candidateEmail: data.email,
-        jobTitle,
-      });
-    }
-
     async function deletePipeline(id: string) {
         setLoading(true);
         try {
@@ -1238,8 +1203,6 @@ export const Pipeline = () => {
         await supabase.from('pipeline_cards').update({ column_id: targetColId, position: pos }).eq('id', card.id);
         setCards(prev => prev.map(c => c.id === card.id ? { ...c, column_id: targetColId, position: pos } : c));
 
-        checkApprovalEmail({ ...card, column_id: targetColId }, targetCol?.name || '');
-
         if (profile.userId) {
             const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
             const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
@@ -1249,7 +1212,7 @@ export const Pipeline = () => {
                 'move',
                 `${sourceCol?.name || ''}${pipeSuffix}`,
                 `${targetCol?.name || ''}${pipeSuffix}`,
-                { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name }
+                { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name, pipeline_id: pipe?.id, pipeline_name: pipe?.name }
             );
         }
     }
@@ -2208,66 +2171,6 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                     style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: 12, padding: '12px 0', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
                                 >
                                     Excluir
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })()}
-
-            {/* Modal: Approval Email Confirmation */}
-            {approvalEmailTarget && (() => {
-                return (
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div onClick={() => { setApprovalEmailTarget(null); setApprovalEmailSending(false); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                        <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-                            <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Enviar e-mail de aprovação?</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>
-                                Deseja enviar um e-mail para <strong>"{approvalEmailTarget.candidateName}"</strong> informando que foi aprovado(a){approvalEmailTarget.jobTitle ? ` para a vaga ${approvalEmailTarget.jobTitle}` : ''}?
-                            </p>
-                            <div style={{ display: 'flex', gap: 12 }}>
-                                <button 
-                                    onClick={() => { setApprovalEmailTarget(null); setApprovalEmailSending(false); }}
-                                    disabled={approvalEmailSending}
-                                    style={{ 
-                                        flex: 1, background: 'transparent', border: '1px solid var(--border)', 
-                                        borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
-                                        fontSize: 14, fontWeight: 700, cursor: approvalEmailSending ? 'wait' : 'pointer',
-                                        opacity: approvalEmailSending ? 0.5 : 1
-                                    }}
-                                >
-                                    Não
-                                </button>
-                                <button 
-                                    onClick={async () => {
-                                        if (approvalEmailSending) return;
-                                        setApprovalEmailSending(true);
-                                        try {
-                                            const { error } = await supabase.functions.invoke('send-approval-email', {
-                                                body: {
-                                                    candidateName: approvalEmailTarget.candidateName,
-                                                    candidateEmail: approvalEmailTarget.candidateEmail,
-                                                    jobTitle: approvalEmailTarget.jobTitle
-                                                }
-                                            });
-                                            if (error) throw error;
-                                            toast.success('E-mail de aprovação enviado com sucesso!');
-                                        } catch (err) {
-                                            console.error('Error sending approval email:', err);
-                                            toast.error('Falha ao enviar e-mail de aprovação');
-                                        }
-                                        setApprovalEmailTarget(null);
-                                        setApprovalEmailSending(false);
-                                    }}
-                                    disabled={approvalEmailSending}
-                                    style={{ 
-                                        flex: 1, background: approvalEmailSending ? '#16a34a' : '#22c55e', 
-                                        border: 'none', borderRadius: 12, padding: '12px 0', color: '#fff', 
-                                        fontSize: 14, fontWeight: 700, cursor: approvalEmailSending ? 'wait' : 'pointer',
-                                        opacity: approvalEmailSending ? 0.7 : 1
-                                    }}
-                                >
-                                    {approvalEmailSending ? 'Enviando...' : 'Sim, enviar'}
                                 </button>
                             </div>
                         </div>
