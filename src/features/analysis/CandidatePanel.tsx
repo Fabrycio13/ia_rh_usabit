@@ -219,7 +219,7 @@ export function CandidatePanel({
                 .from('candidate_screening_logs')
                 .select('*')
                 .eq('candidate_id', c.id)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: true });
             if (!error) setScreeningLogs(data || []);
         } finally { setLoadingLogs(false); }
     }

@@ -96,41 +96,12 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     }
                 }
 
-                // 2. Busca por Nome (Super Relaxada)
-                const normalize = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/^pipeline\s*-\s*/i, '').replace(/[^\w\s]/g, '');
-                const cleanJobTitle = normalize(job.title);
-                console.log(`[checkPipeline] Buscando por nome limpo: "${cleanJobTitle}"`);
-
-                // Tentar buscar em TODOS os pipelines que o usuário tem acesso
+                // 2. Buscar pipelines disponíveis para listar no dropdown
                 const { data: allAccessiblePipes } = await supabase
                     .from('pipelines')
                     .select('id, name, organization_id');
 
                 if (allAccessiblePipes && allAccessiblePipes.length > 0) {
-                    console.log(`[checkPipeline] Analisando ${allAccessiblePipes.length} pipelines acessíveis...`);
-                    
-                    const match = allAccessiblePipes.find(p => {
-                        const pName = normalize(p.name);
-                        return pName === cleanJobTitle || pName.includes(cleanJobTitle) || cleanJobTitle.includes(pName);
-                    });
-
-                    if (match) {
-                        console.log('[checkPipeline] SUCESSO - Match por nome encontrado:', match.name, match.id);
-                        setPipelineId(match.id);
-                        setPipelineName(match.name);
-                        setHasPipeline(true);
-                        
-                        // Sincronizar para o futuro se tivermos o UUID da vaga
-                        if (isUuid) {
-                            await Promise.all([
-                                supabase.from('vagas_white_label').update({ pipeline_id: match.id }).eq('id', job.id),
-                                supabase.from('pipelines').update({ vaga_id: job.id }).eq('id', match.id)
-                            ]);
-                        }
-                        return;
-                    }
-                    
-                    // Se não achou match, guarda os pipelines da org do job (ou do perfil) para o dropdown
                     const targetOrgId = job.organization_id || profile?.organization_id;
                     setAllPipelines(allAccessiblePipes.filter(p => p.organization_id === targetOrgId));
                 }
