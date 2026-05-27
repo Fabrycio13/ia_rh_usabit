@@ -664,7 +664,7 @@ export function CandidatePanel({
                             </>
                         )}
 
-                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} onCardRemoved={onCardRemoved} />}
+                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} isBlacklisted={c.is_blacklisted} onCardRemoved={onCardRemoved} />}
 
                         {!c.isVagaView && !hidePipelineAndBlacklist && (
                             <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>

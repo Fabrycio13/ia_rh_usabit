@@ -317,8 +317,8 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
                     {filtered.map(c => (
                         <div
                             key={c.id}
-                            className={`candidate-option${c.already_in_pipeline ? ' disabled' : ''}`}
-                            onClick={() => !c.already_in_pipeline && onAdd(columnId, c)}
+                            className={`candidate-option${c.already_in_pipeline || c.is_blacklisted ? ' disabled' : ''}`}
+                            onClick={() => !c.already_in_pipeline && !c.is_blacklisted && onAdd(columnId, c)}
                         >
                             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                                 {initials(c.name)}
@@ -334,6 +334,7 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
                             </div>
                             {c.score != null && <span style={{ background: scoreColor(c.score), color: '#fff', borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{c.score}%</span>}
                             {c.already_in_pipeline && <span style={{ color: 'var(--text-dim)', fontSize: 10, flexShrink: 0 }}>já no pipeline</span>}
+                            {!c.already_in_pipeline && c.is_blacklisted && <span style={{ color: '#ef4444', fontSize: 10, flexShrink: 0 }}>restringido (blacklist)</span>}
                         </div>
                     ))}
                 </div>
@@ -2202,7 +2203,11 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                         }
                     }}
                     onBlacklistChange={(id: string, val: boolean) => {
-                        setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
+                        if (val) {
+                            setCards(prev => prev.filter(c => c.candidate_id !== id));
+                        } else {
+                            setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
+                        }
                         setSelectedCandidate(prev => (prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev));
                     }}
                     onCardRemoved={(cardId: string) => {

@@ -47,10 +47,22 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
     const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
     const [selectedExistingId, setSelectedExistingId] = useState<string>('');
     const [showSelection, setShowSelection] = useState(false);
+    const [isBlacklisted, setIsBlacklisted] = useState(false);
 
     useEffect(() => {
         async function checkPipeline() {
             try {
+                // Check if candidate email is blacklisted
+                const { data: existingCand } = await supabase
+                    .from('candidates')
+                    .select('is_blacklisted')
+                    .eq('email', candidate.email)
+                    .maybeSingle();
+
+                if (existingCand?.is_blacklisted) {
+                    setIsBlacklisted(true);
+                }
+
                 const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.id);
                 console.log(`[checkPipeline] INICIANDO BUSCA CRÍTICA - Vaga: "${job.title}" (${job.id})`);
 
@@ -451,15 +463,31 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
                     {step === 'pipeline' && (
                         <div>
+                            {isBlacklisted && (
+                                <div style={{ 
+                                    background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', 
+                                    borderRadius: '16px', padding: '16px', marginBottom: '24px',
+                                    display: 'flex', gap: '12px', alignItems: 'center'
+                                }}>
+                                    <AlertCircle size={20} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                    <div style={{ flex: 1, textAlign: 'left' }}>
+                                        <p style={{ fontSize: '13px', fontWeight: 700, color: '#ef4444', margin: '0 0 4px' }}>Candidato na Blacklist</p>
+                                        <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0, lineHeight: '1.4' }}>
+                                            Este candidato está na lista de restrição e não pode ser vinculado a processos seletivos.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ marginBottom: '24px', textAlign: 'center' }}>
-                                <PipelineIcon size={40} style={{ color: 'var(--primary)', marginBottom: '16px', opacity: 0.8 }} />
+                                <PipelineIcon size={40} style={{ color: isBlacklisted ? '#ef4444' : 'var(--primary)', marginBottom: '16px', opacity: 0.8 }} />
                                 <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px' }}>Integração com Pipeline</h4>
                                 <p style={{ fontSize: '14px', color: 'var(--text-dim)', margin: 0 }}>
                                     Deseja também iniciar o processo de triagem para este candidato?
                                 </p>
                             </div>
 
-                            {!hasPipeline && hasPipeline !== null && (
+                            {!isBlacklisted && !hasPipeline && hasPipeline !== null && (
                                 <div style={{ 
                                     background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', 
                                     borderRadius: '16px', padding: '20px', marginBottom: '24px'
@@ -535,12 +563,12 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 <button
                                     onClick={() => handleTransfer(true)}
-                                    disabled={loading || !hasPipeline}
+                                    disabled={loading || !hasPipeline || isBlacklisted}
                                     style={{ 
                                         width: '100%', padding: '14px', borderRadius: '14px', 
                                         background: 'var(--primary)', color: '#fff', border: 'none', 
-                                        fontSize: '15px', fontWeight: 700, cursor: !hasPipeline ? 'not-allowed' : 'pointer',
-                                        transition: 'all 0.2s', opacity: !hasPipeline ? 0.5 : 1,
+                                        fontSize: '15px', fontWeight: 700, cursor: (!hasPipeline || isBlacklisted) ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s', opacity: (!hasPipeline || isBlacklisted) ? 0.5 : 1,
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                                     }}
                                 >
