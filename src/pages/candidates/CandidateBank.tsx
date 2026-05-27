@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
@@ -333,7 +333,7 @@ export const CandidateBank = () => {
           skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as unknown as CandidateRow)?.skills),
           experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as unknown as CandidateRow)?.experience),
           education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as unknown as CandidateRow)?.education),
-          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenÃ§Ã£o)'] ?? analysis?.['Pontos de atenÃ§Ã£o'] ?? analysis?.['pontos_de_atencao']),
+          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
           applications: validHistory.map((h: HistoryEntry) => ({
@@ -509,9 +509,9 @@ export const CandidateBank = () => {
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               {([
                 ['name', 'Nome'],
-                ['location', 'LocalizaÃ§Ã£o'],
+                ['location', 'Localização'],
                 ['age', 'Idade'],
-                [null, 'GÃªnero'],
+                [null, 'Gênero'],
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
@@ -551,7 +551,7 @@ export const CandidateBank = () => {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <p style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
-                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>âš¡ PIPELINE</span>}
+                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.email}</p>
@@ -559,11 +559,11 @@ export const CandidateBank = () => {
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(nÃ£o|nao)\s*informado|â€”/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
-                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>NÃ£o informado</span> : (
+                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
                       {(c.vagas || []).slice(0, 2).map(v => (
                         <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
@@ -659,14 +659,14 @@ export const CandidateBank = () => {
                   acc.push(p); return acc;
                 }, [])
                 .map((p, i) => p === '...' ? (
-                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>â€¦</span>
+                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
                 ) : (
                   <button key={p} onClick={() => goTo(p as number)}
                     style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
                 ))}
               <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                PrÃ³ximo <ChevronRight style={{ width: 15, height: 15 }} />
+                Próximo <ChevronRight style={{ width: 15, height: 15 }} />
               </button>
             </div>
           </div>
@@ -719,7 +719,7 @@ export const CandidateBank = () => {
         }}
         onViewCandidate={async (candidateId) => {
           setShowAddModal(false);
-          // Abre o painel do candidato existente com dados jÃ¡ carregados
+          // Abre o painel do candidato existente com dados já carregados
           openCandidate(candidates.find(c => c.id === candidateId)!);
         }}
       />
