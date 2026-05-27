@@ -360,6 +360,16 @@ export const Pipeline = () => {
     
     const [showCreatePipeline, setShowCreatePipeline] = useState(false);
     const [newPipeName, setNewPipeName] = useState('');
+    const [selectedVagaId, setSelectedVagaId] = useState<string>('');
+    const [vagasWithoutPipeline, setVagasWithoutPipeline] = useState<{ id: string; title: string; job_code?: string }[]>([]);
+    const [showLinkExistingVaga, setShowLinkExistingVaga] = useState(false);
+    const [selectedLinkVagaId, setSelectedLinkVagaId] = useState('');
+    const [availableVagasForLink, setAvailableVagasForLink] = useState<{ id: string; title: string; job_code?: string }[]>([]);
+    const [linkingVaga, setLinkingVaga] = useState(false);
+    const [showVagaSelect, setShowVagaSelect] = useState(false);
+    const [vagaSearchLink, setVagaSearchLink] = useState('');
+    const [showVagaSelectCreate, setShowVagaSelectCreate] = useState(false);
+    const [vagaSearchCreate, setVagaSearchCreate] = useState('');
     const [addColModal, setAddColModal] = useState(false);
     const [newColName, setNewColName] = useState('');
     const [newColColor, setNewColColor] = useState(COLUMN_COLORS[0]);
@@ -704,16 +714,110 @@ export const Pipeline = () => {
         }
     }
 
+    async function openCreatePipelineModal() {
+        setNewPipeName('');
+        setSelectedVagaId('');
+        try {
+            const { data: vagas } = await supabase
+                .from('vagas_white_label')
+                .select('id, title, job_code')
+                .is('pipeline_id', null)
+                .in('status', ['aberta', 'invisivel'])
+                .order('title');
+            setVagasWithoutPipeline(vagas || []);
+        } catch {
+            setVagasWithoutPipeline([]);
+        }
+        setShowCreatePipeline(true);
+    }
+
+    async function openLinkExistingVagaModal() {
+        setSelectedLinkVagaId('');
+        try {
+            const { data: vagas } = await supabase
+                .from('vagas_white_label')
+                .select('id, title, job_code')
+                .is('pipeline_id', null)
+                .in('status', ['aberta', 'invisivel'])
+                .order('title');
+            setAvailableVagasForLink(vagas || []);
+        } catch {
+            setAvailableVagasForLink([]);
+        }
+        setShowLinkExistingVaga(true);
+    }
+
+    async function handleLinkExistingVaga() {
+        if (!selectedPipelineId || !selectedLinkVagaId) return;
+        setLinkingVaga(true);
+        try {
+            const { data: vaga } = await supabase
+                .from('vagas_white_label')
+                .select('title, job_code')
+                .eq('id', selectedLinkVagaId)
+                .single();
+
+            const { data: pipe } = await supabase
+                .from('pipelines')
+                .select('name')
+                .eq('id', selectedPipelineId)
+                .single();
+
+            if (!vaga || !pipe) throw new Error('Dados não encontrados');
+
+            const codeLabel = vaga.job_code ? ` (${vaga.job_code})` : '';
+            const newName = `${pipe.name} - ${vaga.title}${codeLabel}`;
+
+            await supabase
+                .from('pipelines')
+                .update({ vaga_id: selectedLinkVagaId, name: newName })
+                .eq('id', selectedPipelineId);
+
+            await supabase
+                .from('vagas_white_label')
+                .update({ pipeline_id: selectedPipelineId })
+                .eq('id', selectedLinkVagaId);
+
+            setPipelines(prev => prev.map(p =>
+                p.id === selectedPipelineId
+                    ? { ...p, vaga_id: selectedLinkVagaId, name: newName }
+                    : p
+            ));
+
+            setShowLinkExistingVaga(false);
+            setSelectedLinkVagaId('');
+
+            logActivity(profile.userId, `Vinculou pipeline "${pipe.name}" à vaga "${vaga.title}"`);
+            toast.success('Pipeline vinculado à vaga!');
+        } catch (err) {
+            console.error('Erro ao vincular vaga:', err);
+            toast.error('Erro ao vincular vaga');
+        } finally {
+            setLinkingVaga(false);
+        }
+    }
+
     async function createPipeline() {
         if (!newPipeName.trim() || !profile.userId || loading) return;
         setLoading(true);
         try {
+            const insertData: {
+                name: string;
+                user_id: string;
+                organization_id?: string;
+                vaga_id?: string;
+            } = { 
+                name: newPipeName.trim(), 
+                user_id: profile.userId,
+                organization_id: profile.organization_id || undefined
+            };
+
+            if (selectedVagaId) {
+                insertData.vaga_id = selectedVagaId;
+            }
+
             const { data: pipe, error } = await supabase.from('pipelines')
-                .insert({ 
-                    name: newPipeName.trim(), 
-                    user_id: profile.userId,
-                    organization_id: profile.organization_id
-                })
+                .insert(insertData)
                 .select().single();
             
             if (error) throw error;
@@ -726,10 +830,18 @@ export const Pipeline = () => {
                     organization_id: profile.organization_id
                 }));
                 await supabase.from('pipeline_columns').insert(toInsert);
+
+                if (selectedVagaId) {
+                    await supabase
+                        .from('vagas_white_label')
+                        .update({ pipeline_id: pipe.id })
+                        .eq('id', selectedVagaId);
+                }
                 
                 setPipelines(prev => [...prev, pipe].sort((a, b) => a.name.localeCompare(b.name)));
                 setSelectedPipelineId(pipe.id);
                 setNewPipeName('');
+                setSelectedVagaId('');
                 setShowCreatePipeline(false);
                 logActivity(profile.userId, `Criou o processo "${pipe.name}"`);
             }
@@ -1355,7 +1467,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
                     {/* Primary Button: Add Pipeline */}
                     <button 
-                        onClick={() => setShowCreatePipeline(true)}
+                        onClick={openCreatePipelineModal}
                         style={{ 
                             display: 'flex', alignItems: 'center', gap: 6, 
                             background: 'var(--primary)', border: 'none', 
@@ -1385,6 +1497,21 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
                 {/* Ações da Aba (Nova Coluna e Filtros) à direita */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
+                        <button 
+                            onClick={openLinkExistingVagaModal}
+                            style={{ 
+                                display: 'flex', alignItems: 'center', gap: 6, 
+                                background: 'transparent', border: '1px solid var(--primary)', 
+                                borderRadius: 10, padding: '8px 14px', color: 'var(--primary)', 
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' 
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Vincular Vaga
+                        </button>
+                    )}
                     {activeTab === 'board' && selectedPipelineId && (
                         <button 
                             onClick={() => setAddColModal(true)} 
@@ -1597,7 +1724,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             </p>
                         </div>
                         <button 
-                            onClick={() => setShowCreatePipeline(true)}
+                            onClick={openCreatePipelineModal}
                             style={{ 
                                 background: 'var(--primary)', border: 'none', borderRadius: 16, 
                                 padding: '16px 36px', color: '#fff', fontSize: 16, fontWeight: 700, 
@@ -1786,8 +1913,8 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Modal: Create Pipeline */}
             {showCreatePipeline && (
                 <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div onClick={() => !loading && setShowCreatePipeline(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                    <div onClick={() => { setShowCreatePipeline(false); setSelectedVagaId(''); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
                         <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 20px', fontWeight: 700 }}>Novo Processo Seletivo</h3>
                         <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>Dê um nome para este pipeline (ex: Design, Front-end, etc.)</p>
                         <input 
@@ -1799,12 +1926,94 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{ 
                                 width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)', 
                                 borderRadius: 12, padding: '12px 16px', color: 'var(--text-main)', 
-                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 24
+                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 16
                             }}
                         />
+
+                        {/* Vaga selector */}
+                        <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 8px' }}>Vincular a uma vaga (opcional)</p>
+                        <div style={{ position: 'relative', marginBottom: 24 }}>
+                            <div
+                                onClick={() => setShowVagaSelectCreate(!showVagaSelectCreate)}
+                                style={{
+                                    background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12,
+                                    padding: '12px 16px', color: 'var(--text-main)', fontSize: 14,
+                                    display: 'flex', alignItems: 'center', cursor: 'pointer',
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                <span>
+                                    {selectedVagaId
+                                        ? (() => {
+                                            const v = vagasWithoutPipeline.find(x => x.id === selectedVagaId);
+                                            return v ? `${v.title}${v.job_code ? ` [${v.job_code}]` : ''}` : 'Selecionar vaga';
+                                        })()
+                                        : '— Nenhuma, criar pipeline avulso —'
+                                    }
+                                </span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showVagaSelectCreate ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                            </div>
+
+                            {showVagaSelectCreate && (
+                                <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: 4 }}>
+                                    <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                                        <input
+                                            autoFocus
+                                            placeholder="Pesquisar vaga..."
+                                            value={vagaSearchCreate}
+                                            onChange={e => setVagaSearchCreate(e.target.value)}
+                                            style={{
+                                                width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)',
+                                                borderRadius: 6, padding: '10px 14px', color: 'var(--text-main)', fontSize: 14,
+                                                outline: 'none', boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+                                    <div
+                                        className={`pipeline_option${selectedVagaId === '' ? ' active' : ''}`}
+                                        onClick={() => { setSelectedVagaId(''); setShowVagaSelectCreate(false); setVagaSearchCreate(''); setNewPipeName(''); }}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Nenhuma, criar pipeline avulso —</span>
+                                    </div>
+                                    {vagasWithoutPipeline
+                                        .filter(v =>
+                                            !vagaSearchCreate ||
+                                            v.title.toLowerCase().includes(vagaSearchCreate.toLowerCase()) ||
+                                            (v.job_code || '').toLowerCase().includes(vagaSearchCreate.toLowerCase())
+                                        )
+                                        .map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${selectedVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => {
+                                                    setSelectedVagaId(v.id);
+                                                    setShowVagaSelectCreate(false);
+                                                    setVagaSearchCreate('');
+                                                    setNewPipeName(v.title);
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                    {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{v.job_code}</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {vagasWithoutPipeline.filter(v =>
+                                        !vagaSearchCreate ||
+                                        v.title.toLowerCase().includes(vagaSearchCreate.toLowerCase()) ||
+                                        (v.job_code || '').toLowerCase().includes(vagaSearchCreate.toLowerCase())
+                                    ).length === 0 && (
+                                        <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma vaga disponível.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <div style={{ display: 'flex', gap: 12 }}>
                             <button 
-                                onClick={() => setShowCreatePipeline(false)}
+                                onClick={() => { setShowCreatePipeline(false); setSelectedVagaId(''); }}
                                 style={{ 
                                     flex: 1, background: 'transparent', border: '1px solid var(--border)', 
                                     borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
@@ -1831,6 +2040,105 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             >
                                 {loading && <div style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
                                 {loading ? 'Criando...' : 'Criar Pipeline'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Link Existing Pipeline to Vaga */}
+            {showLinkExistingVaga && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div onClick={() => { setShowLinkExistingVaga(false); setSelectedLinkVagaId(''); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                        <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 20px', fontWeight: 700 }}>Vincular a uma Vaga</h3>
+                        <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 8px' }}>Selecione a vaga que deseja vincular a este pipeline:</p>
+
+                        <div style={{ position: 'relative', marginBottom: 24 }}>
+                            <div
+                                onClick={() => setShowVagaSelect(!showVagaSelect)}
+                                style={{
+                                    background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12,
+                                    padding: '12px 16px', color: 'var(--text-main)', fontSize: 14,
+                                    display: 'flex', alignItems: 'center', cursor: 'pointer',
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                <span>
+                                    {selectedLinkVagaId
+                                        ? (() => {
+                                            const v = availableVagasForLink.find(x => x.id === selectedLinkVagaId);
+                                            return v ? `${v.title}${v.job_code ? ` [${v.job_code}]` : ''}` : 'Selecionar vaga';
+                                        })()
+                                        : '— Selecione uma vaga —'
+                                    }
+                                </span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showVagaSelect ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                            </div>
+
+                            {showVagaSelect && (
+                                <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: 4 }}>
+                                    <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                                        <input
+                                            autoFocus
+                                            placeholder="Pesquisar vaga..."
+                                            value={vagaSearchLink}
+                                            onChange={e => setVagaSearchLink(e.target.value)}
+                                            style={{
+                                                width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)',
+                                                borderRadius: 6, padding: '10px 14px', color: 'var(--text-main)', fontSize: 14,
+                                                outline: 'none', boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+                                    {availableVagasForLink
+                                        .filter(v =>
+                                            !vagaSearchLink ||
+                                            v.title.toLowerCase().includes(vagaSearchLink.toLowerCase()) ||
+                                            (v.job_code || '').toLowerCase().includes(vagaSearchLink.toLowerCase())
+                                        )
+                                        .map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${selectedLinkVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => { setSelectedLinkVagaId(v.id); setShowVagaSelect(false); setVagaSearchLink(''); }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                    {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{v.job_code}</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {availableVagasForLink.filter(v =>
+                                        !vagaSearchLink ||
+                                        v.title.toLowerCase().includes(vagaSearchLink.toLowerCase()) ||
+                                        (v.job_code || '').toLowerCase().includes(vagaSearchLink.toLowerCase())
+                                    ).length === 0 && (
+                                        <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma vaga disponível.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button 
+                                onClick={() => { setShowLinkExistingVaga(false); setSelectedLinkVagaId(''); }}
+                                style={{ 
+                                    flex: 1, background: 'transparent', border: '1px solid var(--border)', 
+                                    borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
+                                    fontSize: 14, fontWeight: 700, cursor: 'pointer'
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleLinkExistingVaga}
+                                disabled={!selectedLinkVagaId || linkingVaga}
+                                style={{ flex: 2, background: 'var(--primary)', border: 'none', borderRadius: 12, padding: '12px 0', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: (selectedLinkVagaId && !linkingVaga) ? 1 : 0.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                            >
+                                {linkingVaga && <div style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
+                                {linkingVaga ? 'Vinculando...' : 'Vincular'}
                             </button>
                         </div>
                     </div>
