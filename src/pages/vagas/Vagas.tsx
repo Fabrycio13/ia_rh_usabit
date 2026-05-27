@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
-import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Mail } from 'lucide-react';
+import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Mail, RefreshCw } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -96,6 +96,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         others: { name: string; email: string }[];
     } | null>(null);
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+    const [closeEmailVagaType, setCloseEmailVagaType] = useState<'fechada' | 'cancelada' | null>(null);
+
+    const [showReopenEmailModal, setShowReopenEmailModal] = useState(false);
+    const [reopenEmailVagaId, setReopenEmailVagaId] = useState<string | null>(null);
+    const [reopenEmailVagaTitle, setReopenEmailVagaTitle] = useState('');
+    const [reopenCandidates, setReopenCandidates] = useState<{name: string; email: string}[]>([]);
     
     // Filtros Avançados
     const [userRole, setUserRole] = useState<string>('');
@@ -322,10 +329,29 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .eq('vaga_id', id);
             }
 
+            const vagaAtual = vagas.find(v => v.id === id);
+
+            // Reabertura de vaga cancelada
+            if (status === 'aberta' && vagaAtual?.status === 'cancelada') {
+                const breakdown = await computeCloseEmailBreakdown(id);
+                const allCandidates = breakdown
+                    ? [...breakdown.approved, ...breakdown.rejected, ...breakdown.others].filter(c => c.email && c.email.includes('@'))
+                    : [];
+
+                if (allCandidates.length > 0) {
+                    setReopenCandidates(allCandidates);
+                    setReopenEmailVagaId(id);
+                    setReopenEmailVagaTitle(vagaAtual?.title || '');
+                    setShowReopenEmailModal(true);
+                } else {
+                    setVagas(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+                    toast.success(`Status alterado para "Aberta"`);
+                }
+                return;
+            }
+
             // Se cancelada ou fechada, primeiro perguntar sobre e-mails, depois sobre pipeline
             if (status === 'cancelada' || status === 'fechada') {
-                const vagaAtual = vagas.find(v => v.id === id);
-                
                 // Buscar organization_id se ainda não tiver
                 if (!userOrgId) {
                     const { data: { user } } = await supabase.auth.getUser();
@@ -347,6 +373,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 // Primeiro: modal de e-mail se houver candidatos
                 if (breakdown && breakdown.approved.length + breakdown.rejected.length + breakdown.others.length > 0) {
                     const total = breakdown.approved.length + breakdown.rejected.length + breakdown.others.length;
+                    setCloseEmailVagaType(status === 'cancelada' ? 'cancelada' : 'fechada');
                     setCloseEmailVagaCount(total);
                     setCloseEmailBreakdown(breakdown);
                     setCloseEmailVaga({ id, title: vagaAtual?.title || '' });
@@ -551,15 +578,17 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return { approved, rejected, others };
     }
 
-    async function sendCloseEmails(vagaId: string, vagaTitle: string) {
+    async function sendCloseEmails(vagaId: string, vagaTitle: string, tipo: 'fechada' | 'cancelada' = 'fechada') {
         if (sendingCloseEmails) return;
         setSendingCloseEmails(true);
         try {
             const breakdown = closeEmailBreakdown ?? await computeCloseEmailBreakdown(vagaId);
             if (!breakdown) {
-                toast.success('Nenhum candidato para enviar e-mail');
+                toast.success('Nenhum candidato para notificar');
                 setCloseEmailVaga(null);
                 setCloseEmailVagaCount(null);
+                setCloseEmailBreakdown(null);
+                setCloseEmailVagaType(null);
                 return;
             }
 
@@ -567,12 +596,31 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 ...breakdown.approved,
                 ...breakdown.rejected,
                 ...breakdown.others,
-            ];
+            ].filter(c => c.email && c.email.includes('@'));
+
+            if (allCandidaturas.length === 0) {
+                toast.success('Nenhum candidato para notificar');
+                setCloseEmailVaga(null);
+                setCloseEmailVagaCount(null);
+                setCloseEmailBreakdown(null);
+                setCloseEmailVagaType(null);
+                return;
+            }
 
             const approvedEmails = new Set(breakdown.approved.map(c => c.email));
 
             const results = await Promise.allSettled(
                 allCandidaturas.map(async c => {
+                    if (tipo === 'cancelada') {
+                        return supabase.functions.invoke('send-candidate-vaga-canceled-email', {
+                            body: {
+                                candidateName: c.name,
+                                candidateEmail: c.email,
+                                jobTitle: vagaTitle,
+                            }
+                        });
+                    }
+
                     const isApproved = approvedEmails.has(c.email);
 
                     if (isApproved) {
@@ -611,11 +659,59 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             setCloseEmailVaga(null);
             setCloseEmailVagaCount(null);
             setCloseEmailBreakdown(null);
+            setCloseEmailVagaType(null);
             setPendingPipelineDeleteFor(null);
             if (pendingId) {
                 setVagaForPipelineDelete(pendingId);
                 setPipelineDeleteModalOpen(true);
             }
+        }
+    }
+
+    async function sendReopenedEmails() {
+        if (sendingCloseEmails || !reopenEmailVagaId) return;
+        setSendingCloseEmails(true);
+        try {
+            const validCandidates = reopenCandidates.filter(c => c.email && c.email.includes('@'));
+            if (validCandidates.length === 0) {
+                toast.success('Nenhum candidato para notificar');
+                setShowReopenEmailModal(false);
+                setReopenCandidates([]);
+                setReopenEmailVagaId(null);
+                setReopenEmailVagaTitle('');
+                return;
+            }
+
+            const results = await Promise.allSettled(
+                validCandidates.map(c =>
+                    supabase.functions.invoke('send-candidate-vaga-reopened-email', {
+                        body: { candidateName: c.name, candidateEmail: c.email, jobTitle: reopenEmailVagaTitle }
+                    })
+                )
+            );
+
+            const sent = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            if (failed > 0) {
+                toast.success(`${sent} notificações enviadas, ${failed} falhas`);
+            } else {
+                toast.success(`${sent} candidat${sent !== 1 ? 'os' : 'a'} notificado${sent !== 1 ? 's' : ''} sobre a reabertura`);
+            }
+        } catch (err) {
+            console.error('Erro ao enviar notificações:', err);
+            toast.error('Erro ao enviar notificações');
+        } finally {
+            setSendingCloseEmails(false);
+            setOpenStatusId(null);
+            if (reopenEmailVagaId) {
+                setVagas(prev => prev.map(v =>
+                    v.id === reopenEmailVagaId ? { ...v, status: 'aberta' as const, is_accepting_applications: true } : v
+                ));
+            }
+            setShowReopenEmailModal(false);
+            setReopenCandidates([]);
+            setReopenEmailVagaId(null);
+            setReopenEmailVagaTitle('');
         }
     }
 
@@ -1645,10 +1741,31 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             {closeEmailVaga && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'fadeIn 0.2s ease-out' }}>
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
-                        <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
-                            <Mail size={40} color="var(--primary)" />
-                        </div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12, textAlign: 'center' }}>Enviar e-mails para os candidatos?</h2>
+                        {closeEmailVagaType === 'cancelada' ? (
+                            <>
+                                <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                    <AlertTriangle size={40} color="#f59e0b" />
+                                </div>
+                                <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12, textAlign: 'center' }}>Notificar candidatos?</h2>
+                                <p style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>
+                                    Esta vaga foi cancelada. Os candidatos serão notificados por e-mail.
+                                </p>
+                                {closeEmailBreakdown && (
+                                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 24 }}>
+                                        {[...closeEmailBreakdown.approved, ...closeEmailBreakdown.rejected, ...closeEmailBreakdown.others].map(c => (
+                                            <div key={c.email} style={{ padding: '8px 14px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                                                {c.name} <span style={{ color: 'var(--text-dim)' }}>{c.email}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                    <Mail size={40} color="var(--primary)" />
+                                </div>
+                                <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12, textAlign: 'center' }}>Enviar e-mails para os candidatos?</h2>
 
                         {closeEmailBreakdown && (
                             <div style={{ marginBottom: 24 }}>
@@ -1722,12 +1839,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 )}
                             </div>
                         )}
-
+                        </>)}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <button
                                 onClick={() => {
                                     if (sendingCloseEmails) return;
-                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title);
+                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, closeEmailVagaType ?? 'fechada');
                                 }}
                                 disabled={sendingCloseEmails}
                                 style={{
@@ -1743,13 +1860,76 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 {sendingCloseEmails ? 'Enviando...' : `Sim, enviar para ${closeEmailVagaCount ?? '...'} candidato${closeEmailVagaCount !== 1 ? 's' : ''}`}
                             </button>
                             <button
-                                onClick={() => { const pendingId = pendingPipelineDeleteFor; setCloseEmailVaga(null); setCloseEmailVagaCount(null); setCloseEmailBreakdown(null); setPendingPipelineDeleteFor(null); if (pendingId) { setVagaForPipelineDelete(pendingId); setPipelineDeleteModalOpen(true); } }}
+                                onClick={() => { const pendingId = pendingPipelineDeleteFor; setCloseEmailVaga(null); setCloseEmailVagaCount(null); setCloseEmailBreakdown(null); setCloseEmailVagaType(null); setPendingPipelineDeleteFor(null); if (pendingId) { setVagaForPipelineDelete(pendingId); setPipelineDeleteModalOpen(true); } }}
                                 disabled={sendingCloseEmails}
                                 style={{
                                     width: '100%', padding: 16,
                                     background: 'transparent', border: '1px solid var(--border)', borderRadius: 12,
                                     color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, fontWeight: 600,
                                     opacity: sendingCloseEmails ? 0.5 : 1
+                                }}
+                            >
+                                Não
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showReopenEmailModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                            <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                <RefreshCw size={40} color="#22c55e" />
+                            </div>
+                            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Notificar candidatos?</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+                                A vaga foi reaberta. Deseja notificar os candidatos?
+                            </p>
+                        </div>
+
+                        <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 24 }}>
+                            {reopenCandidates.map(c => (
+                                <div key={c.email} style={{ padding: '8px 14px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                                    {c.name} <span style={{ color: 'var(--text-dim)' }}>{c.email}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <button
+                                onClick={() => sendReopenedEmails()}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: 'var(--primary)', border: 'none', borderRadius: 12,
+                                    color: '#fff', cursor: sendingCloseEmails ? 'not-allowed' : 'pointer',
+                                    fontSize: 16, fontWeight: 700,
+                                    opacity: sendingCloseEmails ? 0.7 : 1
+                                }}
+                            >
+                                {sendingCloseEmails ? 'Enviando...' : `Sim, notificar ${reopenCandidates.length} candidato${reopenCandidates.length !== 1 ? 's' : ''}`}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (reopenEmailVagaId) {
+                                        setVagas(prev => prev.map(v =>
+                                            v.id === reopenEmailVagaId ? { ...v, status: 'aberta' as const, is_accepting_applications: true } : v
+                                        ));
+                                        toast.success('Status alterado para "Aberta"');
+                                    }
+                                    setOpenStatusId(null);
+                                    setShowReopenEmailModal(false);
+                                    setReopenCandidates([]);
+                                    setReopenEmailVagaId(null);
+                                    setReopenEmailVagaTitle('');
+                                }}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: 'transparent', border: '1px solid var(--border)', borderRadius: 12,
+                                    color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, fontWeight: 600
                                 }}
                             >
                                 Não
