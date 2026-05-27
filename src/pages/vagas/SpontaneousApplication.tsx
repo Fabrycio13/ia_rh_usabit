@@ -95,6 +95,8 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; }
     box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
 }
 .wizard-input::placeholder { color: #475569; }
+.wizard-input.error { border-color: #ef4444; background: rgba(239,68,68,0.06); }
+.wizard-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
 
 .wizard-btn-primary {
     display: inline-flex; align-items: center; gap: 10px;
@@ -717,8 +719,10 @@ export const SpontaneousApplication = () => {
     };
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 =
-        formData.email.trim() &&
+        isValidEmail &&
         formData.phone.trim().length >= 14 &&
         formData.cep.trim().length === 9 &&
         formData.address.trim() &&
@@ -828,7 +832,7 @@ export const SpontaneousApplication = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                 <div style={{ position: 'relative' }}>
                                     <Mail size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                                    <input autoFocus className="wizard-input" style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
+                                    <input autoFocus className={`wizard-input${isEmailInvalid ? ' error' : ''}`} style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
                                 </div>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <div style={{ position: 'relative' }} ref={countryRef}>

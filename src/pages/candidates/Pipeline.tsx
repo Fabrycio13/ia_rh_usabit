@@ -369,6 +369,8 @@ export const Pipeline = () => {
     const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
     const [showSelect, setShowSelect] = useState(false);
+    const [vagaSelectOpen, setVagaSelectOpen] = useState(false);
+    const [linkVagaSelectOpen, setLinkVagaSelectOpen] = useState(false);
     const selectRef = useRef<HTMLDivElement>(null);
 
     const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -380,8 +382,11 @@ export const Pipeline = () => {
     const [vagaSearch, setVagaSearch] = useState('');
 
     // Filtro de Status para os pipelines
-    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string }>>([]);
+    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string; pipeline_id?: string | null; is_active?: boolean }>>([]);
     const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
+    const [selectedVagaId, setSelectedVagaId] = useState('');
+    const [linkVagaPipeline, setLinkVagaPipeline] = useState<Pipeline | null>(null);
+    const [linkVagaVagaId, setLinkVagaVagaId] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [approvalEmailTarget, setApprovalEmailTarget] = useState<{
       candidateName: string;
@@ -428,11 +433,10 @@ export const Pipeline = () => {
     }, [cardMenuOpen]);
 
     useEffect(() => {
+        setCards([]);
+        setColumns([]);
         if (selectedPipelineId && profile.userId) {
             loadPipelineData(profile.userId, selectedPipelineId);
-        } else {
-            setColumns([]);
-            setCards([]);
         }
     }, [selectedPipelineId, profile.userId]);
 
@@ -688,7 +692,7 @@ export const Pipeline = () => {
         try {
             const { data: vagas } = await supabase
                 .from('vagas_white_label')
-                .select('id, title, status, is_accepting_applications, job_code')
+                .select('id, title, status, is_accepting_applications, job_code, pipeline_id, is_active')
                 .order('job_code', { ascending: true, nullsFirst: false });
             
             if (vagas) {
@@ -696,7 +700,9 @@ export const Pipeline = () => {
                     id: v.id,
                     title: v.title,
                     status: v.status,
-                    job_code: v.job_code
+                    job_code: v.job_code,
+                    pipeline_id: v.pipeline_id,
+                    is_active: v.is_active,
                 })));
             }
         } catch (err) {
@@ -708,34 +714,136 @@ export const Pipeline = () => {
         if (!newPipeName.trim() || !profile.userId || loading) return;
         setLoading(true);
         try {
+            if (selectedVagaId) {
+                const { data: vaga } = await supabase
+                    .from('vagas_white_label')
+                    .select('pipeline_id')
+                    .eq('id', selectedVagaId)
+                    .single();
+                if (vaga?.pipeline_id) {
+                    toast.error('Esta vaga já está vinculada a outro pipeline');
+                    setLoading(false);
+                    return;
+                }
+            }
+            const insertData: Record<string, unknown> = {
+                name: newPipeName.trim(),
+                user_id: profile.userId,
+                organization_id: profile.organization_id,
+            };
+            if (selectedVagaId) {
+                insertData.vaga_id = selectedVagaId;
+            }
             const { data: pipe, error } = await supabase.from('pipelines')
-                .insert({ 
-                    name: newPipeName.trim(), 
-                    user_id: profile.userId,
-                    organization_id: profile.organization_id
-                })
+                .insert(insertData)
                 .select().single();
-            
+
             if (error) throw error;
 
             if (pipe) {
-                const toInsert = DEFAULT_COLUMNS.map(c => ({ 
-                    ...c, 
-                    user_id: profile.userId, 
+                if (selectedVagaId) {
+                    await supabase
+                        .from('vagas_white_label')
+                        .update({ pipeline_id: pipe.id })
+                        .eq('id', selectedVagaId);
+                }
+
+                const toInsert = DEFAULT_COLUMNS.map(c => ({
+                    ...c,
+                    user_id: profile.userId,
                     pipeline_id: pipe.id,
                     organization_id: profile.organization_id
                 }));
                 await supabase.from('pipeline_columns').insert(toInsert);
-                
+
+                // Recarregar vagas disponíveis para atualizar a lista de vínculos
+                await loadAvailableVagas();
+
                 setPipelines(prev => [...prev, pipe].sort((a, b) => a.name.localeCompare(b.name)));
                 setSelectedPipelineId(pipe.id);
                 setNewPipeName('');
+                setSelectedVagaId('');
                 setShowCreatePipeline(false);
                 logActivity(profile.userId, `Criou o processo "${pipe.name}"`);
             }
         } catch (err: unknown) {
             console.error('Create pipeline error:', err);
             alert('Erro ao criar pipeline: ' + (err as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleLinkVaga() {
+        if (!linkVagaPipeline || !linkVagaVagaId) return;
+        setLoading(true);
+        try {
+            const { data: vagaCheck } = await supabase
+                .from('vagas_white_label')
+                .select('pipeline_id, title')
+                .eq('id', linkVagaVagaId)
+                .single();
+            if (!vagaCheck) { setLoading(false); return; }
+            if (vagaCheck.pipeline_id) {
+                toast.error(`"${vagaCheck.title}" já está vinculada a outro pipeline`);
+                setLoading(false);
+                return;
+            }
+
+            const newName = `${linkVagaPipeline.name} - ${vagaCheck.title}`;
+
+            await supabase.from('pipelines')
+                .update({ vaga_id: linkVagaVagaId, name: newName })
+                .eq('id', linkVagaPipeline.id);
+
+            await supabase.from('vagas_white_label')
+                .update({ pipeline_id: linkVagaPipeline.id })
+                .eq('id', linkVagaVagaId);
+
+            await loadAvailableVagas();
+
+            setPipelines(prev => prev.map(p =>
+                p.id === linkVagaPipeline.id
+                    ? { ...p, vaga_id: linkVagaVagaId, name: newName }
+                    : p
+            ));
+
+            toast.success('Pipeline vinculado à vaga');
+        } catch (err) {
+            console.error('Error linking pipeline:', err);
+            toast.error('Erro ao vincular pipeline');
+        } finally {
+            setLoading(false);
+            setLinkVagaPipeline(null);
+            setLinkVagaVagaId('');
+        }
+    }
+
+    async function handleUnlinkVaga(pipeId: string) {
+        const pipe = pipelines.find(p => p.id === pipeId);
+        if (!pipe || !pipe.vaga_id) return;
+        setLoading(true);
+        try {
+            await supabase.from('pipelines')
+                .update({ vaga_id: null })
+                .eq('id', pipeId);
+
+            await supabase.from('vagas_white_label')
+                .update({ pipeline_id: null })
+                .eq('id', pipe.vaga_id);
+
+            await loadAvailableVagas();
+
+            setPipelines(prev => prev.map(p =>
+                p.id === pipeId
+                    ? { ...p, vaga_id: null }
+                    : p
+            ));
+
+            toast.success('Pipeline desvinculado da vaga');
+        } catch (err) {
+            console.error('Error unlinking pipeline:', err);
+            toast.error('Erro ao desvincular pipeline');
         } finally {
             setLoading(false);
         }
@@ -850,17 +958,24 @@ export const Pipeline = () => {
 
         return {
             email: toStr(cand.email) || '',
+            phone: toStr(cand.phone) || null,
             location: toStr(cand.location) || null,
             address: toStr(cand.address) || null,
+            linkedin: cand.linkedin || null,
             age: toStr(cand.age) || null,
             gender: toStr(cand.gender) || null,
-            phone: toStr(cand.phone) || null,
+            portfolio: cand.portfolio || null,
+            cep: cand.cep || null,
+            address_number: cand.address_number || null,
+            complement: cand.complement || null,
             skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
             experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
             education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
             redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
             notes: cand.notes || null,
             is_blacklisted: cand.is_blacklisted ?? false,
+            analysis: cand.analysis ?? {},
+            status: cand.status || null,
             applications: validHistory.map((h) => ({
                 jobId: h.job_id,
                 jobName: h.job_name,
@@ -1027,10 +1142,14 @@ export const Pipeline = () => {
 
 
     function handleFieldChange(id: string, field: string, val: unknown) {
-        if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val as string } : c));
-        if (field === 'conversations') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_conversations: val as unknown[] } : c));
-        if (field === 'phone') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_phone: val as string } : c));
-        if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, [field]: val } : null);
+        const cardFieldMap: Record<string, string> = {
+            name: 'candidate_name',
+            phone: 'candidate_phone',
+            conversations: 'candidate_conversations',
+        };
+        const cardField = cardFieldMap[field] || field;
+        setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, [cardField]: val } : c));
+        setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
     }
 
     async function checkApprovalEmail(card: PipelineCard, colName: string) {
@@ -1355,7 +1474,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
                     {/* Primary Button: Add Pipeline */}
                     <button 
-                        onClick={() => setShowCreatePipeline(true)}
+                        onClick={() => { setShowCreatePipeline(true); loadAvailableVagas(); }}
                         style={{ 
                             display: 'flex', alignItems: 'center', gap: 6, 
                             background: 'var(--primary)', border: 'none', 
@@ -1383,8 +1502,38 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     </button>
                 </div>
 
-                {/* Ações da Aba (Nova Coluna e Filtros) à direita */}
+                {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {selectedPipelineId && (() => { const p = pipelines.find(x => x.id === selectedPipelineId); return p && !p.vaga_id; })() && (
+                        <button
+                            onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: '8px 14px', color: '#2C58FD',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(44,88,253,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Vincular a vaga
+                        </button>
+                    )}
+                    {selectedPipelineId && (() => { const p = pipelines.find(x => x.id === selectedPipelineId); return p && p.vaga_id; })() && (
+                        <button
+                            onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) handleUnlinkVaga(p.id); }}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: '8px 14px', color: '#ef4444',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Desvincular vaga
+                        </button>
+                    )}
                     {activeTab === 'board' && selectedPipelineId && (
                         <button 
                             onClick={() => setAddColModal(true)} 
@@ -1597,7 +1746,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             </p>
                         </div>
                         <button 
-                            onClick={() => setShowCreatePipeline(true)}
+                            onClick={() => { setShowCreatePipeline(true); loadAvailableVagas(); }}
                             style={{ 
                                 background: 'var(--primary)', border: 'none', borderRadius: 16, 
                                 padding: '16px 36px', color: '#fff', fontSize: 16, fontWeight: 700, 
@@ -1786,7 +1935,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Modal: Create Pipeline */}
             {showCreatePipeline && (
                 <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div onClick={() => !loading && setShowCreatePipeline(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div onClick={() => { if (!loading) { setShowCreatePipeline(false); setSelectedVagaId(''); } }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
                     <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
                         <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 20px', fontWeight: 700 }}>Novo Processo Seletivo</h3>
                         <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>Dê um nome para este pipeline (ex: Design, Front-end, etc.)</p>
@@ -1799,12 +1948,62 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{ 
                                 width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)', 
                                 borderRadius: 12, padding: '12px 16px', color: 'var(--text-main)', 
-                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 24
+                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 16
                             }}
                         />
+                        {/* Vincular vaga existente */}
+                        <div style={{ position: 'relative', marginBottom: 24, zIndex: 50 }}>
+                            <div
+                                onClick={() => setVagaSelectOpen(!vagaSelectOpen)}
+                                style={{
+                                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
+                                    padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
+                                    display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                <span style={{ fontWeight: 500, color: selectedVagaId ? 'var(--text-main)' : 'var(--text-dim)' }}>
+                                    {selectedVagaId
+                                        ? (() => { const v = availableVagas.find(x => x.id === selectedVagaId); return v ? `${v.job_code ? `[${v.job_code}] ` : ''}${v.title}` : 'Selecione uma vaga...'; })()
+                                        : 'Vincular a vaga (opcional)'}
+                                </span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: vagaSelectOpen ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                            </div>
+
+                            {vagaSelectOpen && (
+                                <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                                    <div
+                                        className={`pipeline_option${!selectedVagaId ? ' active' : ''}`}
+                                        onClick={() => { setSelectedVagaId(''); setVagaSelectOpen(false); }}
+                                    >
+                                        <span style={{ color: 'var(--text-dim)' }}>Nenhuma (criar pipeline avulso)</span>
+                                    </div>
+                                    {availableVagas
+                                        .filter(v => !v.pipeline_id && v.is_active !== false && (v.status === 'aberta' || v.status === 'invisivel'))
+                                        .map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${selectedVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => {
+                                                    setSelectedVagaId(v.id);
+                                                    setVagaSelectOpen(false);
+                                                    if (!newPipeName.trim()) setNewPipeName(v.title);
+                                                }}
+                                                style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                </div>
+                                                {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, paddingLeft: 20 }}>{v.job_code}</span>}
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', gap: 12 }}>
                             <button 
-                                onClick={() => setShowCreatePipeline(false)}
+                                onClick={() => { setShowCreatePipeline(false); setSelectedVagaId(''); }}
                                 style={{ 
                                     flex: 1, background: 'transparent', border: '1px solid var(--border)', 
                                     borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
@@ -1836,6 +2035,93 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     </div>
                 </div>
             )}
+
+            {/* Modal: Link Pipeline to Vaga */}
+            {linkVagaPipeline && (() => {
+                const unlinkedVagas = availableVagas.filter(v => !v.pipeline_id && v.is_active !== false && (v.status === 'aberta' || v.status === 'invisivel'));
+                return (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div onClick={() => { setLinkVagaPipeline(null); setLinkVagaVagaId(''); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                        <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                            <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Vincular Pipeline a Vaga</h3>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 8px' }}>
+                                Pipeline: <strong style={{ color: 'var(--text-main)' }}>{linkVagaPipeline.name}</strong>
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '0 0 20px' }}>
+                                Ao vincular, o nome será renomeado para: <br />
+                                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                                    "{linkVagaPipeline.name}{linkVagaVagaId ? (() => { const v = availableVagas.find(x => x.id === linkVagaVagaId); return v ? ` - ${v.title}` : ' - [Título da vaga]'; })() : ' - [Título da vaga]'}"
+                                </span>
+                            </p>
+                            <div style={{ position: 'relative', marginBottom: 24, zIndex: 50 }}>
+                                <div
+                                    onClick={() => setLinkVagaSelectOpen(!linkVagaSelectOpen)}
+                                    style={{
+                                        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
+                                        padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
+                                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                        justifyContent: 'space-between'
+                                    }}
+                                >
+                                    <span style={{ fontWeight: 500, color: linkVagaVagaId ? 'var(--text-main)' : 'var(--text-dim)' }}>
+                                        {linkVagaVagaId
+                                            ? (() => { const v = availableVagas.find(x => x.id === linkVagaVagaId); return v ? `${v.job_code ? `[${v.job_code}] ` : ''}${v.title}` : 'Selecione uma vaga...'; })()
+                                            : 'Selecione uma vaga...'}
+                                    </span>
+                                    <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: linkVagaSelectOpen ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                                </div>
+
+                                {linkVagaSelectOpen && (
+                                    <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                                        {unlinkedVagas.length === 0 && (
+                                            <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma vaga disponível.</div>
+                                        )}
+                                        {unlinkedVagas.map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${linkVagaVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => { setLinkVagaVagaId(v.id); setLinkVagaSelectOpen(false); }}
+                                                style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                </div>
+                                                {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, paddingLeft: 20 }}>{v.job_code}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button
+                                    onClick={() => { setLinkVagaPipeline(null); setLinkVagaVagaId(''); }}
+                                    style={{
+                                        flex: 1, background: 'transparent', border: '1px solid var(--border)',
+                                        borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)',
+                                        fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleLinkVaga}
+                                    disabled={!linkVagaVagaId || loading}
+                                    style={{
+                                        flex: 2, background: 'var(--primary)', border: 'none',
+                                        borderRadius: 12, padding: '12px 0', color: '#fff',
+                                        fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                                        opacity: (linkVagaVagaId && !loading) ? 1 : 0.5,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                    }}
+                                >
+                                    {loading ? 'Vinculando...' : 'Vincular'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal: Delete Pipeline Confirmation */}
             {deleteConfirmId && (() => {
@@ -1945,7 +2231,6 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Candidate Detail Panel */}
             {selectedCandidate && (
                 <CandidatePanel
-                    key={selectedCandidate.id + (selectedCandidate.enriched ? '-full' : '-base')}
                     c={selectedCandidate}
                     onClose={() => setSelectedCandidate(null)}
                     navigate={navigate}
@@ -1959,6 +2244,9 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     onBlacklistChange={(id: string, val: boolean) => {
                         setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
                         setSelectedCandidate(prev => (prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev));
+                    }}
+                    onCardRemoved={(cardId: string) => {
+                        setCards(prev => prev.filter(c => c.id !== cardId));
                     }}
                 />
             )}

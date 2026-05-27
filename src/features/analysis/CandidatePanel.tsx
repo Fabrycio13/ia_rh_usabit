@@ -43,7 +43,8 @@ export function CandidatePanel({
     onDeleteFromBank,
     hidePipelineAndBlacklist,
     showAnalyzeWithVagas,
-    onAnalyzeWithVagas
+    onAnalyzeWithVagas,
+    onCardRemoved
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -57,6 +58,7 @@ export function CandidatePanel({
     hidePipelineAndBlacklist?: boolean;
     showAnalyzeWithVagas?: boolean;
     onAnalyzeWithVagas?: (id: string) => void;
+    onCardRemoved?: (cardId: string) => void;
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
@@ -96,6 +98,18 @@ export function CandidatePanel({
         address_number: c.address_number,
         complement: c.complement
     });
+    const prevIdRef = useRef(c.id);
+    useEffect(() => {
+        if (c.id !== prevIdRef.current) {
+            prevIdRef.current = c.id;
+            setLocalC({ 
+                email: c.email, phone: c.phone, location: c.location,
+                address: c.address, linkedin: c.linkedin, age: c.age,
+                gender: c.gender, portfolio: c.portfolio, cep: c.cep,
+                address_number: c.address_number, complement: c.complement
+            });
+        }
+    }, [c.id]);
     const [transferringToBank, setTransferringToBank] = useState(false);
     const [togglingBlacklist, setTogglingBlacklist] = useState(false);
 
@@ -112,34 +126,74 @@ export function CandidatePanel({
         } finally { setTogglingBlacklist(false); }
     }
 
-    useEffect(() => {
-        setLocalC({ 
-            email: c.email, 
-            phone: c.phone, 
-            location: c.location, 
-            address: c.address, 
-            linkedin: c.linkedin, 
-            age: c.age, 
-            gender: c.gender,
-            portfolio: c.portfolio,
-            cep: c.cep,
-            address_number: c.address_number,
-            complement: c.complement
-        });
-    }, [c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
-
-
     async function handleFieldSave(field: string) {
         if (savingField) return;
         setSavingField(true);
         try {
             const val = editFieldVal.trim() || null;
-            const { error } = await supabase.from('candidates').update({ [field]: val }).eq('id', c.id);
-            if (!error) {
+
+            if (c.isVagaView) {
+                const directFields: Record<string, string> = {
+                    email: 'candidate_email',
+                    phone: 'candidate_phone',
+                    linkedin: 'candidate_linkedin',
+                    location: 'candidate_location',
+                    gender: 'candidate_gender',
+                    age: 'candidate_age',
+                };
+                const answersFields = new Set(['portfolio', 'cep', 'address', 'address_number', 'complement']);
+
+                if (directFields[field]) {
+                    const { error } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ [directFields[field]]: val })
+                        .eq('id', c.id);
+                    if (error) {
+                        console.warn('[handleFieldSave] error:', error);
+                        return;
+                    }
+                } else if (answersFields.has(field)) {
+                    const { data: row, error: fetchErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .select('answers')
+                        .eq('id', c.id)
+                        .single();
+                    if (fetchErr) {
+                        console.warn('[handleFieldSave] fetch error:', fetchErr);
+                        return;
+                    }
+                    const answers = (row?.answers && typeof row.answers === 'object')
+                        ? { ...(row.answers as Record<string, unknown>) }
+                        : {};
+                    if (val === null) {
+                        delete answers[field];
+                    } else {
+                        answers[field] = val;
+                    }
+                    const { error: updateErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ answers })
+                        .eq('id', c.id);
+                    if (updateErr) {
+                        console.warn('[handleFieldSave] update error:', updateErr);
+                        return;
+                    }
+                }
+
                 setLocalC(prev => ({ ...prev, [field]: val }));
                 setEditField(null);
                 onFieldChange(c.id, field, val);
                 logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+            } else {
+                const { error } = await supabase.from('candidates').update({ [field]: val }).eq('id', c.id);
+                if (!error) {
+                    setLocalC(prev => ({ ...prev, [field]: val }));
+                    setEditField(null);
+                    onFieldChange(c.id, field, val);
+                    logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+                } else {
+                    console.warn('[handleFieldSave] error:', error);
+                }
             }
         } finally { setSavingField(false); }
     }
@@ -610,7 +664,7 @@ export function CandidatePanel({
                             </>
                         )}
 
-                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} />}
+                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} onCardRemoved={onCardRemoved} />}
 
                         {!c.isVagaView && !hidePipelineAndBlacklist && (
                             <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>

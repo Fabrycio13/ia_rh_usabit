@@ -21,7 +21,7 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
           width: '100%',
           maxWidth: 1440,
           margin: '0 auto',
-          padding: isMobile ? '60px 24px' : '96px 64px 96px 200px',
+          padding: isMobile ? '60px 24px' : '96px 64px',
         }}
       >
         {/* Brand — horizontal layout */}

@@ -4,6 +4,7 @@ import {
     ArrowRight, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { formatSalary } from '../../core/utils/jobFormatter';
+import { FooterPortal } from './portal/FooterPortal';
 
 interface Job {
     id: string;
@@ -477,6 +478,7 @@ export const PublicJobPage = () => {
 
                 </div>
             </div>
+            <FooterPortal isMobile={isMobile} />
         </div>
     );
 };

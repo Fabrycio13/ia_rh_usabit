@@ -483,6 +483,27 @@ export const VagaCandidatos = () => {
                     }}
                     onFieldChange={(cid: string, field: string, val: unknown) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
+                        setCandidatos(prev => prev.map(cand => {
+                            if (cand.id !== cid) return cand;
+                            const directMap: Record<string, string> = {
+                                email: 'candidate_email',
+                                phone: 'candidate_phone',
+                                linkedin: 'candidate_linkedin',
+                                location: 'candidate_location',
+                                gender: 'candidate_gender',
+                                age: 'candidate_age',
+                            };
+                            if (directMap[field]) {
+                                return { ...cand, [directMap[field]]: typeof val === 'string' ? val : null };
+                            }
+                            const answers = { ...(cand.answers as Record<string, unknown> ?? {}) };
+                            if (val === null || val === undefined) {
+                                delete answers[field];
+                            } else {
+                                answers[field] = val;
+                            }
+                            return { ...cand, answers };
+                        }));
                     }}
                     onBlacklistChange={(cid: string, val: boolean) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
