@@ -261,6 +261,20 @@ export const PoolTalentos = () => {
         if (!vaga) { toast.error('Vaga não encontrada'); setAnalyzing(false); return; }
 
         try {
+            const { data: vagaFull } = await supabase
+                .from('vagas_white_label')
+                .select('description, custom_questions')
+                .eq('id', selectedVagaId)
+                .single();
+
+            const jobDesc = vagaFull?.description || '';
+            const customQuestions = (vagaFull?.custom_questions || []) as { id: string; label: string }[];
+
+            const formAnswers: Record<string, string> = {};
+            customQuestions.forEach(q => {
+                formAnswers[q.id] = `[${q.label}] não respondido (candidato do pool, reanálise sem formulário)`;
+            });
+
             let result: Awaited<ReturnType<typeof analyzeJobApplication>> | null = null;
 
             if (analyzingCandidate.resume_url) {
@@ -268,7 +282,7 @@ export const PoolTalentos = () => {
                     analyzingCandidate.resume_url,
                     analyzingCandidate.resume_file_name || 'curriculo.pdf'
                 );
-                result = await analyzeJobApplication(resumeFile, vaga.title, '', {});
+                result = await analyzeJobApplication(resumeFile, vaga.title, jobDesc, formAnswers);
             }
 
             if (!result) {
