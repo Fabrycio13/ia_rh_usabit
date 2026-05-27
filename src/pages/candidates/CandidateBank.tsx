@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+﻿import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Star, Search, ChevronLeft, ChevronRight,
@@ -24,7 +24,7 @@ function toStr(v: unknown): string | null {
   return String(v);
 }
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface JCDataRow { job_id?: string; vaga_id?: string }
 interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
 interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
@@ -54,13 +54,13 @@ interface Candidate {
 type SortKey = 'name' | 'location' | 'age' | null;
 type SortDir = 'asc' | 'desc';
 
-// ─── Sort indicator ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sort indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (sortKey !== col) return <span style={{ opacity: 0.25, display: 'inline-flex', flexDirection: 'column' }}><ChevronUp size={10} /><ChevronDown size={10} /></span>;
   return sortDir === 'asc' ? <ChevronUp size={12} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={12} style={{ color: 'var(--primary)' }} />;
 }
 
-// ─── SelectFilter ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ SelectFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -126,7 +126,7 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const CandidateBank = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
@@ -138,11 +138,11 @@ export const CandidateBank = () => {
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // ─ Sorting
+  // â”€ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  // ─ Filters
+  // â”€ Filters
   const [filterGender, setFilterGender] = useState('');
   const [filterVaga, setFilterVaga] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -333,7 +333,7 @@ export const CandidateBank = () => {
           skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? (cd as unknown as CandidateRow)?.skills),
           experience: toStr(analysis?.summary ?? analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? (cd as unknown as CandidateRow)?.experience),
           education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? (cd as unknown as CandidateRow)?.education),
-          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
+          redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenÃ§Ã£o)'] ?? analysis?.['Pontos de atenÃ§Ã£o'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
           applications: validHistory.map((h: HistoryEntry) => ({
@@ -365,7 +365,7 @@ export const CandidateBank = () => {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 16 }}>
         <div style={{ width: 40, height: 40, border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Carregando candidatos…</p>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Carregando candidatosâ€¦</p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -384,13 +384,13 @@ export const CandidateBank = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
             {processed.length} candidato{processed.length !== 1 ? 's' : ''}
             {activeTab === 'blacklist' ? ' na blacklist' : activeTab === 'candidatos' ? ' ativos' : ' encontrado'}{processed.length !== 1 && activeTab === 'todos' ? 's' : ''}
-            {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
+            {search && <> Â· <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
-            <input type="text" placeholder="Buscar candidatos…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            <input type="text" placeholder="Buscar candidatosâ€¦" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
             />
           </div>
@@ -405,7 +405,7 @@ export const CandidateBank = () => {
 
       <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar por:</span>
-        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />
+        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="GÃªnero" />
         <SelectFilter value={filterVaga} onChange={v => { setFilterVaga(v); setPage(1); }} options={vagaOptions} placeholder="Vaga aplicada" />
         <button onClick={() => { setOnlyFavorites(f => !f); setPage(1); }}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: onlyFavorites ? 'var(--favorite-bg)' : 'transparent', border: `1px solid ${onlyFavorites ? 'var(--favorite)' : 'var(--border)'}`, borderRadius: 8, padding: '7px 12px', color: onlyFavorites ? 'var(--favorite)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -509,9 +509,9 @@ export const CandidateBank = () => {
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               {([
                 ['name', 'Nome'],
-                ['location', 'Localização'],
+                ['location', 'LocalizaÃ§Ã£o'],
                 ['age', 'Idade'],
-                [null, 'Gênero'],
+                [null, 'GÃªnero'],
                 [null, 'Vagas Aplicadas'],
                 [null, 'Favoritos'],
                 [null, 'Blacklist'],
@@ -551,7 +551,7 @@ export const CandidateBank = () => {
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <p style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
-                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
+                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>âš¡ PIPELINE</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.email}</p>
@@ -559,11 +559,11 @@ export const CandidateBank = () => {
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(nÃ£o|nao)\s*informado|â€”/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
+                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>NÃ£o informado</span>}</td>
                 <td style={{ padding: '16px' }}>
-                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
+                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>NÃ£o informado</span> : (
                     <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
                       {(c.vagas || []).slice(0, 2).map(v => (
                         <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
@@ -646,7 +646,7 @@ export const CandidateBank = () => {
 
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {processed.length} candidatos</span>
+            <span style={{ fontSize: 13, color: '#64748b' }}>PÃ¡gina {page} de {totalPages} Â· {processed.length} candidatos</span>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <button onClick={() => goTo(page - 1)} disabled={page === 1}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
@@ -659,14 +659,14 @@ export const CandidateBank = () => {
                   acc.push(p); return acc;
                 }, [])
                 .map((p, i) => p === '...' ? (
-                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
+                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>â€¦</span>
                 ) : (
                   <button key={p} onClick={() => goTo(p as number)}
                     style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
                 ))}
               <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                Próximo <ChevronRight style={{ width: 15, height: 15 }} />
+                PrÃ³ximo <ChevronRight style={{ width: 15, height: 15 }} />
               </button>
             </div>
           </div>
@@ -694,9 +694,14 @@ export const CandidateBank = () => {
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
           onDeleteFromBank={async (id) => {
+            const email = selected?.email;
             await Promise.all([
               supabase.from('candidates').delete().eq('id', id),
-              supabase.from('job_candidates').delete().eq('candidate_id', id)
+              supabase.from('job_candidates').delete().eq('candidate_id', id),
+              email ? supabase.from('vagas_candidaturas')
+                .update({ status: 'pending' })
+                .eq('candidate_email', email)
+                .eq('status', 'talent_bank') : Promise.resolve()
             ]);
             setSelected(null);
             if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
@@ -712,7 +717,7 @@ export const CandidateBank = () => {
         }}
         onViewCandidate={async (candidateId) => {
           setShowAddModal(false);
-          // Abre o painel do candidato existente com dados já carregados
+          // Abre o painel do candidato existente com dados jÃ¡ carregados
           openCandidate(candidates.find(c => c.id === candidateId)!);
         }}
       />
