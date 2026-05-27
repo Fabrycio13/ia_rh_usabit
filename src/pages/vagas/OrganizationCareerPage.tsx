@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react';
 
 import { NavbarPortal } from './portal/NavbarPortal';
 import { HeroSection } from './portal/HeroSection';
-import { AreasSection } from './portal/AreasSection';
 import { VagasSection } from './portal/VagasSection';
 import { FormSection } from './portal/FormSection';
 import { FooterPortal } from './portal/FooterPortal';
@@ -273,7 +272,7 @@ export const OrganizationCareerPage = () => {
         onNavigate={(path) => navigate(path)}
       />
 
-      <AreasSection
+      {/* <AreasSection
         isMobile={isMobile}
         onAreaClick={(areaTitle) => {
           const category = areaTitle === 'Relacionamento e Performance' ? 'Todos' : areaTitle;
@@ -282,7 +281,7 @@ export const OrganizationCareerPage = () => {
             document.getElementById('vagas')?.scrollIntoView({ behavior: 'smooth' });
           }, 50);
         }}
-      />
+      /> */}
 
       <VagasSection
         vagas={vagas}

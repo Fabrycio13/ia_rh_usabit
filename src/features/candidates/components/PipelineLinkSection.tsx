@@ -46,11 +46,13 @@ interface LinkedPipeline {
 export function PipelineLinkSection({
     candidateId,
     candidateName,
-    currentJobContext
+    currentJobContext,
+    onCardRemoved
 }: {
     candidateId: string;
     candidateName: string;
     currentJobContext?: { id: string; title: string };
+    onCardRemoved?: (cardId: string) => void;
 }) {
     const { profile } = useUser();
     const [pipelines, setPipelines] = useState<Array<{ id: string; name: string }>>([]);
@@ -187,6 +189,7 @@ export function PipelineLinkSection({
             if (error) throw error;
             setLinkedPipelines(prev => prev.filter(p => p.cardId !== cardId));
             setLastRemovedPipeline(pipelineName);
+            onCardRemoved?.(cardId);
             await logScreening(profile.userId, candidateId, 'removal', pipelineName, null, {
                 pipeline_id: pipelineId,
                 pipeline_name: pipelineName,

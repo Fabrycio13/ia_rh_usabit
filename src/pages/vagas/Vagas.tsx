@@ -88,6 +88,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [closeEmailVaga, setCloseEmailVaga] = useState<{ id: string; title: string } | null>(null);
     const [closeEmailVagaCount, setCloseEmailVagaCount] = useState<number | null>(null);
     const [sendingCloseEmails, setSendingCloseEmails] = useState(false);
+    const [pendingPipelineDeleteFor, setPendingPipelineDeleteFor] = useState<string | null>(null);
     const [userOrgId, setUserOrgId] = useState<string>('');
     
     // Filtros Avançados
@@ -316,10 +317,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .eq('vaga_id', id);
             }
 
-            // Se cancelada ou fechada, perguntar se quer deletar o pipeline associado
+            // Se cancelada ou fechada, primeiro perguntar sobre e-mails, depois sobre pipeline
             if (status === 'cancelada' || status === 'fechada') {
-                setVagaForPipelineDelete(id);
-                setPipelineDeleteModalOpen(true);
+                const vagaAtual = vagas.find(v => v.id === id);
                 
                 // Buscar organization_id se ainda não tiver
                 if (!userOrgId) {
@@ -334,6 +334,26 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             setUserOrgId(profile.organization_id);
                         }
                     }
+                }
+
+                const { count } = await supabase
+                    .from('vagas_candidaturas')
+                    .select('id', { count: 'exact' })
+                    .eq('vaga_id', id)
+                    .eq('organization_id', userOrgId || '');
+                
+                // Primeiro: modal de e-mail se houver candidatos
+                if ((count || 0) > 0) {
+                    setCloseEmailVagaCount(count || 0);
+                    setCloseEmailVaga({ id, title: vagaAtual?.title || '' });
+                    // Guarda para mostrar modal de pipeline depois
+                    if (vagaAtual?.pipeline_id) {
+                        setPendingPipelineDeleteFor(id);
+                    }
+                } else if (vagaAtual?.pipeline_id) {
+                    // Sem candidatos: vai direto para pipeline
+                    setVagaForPipelineDelete(id);
+                    setPipelineDeleteModalOpen(true);
                 }
             }
 
@@ -382,34 +402,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         } finally {
             setDeletingPipeline(false);
             setPipelineDeleteModalOpen(false);
-            const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
-            if (vaga) {
-                const { count } = await supabase
-                    .from('vagas_candidaturas')
-                    .select('id', { count: 'exact' })
-                    .eq('vaga_id', vagaForPipelineDelete!)
-                    .eq('organization_id', userOrgId || '')
-                    .neq('status', 'talent_bank');
-                setCloseEmailVagaCount(count || 0);
-                setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
-            }
             setVagaForPipelineDelete(null);
         }
     };
 
     const cancelPipelineDelete = async () => {
         setPipelineDeleteModalOpen(false);
-        const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
-        if (vaga) {
-            const { count } = await supabase
-                .from('vagas_candidaturas')
-                .select('id', { count: 'exact' })
-                .eq('vaga_id', vagaForPipelineDelete!)
-                .eq('organization_id', userOrgId || '')
-                .neq('status', 'talent_bank');
-            setCloseEmailVagaCount(count || 0);
-            setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
-        }
         setVagaForPipelineDelete(null);
     };
 
@@ -448,30 +446,98 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         if (sendingCloseEmails) return;
         setSendingCloseEmails(true);
         try {
-            const { data: candidates } = await supabase
+            const { data: allCandidaturas } = await supabase
                 .from('vagas_candidaturas')
-                .select('candidate_name, candidate_email')
+                .select('candidate_name, candidate_email, status')
                 .eq('vaga_id', vagaId)
-                .eq('organization_id', organizationId)
-                .neq('status', 'talent_bank');
+                .eq('organization_id', organizationId);
 
-            if (!candidates?.length) {
-                toast.success('Nenhum candidato pendente para enviar e-mail');
+            if (!allCandidaturas?.length) {
+                toast.success('Nenhum candidato para enviar e-mail');
                 setCloseEmailVaga(null);
                 setCloseEmailVagaCount(null);
                 return;
             }
 
+            // Separar candidatos do banco de talentos
+            const talentBank = allCandidaturas.filter(c => c.status === 'talent_bank');
+
+            // Para candidatos do banco de talentos, descobrir se foram aprovados ou reprovados no pipeline
+            const approvedEmails = new Set<string>();
+            const rejectedEmails = new Set<string>();
+
+            if (talentBank.length > 0) {
+                const { data: pipeline } = await supabase
+                    .from('pipelines')
+                    .select('id')
+                    .eq('vaga_id', vagaId)
+                    .maybeSingle();
+
+                if (pipeline) {
+                    const tbEmails = talentBank.map(c => c.candidate_email);
+                    const { data: candidatesTable } = await supabase
+                        .from('candidates')
+                        .select('id, email')
+                        .in('email', tbEmails);
+
+                    if (candidatesTable?.length) {
+                        const candidateIds = candidatesTable.map(c => c.id);
+                        const emailById: Record<string, string> = {};
+                        candidatesTable.forEach(c => { emailById[c.id] = c.email; });
+
+                        const { data: pipelineCards } = await supabase
+                            .from('pipeline_cards')
+                            .select('candidate_id, column_id')
+                            .eq('pipeline_id', pipeline.id)
+                            .in('candidate_id', candidateIds);
+
+                        if (pipelineCards?.length) {
+                            const colIds = [...new Set(pipelineCards.map(pc => pc.column_id))];
+                            const { data: columns } = await supabase
+                                .from('pipeline_columns')
+                                .select('id, name')
+                                .in('id', colIds);
+
+                            const colNamesById: Record<string, string> = {};
+                            columns?.forEach(col => { colNamesById[col.id] = col.name; });
+
+                            pipelineCards.forEach(pc => {
+                                const email = emailById[pc.candidate_id];
+                                if (!email) return;
+                                const colName = colNamesById[pc.column_id] || '';
+                                if (colName === 'Aprovado') {
+                                    approvedEmails.add(email);
+                                } else {
+                                    rejectedEmails.add(email);
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
             const results = await Promise.allSettled(
-                candidates.map(c =>
-                    supabase.functions.invoke('send-candidate-thankyou-email', {
+                allCandidaturas.map(async c => {
+                    const isApproved = approvedEmails.has(c.candidate_email);
+                    const isTalentBank = c.status === 'talent_bank';
+
+                    if (isTalentBank && isApproved) {
+                        return supabase.functions.invoke('send-candidate-congratulations-email', {
+                            body: {
+                                candidateName: c.candidate_name,
+                                candidateEmail: c.candidate_email,
+                                jobTitle: vagaTitle,
+                            }
+                        });
+                    }
+                    return supabase.functions.invoke('send-candidate-thankyou-email', {
                         body: {
                             candidateName: c.candidate_name,
                             candidateEmail: c.candidate_email,
                             jobTitle: vagaTitle,
                         }
-                    })
-                )
+                    });
+                })
             );
 
             const sent = results.filter(r => r.status === 'fulfilled').length;
@@ -480,15 +546,21 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             if (failed > 0) {
                 toast.success(`${sent} e-mails enviados, ${failed} falhas`);
             } else {
-                toast.success(`${sent} e-mail${sent !== 1 ? 's' : ''} de agradecimento enviado${sent !== 1 ? 's' : ''}`);
+                toast.success(`${sent} e-mail${sent !== 1 ? 's' : ''} enviado${sent !== 1 ? 's' : ''}`);
             }
         } catch (err) {
             console.error('Erro ao enviar e-mails:', err);
             toast.error('Erro ao enviar e-mails');
         } finally {
             setSendingCloseEmails(false);
+            const pendingId = pendingPipelineDeleteFor;
             setCloseEmailVaga(null);
             setCloseEmailVagaCount(null);
+            setPendingPipelineDeleteFor(null);
+            if (pendingId) {
+                setVagaForPipelineDelete(pendingId);
+                setPipelineDeleteModalOpen(true);
+            }
         }
     }
 
@@ -1517,9 +1589,10 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
                             <Mail size={40} color="var(--primary)" />
                         </div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Enviar e-mails de agradecimento?</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
-                            Deseja enviar e-mails de agradecimento para os candidatos que não foram selecionados para o Banco de Talentos?
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Enviar e-mails para os candidatos?</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
+                            Candidatos fora do Banco de Talentos e reprovados no pipeline receberão <strong>agradecimento</strong>.<br />
+                            Candidatos <strong style={{ color: '#22c55e' }}>aprovados</strong> no pipeline receberão <strong>parabéns</strong>.
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <button
@@ -1541,7 +1614,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 {sendingCloseEmails ? 'Enviando...' : `Sim, enviar para ${closeEmailVagaCount ?? '...'} candidato${closeEmailVagaCount !== 1 ? 's' : ''}`}
                             </button>
                             <button
-                                onClick={() => { setCloseEmailVaga(null); setCloseEmailVagaCount(null); }}
+                                onClick={() => { const pendingId = pendingPipelineDeleteFor; setCloseEmailVaga(null); setCloseEmailVagaCount(null); setPendingPipelineDeleteFor(null); if (pendingId) { setVagaForPipelineDelete(pendingId); setPipelineDeleteModalOpen(true); } }}
                                 disabled={sendingCloseEmails}
                                 style={{
                                     width: '100%', padding: 16,

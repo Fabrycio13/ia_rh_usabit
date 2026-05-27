@@ -39,7 +39,7 @@ export const CareerSettingsPanel: React.FC<CareerSettingsPanelProps> = ({ showTo
                     setPrimaryColor(data.primary_color || '#3b82f6');
                     setAboutText(data.about_text || '');
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('[CareerSettings] Erro ao carregar:', err);
                 showToast('error', 'Erro ao carregar configurações da página de carreiras.');
             } finally {
@@ -65,9 +65,9 @@ export const CareerSettingsPanel: React.FC<CareerSettingsPanelProps> = ({ showTo
 
             if (error) throw error;
             showToast('success', 'Configurações de carreiras salvas com sucesso!');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[CareerSettings] Erro ao salvar:', err);
-            showToast('error', 'Erro ao salvar: ' + err.message);
+            showToast('error', 'Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)));
         } finally {
             setSaving(false);
         }

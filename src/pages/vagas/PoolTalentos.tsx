@@ -600,6 +600,7 @@ export const PoolTalentos = () => {
                     }}
                     onFieldChange={(cid: string, field: string, val: unknown) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
+                        setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, [field]: val } : cand));
                     }}
                     onBlacklistChange={(cid: string, val: boolean) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);

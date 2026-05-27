@@ -694,14 +694,16 @@ export const CandidateBank = () => {
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
           onDeleteFromBank={async (id) => {
-            const email = selected?.email;
+            const cand = candidates.find(c => c.id === id);
             await Promise.all([
               supabase.from('candidates').delete().eq('id', id),
               supabase.from('job_candidates').delete().eq('candidate_id', id),
-              email ? supabase.from('vagas_candidaturas')
-                .update({ status: 'pending' })
-                .eq('candidate_email', email)
-                .eq('status', 'talent_bank') : Promise.resolve()
+              cand?.email
+                ? supabase.from('vagas_candidaturas')
+                    .update({ status: 'pending' })
+                    .eq('candidate_email', cand.email)
+                    .eq('status', 'talent_bank')
+                : Promise.resolve(),
             ]);
             setSelected(null);
             if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
