@@ -342,7 +342,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 }
 
                 // Buscar breakdown de candidatos
-                const breakdown = await computeCloseEmailBreakdown(id, userOrgId || '');
+                const breakdown = await computeCloseEmailBreakdown(id);
 
                 // Primeiro: modal de e-mail se houver candidatos
                 if (breakdown && breakdown.approved.length + breakdown.rejected.length + breakdown.others.length > 0) {
@@ -446,25 +446,47 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         toast.success('Link copiado!');
     };
 
-    async function computeCloseEmailBreakdown(vagaId: string, organizationId: string) {
+    async function computeCloseEmailBreakdown(vagaId: string) {
+        // Busca sem filtro de organization_id para incluir candidaturas legadas (sem org_id)
+        // e candidaturas criadas antes da migration 049
         const { data: allCandidaturas } = await supabase
             .from('vagas_candidaturas')
             .select('candidate_name, candidate_email, status')
-            .eq('vaga_id', vagaId)
-            .eq('organization_id', organizationId);
+            .eq('vaga_id', vagaId);
 
         if (!allCandidaturas?.length) return null;
 
+        // Candidatos que foram ao banco de talentos — precisam verificar coluna do kanban
         const talentBank = allCandidaturas.filter(c => c.status === 'talent_bank');
         const approvedEmails = new Set<string>();
-        const rejectedEmails = new Set<string>();
+        // Candidatos fora do banco de talentos já são reprovados diretamente
+        const notInBankEmails = new Set<string>(
+            allCandidaturas
+                .filter(c => c.status !== 'talent_bank')
+                .map(c => c.candidate_email)
+        );
 
         if (talentBank.length > 0) {
-            const { data: pipeline } = await supabase
+            // Busca o pipeline ativo vinculado à vaga (prioriza is_active=true)
+            const { data: activePipeline } = await supabase
                 .from('pipelines')
                 .select('id')
                 .eq('vaga_id', vagaId)
+                .eq('is_active', true)
                 .maybeSingle();
+
+            // Fallback: se não houver pipeline ativo, tenta qualquer pipeline da vaga
+            const { data: anyPipeline } = !activePipeline
+                ? await supabase
+                    .from('pipelines')
+                    .select('id')
+                    .eq('vaga_id', vagaId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+                : { data: null };
+
+            const pipeline = activePipeline ?? anyPipeline;
 
             if (pipeline) {
                 const tbEmails = talentBank.map(c => c.candidate_email);
@@ -500,9 +522,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             const colName = colNamesById[pc.column_id] || '';
                             if (colName === 'Aprovado') {
                                 approvedEmails.add(email);
-                            } else {
-                                rejectedEmails.add(email);
                             }
+                            // Qualquer outra coluna no kanban = reprovado (já tratado abaixo)
                         });
                     }
                 }
@@ -516,10 +537,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         allCandidaturas.forEach(c => {
             const entry = { name: c.candidate_name || 'Sem nome', email: c.candidate_email };
             if (approvedEmails.has(c.candidate_email)) {
+                // Foi pro banco e está na coluna "Aprovado" do kanban
                 approved.push(entry);
-            } else if (rejectedEmails.has(c.candidate_email)) {
+            } else if (notInBankEmails.has(c.candidate_email)) {
+                // Não foi pro banco de talentos = reprovado direto
                 rejected.push(entry);
             } else {
+                // Foi pro banco mas não está no kanban ou está em coluna diferente de "Aprovado"
                 others.push(entry);
             }
         });
@@ -527,11 +551,11 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return { approved, rejected, others };
     }
 
-    async function sendCloseEmails(vagaId: string, vagaTitle: string, organizationId: string) {
+    async function sendCloseEmails(vagaId: string, vagaTitle: string) {
         if (sendingCloseEmails) return;
         setSendingCloseEmails(true);
         try {
-            const breakdown = closeEmailBreakdown ?? await computeCloseEmailBreakdown(vagaId, organizationId);
+            const breakdown = closeEmailBreakdown ?? await computeCloseEmailBreakdown(vagaId);
             if (!breakdown) {
                 toast.success('Nenhum candidato para enviar e-mail');
                 setCloseEmailVaga(null);
@@ -1659,7 +1683,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                             <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: openSections.rejected ? 'rotate(0deg)' : 'rotate(-90deg)', color: 'var(--text-dim)', flexShrink: 0 }} />
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
                                             <span style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', flex: 1 }}>
-                                                Reprovados: ({closeEmailBreakdown.rejected.length}) receberão <strong>agradecimento</strong>
+                                                Reprovados ({closeEmailBreakdown.rejected.length}) — não foram ao banco de talentos
                                             </span>
                                         </div>
                                         {openSections.rejected && (
@@ -1680,9 +1704,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         <div onClick={() => setOpenSections(s => ({ ...s, others: !s.others }))}
                                             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', userSelect: 'none', background: 'var(--bg-main)' }}>
                                             <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: openSections.others ? 'rotate(0deg)' : 'rotate(-90deg)', color: 'var(--text-dim)', flexShrink: 0 }} />
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0 }} />
-                                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', flex: 1 }}>
-                                                Demais candidatos: ({closeEmailBreakdown.others.length}) receberão <strong>agradecimento</strong>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#f59e0b', flex: 1 }}>
+                                                No banco de talentos ({closeEmailBreakdown.others.length}) — receberão <strong>agradecimento</strong>
                                             </span>
                                         </div>
                                         {openSections.others && (
@@ -1703,7 +1727,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             <button
                                 onClick={() => {
                                     if (sendingCloseEmails) return;
-                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, userOrgId);
+                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title);
                                 }}
                                 disabled={sendingCloseEmails}
                                 style={{
