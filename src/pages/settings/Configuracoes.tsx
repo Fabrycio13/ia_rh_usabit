@@ -253,6 +253,10 @@ export const Configuracoes = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
+    const [vagaModalUserId, setVagaModalUserId] = useState<string | null>(null);
+    const [vagasList, setVagasList] = useState<Array<{ id: string; title: string; job_code?: string | null }>>([]);
+    const [userVagaIds, setUserVagaIds] = useState<Set<string>>(new Set());
+    const [vagaLoading, setVagaLoading] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -429,6 +433,30 @@ export const Configuracoes = () => {
         }
         const { data } = await query;
         if (data) setAllUsers(data);
+    };
+
+    const loadVagas = async () => {
+        const { data } = await supabase.from('vagas_white_label').select('id, title, job_code').eq('status', 'aberta').order('job_code', { ascending: true, nullsFirst: false });
+        if (data) setVagasList(data);
+    };
+
+    const loadUserVagaAccess = async (convidadoUserId: string) => {
+        setVagaLoading(true);
+        const { data } = await supabase.from('convidado_vaga_access').select('vaga_id').eq('convidado_user_id', convidadoUserId);
+        setUserVagaIds(new Set((data || []).map(d => d.vaga_id)));
+        setVagaLoading(false);
+    };
+
+    const handleToggleVagaAccess = async (convidadoUserId: string, vagaId: string, hasAccess: boolean) => {
+        if (hasAccess) {
+            const { error } = await supabase.from('convidado_vaga_access').delete().eq('convidado_user_id', convidadoUserId).eq('vaga_id', vagaId);
+            if (error) { showToast('error', 'Erro ao remover acesso'); return; }
+            setUserVagaIds(prev => { const next = new Set(prev); next.delete(vagaId); return next; });
+        } else {
+            const { error } = await supabase.from('convidado_vaga_access').insert({ convidado_user_id: convidadoUserId, vaga_id: vagaId, created_by: userId });
+            if (error) { showToast('error', 'Erro ao adicionar acesso'); return; }
+            setUserVagaIds(prev => { const next = new Set(prev); next.add(vagaId); return next; });
+        }
     };
 
     // Criar novo usuário (somente admin/gestor) - Hierarquia Multi Talent
@@ -824,6 +852,7 @@ export const Configuracoes = () => {
                             </div>
 
                             {/* Organização */}
+                            {profile.user_role !== 'convidado' && (
                             <div>
                                 <label style={labelStyle}>Organização</label>
                                 <div style={fieldWrapStyle}>
@@ -831,6 +860,7 @@ export const Configuracoes = () => {
                                     <input className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
                                 </div>
                             </div>
+                            )}
 
                             {/* Email readonly */}
                             <div>
@@ -1477,6 +1507,25 @@ export const Configuracoes = () => {
                                                             >
                                                                 {user.status === 'active' ? 'Desativar' : 'Ativar'}
                                                             </button>
+                                                            {user.user_role === 'convidado' && profile.user_role === 'gestor' && (
+                                                                <button
+                                                                    onClick={() => { setVagaModalUserId(user.id); loadVagas(); loadUserVagaAccess(user.id); }}
+                                                                    style={{
+                                                                        padding: '6px 14px',
+                                                                        borderRadius: '8px',
+                                                                        border: '1px solid var(--border)',
+                                                                        background: 'var(--bg-main)',
+                                                                        color: 'var(--primary)',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: 600,
+                                                                        cursor: 'pointer',
+                                                                        transition: 'all 0.2s',
+                                                                        marginLeft: 6
+                                                                    }}
+                                                                >
+                                                                    Vagas
+                                                                </button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );
@@ -1653,6 +1702,103 @@ export const Configuracoes = () => {
                                 {creatingUser ? 'Criando...' : 'Criar Usuário'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Vaga Permissions Modal */}
+            {vagaModalUserId && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999
+                }} onClick={() => setVagaModalUserId(null)}>
+                    <div style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        padding: '28px',
+                        width: '100%',
+                        maxWidth: '520px',
+                        maxHeight: '90vh',
+                        overflow: 'auto'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <div>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Vagas Permitidas</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>
+                                    Selecione as vagas que este convidado pode visualizar
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setVagaModalUserId(null)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {vagaLoading ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+                                <Loader2 style={{ width: 24, height: 24, animation: 'spin 1s linear infinite', color: 'var(--text-dim)' }} />
+                            </div>
+                        ) : vagasList.length === 0 ? (
+                            <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '40px 0' }}>
+                                Nenhuma vaga encontrada. Crie vagas primeiro.
+                            </p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {vagasList.map(vaga => {
+                                    const hasAccess = userVagaIds.has(vaga.id);
+                                    return (
+                                        <label key={vaga.id} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            padding: '10px 14px',
+                                            borderRadius: '10px',
+                                            background: hasAccess ? 'var(--primary)10' : 'transparent',
+                                            border: `1px solid ${hasAccess ? 'var(--primary)' : 'var(--border)'}`,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s'
+                                        }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={hasAccess}
+                                                onChange={() => handleToggleVagaAccess(vagaModalUserId, vaga.id, hasAccess)}
+                                                style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--primary)' }}
+                                            />
+                                            <div style={{ flex: 1 }}>
+                                                <p style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, margin: 0 }}>
+                                                    {vaga.title}
+                                                </p>
+                                                {vaga.job_code && (
+                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>
+                                                        {vaga.job_code}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {hasAccess && (
+                                                <span style={{
+                                                    padding: '2px 8px',
+                                                    borderRadius: '20px',
+                                                    background: 'var(--primary)15',
+                                                    color: 'var(--primary)',
+                                                    fontSize: '10px',
+                                                    fontWeight: 700
+                                                }}>
+                                                    Permitido
+                                                </span>
+                                            )}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

@@ -34,8 +34,12 @@ export const CareerPortalHub = () => {
     const { profile } = useUser();
     const [searchParams, setSearchParams] = useSearchParams();
     const tabFromUrl = searchParams.get('tab') as TabId | null;
+    const isConvidado = profile.user_role === 'convidado';
+    const visibleTabs = isConvidado
+        ? tabConfig.filter(t => t.id === 'vagas')
+        : tabConfig;
     const [activeTab, setActiveTab] = useState<TabId>(
-        tabFromUrl && tabConfig.some(t => t.id === tabFromUrl) ? tabFromUrl : 'vagas'
+        tabFromUrl && tabConfig.some(t => t.id === tabFromUrl) && (!isConvidado || tabFromUrl === 'vagas') ? tabFromUrl : 'vagas'
     );
 
     useEffect(() => {
@@ -52,7 +56,7 @@ export const CareerPortalHub = () => {
         toast.success('Link do portal copiado!');
     };
 
-    const showPortalActions = activeTab === 'vagas' || activeTab === 'pool';
+    const showPortalActions = (activeTab === 'vagas' || activeTab === 'pool') && !isConvidado;
 
     return (
         <div style={{ width: '100%' }}>
@@ -105,7 +109,7 @@ export const CareerPortalHub = () => {
 
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '32px' }}>
-                {tabConfig.map(tab => {
+                {visibleTabs.map(tab => {
                     const active = activeTab === tab.id;
                     const Icon = tab.icon;
                     return (

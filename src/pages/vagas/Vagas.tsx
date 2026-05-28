@@ -184,7 +184,19 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .order('created_at', { ascending: false });
 
                 // ISOLAMENTO: Todos os usuários veem apenas vagas da sua organização
-                if (userOrgId && userOrgId !== 'null') {
+                if (role === 'convidado') {
+                    const { data: acesso } = await supabase
+                        .from('convidado_vaga_access')
+                        .select('vaga_id')
+                        .eq('convidado_user_id', user.id);
+                    const vagaIds = (acesso || []).map(a => a.vaga_id);
+                    if (vagaIds.length === 0) {
+                        setVagas([]);
+                        setLoading(false);
+                        return;
+                    }
+                    query = query.in('id', vagaIds);
+                } else if (userOrgId && userOrgId !== 'null') {
                     query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
                 } else {
                     query = query.eq('user_id', user.id);
@@ -996,6 +1008,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 </div>
 
                 {/* Create New Vaga */}
+                {userRole !== 'convidado' && (
                 <button
                     onClick={() => navigate('/vagas/nova')}
                     style={{
@@ -1018,6 +1031,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     <Plus size={16} />
                     Nova Vaga
                 </button>
+                )}
             </div>
 
             {/* Vagas List */}
@@ -1093,6 +1107,22 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
                                     {/* Status Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                        {userRole === 'convidado' ? (
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                padding: '4px 10px',
+                                                background: statusConfig.bg,
+                                                border: `1px solid ${statusConfig.color}33`,
+                                                borderRadius: '12px',
+                                                color: statusConfig.color,
+                                                fontSize: '12px',
+                                                fontWeight: 600
+                                            }}>
+                                                {statusConfig.label}
+                                            </span>
+                                        ) : (
                                         <button
                                             ref={(el) => { statusBtnRefs.current[vaga.id] = el; }}
                                             onClick={() => {
@@ -1137,6 +1167,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                             {statusConfig.label}
                                             <ChevronDown size={12} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
                                         </button>
+                                        )}
                                     </div>
 
                                     <div 
@@ -1301,6 +1332,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         >
                                             <Users size={14} />
                                         </button>
+                                        {userRole !== 'convidado' && (<>
                                         <button
                                             onClick={() => navigate(`/vagas/editar/${vaga.id}`)}
                                             title="Editar"
@@ -1335,6 +1367,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         >
                                             <Trash2 size={14} />
                                         </button>
+                                        </>)}
                                     </div>
                                 </div>
                             );

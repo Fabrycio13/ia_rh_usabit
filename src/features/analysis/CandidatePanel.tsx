@@ -85,6 +85,7 @@ export function CandidatePanel({
     const [editFieldVal, setEditFieldVal] = useState('');
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
+    const isConvidado = profile.user_role === 'convidado';
     const [localC, setLocalC] = useState({ 
         email: c.email, 
         phone: c.phone, 
@@ -115,6 +116,7 @@ export function CandidatePanel({
 
     async function toggleBlacklist() {
         if (togglingBlacklist) return;
+        if (isConvidado) return;
         setTogglingBlacklist(true);
         const newVal = !c.is_blacklisted;
         try {
@@ -128,6 +130,7 @@ export function CandidatePanel({
 
     async function handleFieldSave(field: string) {
         if (savingField) return;
+        if (isConvidado) return;
         setSavingField(true);
         try {
             const val = editFieldVal.trim() || null;

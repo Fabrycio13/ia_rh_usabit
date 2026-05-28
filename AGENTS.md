@@ -1,8 +1,8 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan.
-Current plan: `docs/architecture/portal-carreiras-figma.md`
-Previous plan: `.opencode/plans/PLAN-008-modularizacao-ia-analises.md`
+Current plan: `specs/gestor-convidado-vagas/plan.md`
+Previous plan: `.opencode/plans/PLAN-009-gestor-convidado-vagas-permissionamento.md`
 
 # Supabase CLI
 - SUPABASE_ACCESS_TOKEN is stored as Windows user env var (set via `setx`)
