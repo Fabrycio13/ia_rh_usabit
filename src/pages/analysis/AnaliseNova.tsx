@@ -661,10 +661,10 @@ export const AnaliseNova = () => {
             clearAnalysis();
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setJobName('');
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+             
             setJobDesc('');
             setJobDesc('');
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+             
             setFiles([]);
             // Remove the param so refresh doesn't keep clearing
             const newParams = new URLSearchParams(searchParams);
@@ -681,12 +681,12 @@ export const AnaliseNova = () => {
         if (analyzing || result) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             if (ctxJobName) setJobName(ctxJobName);
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+             
             if (ctxJobDesc) setJobDesc(ctxJobDesc);
         } else if (!ctxJobName && !ctxJobDesc) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+             
             setJobName('');
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+             
             setJobDesc('');
         }
     }, [ctxJobName, ctxJobDesc, analyzing, result]);
@@ -738,7 +738,7 @@ export const AnaliseNova = () => {
             const xlsx: File[] = dropped.filter((f: File) => f.name.endsWith('.xlsx') || f.name.endsWith('.xls')) as File[];
             if (xlsx[0]) setFiles([xlsx[0]]);
         }
-    }, [uploadMode, files.length]);
+    }, [uploadMode]);
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;

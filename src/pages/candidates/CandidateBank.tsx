@@ -163,15 +163,8 @@ export const CandidateBank = () => {
     return next;
   });
 
-  useEffect(() => {
-    if (!profile.loaded) return;
-    if (!profile.userId) { setLoading(false); return; }
-    const safetyTimer = setTimeout(() => setLoading(false), 8000);
-    fetchCandidates(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
-    return () => clearTimeout(safetyTimer);
-  }, [profile.userId, profile.loaded, profile.user_role]);
-
-  async function fetchCandidates(userId: string, userRole?: string) {
+  const fetchCandidatesRef = useRef<(userId: string, userRole?: string) => Promise<void>>(() => Promise.resolve());
+  fetchCandidatesRef.current = async function fetchCandidates(userId: string, userRole?: string) {
     const isGlobalViewer = userRole === 'owner';
     const isOrgMember = userRole === 'gestor' || userRole === 'rh';
     try {
@@ -212,7 +205,15 @@ export const CandidateBank = () => {
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    if (!profile.loaded) return;
+    if (!profile.userId) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
+    fetchCandidatesRef.current(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
+    return () => clearTimeout(safetyTimer);
+  }, [profile.userId, profile.loaded, profile.user_role]);
 
   async function handleToggleBlacklistRow(candidate: Candidate) {
     const newVal = !candidate.is_blacklisted;
@@ -687,7 +688,7 @@ export const CandidateBank = () => {
             setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
           }}
           onTransferSuccess={() => {
-            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+            if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
@@ -706,7 +707,7 @@ export const CandidateBank = () => {
                 : Promise.resolve(),
             ]);
             setSelected(null);
-            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+            if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}
         />
       )}
@@ -715,7 +716,7 @@ export const CandidateBank = () => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
-          if (profile.userId) fetchCandidates(profile.userId);
+          if (profile.userId) fetchCandidatesRef.current(profile.userId);
         }}
         onViewCandidate={async (candidateId) => {
           setShowAddModal(false);

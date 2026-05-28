@@ -194,9 +194,13 @@ export const AdminDashboard = () => {
 
         setLoading(false);
     };
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchDashboardData();
+    const fetchDashboardDataRef = useRef<() => Promise<void> | null>(null);
+
+     
+     useEffect(() => {
+        fetchDashboardDataRef.current = fetchDashboardData;  
+        fetchDashboardDataRef.current?.();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeStart, activeEnd, selectedOrgId]);
 
     // Calendar helpers

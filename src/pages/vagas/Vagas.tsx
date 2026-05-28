@@ -133,6 +133,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         invisivel: { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', label: 'Invisível' }
     };
 
+     
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -237,6 +238,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return () => {
             supabase.removeChannel(channel);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fechar selects ao clicar fora

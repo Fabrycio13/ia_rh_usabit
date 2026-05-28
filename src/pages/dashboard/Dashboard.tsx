@@ -212,18 +212,23 @@ export const Dashboard = () => {
     ? parseFloat(((totalMelhores / totalAvaliados) * 100).toFixed(1))
     : 0;
 
+   
+  const fetchDataRef = useRef<(userId: string) => Promise<void>>(() => Promise.resolve());
+
   useEffect(() => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const t = setTimeout(() => setLoading(false), 8000);
-    fetchData(profile.userId).finally(() => clearTimeout(t));
+    fetchDataRef.current = fetchData;
+    fetchDataRef.current!(profile.userId).finally(() => clearTimeout(t));
     const ch = supabase.channel('dash-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_candidates' }, () => fetchData(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchData(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchData(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchData(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_candidates' }, () => fetchDataRef.current?.(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchDataRef.current?.(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchDataRef.current?.(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchDataRef.current?.(profile.userId))
       .subscribe();
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.userId, profile.loaded]);
 
   async function fetchData(userId: string) {

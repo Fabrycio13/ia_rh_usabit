@@ -398,12 +398,16 @@ export const Pipeline = () => {
     const [cardSubmenu, setCardSubmenu] = useState<string | null>(null);
     const [cardMenuPos, setCardMenuPos] = useState<{ top: number; left: number } | null>(null);
 
+    const initRef = useRef<(userId: string) => Promise<void> | null>(null);
+
     useEffect(() => {
         if (!profile.loaded || !profile.userId) return;
-        init(profile.userId).catch(err => {
+        initRef.current = init;
+        initRef.current?.(profile.userId)?.catch(err => {
             console.error('[Pipeline] init error:', err);
             setFetchingPipelines(false);
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile.userId, profile.loaded]);
 
     const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -432,15 +436,19 @@ export const Pipeline = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [cardMenuOpen]);
 
+    const loadPipelineDataRef = useRef<((userId: string, pipelineId: string) => Promise<void>) | null>(null);
+
     useEffect(() => {
         setCards([]);
         setColumns([]);
         if (selectedPipelineId && profile.userId) {
-            loadPipelineData(profile.userId, selectedPipelineId).catch(err => {
+            loadPipelineDataRef.current = loadPipelineData;
+            loadPipelineDataRef.current?.(profile.userId, selectedPipelineId)?.catch(err => {
                 console.error('[Pipeline] loadPipelineData error:', err);
                 setLoading(false);
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPipelineId, profile.userId]);
 
     // ─── Drag-and-Drop with @atlaskit ─────────────────────────────────────────

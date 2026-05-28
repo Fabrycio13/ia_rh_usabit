@@ -471,7 +471,7 @@ const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }:
         }, 100);
         
         return () => clearTimeout(timer);
-    }, [step, contentVisible, customAnswers]);
+    }, [step, contentVisible, customAnswers, containerRef]);
     
     return null;
 };
@@ -658,6 +658,7 @@ export const JobApplication = () => {
         if (!formData.phone && selectedCountry.code) {
             setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCountry]);
 
     const genderOptions = [
@@ -745,7 +746,7 @@ export const JobApplication = () => {
         if (!loading && job) {
             triggerStepReveal(200);
         }
-    }, [loading, job]);
+    }, [loading, job, triggerStepReveal]);
 
     const goToNextStep = useCallback(() => {
         setStep(s => s + 1);
