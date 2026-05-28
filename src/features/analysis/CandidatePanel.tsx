@@ -218,20 +218,18 @@ export function CandidatePanel({
         if (activeTab !== 'triagem' || !c.id) return;
         if (fetchedLogsFor.current === c.id) return;
         fetchedLogsFor.current = c.id;
-        let cancelled = false;
+        const candidateId = c.id;
         setLoadingLogs(true);
         supabase
             .from('candidate_screening_logs')
             .select('*')
-            .eq('candidate_id', c.id)
+            .eq('candidate_id', candidateId)
             .order('created_at', { ascending: true })
             .then(({ data, error }) => {
-                if (!cancelled) {
-                    if (!error) setScreeningLogs(data || []);
-                    setLoadingLogs(false);
-                }
+                if (c.id !== candidateId) return;
+                if (!error) setScreeningLogs(data || []);
+                setLoadingLogs(false);
             });
-        return () => { cancelled = true; };
     }, [activeTab, c.id]);
 
     useEffect(() => {
