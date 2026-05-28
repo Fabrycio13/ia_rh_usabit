@@ -101,16 +101,14 @@ export function CandidatePanel({
     });
     const prevIdRef = useRef(c.id);
     useEffect(() => {
-        if (c.id !== prevIdRef.current) {
-            prevIdRef.current = c.id;
-            setLocalC({ 
-                email: c.email, phone: c.phone, location: c.location,
-                address: c.address, linkedin: c.linkedin, age: c.age,
-                gender: c.gender, portfolio: c.portfolio, cep: c.cep,
-                address_number: c.address_number, complement: c.complement
-            });
-        }
-    }, [c.id]);
+        setLocalC({
+            email: c.email, phone: c.phone, location: c.location,
+            address: c.address, linkedin: c.linkedin, age: c.age,
+            gender: c.gender, portfolio: c.portfolio, cep: c.cep,
+            address_number: c.address_number, complement: c.complement
+        });
+        prevIdRef.current = c.id;
+    }, [c.id, c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
     const [transferringToBank, setTransferringToBank] = useState(false);
     const [togglingBlacklist, setTogglingBlacklist] = useState(false);
 
