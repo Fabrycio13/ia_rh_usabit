@@ -122,8 +122,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
     };
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        /* eslint-disable react-hooks/set-state-in-effect */
         loadProfile();
+        /* eslint-enable react-hooks/set-state-in-effect */
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_OUT') {
                 setProfile({ ...defaultProfile, loaded: true });
@@ -156,7 +157,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             subscription.unsubscribe();
             supabase.removeChannel(profileSubscription);
         };
-    }, []);
+         
+    }, [profile.userId]);
 
     return (
         <UserContext.Provider value={{ profile, refetch: loadProfile }}>

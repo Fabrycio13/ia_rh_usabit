@@ -282,14 +282,18 @@ export const Configuracoes = () => {
     }, [userId, profile.loaded, dataLoaded]);
 
     // Carregar usuários quando entrar nas abas que dependem da lista de usuários
+    const loadUsersRef = useRef<() => Promise<void> | null>(null);
+
     useEffect(() => {
         const isOwner = profile.user_role === 'owner';
         const isGestor = profile.user_role === 'gestor';
         const needsUsers = activeTab === 'perfis' || (isOwner && (activeTab === 'api' || activeTab === 'plano'));
 
         if (needsUsers && (isOwner || isGestor)) {
-            loadUsers();
+            loadUsersRef.current = loadUsers;
+            loadUsersRef.current?.();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, profile.user_role]);
 
     // Redirecionar para aba "perfil" se tentar acessar aba restrita sem permissão

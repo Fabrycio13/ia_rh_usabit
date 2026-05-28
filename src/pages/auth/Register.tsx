@@ -86,7 +86,7 @@ export const Register = () => {
             window.removeEventListener('scroll', handleScroll);
             cancelAnimationFrame(animationFrame);
         };
-    }, []);
+    }, [scrollY]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();

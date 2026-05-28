@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
+ 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -94,12 +94,13 @@ export const AdminLogs = () => {
     };
 
     useEffect(() => {
-        fetchLogs();
+        fetchLogs();  
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Reset page when filtering
     useEffect(() => {
-        setCurrentPage(1);
+        setCurrentPage(1);  
     }, [searchUser, selectedOrgId, startDate, endDate, statusFilter]);
 
     const formatDate = (iso: string) => {
