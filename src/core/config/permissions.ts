@@ -69,7 +69,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         logs: false,
     },
 
-    // CONVIDADO: apenas visualiza vagas (somente leitura)
+    // CONVIDADO: visualiza vagas + pipeline read-only (vagas permitidas pelo gestor)
     convidado: {
         dashboard: false,
         vagas: true,
@@ -78,7 +78,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         analises_edit: false,
         candidatos: false,
         candidatos_edit: false,
-        pipeline: false,
+        pipeline: true,
         pipeline_edit: false,
         chat: false,
         chat_widget: false,

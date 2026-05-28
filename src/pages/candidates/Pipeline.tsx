@@ -236,11 +236,12 @@ const css = `
 `;
 
 // ─── Column Header Edit Inline ─────────────────────────────────────────────────
-function ColHeader({ col, onUpdate, onDelete, colHeaderRef }: {
+function ColHeader({ col, onUpdate, onDelete, colHeaderRef, isColHeaderConvidado }: {
     col: PipelineColumn;
     onUpdate: (id: string, name: string, color: string) => void;
     onDelete: (id: string) => void;
     colHeaderRef?: React.RefObject<Map<string, HTMLElement>>;
+    isColHeaderConvidado?: boolean;
 }) {
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(col.name);
@@ -276,7 +277,7 @@ function ColHeader({ col, onUpdate, onDelete, colHeaderRef }: {
         >
             <div className="pipe-col-header-dot" style={{ background: col.color }} />
             <span style={{ flex: 1, color: 'var(--text-main)', fontWeight: 700, fontSize: 13 }}>{col.name}</span>
-            <button className="pipe-btn" onClick={() => setEditing(true)} title="Editar coluna"><Edit2 size={13} /></button>
+            {!isColHeaderConvidado && <button className="pipe-btn" onClick={() => setEditing(true)} title="Editar coluna"><Edit2 size={13} /></button>}
         </div>
     );
 }
@@ -387,6 +388,7 @@ export const Pipeline = () => {
 
     // Filtro de Status para os pipelines
     const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string; pipeline_id?: string | null; is_active?: boolean }>>([]);
+    const isConvidado = profile.user_role === 'convidado';
     const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
     const [linkVagaPipeline, setLinkVagaPipeline] = useState<Pipeline | null>(null);
     const [linkVagaVagaId, setLinkVagaVagaId] = useState('');
@@ -453,6 +455,7 @@ export const Pipeline = () => {
 
     // ─── Drag-and-Drop with @atlaskit ─────────────────────────────────────────
     useEffect(() => {
+        if (isConvidado) return;
         const cleanupFunctions: Array<() => void> = [];
 
         cards.forEach(card => {
@@ -548,9 +551,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [cards, columns, profile, pipelines, selectedPipelineId]);
+    }, [cards, columns, isConvidado, profile, pipelines, selectedPipelineId]);
 
     useEffect(() => {
+        if (isConvidado) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(column => {
@@ -567,9 +571,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns]);
+    }, [columns, isConvidado]);
 
     useEffect(() => {
+        if (isConvidado) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(col => {
@@ -620,7 +625,7 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns]);
+    }, [columns, isConvidado]);
     
     // Helper function para status da vaga
     const getVagaStatusBadge = (vagaId?: string | null) => {
@@ -660,11 +665,29 @@ export const Pipeline = () => {
     async function init(userId: string) {
         setFetchingPipelines(true);
         try {
-            const { data: pipes } = await supabase.from('pipelines')
+            let query = supabase.from('pipelines')
                 .select('*')
                 .eq('is_active', true)
-                .or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`)
                 .order('name');
+
+            if (isConvidado) {
+                const { data: acesso } = await supabase
+                    .from('convidado_vaga_access')
+                    .select('vaga_id')
+                    .eq('convidado_user_id', userId);
+                const vagaIds = (acesso || []).map(a => a.vaga_id);
+                if (vagaIds.length === 0) {
+                    setPipelines([]);
+                    setFetchingPipelines(false);
+                    return;
+                }
+                query = query.in('vaga_id', vagaIds);
+            } else if (profile.organization_id) {
+                query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { data: pipes } = await query;
 
             // Buscar vagas disponíveis para filtro PRIMEIRO
             await loadAvailableVagas();
@@ -700,10 +723,25 @@ export const Pipeline = () => {
     
     async function loadAvailableVagas() {
         try {
-            const { data: vagas } = await supabase
+            let vagaQuery = supabase
                 .from('vagas_white_label')
                 .select('id, title, status, is_accepting_applications, job_code, pipeline_id, is_active')
                 .order('job_code', { ascending: true, nullsFirst: false });
+
+            if (isConvidado) {
+                const { data: acesso } = await supabase
+                    .from('convidado_vaga_access')
+                    .select('vaga_id')
+                    .eq('convidado_user_id', profile.userId);
+                const vagaIds = (acesso || []).map(a => a.vaga_id);
+                if (vagaIds.length === 0) {
+                    setAvailableVagas([]);
+                    return;
+                }
+                vagaQuery = vagaQuery.in('id', vagaIds);
+            }
+
+            const { data: vagas } = await vagaQuery;
             
             if (vagas) {
                 setAvailableVagas(vagas.map(v => ({
@@ -926,7 +964,9 @@ export const Pipeline = () => {
                 };
             });
             setCards(mapped);
-            await loadEligibles(userId, mapped);
+            if (!isConvidado) {
+                await loadEligibles(userId, mapped);
+            }
         } finally {
             setLoading(false);
         }
@@ -1027,6 +1067,7 @@ export const Pipeline = () => {
     }
 
     async function openCandidate(card: PipelineCard) {
+        if (isConvidado) return;
         const base = {
             id: card.candidate_id,
             name: card.candidate_name,
@@ -1446,6 +1487,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                             {p.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{p.job_code}</span>}
                                             {p.vaga_title && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>| {p.vaga_title}</span>}
                                         </div>
+                                        {!isConvidado && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
                                             style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4, position: 'absolute', right: 8, top: 8 }}
@@ -1453,7 +1495,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
                                         >
                                             <Trash2 size={14} />
-                                        </button>
+                                        </button>)}
                                     </div>
                                 ))}
                                 {pipelines
@@ -1476,6 +1518,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     </div>
 
                     {/* Primary Button: Add Pipeline */}
+                    {!isConvidado && (
                     <button 
                         onClick={openCreatePipelineModal}
                         style={{ 
@@ -1486,7 +1529,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                         }}
                     >
                         <Plus style={{ width: 16, height: 16 }} /> Novo Processo
-                    </button>
+                    </button>)}
                 </div>
             </div>
 
@@ -1507,7 +1550,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
                 {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
+                    {!isConvidado && selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
                             style={{
@@ -1522,7 +1565,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             Vincular a vaga
                         </button>
                     )}
-                    {selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
+                    {!isConvidado && selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) handleUnlinkVaga(p.id); }}
                             style={{
@@ -1537,7 +1580,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             Desvincular vaga
                         </button>
                     )}
-                    {activeTab === 'board' && selectedPipelineId && (
+                    {!isConvidado && activeTab === 'board' && selectedPipelineId && (
                         <button 
                             onClick={() => setAddColModal(true)} 
                             style={{ 
@@ -1568,7 +1611,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             ref={el => { if (el) columnRefs.current.set(col.id, el); }}
                             className={`pipe-col${dragOverColumnId === col.id ? ' drag-over' : ''}`}
                         >
-                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} colHeaderRef={colHeaderRefs} />
+                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} colHeaderRef={colHeaderRefs} isColHeaderConvidado={profile.user_role === 'convidado'} />
 
                             <div style={{ padding: '0 14px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ background: col.color + '22', color: col.color, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px' }}>{colCards.length} candidato{colCards.length !== 1 ? 's' : ''}</span>
@@ -1604,17 +1647,23 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                             <Phone size={13} color="#22c55e" fill="#22c55e22" />
                                                         </div>
                                                     )}
+                                                    {!isConvidado && (
                                                     <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); openCandidate(card); }} title="Ver card completo" style={{ color: 'var(--text-dim)' }}>
                                                         <Eye size={13} />
                                                     </button>
+                                                    )}
+                                                    {!isConvidado && (
                                                     <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCardMenuPos({ top: rect.bottom + 4, left: rect.right - 180 }); setCardMenuOpen(cardMenuOpen === card.id ? null : card.id); }} title="Opções" style={{ color: 'var(--text-dim)' }}>
                                                         <MoreHorizontal size={13} />
                                                     </button>
-                                                    {cardMenuOpen === card.id && cardMenuPos && (
+                                                    )}
+                                                    {!isConvidado && cardMenuOpen === card.id && cardMenuPos && (
                                                         <div ref={cardMenuRef} style={{ position: 'fixed', top: cardMenuPos.top, left: cardMenuPos.left, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 4, zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 }}>
                                                             <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); openCandidate(card); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
                                                                 <Eye size={13} /> Ver card completo
                                                             </button>
+                                                            {!isConvidado && (
+                                                            <>
                                                             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                                                             <div style={{ position: 'relative' }}>
                                                                 <button
@@ -1668,6 +1717,8 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                             <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: '#ef4444', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); removeCard(card.id, card.candidate_id); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
                                                                 <X size={13} /> Remover
                                                             </button>
+                                                            </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
