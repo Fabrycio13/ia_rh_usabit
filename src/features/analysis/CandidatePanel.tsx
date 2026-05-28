@@ -200,33 +200,36 @@ export function CandidatePanel({
 
     const [expandedJob, setExpandedJob] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
+    const hasAutoSwitched = useRef(false);
     useEffect(() => {
-      if (!c.isVagaView && c.applications?.length && activeTab === 'triagem') {
+      if (!c.isVagaView && c.applications?.length && !hasAutoSwitched.current) {
+        hasAutoSwitched.current = true;
         setActiveTab('vagas');
       }
-    }, [c.applications, activeTab, c.isVagaView]);
+    }, [c.applications, c.isVagaView]);
     const [vagasOpen, setVagasOpen] = useState(true);
 
     const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [expandedLogJob, setExpandedLogJob] = useState<string | null>(null);
-
-    async function fetchScreeningLogs() {
-        if (!c.id) return;
-        setLoadingLogs(true);
-        try {
-            const { data, error } = await supabase
-                .from('candidate_screening_logs')
-                .select('*')
-                .eq('candidate_id', c.id)
-                .order('created_at', { ascending: true });
-            if (!error) setScreeningLogs(data || []);
-        } finally { setLoadingLogs(false); }
-    }
+    const fetchedLogsFor = useRef<string | null>(null);
 
     useEffect(() => {
-        if (activeTab === 'triagem') fetchScreeningLogs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (activeTab !== 'triagem' || !c.id) return;
+        if (fetchedLogsFor.current === c.id) return;
+        fetchedLogsFor.current = c.id;
+        const candidateId = c.id;
+        setLoadingLogs(true);
+        supabase
+            .from('candidate_screening_logs')
+            .select('*')
+            .eq('candidate_id', candidateId)
+            .order('created_at', { ascending: true })
+            .then(({ data, error }) => {
+                if (c.id !== candidateId) return;
+                if (!error) setScreeningLogs(data || []);
+                setLoadingLogs(false);
+            });
     }, [activeTab, c.id]);
 
     useEffect(() => {
