@@ -61,6 +61,7 @@ interface Vaga {
     show_company_name: boolean;
     job_code?: string;
     pipeline_id?: string | null;
+    user_id?: string;
 }
 
 export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
