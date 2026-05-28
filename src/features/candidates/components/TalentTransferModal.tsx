@@ -128,7 +128,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
         if (profile?.organization_id || job.organization_id) {
             checkPipeline();
         }
-    }, [job.id, profile?.organization_id, job.organization_id, job.title]);
+    }, [job.id, profile?.organization_id, job.organization_id, job.title, candidate.email]);
 
     const handleCreatePipeline = async () => {
         setCreatingPipeline(true);

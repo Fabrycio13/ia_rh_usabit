@@ -204,7 +204,7 @@ export function CandidatePanel({
       if (!c.isVagaView && c.applications?.length && activeTab === 'triagem') {
         setActiveTab('vagas');
       }
-    }, [c.applications]);
+    }, [c.applications, activeTab, c.isVagaView]);
     const [vagasOpen, setVagasOpen] = useState(true);
 
     const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
@@ -226,6 +226,7 @@ export function CandidatePanel({
 
     useEffect(() => {
         if (activeTab === 'triagem') fetchScreeningLogs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, c.id]);
 
     useEffect(() => {

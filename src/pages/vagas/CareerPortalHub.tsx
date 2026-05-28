@@ -43,6 +43,7 @@ export const CareerPortalHub = () => {
         if (current !== activeTab) {
             setSearchParams({ tab: activeTab }, { replace: true });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     const copyPortalLink = () => {

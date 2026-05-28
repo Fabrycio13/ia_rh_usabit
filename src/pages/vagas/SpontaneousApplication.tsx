@@ -443,6 +443,7 @@ export const SpontaneousApplication = () => {
         if (!formData.phone && selectedCountry.code) {
             setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCountry]);
 
     const genderOptions = [
@@ -506,7 +507,7 @@ export const SpontaneousApplication = () => {
         if (!loading) {
             triggerStepReveal(200);
         }
-    }, [loading]);
+    }, [loading, triggerStepReveal]);
 
     const goToNextStep = useCallback(() => {
         setStep(s => s + 1);
