@@ -400,7 +400,10 @@ export const Pipeline = () => {
 
     useEffect(() => {
         if (!profile.loaded || !profile.userId) return;
-        init(profile.userId);
+        init(profile.userId).catch(err => {
+            console.error('[Pipeline] init error:', err);
+            setFetchingPipelines(false);
+        });
     }, [profile.userId, profile.loaded]);
 
     const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -433,7 +436,10 @@ export const Pipeline = () => {
         setCards([]);
         setColumns([]);
         if (selectedPipelineId && profile.userId) {
-            loadPipelineData(profile.userId, selectedPipelineId);
+            loadPipelineData(profile.userId, selectedPipelineId).catch(err => {
+                console.error('[Pipeline] loadPipelineData error:', err);
+                setLoading(false);
+            });
         }
     }, [selectedPipelineId, profile.userId]);
 
