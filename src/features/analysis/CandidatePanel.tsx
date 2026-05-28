@@ -212,9 +212,12 @@ export function CandidatePanel({
     const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [expandedLogJob, setExpandedLogJob] = useState<string | null>(null);
+    const fetchedLogsFor = useRef<string | null>(null);
 
     useEffect(() => {
         if (activeTab !== 'triagem' || !c.id) return;
+        if (fetchedLogsFor.current === c.id) return;
+        fetchedLogsFor.current = c.id;
         let cancelled = false;
         setLoadingLogs(true);
         supabase
