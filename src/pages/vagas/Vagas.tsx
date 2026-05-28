@@ -135,10 +135,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
      
     useEffect(() => {
+        let currentUserId = '';
+
         const fetchInitialData = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
+                currentUserId = user.id;
 
                 // 1. Buscar Perfil/Role
                 const { data: profile } = await supabase
@@ -196,8 +199,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         return;
                     }
                     query = query.in('id', vagaIds);
-                } else if (userOrgId && userOrgId !== 'null') {
-                    query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
+                } else if (fetchedOrgId && fetchedOrgId !== 'null') {
+                    if (role === 'rh') {
+                        query = query.eq('user_id', user.id);
+                    } else {
+                        query = query.or(`organization_id.eq.${fetchedOrgId},user_id.eq.${user.id}`);
+                    }
                 } else {
                     query = query.eq('user_id', user.id);
                 }
@@ -230,6 +237,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 (payload) => {
                     if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
                         const updatedVaga = payload.new as Vaga;
+                        // RH não pode ver vagas de outros usuários via Realtime
+                        if (userRole === 'rh' && updatedVaga.user_id !== currentUserId) {
+                            if (payload.eventType === 'INSERT') return;
+                            // Para UPDATE, remove se não for do RH (vaza por engano)
+                            setVagas(prev => prev.filter(v => v.id !== updatedVaga.id));
+                            return;
+                        }
                         setVagas(prev => {
                             // Se for update, atualiza o item. Se for insert e não estiver na lista, adiciona.
                             const exists = prev.some(v => v.id === updatedVaga.id);
