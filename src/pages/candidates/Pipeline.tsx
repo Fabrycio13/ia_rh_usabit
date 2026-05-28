@@ -683,7 +683,11 @@ export const Pipeline = () => {
                 }
                 query = query.in('vaga_id', vagaIds);
             } else if (profile.organization_id) {
-                query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+                if (profile.user_role === 'rh') {
+                    query = query.eq('user_id', userId);
+                } else {
+                    query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+                }
             } else {
                 query = query.eq('user_id', userId);
             }
@@ -739,6 +743,8 @@ export const Pipeline = () => {
                     return;
                 }
                 vagaQuery = vagaQuery.in('id', vagaIds);
+            } else if (profile.user_role === 'rh') {
+                vagaQuery = vagaQuery.eq('user_id', profile.userId);
             }
 
             const { data: vagas } = await vagaQuery;
