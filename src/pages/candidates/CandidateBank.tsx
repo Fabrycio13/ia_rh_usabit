@@ -360,19 +360,30 @@ export const CandidateBank = () => {
           redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
-          applications: validHistory.map((h: HistoryEntry) => ({
-            jobId: h.job_id,
-            jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
-            jobCode: h.job_code || h.code || '',
-            score: h.score ?? h.match_score ?? 0,
-            appliedAt: h.analyzed_at || h.date || h.created_at,
-            skills: toStr(h.skills ?? h.habilidades),
-            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
-            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
-            education: toStr(h.education ?? h.formacao),
-            redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
-            resume_url: h.resume_url
-          })),
+          applications: (() => {
+            const mapped = validHistory.map((h: HistoryEntry) => ({
+              jobId: h.job_id,
+              jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
+              jobCode: h.job_code || h.code || '',
+              score: h.score ?? h.match_score ?? 0,
+              appliedAt: h.analyzed_at || h.date || h.created_at,
+              skills: toStr(h.skills ?? h.habilidades),
+              experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+              positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+              education: toStr(h.education ?? h.formacao),
+              redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
+              resume_url: h.resume_url
+            }));
+            // Deduplicate by jobId - keep entry with more content
+            const seen = new Map<string, typeof mapped[0]>();
+            for (const app of mapped) {
+              const existing = seen.get(app.jobId);
+              if (!existing || (app.experience && app.experience.length > (existing.experience?.length ?? 0))) {
+                seen.set(app.jobId, app);
+              }
+            }
+            return Array.from(seen.values());
+          })(),
           pipelineCards,
           enriched: true,
           conversations: convData || []
