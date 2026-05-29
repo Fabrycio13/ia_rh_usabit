@@ -276,7 +276,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
                 const { data: updated, error: updateError } = await supabase
                     .from('candidates')
-                    .update({ ...candidateRow, analysis: mergedAnalysis })
+                    .update({ ...candidateRow, source: 'talent_bank', analysis: mergedAnalysis })
                     .eq('id', existingByEmail.id)
                     .select()
                     .single();
@@ -293,7 +293,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
                 const { data: inserted, error: insertError } = await supabase
                     .from('candidates')
-                    .insert({ ...candidateRow, analysis: newAnalysis })
+                    .insert({ ...candidateRow, source: 'talent_bank', analysis: newAnalysis })
                     .select()
                     .single();
 

@@ -210,7 +210,7 @@ export const CandidateBank = () => {
           }
         }
         const { data: fallback } = await fallbackQuery;
-        setCandidates(((fallback ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add').map(c => ({
+        setCandidates(((fallback ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
           ...c,
           vagas: [...new Set(
             (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
@@ -219,7 +219,7 @@ export const CandidateBank = () => {
         return;
       }
 
-      setCandidates(((data ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add').map(c => ({
+      setCandidates(((data ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
         ...c,
         vagas: [...new Set(
           (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)

@@ -91,7 +91,7 @@ export const PoolTalentos = () => {
                 const { data, error } = await supabase
                     .from('candidates')
                     .select('*')
-                    .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
 
@@ -351,57 +351,23 @@ export const PoolTalentos = () => {
                 status: 'reviewed'
             }, { onConflict: 'candidate_id,vaga_id' });
 
-            const oldAnalysis = (analyzingCandidate.analysis || {}) as unknown as Record<string, unknown>;
-            const oldHistory = (oldAnalysis.history || []) as unknown as Record<string, unknown>[];
-            const newHistory = oldHistory.length > 0 ? oldHistory : [{
-                type: 'spontaneous',
-                date: analyzingCandidate.created_at,
-                summary: oldAnalysis.summary,
-                skills: oldAnalysis.skills,
-                experience: oldAnalysis.experience,
-                education: oldAnalysis.education,
-                strengths: oldAnalysis.strengths,
-                gaps: oldAnalysis.gaps
-            }];
-
-            newHistory.push({
-                type: 'reanalysis',
-                vaga_id: vaga.id,
-                vaga_title: vaga.title,
-                date: new Date().toISOString(),
-                score: (aiData as unknown as Record<string, unknown>)?.score ?? null,
-                match_rationale: (aiData as unknown as Record<string, unknown>)?.match_rationale || (aiData as unknown as Record<string, unknown>)?.summary || null,
-                skills: (aiData as unknown as Record<string, unknown>)?.skills,
-                experience: (aiData as unknown as Record<string, unknown>)?.experience,
-                strengths: (aiData as unknown as Record<string, unknown>)?.strengths,
-                gaps: (aiData as unknown as Record<string, unknown>)?.gaps
-            });
-
+            const oldAnalysis = (analyzingCandidate.analysis || {}) as Record<string, unknown>;
             await supabase.from('candidates').update({
                 source: null,
                 analysis: {
                     ...oldAnalysis,
-                    source: 'transferred',
-                    vaga_id: vaga.id,
-                    vaga_title: vaga.title,
-                    score: (aiData as unknown as Record<string, unknown>)?.score ?? null,
-                    match_rationale: (aiData as unknown as Record<string, unknown>)?.match_rationale || (aiData as unknown as Record<string, unknown>)?.summary || null,
-                    skills: (aiData as unknown as Record<string, unknown>)?.skills || oldAnalysis.skills,
-                    experience: (aiData as unknown as Record<string, unknown>)?.experience || oldAnalysis.experience,
-                    strengths: (aiData as unknown as Record<string, unknown>)?.strengths || oldAnalysis.strengths,
-                    gaps: (aiData as unknown as Record<string, unknown>)?.gaps || oldAnalysis.gaps,
-                    history: newHistory
+                    source: 'transferred'
                 }
             }).eq('id', analyzingCandidate.id);
 
-            toast.success(`Candidato reanalisado e vinculado à vaga "${vaga.title}"`);
+            toast.success(`Candidato analisado para a vaga "${vaga.title}"`);
             closeAnalyzeModal();
             setSelectedCandDetail(null);
             if (profile.organization_id) {
                 const { data } = await supabase
                     .from('candidates')
                     .select('*')
-                    .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
                 if (data) setCandidatos(data);
@@ -651,7 +617,7 @@ export const PoolTalentos = () => {
                             supabase
                                 .from('candidates')
                                 .select('*')
-                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                                 .eq('organization_id', profile.organization_id)
                                 .order('created_at', { ascending: false })
                                 .then(({ data }) => {
@@ -679,7 +645,7 @@ export const PoolTalentos = () => {
                             const { data } = await supabase
                                 .from('candidates')
                                 .select('*')
-                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                                 .eq('organization_id', profile.organization_id)
                                 .order('created_at', { ascending: false });
                             if (data) setCandidatos(data);
@@ -826,7 +792,7 @@ export const PoolTalentos = () => {
                             supabase
                                 .from('candidates')
                                 .select('*')
-                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                                 .eq('organization_id', profile.organization_id)
                                 .order('created_at', { ascending: false })
                                 .then(({ data }) => {
