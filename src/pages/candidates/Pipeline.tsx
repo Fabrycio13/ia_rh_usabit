@@ -102,10 +102,16 @@ interface HistoryItem {
     habilidades?: string;
     experience?: string;
     experiencia?: string;
+    summary?: string;
+    strengths?: string;
+    positivePoints?: string;
+    pontos_positivos?: string;
+    positive_points?: string;
     education?: string;
     formacao?: string;
     redFlags?: string;
     attention_points?: string;
+    gaps?: string;
     analysis?: Record<string, unknown>;
 }
 
@@ -744,7 +750,7 @@ export const Pipeline = () => {
                 }
                 vagaQuery = vagaQuery.in('id', vagaIds);
             } else if (profile.user_role === 'rh') {
-                vagaQuery = vagaQuery.eq('user_id', profile.userId);
+                vagaQuery = vagaQuery.eq('organization_id', profile.organization_id);
             }
 
             const { data: vagas } = await vagaQuery;
@@ -1001,7 +1007,7 @@ export const Pipeline = () => {
     }
 
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
-    async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
+    async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
             supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
@@ -1035,6 +1041,52 @@ export const Pipeline = () => {
             return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.[0]?.name };
         });
 
+        const mappedHistory = validHistory.map((h) => ({
+            jobId: h.job_id,
+            jobName: h.job_name,
+            score: h.score,
+            appliedAt: h.analyzed_at,
+            skills: toStr(h.skills ?? h.habilidades),
+            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+            education: toStr(h.education ?? h.formacao),
+            redFlags: toStr(h.gaps ?? h.redFlags ?? h.attention_points),
+        })) as unknown as Application[];
+
+        if (firstJob && firstJob.jobId) {
+            const existingIndex = mappedHistory.findIndex(a => a.jobId === firstJob.jobId);
+            if (existingIndex >= 0) {
+                if (!mappedHistory[existingIndex].jobName && firstJob.jobName) {
+                    mappedHistory[existingIndex] = { ...mappedHistory[existingIndex], jobName: firstJob.jobName };
+                }
+                if (!mappedHistory[existingIndex].score && firstJob.score) {
+                    mappedHistory[existingIndex] = { ...mappedHistory[existingIndex], score: firstJob.score };
+                }
+            } else {
+                mappedHistory.unshift({
+                    jobId: firstJob.jobId,
+                    jobName: firstJob.jobName || candidateVagas?.[0] || 'Vaga',
+                    score: firstJob.score ?? 0,
+                    appliedAt: '',
+                    skills: null,
+                    experience: null,
+                    education: null,
+                    redFlags: null,
+                });
+            }
+        } else if (firstJob && !firstJob.jobId && firstJob.jobName) {
+            mappedHistory.unshift({
+                jobId: '',
+                jobName: firstJob.jobName || candidateVagas?.[0] || 'Vaga',
+                score: firstJob.score ?? 0,
+                appliedAt: '',
+                skills: null,
+                experience: null,
+                education: null,
+                redFlags: null,
+            });
+        }
+
         return {
             email: toStr(cand.email) || '',
             phone: toStr(cand.phone) || null,
@@ -1055,16 +1107,7 @@ export const Pipeline = () => {
             is_blacklisted: cand.is_blacklisted ?? false,
             analysis: cand.analysis ?? {},
             status: cand.status || null,
-            applications: validHistory.map((h) => ({
-                jobId: h.job_id,
-                jobName: h.job_name,
-                score: h.score,
-                appliedAt: h.analyzed_at,
-                skills: toStr(h.skills ?? h.habilidades),
-                experience: toStr(h.experience ?? h.experiencia),
-                education: toStr(h.education ?? h.formacao),
-                redFlags: toStr(h.redFlags ?? h.attention_points),
-            })) as unknown as Application[],
+            applications: mappedHistory,
             pipelineCards,
             resume_url: cand.resume_url,
             enriched: true,
@@ -1074,6 +1117,9 @@ export const Pipeline = () => {
 
     async function openCandidate(card: PipelineCard) {
         if (isConvidado) return;
+        const displayJobName = card.display_job_name || card.candidate_vagas[0] || '';
+        const displayJobId = card.job_id || '';
+        const displayScore = card.display_job_score ?? card.candidate_score ?? null;
         const base = {
             id: card.candidate_id,
             name: card.candidate_name,
@@ -1085,7 +1131,11 @@ export const Pipeline = () => {
         } as unknown as CandidateDetail;
         setSelectedCandidate(base);
         try {
-            const extra = await enrichCandidate(card.candidate_id);
+            const extra = await enrichCandidate(
+                card.candidate_id,
+                displayJobId ? { jobId: displayJobId, jobName: displayJobName, score: displayScore } : displayJobName ? { jobId: '', jobName: displayJobName, score: displayScore } : undefined,
+                card.candidate_vagas
+            );
             setSelectedCandidate(prev => prev && prev.id === card.candidate_id ? { ...prev, ...extra } : prev);
         } catch (err) {
             console.error('Error enriching candidate:', err);
@@ -2284,6 +2334,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     onCardRemoved={(cardId: string) => {
                         setCards(prev => prev.filter(c => c.id !== cardId));
                     }}
+                    hideFeedbackDaIA={true}
                 />
             )}
         </>

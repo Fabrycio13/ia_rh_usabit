@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { UserPlus, FileText, Search, X, Loader } from 'lucide-react';
+import { FileText, Target, Search, X, Loader, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
-import { TalentTransferModal } from '../../features/candidates/components/TalentTransferModal';
+import { PoolAddCandidate } from '../../features/candidates/components/PoolAddCandidate';
 import DatePicker from '../../common/components/ui/DatePicker';
 import { analyzeJobApplication } from '../../core/services/jobAnalyzer';
 
@@ -74,7 +74,7 @@ export const PoolTalentos = () => {
     const [candidatos, setCandidatos] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCandDetail, setSelectedCandDetail] = useState<CandidateDetail | null>(null);
-    const [transferringCand, setTransferringCand] = useState<Candidate | null>(null);
+    const [showAddModal, setShowAddModal] = useState(false);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [analyzingCandidate, setAnalyzingCandidate] = useState<Candidate | null>(null);
@@ -91,7 +91,7 @@ export const PoolTalentos = () => {
                 const { data, error } = await supabase
                     .from('candidates')
                     .select('*')
-                    .filter('analysis->>source', 'eq', 'spontaneous')
+                    .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
 
@@ -141,6 +141,53 @@ export const PoolTalentos = () => {
 
             const aiRaw = (c.analysis || {}) as unknown as Record<string, unknown>;
 
+            const { data: jcData } = await supabase
+                .from('job_candidates')
+                .select('job_id, vaga_id')
+                .eq('candidate_id', c.id);
+
+            const validJobIds = new Set<string>();
+            (jcData ?? []).forEach((jc: { job_id?: string; vaga_id?: string }) => {
+                if (jc.job_id) validJobIds.add(jc.job_id);
+                if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+            });
+
+            const rawHistory = (aiRaw['history'] || []) as unknown as Record<string, unknown>[];
+            const validHistory = rawHistory.filter(h => {
+                const entry = h as Record<string, unknown>;
+                const jobId = entry['job_id'] as string | undefined;
+                const vagaId = entry['vaga_id'] as string | undefined;
+                return (jobId || vagaId) && validJobIds.has(jobId || vagaId || '');
+            });
+
+            const vagaTitles = new Map<string, string>();
+            const ids = Array.from(validJobIds);
+            if (ids.length > 0) {
+                const { data: vagas } = await supabase
+                    .from('vagas_white_label')
+                    .select('id, title')
+                    .in('id', ids);
+                (vagas ?? []).forEach(v => vagaTitles.set(v.id, v.title));
+            }
+
+            const applications = validHistory.map(h => {
+                const entry = h as Record<string, unknown>;
+                const jobId = (entry['job_id'] || entry['vaga_id'] || '') as string;
+                return {
+                    jobId,
+                    jobName: (entry['job_name'] || entry['job_title'] || vagaTitles.get(jobId) || 'Vaga Desconhecida') as string,
+                    jobCode: (entry['job_code'] || entry['code'] || '') as string,
+                    score: (entry['score'] ?? entry['match_score'] ?? 0) as number,
+                    appliedAt: (entry['analyzed_at'] || entry['date'] || entry['created_at'] || '') as string,
+                    skills: optStr(entry['skills'] ?? entry['habilidades']),
+                    experience: optStr(entry['summary'] ?? entry['experience'] ?? entry['experiencia']),
+                    positivePoints: optStr(entry['strengths'] ?? entry['positivePoints'] ?? entry['pontos_positivos'] ?? entry['positive_points']),
+                    education: optStr(entry['education'] ?? entry['formacao']),
+                    redFlags: optStr(entry['gaps'] ?? entry['redFlags'] ?? entry['pontos_atencao'] ?? entry['attention_points']),
+                    resume_url: (entry['resume_url'] as string | undefined) ?? null
+                };
+            });
+
             const detail: CandidateDetail = {
                 id: c.id,
                 name: c.name,
@@ -156,14 +203,14 @@ export const PoolTalentos = () => {
                 cep: c.cep,
                 address_number: c.address_number,
                 complement: c.complement,
-                vagas: [],
+                vagas: Array.from(vagaTitles.values()),
                 interview_eligible: false,
                 is_blacklisted: false,
                 skills: optStr(aiRaw['skills'] || c.skills),
                 experience: optStr(aiRaw['experience'] || c.experience),
                 education: optStr(aiRaw['education'] || c.education),
                 redFlags: optStr(aiRaw['gaps'] || aiRaw['redFlags'] || aiRaw['attention_points']),
-                applications: [],
+                applications,
                 pipelineCards: [],
                 notes: null,
                 resume_url: c.resume_url,
@@ -181,21 +228,6 @@ export const PoolTalentos = () => {
         } catch (err) {
             console.error('[Fetch Detail] Error:', err);
             toast.error('Erro ao carregar detalhes do candidato');
-        }
-    };
-
-    const handleTransferSuccess = () => {
-        setTransferringCand(null);
-        if (profile.organization_id) {
-            supabase
-                .from('candidates')
-                .select('*')
-                .filter('analysis->>source', 'eq', 'spontaneous')
-                .eq('organization_id', profile.organization_id)
-                .order('created_at', { ascending: false })
-                .then(({ data }) => {
-                    if (data) setCandidatos(data);
-                });
         }
     };
 
@@ -346,6 +378,7 @@ export const PoolTalentos = () => {
             });
 
             await supabase.from('candidates').update({
+                source: null,
                 analysis: {
                     ...oldAnalysis,
                     source: 'transferred',
@@ -368,7 +401,7 @@ export const PoolTalentos = () => {
                 const { data } = await supabase
                     .from('candidates')
                     .select('*')
-                    .filter('analysis->>source', 'eq', 'spontaneous')
+                    .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
                 if (data) setCandidatos(data);
@@ -424,6 +457,13 @@ export const PoolTalentos = () => {
                         Limpar filtros
                     </button>
                 )}
+                <div style={{ flex: 1 }} />
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                    <Plus style={{ width: 16, height: 16 }} /> Adicionar
+                </button>
             </div>
 
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
@@ -570,26 +610,26 @@ export const PoolTalentos = () => {
                                                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
                                             )}
                                             <button
-                                                title="Mover para Banco de Talentos"
+                                                title="Analisar para uma Vaga"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setTransferringCand(candidato);
+                                                    openAnalyzeModal(candidato);
                                                 }}
                                                 style={{
                                                     width: 34, height: 34,
                                                     padding: '0',
-                                                    background: 'rgba(16, 185, 129, 0.1)',
-                                                    border: '1px solid #10b981',
+                                                    background: 'rgba(99,102,241,0.1)',
+                                                    border: '1px solid var(--primary)',
                                                     borderRadius: '8px',
-                                                    color: '#10b981',
+                                                    color: 'var(--primary)',
                                                     cursor: 'pointer',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     transition: 'all 0.2s'
                                                 }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = '#10b981'; e.currentTarget.style.color = '#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'; e.currentTarget.style.color = '#10b981'; }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                             >
-                                                <UserPlus size={15} />
+                                                <Target size={15} />
                                             </button>
                                         </div>
                                     </div>
@@ -607,7 +647,17 @@ export const PoolTalentos = () => {
                     navigate={navigate}
                     onTransferSuccess={() => {
                         setSelectedCandDetail(null);
-                        handleTransferSuccess();
+                        if (profile.organization_id) {
+                            supabase
+                                .from('candidates')
+                                .select('*')
+                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .eq('organization_id', profile.organization_id)
+                                .order('created_at', { ascending: false })
+                                .then(({ data }) => {
+                                    if (data) setCandidatos(data);
+                                });
+                        }
                     }}
                     onNotesChange={(cid, notes) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
@@ -629,7 +679,7 @@ export const PoolTalentos = () => {
                             const { data } = await supabase
                                 .from('candidates')
                                 .select('*')
-                                .filter('analysis->>source', 'eq', 'spontaneous')
+                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                                 .eq('organization_id', profile.organization_id)
                                 .order('created_at', { ascending: false });
                             if (data) setCandidatos(data);
@@ -766,36 +816,28 @@ export const PoolTalentos = () => {
                 </>
             )}
 
-            {transferringCand && (
-                <TalentTransferModal
-                    candidate={{
-                        id: transferringCand.id,
-                        name: transferringCand.name,
-                        email: transferringCand.email,
-                        phone: transferringCand.phone,
-                        location: transferringCand.location,
-                        linkedin: transferringCand.linkedin,
-                        resume_url: transferringCand.resume_url,
-                        age: transferringCand.age,
-                        gender: transferringCand.gender,
-                        address: transferringCand.address,
-                        portfolio: transferringCand.portfolio,
-                        cep: transferringCand.cep,
-                        address_number: transferringCand.address_number,
-                        complement: transferringCand.complement,
-                        match_score: 0,
-                        answers: {}
+            {showAddModal && (
+                <PoolAddCandidate
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={() => {
+                        setShowAddModal(false);
+                        if (profile.organization_id) {
+                            supabase
+                                .from('candidates')
+                                .select('*')
+                                .or('analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .eq('organization_id', profile.organization_id)
+                                .order('created_at', { ascending: false })
+                                .then(({ data }) => {
+                                    if (data) setCandidatos(data);
+                                });
+                        }
                     }}
-                    job={{
-                        id: '',
-                        title: 'Pool de Talentos',
-                        job_code: null,
-                        organization_id: profile.organization_id
-                    }}
-                    onClose={() => setTransferringCand(null)}
-                    onSuccess={handleTransferSuccess}
                 />
             )}
+
+
         </div>
     );
 };

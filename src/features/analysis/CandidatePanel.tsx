@@ -31,6 +31,7 @@ interface ScreeningLogGroup {
 }
 
 // ─── Candidate Panel Component ────────────────────────────────────────────────
+void Zap; // reserved for future feature
 export function CandidatePanel({
     c,
     onClose,
@@ -44,7 +45,8 @@ export function CandidatePanel({
     hidePipelineAndBlacklist,
     showAnalyzeWithVagas,
     onAnalyzeWithVagas,
-    onCardRemoved
+    onCardRemoved,
+    hideFeedbackDaIA
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -59,10 +61,11 @@ export function CandidatePanel({
     showAnalyzeWithVagas?: boolean;
     onAnalyzeWithVagas?: (id: string) => void;
     onCardRemoved?: (cardId: string) => void;
+    hideFeedbackDaIA?: boolean;
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
-    void onDeleteFromBank; void showAnalyzeWithVagas; void onAnalyzeWithVagas;
+    void onDeleteFromBank;
 
     const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
     const [newText, setNewText] = useState('');
@@ -598,13 +601,13 @@ export function CandidatePanel({
                             </>
                         )}
 
-                        {c.isVagaView && hasAnalysis && (
+                        {!hideFeedbackDaIA && (c.isVagaView || showAnalyzeWithVagas) && hasAnalysis && (
                             <>
-                                <section style={{ 
-                                    border: '1px solid rgba(99, 102, 241, 0.2)', 
-                                    borderRadius: 20, 
-                                    padding: 24, 
-                                    background: 'rgba(99, 102, 241, 0.03)', 
+                                <section style={{
+                                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                                    borderRadius: 20,
+                                    padding: 24,
+                                    background: 'rgba(99, 102, 241, 0.03)',
                                     boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -615,12 +618,12 @@ export function CandidatePanel({
                                             <Zap size={16} fill="var(--primary)" /> Feedback da IA
                                         </p>
                                         {c.score !== null && c.score !== undefined && (
-                                            <div style={{ 
-                                                background: scoreColor(c.score), 
-                                                color: '#fff', 
-                                                padding: '4px 12px', 
-                                                borderRadius: '12px', 
-                                                fontSize: '14px', 
+                                            <div style={{
+                                                background: scoreColor(c.score),
+                                                color: '#fff',
+                                                padding: '4px 12px',
+                                                borderRadius: '12px',
+                                                fontSize: '14px',
                                                 fontWeight: 800,
                                                 boxShadow: `0 4px 12px ${scoreColor(c.score)}44`,
                                                 display: 'flex',
@@ -632,12 +635,24 @@ export function CandidatePanel({
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     {[c.analysis?.match_rationale, c.analysis?.score_justification, c.analysis?.summary, c.analysis?.general_analysis, c.analysis?.reasoning, c.analysis?.feedback, c.analysis?.analysis, c.analysis?.experience].some(Boolean) && (
                                         <div>
                                             <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                                 {String(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience || '')}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {[c.analysis?.education, c.analysis?.Education, c.analysis?.formacao, c.analysis?.Formacao].some(Boolean) && (
+                                        <div style={{ borderTop: '1px solid rgba(99,102,241,0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Formação</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {(() => {
+                                                    const val = c.analysis?.education || c.analysis?.Education || c.analysis?.formacao || c.analysis?.Formacao;
+                                                    return Array.isArray(val) ? val.join(' | ') : String(val ?? '');
+                                                })()}
                                             </div>
                                         </div>
                                     )}
@@ -812,16 +827,16 @@ export function CandidatePanel({
                                                                         <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.experience || c.experience}</p>
                                                                     </div>
                                                                 )}
-                                                                {(app.positivePoints) && (
-                                                                    <div>
-                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Pontos Positivos</p>
-                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
-                                                                    </div>
-                                                                )}
                                                                 {(app.education || c.education) && (
                                                                     <div>
                                                                         <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Formação</p>
                                                                         <p style={{ fontSize: 13, color: 'var(--text-main)', margin: 0 }}>{app.education || c.education}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.positivePoints) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Pontos Positivos</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
                                                                     </div>
                                                                 )}
                                                                 {(app.redFlags || c.redFlags) && (
@@ -1100,7 +1115,7 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                {!c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
+                {!showAnalyzeWithVagas && !c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
                     <div style={{ padding: '0 24px 32px' }}>
                         <button
                             onClick={() => setTransferringToBank(true)}
@@ -1131,6 +1146,38 @@ export function CandidatePanel({
                         </button>
                     </div>
                 ) : null
+                )}
+
+                {showAnalyzeWithVagas && c.resume_url && (
+                    <div style={{ padding: '0 24px 32px' }}>
+                        <button
+                            onClick={() => onAnalyzeWithVagas?.(c.id)}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                background: 'var(--primary)',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                color: '#fff',
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.3)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.2)';
+                            }}
+                        >
+                            <FileText size={18} />
+                            Analisar para uma Vaga
+                        </button>
+                    </div>
                 )}
             </div>
 
