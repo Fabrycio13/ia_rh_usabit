@@ -26,19 +26,19 @@ const faqs = [
         items: [
             {
                 q: 'Como funciona a plataforma?',
-                a: 'O Space Talent é um ecossistema de recrutamento inteligente. O fluxo básico é:\n1. 📋 **Criar Vaga**: Defina requisitos e publique.\n2. 📥 **Coletar Candidatos**: Via link público ou upload manual.\n3. 🤖 **Análise de IA**: O sistema avalia e pontua cada candidato.\n4. ⚡ **Pipeline**: Organize os melhores em um funil de contratação visual.',
+                a: 'O sistema de IA RH funciona com o seguinte fluxo:\n\n1. 📋 **Criar Vaga**: Defina requisitos e publique no portal de carreiras.\n2. 📥 **Receber Candidatos**: Via portal público ou adicao manual no Pool de Talentos.\n3. 🤖 **Analise de IA**: O sistema avalia cada candidato e calcula a compatibilidade (match).\n4. ⚡ **Banco de Talentos**: Candidatos analisados ficam armazenados para consultas futuras.\n5. 📊 **Pipeline**: Gerencie o funil de contratação de forma visual.\n\n💡 Dica: Use o Pool de Talentos para candidatos espontâneos e o Banco de Talentos para candidatos já analisados.',
             },
             {
                 q: 'Por onde devo começar? (Passo a Passo)',
-                a: '1️⃣ **Crie sua Vaga**: Vá em "Vagas" e preencha os requisitos. Publique para gerar o link.\n2️⃣ **Receba Currículos**: Divulgue o link ou vá em "Análises" > "Nova Análise" para subir arquivos PDF.\n3️⃣ **Revise os Scores**: A IA dará uma nota de 0 a 100 baseada na vaga.\n4️⃣ **Gerencie no Pipeline**: Arraste os aprovados para as etapas de entrevista ou teste.\n5️⃣ **Contrate**: Utilize o Banco de Candidatos para manter contato com os melhores talentos.',
+                a: '1️⃣ **Crie sua Vaga**: Vá em "Vagas" > "+ Nova Vaga" e preencha os 4 passos.\n2️⃣ **Publique a Vaga**: Após criar, a vaga estará disponível no portal de carreiras.\n3️⃣ **Receba Candidatos**: Eles aparecem automaticamente no Pool de Talentos.\n4️⃣ **Analise os Candidatos**: No Pool, selecione uma vaga e clique em "Analisar Candidato".\n5️⃣ **Mova para o Banco**: Após análise, o candidato vai para o Banco de Talentos.\n6️⃣ **Use o Pipeline**: Envie candidatos do Banco para o Pipeline e gerencie o funil.',
+            },
+            {
+                q: 'Qual a diferença entre Pool de Talentos e Banco de Talentos?',
+                a: '**Pool de Talentos**: Área de espera para candidatos novos ou manuais que ainda não foram analisados. Aqui você analisa o candidato para uma vaga específica.\n\n**Banco de Talentos**: Área onde candidatos já analisados ficam armazenados. Você pode reanalisar para novas vagas, ver histórico ou enviar para o Pipeline.\n\nResumo: Pool = entrada de candidatos novos. Banco = candidatos prontos para uso.',
             },
             {
                 q: 'Quanto tempo leva para analisar um currículo?',
-                a: 'Em média, cada currículo leva de 30 segundos a 2 minutos para ser processado pela IA. O tempo pode variar dependendo do tamanho do arquivo e da complexidade das informações.',
-            },
-            {
-                q: 'Quantos currículos posso analisar no plano Trial?',
-                a: 'No plano Trial (7 dias gratuitos) você pode realizar até 5 análises de vagas. Para análises ilimitadas, faça upgrade para o plano Pro.',
+                a: 'Em média, cada análise leva de 30 segundos a 2 minutos para ser processada pela IA. O tempo pode variar dependendo do tamanho do arquivo e da complexidade das informações.',
             },
         ],
     },
@@ -47,91 +47,153 @@ const faqs = [
         items: [
             {
                 q: 'Como criar uma nova vaga?',
-                a: '1. Acesse "Vagas" no menu lateral\n2. Clique no botão "+ Nova Vaga"\n3. Preencha as 3 etapas:\n   • Informações Básicas (título, descrição)\n   • Detalhes (salário, contrato, localização)\n   • Conteúdo (responsabilidades, requisitos)\n4. Clique em "Publicar Vaga"\n\n💡 Dica: Quanto mais detalhada a vaga, melhor a IA avaliará os candidatos.',
+                a: '1. Acesse "Vagas" no menu lateral\n2. Clique no botão "+ Nova Vaga"\n3. Preencha as 4 etapas:\n   • Informações Básicas (título, descrição)\n   • Detalhes (salário, contrato, localização, regime)\n   • Conteúdo (atribuições, requisitos, diferenciais)\n   • Configurações Avançadas (terceiros, perguntas, design, pipeline)\n4. Clique em "Salvar Vaga"\n\n💡 Dica: Quanto mais detalhada a vaga, melhor a IA avaliará os candidatos.',
             },
             {
                 q: 'O que significa cada status de vaga?',
-                a: '🟢 Aberta: Aceitando candidaturas ativamente\n🔴 Fechada: Não aceita novas candidaturas, mas permanece visível\n🟡 Pausada: Temporariamente suspensa\n⚫ Cancelada: Vaga arquivada permanentemente\n\n💡 Dica: Você pode reabrir vagas fechadas ou pausadas a qualquer momento.',
+                a: '🟢 Aberta: Aceitando candidaturas ativamente\n🔴 Fechada: Não aceita novas candidaturas\n🟡 Pausada: Temporariamente suspensa\n⚫ Cancelada: Vaga arquivada permanentemente\n⬜ Invisível: Vaga existe mas não aparece no portal (rascunho)\n\n💡 Dica: Você pode reabrir vagas fechadas ou pausadas a qualquer momento.',
             },
             {
                 q: 'Como compartilhar o link da vaga?',
-                a: 'Na listagem de vagas, clique no ícone de link (🔗) ao lado da vaga. O link público será copiado automaticamente para sua área de transferência. Candidatos podem acessar esse link para se inscrever.',
+                a: 'Na listagem de vagas, clique no ícone de link (🔗) ao lado da vaga. O link público será copiado automaticamente para sua área de transferência. Candidatos podem acessar esse link para se inscrever diretamente.',
             },
             {
                 q: 'Posso editar uma vaga já publicada?',
-                a: 'Sim! Clique no ícone de lápis (✏️) ao lado da vaga. Você pode alterar todas as informações, exceto o ID público da vaga (o link permanece o mesmo).',
+                a: 'Sim! Clique no ícone de menu (3 pontinhos) ao lado da vaga e selecione "Editar". Você pode alterar todas as informações. O link público da vaga permanece o mesmo.',
             },
             {
-                q: 'Como funcionam os filtros avançados?',
-                a: 'Na página de vagas, você pode filtrar por:\n• 🔍 Texto: busca no título, localização e tipo\n• 🏢 Organização: (apenas para owners)\n• 💼 Cargo: filtra por título específico\n• 📊 Status: Aberta, Fechada, Pausada, Cancelada\n• 📅 Período: intervalo de datas de criação\n\n💡 Dica: Combine múltiplos filtros para encontrar vagas específicas rapidamente.',
+                q: 'Como configurar um Pipeline para a vaga?',
+                a: 'Na etapa 4 (Configurações Avançadas) do formulário de vaga, procure a opção "Pipeline de Recrutamento".\n\nLá você pode:\n• Vincular a vaga a um pipeline existente\n• Ou criar um novo pipeline específico para esta vaga\n\nIsso permite gerenciar os candidatos da vaga no quadro visual do Pipeline.',
             },
         ],
     },
     {
-        category: '🤖 Análises de Candidatos',
+        category: '🧩 Pool de Talentos',
         items: [
             {
-                q: 'Como analisar currículos com IA?',
-                a: '1. Acesse "Análises" no menu\n2. Clique em "Nova Análise"\n3. Selecione ou crie uma vaga\n4. Faça upload dos currículos (PDF recomendado)\n5. Aguarde o processamento da IA\n6. Veja os resultados organizados por score\n\n📌 Formatos aceitos: PDF, DOC, DOCX\n💡 Dica: PDFs têm melhor taxa de extração de dados.',
+                q: 'O que é o Pool de Talentos?',
+                a: 'O Pool de Talentos é uma área de espera onde candidatos ficam armazenados até que sejam analisados para uma vaga específica. Candidatos chegam ao Pool de duas formas:\n\n• **Candidatura Espontânea**: Quando alguém se candidata pelo portal de carreiras público.\n• **Adição Manual**: Quando você adiciona um candidato diretamente pelo botão "Adicionar Candidato".\n\nApós a análise, o candidato automaticamente vai para o Banco de Talentos.',
             },
             {
-                q: 'O que significa o score do candidato?',
-                a: 'O score vai de 0 a 100 e reflete a adequação do candidato à vaga:\n\n🟢 70-100: Excelente compatibilidade (aprovado)\n🟡 40-69: Compatibilidade moderada (analisar)\n🔴 0-39: Baixa compatibilidade (não recomendado)\n\nA IA avalia: experiência, habilidades, formação e requisitos da vaga.',
+                q: 'Como adicionar um candidato manualmente ao Pool?',
+                a: '1. Acesse "Vagas" > "Pool de Talentos"\n2. Clique no botão "+ Adicionar Candidato"\n3. Escolha entre:\n   • **Upload de Currículo**: Selecione o PDF do currículo e aguarde a extração de dados\n   • **Preencher Formulário**: Digite nome, email, telefone e localização\n4. Clique em "Confirmar"\n5. O candidato aparecerá no Pool aguardando análise',
             },
             {
-                q: 'Como interpretar os resultados da análise?',
-                a: 'Cada candidato terá:\n• 📊 Score geral (0-100)\n• 💼 Experiência extraída\n• 🎓 Formação acadêmica\n• 🛠️ Habilidades identificadas\n• ⚠️ Pontos de atenção (red flags)\n\n💡 Dica: Clique no nome do candidato para ver detalhes completos e conversar via chat.',
+                q: 'Como analisar um candidato do Pool?',
+                a: '1. No Pool de Talentos, localize o candidato desejado\n2. Clique sobre o card do candidato para abrir os detalhes\n3. Selecione a vaga no dropdown "Selecione a Vaga"\n4. Clique em "Analisar Candidato"\n5. Aguarde o processamento (30s a 2min)\n6. O sistema exibirá:\n   • Porcentagem de Match (0-100%)\n   • Análise da Nota (feedback da IA)\n   • Formação (cursos e educação)\n   • Pontos Positivos\n   • Pontos de Atenção\n7. Automaticamente, o candidato será movido para o Banco de Talentos',
             },
             {
-                q: 'Posso reanalisar um currículo?',
-                a: 'Sim! Na página de detalhes do candidato, você pode solicitar uma nova análise. Isso é útil se a vaga foi atualizada ou se houve erro na extração inicial.',
-            },
-            {
-                q: 'O que são as abas "Melhores", "Intermediários" e "Piores"?',
-                a: 'São filtros automáticos baseados no score:\n• 🟢 Melhores (70+): Candidatos aprovados\n• 🟡 Intermediários (40-69): Precisam de análise manual\n• 🔴 Piores (0-39): Baixa compatibilidade\n\n💡 Dica: Foque nos "Melhores" primeiro, mas não ignore os "Intermediários" — muitos têm potencial!',
+                q: 'O que é o campo "source" no Pool?',
+                a: 'O campo "source" indica a origem do candidato no sistema:\n\n• **Espontâneo**: Candidato que veio pelo portal público de carreiras\n• **Manual**: Candidato adicionado manualmente pelo RH\n• **null/vazio**: Candidato que foi analisado e saiu do Pool\n\nEste campo ajuda a identificar de onde veio cada candidato.',
             },
         ],
     },
     {
-        category: '📊 Dashboard',
+        category: '👥 Banco de Talentos',
         items: [
             {
-                q: 'O que mostra o Dashboard?',
-                a: 'O Dashboard é sua central de métricas:\n\n📈 KPIs principais:\n• Vagas Analisadas\n• Candidatos Avaliados\n• Melhores Candidatos\n• Taxa de Aprovação\n\n📊 Gráficos:\n• Evolução de candidatos por vaga\n• Calendário de atividades\n• Ranking de vagas mais populares\n\n💡 Dica: Use o botão "Customizar" para rearranjar os widgets.',
+                q: 'Como acesso o Banco de Talentos?',
+                a: 'Clique em "Candidatos" no menu lateral > "Banco de Talentos".\n\nTodos os candidatos já analisados ficam armazenados lá para consulta futura. Você pode filtrar por nome, email, vaga ou score.',
             },
             {
-                q: 'Como filtrar dados por período?',
-                a: 'No Dashboard, clique em dias no calendário para selecionar um intervalo:\n1. Clique no dia inicial\n2. Clique no dia final\n3. Os gráficos atualizarão automaticamente\n\n💡 Dica: Clique duas vezes no mesmo dia para ver apenas aquela data.',
+                q: 'Como funciona a reanálise de candidato?',
+                a: 'A reanálise permite gerar uma nova análise do candidato para uma vaga diferente ou atualizar a análise existente.\n\n1. No Banco de Talentos, localize o candidato\n2. Clique para abrir os detalhes\n3. Clique no botão "Reanalisar Candidato" (seta circular)\n4. Selecione a nova vaga no dropdown\n5. Escolha se deseja criar novo pipeline ou usar existente\n6. Clique em "Iniciar Reanálise"\n7. Aguarde o processamento\n\n⚠️ Cada reanálise cria um novo registro no histórico. O histórico mantém todas as análises anteriores.',
             },
             {
-                q: 'O que significa "Tempo Real" no header?',
-                a: 'Indica que os dados são atualizados automaticamente conforme novas candidaturas e análises acontecem. Não precisa recarregar a página!',
+                q: 'Como enviar um candidato para o Pipeline?',
+                a: '1. No Banco de Talentos, localize o candidato\n2. Clique para abrir os detalhes\n3. Clique na aba "Vagas" (ícone de maleta)\n4. Ao lado da vaga desejada, clique em "Enviar para Pipeline"\n5. Selecione o pipeline de destino\n6. Escolha a coluna inicial (ex: Triagem)\n7. Clique em "Confirmar"\n\nO candidato aparecerá no Pipeline na coluna escolhida.',
+            },
+            {
+                q: 'Como interpretar os dados do Banco de Talentos?',
+                a: 'No Banco de Talentos você vê:\n\n• **Badge colorido de vagas**: Mostra até 3 vagas aplicadas ao candidato, cada cor representa uma vaga diferente\n• **Análise da Nota**: Feedback detalhado da IA sobre a compatibilidade\n• **Histórico**: Todas as análises feitas para o candidato (com job_id, job_name, score, data)\n\nA seção "Feedback da IA" mostra a análise mais recente. A aba "Vagas" mostra todas as inscrições.',
+            },
+            {
+                q: 'O que significa "Vaga Desconhecida" no Banco?',
+                a: 'Isso acontece quando há uma entrada de histórico sem o nome da vaga definido (job_name vazio). O sistema agora deduplica automaticamente quando há duplicidade.\n\nSe aparecer "Vaga Desconhecida", pode indicar que:\n• A análise foi feita sem vaga vinculada\n• Há uma entrada incompleta no histórico\n\nO sistema mantém sempre a entrada com mais conteúdo como principal.',
             },
         ],
     },
     {
-        category: '👥 Banco de Candidatos',
+        category: '📊 Pipeline',
         items: [
             {
-                q: 'Como acesso o Banco de Candidatos?',
-                a: 'Clique em "Banco de Candidatos" no menu lateral. Todos os candidatos analisados ficam armazenados lá para consulta futura.\n\nVocê pode filtrar por:\n• Nome ou email\n• Cargo/vaga aplicada\n• Pontuação (score)\n• Data da análise\n• Status (ativo/bloqueado)',
+                q: 'Como funciona o Pipeline?',
+                a: 'O Pipeline é um quadro visual de gestão do processo seletivo em etapas (Kanban).\n\nCOLUNAS PADRÃO:\n• 🟣 Triagem: Candidatos novos recebidos\n• 🔵 Entrevista: Candidatos em entrevista\n• 🟠 Proposta: Candidatos com proposta emitida\n• 🟢 Aprovado: Candidatos aprovados\n• 🔴 Reprovado: Candidatos reprovados\n\nVocê pode criar colunas personalizadas também.',
             },
             {
-                q: 'Como bloquear um candidato?',
-                a: 'No banco de candidatos, clique no ícone de bloqueio (🚫) ao lado do candidato. Isso é útil para candidatos que não atendem aos requisitos ou foram desclassificados.\n\n⚠️ Candidatos bloqueados aparecem com indicador vermelho nas análises.',
+                q: 'Como adicionar um candidato ao Pipeline?',
+                a: 'MODO 1 - Do Banco de Talentos:\n1. Abra o candidato no Banco de Talentos\n2. Vá na aba "Vagas"\n3. Clique em "Enviar para Pipeline"\n\nMODO 2 - Direto no Pipeline:\n1. Acesse "Candidatos" > "Pipeline"\n2. Selecione o pipeline desejado\n3. Clique em "+ Adicionar Candidato"\n4. Selecione o candidato da lista\n5. (Opcional) Escolha vaga e score do match\n6. Selecione a coluna inicial\n7. Clique em "Adicionar"',
             },
             {
-                q: 'Posso exportar a lista de candidatos?',
-                a: 'Sim! No topo da página do Banco de Candidatos, clique em "Exportar" para gerar um arquivo CSV com todos os dados dos candidatos filtrados.',
+                q: 'Como mover candidatos entre colunas?',
+                a: '1. No Pipeline, localize o candidato\n2. Clique e arraste o card do candidato para a coluna desejada\n3. Solte na posição escolhida\n\nO sistema registra automaticamente a movimentação. O histórico de movimentos pode ser visto no painel de detalhes do candidato.',
+            },
+            {
+                q: 'O que aparece no card do Pipeline?',
+                a: 'No card do Pipeline você vê:\n\n• **Nome do candidato**\n• **Score do match** (ex: 84% match)\n• **Vaga** (ex: Design VA-05)\n• **Data da análise**\n\nQuando você clica no card, abre um painel lateral com:\n• Todos os dados do candidato\n• Feedback da análise da IA\n• Histórico de análises e inscrições\n• Botões para ver vaga, mover, ou remover',
+            },
+            {
+                q: 'Como remover um candidato do Pipeline?',
+                a: '1. Clique no botão de menu (3 pontinhos) no card do candidato\n2. Selecione "Remover do Pipeline"\n3. Confirme a remoção\n\n⚠️ IMPORTANTE: Remover do Pipeline NÃO exclui o candidato do Banco de Talentos. O candidato continua existindo normalmente e pode ser enviado novamente mais tarde.',
+            },
+            {
+                q: 'O que é o "firstJob" no Pipeline?',
+                a: 'O "firstJob" é um mecanismo que exibe no painel lateral do candidato a vaga e score do card do Pipeline, mesmo quando não há histórico de análise.\n\nIsso garante que ao abrir um card do Pipeline, você sempre verá:\n• Nome da vaga (display_job_name)\n• Score do match\n• Data da análise\n\nMesmo que o candidato não tenha histórico completo no banco de dados.',
             },
         ],
     },
     {
-        category: '⚙️ Conta e configurações',
+        category: '🤖 Análises de IA',
+        items: [
+            {
+                q: 'Como a IA analisa os candidatos?',
+                a: 'A IA analisa o currículo comparando com os requisitos da vaga:\n\n1. **Experiência Profissional**: Tempo na área, relevância das empresas, nível hierárquico\n2. **Formação e Cursos**: Graduação, cursos técnicos, certificações\n3. **Habilidades Técnicas**: Ferramentas e tecnologias mencionadas\n4. **Pontos Positivos**: Diferenciais e experiências relevantes\n5. **Pontos de Atenção**: Gaps de qualificação, inconsistências, informações faltantes\n\nO resultado é um score de 0-100% que indica a compatibilidade.',
+            },
+            {
+                q: 'Como interpretar o score de match?',
+                a: 'O score vai de 0 a 100 e reflete a adequação do candidato à vaga:\n\n🟢 70-100: Excelente compatibilidade - candidate fortemente qualificado\n🟡 40-69: Compatibilidade moderada - requiere análise manual\n🔴 0-39: Baixa compatibilidade - avaliação cuidadosa necessária\n\n💡 Dica: Use o score como referência, não como veredicto definitivo. A avaliação humana é sempre essencial.',
+            },
+            {
+                q: 'Como melhorar a precisão das análises?',
+                a: 'Para análises mais precisas:\n\n1. **Vagas detalhadas**: Preencha todos os campos de requisitos, atribuições e diferenciais\n2. **Currículos em PDF de texto**: Evite imagens escaneadas\n3. **Informações completas**: Currículos com experiência e formação bem descritas geram melhores resultados\n4. **Reanálise quando necessário**: Se a vaga mudou ou o currículo está desatualizado, solicite nova análise',
+            },
+            {
+                q: 'O que é o campo "summary" na análise?',
+                a: 'O "summary" é o campo principal do feedback da IA - é a "Análise da Nota" que aparece no painel do candidato.\n\nEste campo é extraído e mapeado para a experiência do candidato no sistema. Ele contém o texto narrativo da avaliação da IA sobre a compatibilidade do candidato com a vaga.',
+            },
+        ],
+    },
+    {
+        category: '🔧 Problemas Comuns',
+        items: [
+            {
+                q: 'Análise está demorando muito, o que faço?',
+                a: 'Se uma análise levar mais de 5 minutos:\n1. Verifique sua conexão com a internet\n2. Tente recarregar a página\n3. Se o problema persistir, entre em contato com o suporte\n\n⚠️ Não faça upload do mesmo arquivo múltiplas vezes.',
+            },
+            {
+                q: 'O PDF do currículo não está sendo lido corretamente',
+                a: 'Dicas para melhor extração:\n✅ Use PDFs de texto (não imagens escaneadas)\n✅ Evite PDFs com layouts muito complexos ou colunas\n✅ Formatos .doc/.docx também funcionam bem\n\nSe o problema persistir, tente:\n• Converter o PDF para formato diferente\n• Simplificar o layout do currículo\n• Copiar o texto e colar manualmente',
+            },
+            {
+                q: 'Não vejo minhas vagas/candidatos',
+                a: 'Possíveis causas:\n1. Verifique se está na organização correta (filtro no topo)\n2. Confirme se você tem permissão para ver esses dados\n3. Tente limpar os filtros aplicados\n4. Verifique se a vaga está com status correto (Aberta)\n\nSe o problema persistir, contate o suporte com prints da tela.',
+            },
+            {
+                q: 'Erro ao fazer upload de arquivo',
+                a: 'Verifique:\n📏 Tamanho máximo: 10MB por arquivo\n📄 Formatos aceitos: PDF, DOC, DOCX\n📁 Nome do arquivo: evite caracteres especiais (!, @, #, etc)\n\nSe ainda assim não funcionar, tente outro navegador ou contate o suporte.',
+            },
+            {
+                q: 'Candidato duplicado no Banco de Talentos',
+                a: 'Isso acontece quando há duas entradas de análise para a mesma vaga (ex: uma com job_name e outra sem).\n\nO sistema agora deduplica automaticamente:\n• Se dois entries têm o mesmo jobId, mantém o com mais conteúdo\n• "Vaga Desconhecida" é substituído pelo nome real quando disponível\n\nSe a duplicação persistir, entre em contato com o administrador.',
+            },
+        ],
+    },
+    {
+        category: '⚙️ Conta e Configurações',
         items: [
             {
                 q: 'Como altero minha foto de perfil?',
-                a: 'Clique no seu avatar (canto inferior esquerdo) → "Configurações" → clique na foto atual → selecione a nova imagem.\n\n📌 Formatos aceitos: JPG, PNG, WEBP\n📏 Tamanho máximo: 5MB',
+                a: 'Clique no seu avatar (canto inferior esquerdo) > "Configurações" > clique na foto atual > selecione a nova imagem.\n\n📌 Formatos aceitos: JPG, PNG, WEBP\n📏 Tamanho máximo: 5MB',
             },
             {
                 q: 'Posso mudar meu e-mail de acesso?',
@@ -139,76 +201,13 @@ const faqs = [
             },
             {
                 q: 'Como altero minha senha?',
-                a: 'Acesse "Configurações" → "Segurança" → "Alterar Senha". Você precisará informar a senha atual e a nova senha.',
+                a: 'Acesse "Configurações" > "Segurança" > "Alterar Senha". Você precisará informar a senha atual e a nova senha.',
             },
             {
-                q: 'Onde encontro minha Chave de API?',
-                a: 'Acesse "Configurações" → "API". Lá você poderá visualizar sua chave atual ou gerar uma nova. Mantenha essa chave em segredo!',
+                q: 'Quais são os perfis de usuário?',
+                a: 'O sistema possui os seguintes perfis:\n\n👑 **Owner/Administrador**: Acesso completo ao sistema\n👔 **RH Gestor**: Acesso a todas as vagas e candidatos da empresa\n👤 **RH Operador**: Acesso a vagas e candidatos específicos\n👁️ **Convidado**: Apenas visualização, não pode criar ou editar\n\nAs permissões são definidas pelo administrador em "Configurações" > "Equipe".',
             },
-        ],
-    },
-    {
-        category: '🔗 Desenvolvedores e API',
-        items: [
-            {
-                q: 'O que é a API do Space Talent?',
-                a: 'Nossa API permite integrar o Space Talent com outros sistemas (como seu site de carreiras próprio ou ERP). Você pode automatizar a criação de vagas e a consulta de candidatos analisados.',
-            },
-            {
-                q: 'Onde está a documentação técnica?',
-                a: 'A documentação completa seguindo o padrão OpenAPI/Swagger pode ser solicitada ao nosso suporte técnico ou acessada via link direto nas configurações de API.',
-            },
-            {
-                q: 'Quais as funcionalidades disponíveis via API?',
-                a: '✅ Listar e criar vagas\n✅ Consultar resultados de análises\n✅ Sincronizar banco de candidatos\n✅ Webhooks para eventos em tempo real (em breve)',
-            },
-            {
-                q: 'Existe limite de requisições?',
-                a: 'Sim, os limites variam conforme seu plano. O plano Pro permite até 1.000 requisições/dia, enquanto o Enterprise possui limites personalizados e suporte dedicado.',
-            },
-        ],
-    },
-    {
-        category: '💳 Planos e pagamentos',
-        items: [
-            {
-                q: 'Quais são os planos disponíveis?',
-                a: '🆓 Trial: 7 dias grátis, 5 análises\n⭐ Pro: R$ 99,90/mês - análises ilimitadas\n🏢 Enterprise: Sob consulta - múltiplos usuários, API dedicada, suporte premium\n\n💡 Dica: O plano Enterprise inclui treinamento da equipe e integração com sistemas de RH.',
-            },
-            {
-                q: 'Como faço upgrade do meu plano?',
-                a: 'Acesse "Configurações" → "Plano Atual" → "Fazer Upgrade". Você será redirecionado para o checkout seguro.\n\n✅ Upgrade é imediato\n✅ Você mantém todos os dados\n✅ Cobre apenas a diferença proporcional',
-            },
-            {
-                q: 'Meu pagamento é seguro?',
-                a: 'Sim! Utilizamos:\n🔒 Criptografia SSL/TLS\n🔒 Processadores certificados PCI DSS\n🔒 Dados financeiros nunca armazenados\n\nSeu pagamento é processado por gateways líderes de mercado.',
-            },
-            {
-                q: 'Como cancelar minha assinatura?',
-                a: 'Acesse "Configurações" → "Plano Atual" → "Gerenciar Assinatura" → "Cancelar".\n\n✅ Cancelamento imediato\n✅ Acesso até o fim do período pago\n✅ Sem cobrança adicional\n✅ Dados mantidos por 30 dias',
-            },
-        ],
-    },
-    {
-        category: '🔧 Problemas comuns',
-        items: [
-            {
-                q: 'A análise está demorando muito, o que faço?',
-                a: 'Se uma análise levar mais de 5 minutos:\n1. Verifique sua conexão com a internet\n2. Tente recarregar a página\n3. Se o problema persistir, entre em contato com o suporte\n\n⚠️ Não faça upload do mesmo arquivo múltiplas vezes.',
-            },
-            {
-                q: 'O PDF do currículo não está sendo lido corretamente',
-                a: 'Dicas para melhor extração:\n✅ Use PDFs de texto (não imagens escaneadas)\n✅ Evite PDFs com layouts muito complexos\n✅ Formatos .doc/.docx também funcionam bem\n\nSe o problema persistir, tente copiar o texto do currículo e colar no campo de texto manual.',
-            },
-            {
-                q: 'Não vejo minhas vagas/candidatos',
-                a: 'Possíveis causas:\n1. Verifique se está na organização correta (filtro no topo)\n2. Confirme se você tem permissão para ver esses dados\n3. Tente limpar os filtros aplicados\n\nSe o problema persistir, contate o suporte com prints da tela.',
-            },
-            {
-                q: 'Erro ao fazer upload de arquivo',
-                a: 'Verifique:\n📏 Tamanho máximo: 10MB por arquivo\n📄 Formatos aceitos: PDF, DOC, DOCX\n📁 Nome do arquivo: evite caracteres especiais\n\nSe ainda assim não funcionar, tente outro navegador ou contate o suporte.',
-            },
-        ],
+],
     },
 ];
 
@@ -231,6 +230,7 @@ const shortcuts = [
 // ─── FAQ COMPONENT ────────────────────────────────────────────────────────────
 const FaqItem = ({ q, a }: { q: string; a: string }) => {
     const [open, setOpen] = useState(false);
+    const renderedA = a.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return (
         <div style={{ borderBottom: '1px solid var(--border)', overflow: 'hidden', transition: 'all 0.2s' }}>
             <button
@@ -244,7 +244,7 @@ const FaqItem = ({ q, a }: { q: string; a: string }) => {
             </button>
             {open && (
                 <div className="slide-down" style={{ padding: '0 0 16px' }}>
-                    <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', margin: 0, whiteSpace: 'pre-line' }}>{a}</p>
+                    <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', margin: 0, whiteSpace: 'pre-line' }} dangerouslySetInnerHTML={{ __html: renderedA }} />
                 </div>
             )}
         </div>
