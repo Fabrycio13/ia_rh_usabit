@@ -544,24 +544,6 @@ export const SpontaneousApplication = () => {
         try {
             const resumeUrl = await uploadResume();
 
-            let aiAnalysis: Record<string, unknown> | null = null;
-            try {
-                const result = await analyzeResume(resumeFile);
-                aiAnalysis = {
-                    source: 'spontaneous',
-                    score: result.score,
-                    skills: result.skills.join(', '),
-                    experience: result.experience,
-                    education: result.education,
-                    summary: result.summary,
-                    strengths: result.strengths.join(', '),
-                    gaps: result.gaps.join(', '),
-                    suggested_areas: result.suggested_areas.join(', ')
-                };
-            } catch (aiErr) {
-                console.error('Erro na análise via IA, prosseguindo sem:', aiErr);
-            }
-
             const candidatePayload = {
                 email: formData.email,
                 organization_id: orgId,
@@ -580,21 +562,10 @@ export const SpontaneousApplication = () => {
                 complement: formData.complement || null,
                 vaga_id: null,
                 status: 'pending',
-                skills: aiAnalysis ? String(aiAnalysis.skills) : null,
-                experience: aiAnalysis ? String(aiAnalysis.experience) : null,
-                analysis: aiAnalysis ? {
-                    ...aiAnalysis,
-                    history: [{
-                        type: 'spontaneous',
-                        date: new Date().toISOString(),
-                        summary: aiAnalysis.summary,
-                        skills: aiAnalysis.skills,
-                        experience: aiAnalysis.experience,
-                        education: aiAnalysis.education,
-                        strengths: aiAnalysis.strengths,
-                        gaps: aiAnalysis.gaps
-                    }]
-                } : null
+                source: 'spontaneous',
+                skills: null,
+                experience: null,
+                analysis: null
             };
 
             const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {
@@ -625,6 +596,41 @@ export const SpontaneousApplication = () => {
             } catch (emailErr) {
                 console.error('Erro ao enviar email:', emailErr);
             }
+
+            analyzeResume(resumeFile).then(result => {
+                const aiAnalysis = {
+                    source: 'spontaneous',
+                    score: result.score,
+                    skills: result.skills.join(', '),
+                    experience: result.experience,
+                    education: result.education,
+                    summary: result.summary,
+                    strengths: result.strengths.join(', '),
+                    gaps: result.gaps.join(', ')
+                };
+                supabase.from('candidates').update({
+                    score: result.score,
+                    skills: String(result.skills),
+                    experience: result.experience,
+                    analysis: {
+                        ...aiAnalysis,
+                        history: [{
+                            type: 'spontaneous',
+                            date: new Date().toISOString(),
+                            summary: result.summary,
+                            skills: result.skills,
+                            experience: result.experience,
+                            education: result.education,
+                            strengths: result.strengths,
+                            gaps: result.gaps
+                        }]
+                    }
+                }).eq('email', formData.email).eq('organization_id', orgId).then(({ error }) => {
+                    if (error) console.error('Erro ao atualizar análise:', error);
+                });
+            }).catch(err => {
+                console.error('Análise IA falhou silenciosamente:', err);
+            });
         } catch {
             toast.error('Erro ao enviar candidatura. Tente novamente.');
         } finally {

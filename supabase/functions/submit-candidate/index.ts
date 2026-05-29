@@ -81,6 +81,7 @@ serve(async (req) => {
         complement: body.complement || null,
         vaga_id: body.vaga_id || null,
         status: body.status || 'pending',
+        source: body.source || null,
         skills: body.skills || null,
         experience: body.experience || null,
         analysis: body.analysis || null,
