@@ -97,6 +97,8 @@ export function normalizeExtraction(raw: Record<string, unknown>) {
     location: raw.location != null ? normalizeString(raw.location) : null,
     age: raw.age != null ? normalizeString(raw.age) : null,
     gender: normalizeString(raw.gender, 'Não identificado'),
+    linkedin: raw.linkedin != null ? normalizeString(raw.linkedin) : null,
+    portfolio: raw.portfolio != null ? normalizeString(raw.portfolio) : null,
     skills: normalizeStringArray(raw.skills),
     experience: normalizeString(raw.experience, 'Não informado'),
     education: normalizeString(raw.education, 'Não informado'),
