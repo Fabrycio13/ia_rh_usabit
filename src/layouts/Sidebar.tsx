@@ -98,7 +98,7 @@ const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) =
 
 
 
-export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
+export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void; hideToggle?: boolean }) => {
     const { profile } = useUser();
     const { lang, setLang, t } = useLang();
     const { analyzing, progress, jobName } = useAnalysis();
@@ -277,7 +277,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                     minWidth: 0 
                 }}>
                     {!collapsed && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, ...(hideToggle ? { paddingLeft: '52px' } : {}) }}>
                             <SpaceLogo size={50} />
                             <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                 <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Space Talent</p>
@@ -285,6 +285,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                             </div>
                         </div>
                     )}
+                    {!hideToggle && (
                     <button
                         className={`tog-btn${collapsed ? ' is-collapsed' : ''}`}
                         onClick={toggle}
@@ -315,6 +316,7 @@ export const Sidebar = ({ onToggleChat }: { onToggleChat: () => void }) => {
                             }} 
                         />
                     </button>
+                    )}
                 </div>
 
                 <div style={{ height: '1px', background: 'var(--border)', margin: '0 10px 10px' }} />
