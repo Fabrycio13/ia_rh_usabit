@@ -45,10 +45,10 @@ serve(async (req) => {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
 </head>
 <body style="margin: 0; padding: 0; background-color: #04070c; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
-    <div style="background-color: #04070c; background-image: radial-gradient(circle at top right, #1a3597 0%, #04070c 100%); padding: 60px 20px; text-align: center; min-height: 100%;">
-        <div style="max-width: 600px; margin: 0 auto; background: #0b111a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 48px 40px; text-align: left; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+    <div style="background-color: #04070c; background-image: radial-gradient(circle at top right, #1a3597 0%, #04070c 100%); padding: 32px 16px; text-align: center; min-height: 100%;">
+        <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #0b111a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 40px 24px; text-align: left; box-sizing: border-box;">
             
-            <div style="text-align: center; margin-bottom: 48px;">
+            <div style="text-align: center; margin-bottom: 32px;">
                 <img src="cid:logo" alt="Usabit Global" style="height: 32px; width: auto; display: block; margin: 0 auto;" />
             </div>
             
@@ -63,30 +63,35 @@ serve(async (req) => {
             
             <div style="color: #94a3b8; font-size: 16px; line-height: 1.7; margin-bottom: 40px;">
                 <p style="margin: 0 0 20px;">
-                    Agradecemos pelo seu interesse em fazer parte da <strong>${displayName}</strong>. Seu currículo já está com nossa equipe de recrutamento e será analisado com atenção.
+                    Agradecemos pelo envio do seu currículo.
                 </p>
                 
                 <p style="margin: 0 0 20px;">
-                    Assim que identificarmos uma oportunidade compatível com seu perfil, entraremos em contato para agendar os próximos passos.
+                    Seu perfil foi incluído em nosso <strong style="color:#ffffff;">Banco de Talentos</strong> e poderá ser considerado para futuras oportunidades compatíveis com sua experiência e qualificações.
+                </p>
+                
+                <p style="margin: 0 0 20px;">
+                    Sempre que surgirem vagas aderentes ao seu perfil, nossa equipe poderá entrar em contato.
                 </p>
                 
                 <p style="margin: 0; color: #ffffff; font-weight: 600;">
-                    Desejamos muito sucesso em sua jornada!
+                    Agradecemos pelo seu interesse em fazer parte da ${displayName}!
                 </p>
             </div>
             
-            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="font-size: 14px; color: #64748b; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
+            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
                 <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
                     Equipe de Talentos<br/>
                     <span style="color: #2C58FD;">${displayName}</span>
                 </p>
             </div>
         </div>
-        
-        <div style="margin-top: 40px; color: #475569; font-size: 13px;">
-            <p style="margin: 0; font-weight: 500;">Powered by <span style="color: #94a3b8;">Space Talent</span></p>
-            <p style="margin: 10px 0 0;">&copy; 2026 ${displayName}. Todos os direitos reservados.</p>
+
+        <!-- Branding Footer -->
+        <div style="text-align: center; margin-top: 8px; color: #5C636D; font-size: 12px;">
+            <p style="margin: 0 0 4px;">&copy; 2026 ${displayName}. Todos os direitos reservados.</p>
+            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Space Talent</strong></p>
         </div>
     </div>
 </body>
@@ -99,9 +104,9 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Equipe de Carreiras <noreply@space.pro.br>',
+        from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
         to: [candidateEmail],
-        subject: `Recebemos seu curr\u00edculo \u2014 ${displayName}`,
+        subject: `Cadastro realizado com sucesso - ${displayName}`,
         html,
         attachments: [
           {
