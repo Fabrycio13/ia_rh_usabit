@@ -7,7 +7,7 @@ import { useTheme } from '../core/contexts/ThemeContext';
 import { hasPermission } from '../core/config/permissions';
 import { SpaceBackground } from '../common/components/ui/SpaceBackground';
 import { SpatialBackground } from '../common/components/ui/SpatialBackground';
-import { Menu, X } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 
 export const DashboardLayout = () => {
     const { profile } = useUser();
@@ -28,7 +28,10 @@ export const DashboardLayout = () => {
         setIsMobileOpen(false);
     }, [location]);
 
-    const sidebarStyle: React.CSSProperties = isMobile ? {
+    const hamburgerVisible = isMobile;
+    const showBackdrop = isMobile && isMobileOpen;
+
+    const sidebarMobile: React.CSSProperties = {
         position: 'fixed',
         top: 10,
         left: 0,
@@ -38,14 +41,13 @@ export const DashboardLayout = () => {
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         padding: '0 0 0 10px',
         display: 'flex',
-    } : {
+    };
+
+    const sidebarDesktop: React.CSSProperties = {
         flexShrink: 0,
         height: '100%',
         display: 'flex',
     };
-
-    const hamburgerVisible = isMobile;
-    const showBackdrop = isMobile && isMobileOpen;
 
     return (
         <div style={{ display: 'flex', width: '100vw', height: '100vh', position: 'relative', color: 'var(--text-main)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
@@ -73,7 +75,7 @@ export const DashboardLayout = () => {
                         boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
                     }}
                 >
-                    {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
+                    <PanelLeft size={20} style={{ transform: isMobileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
                 </button>
             )}
 
@@ -89,20 +91,23 @@ export const DashboardLayout = () => {
                 />
             )}
 
+            {/* Sidebar — RENDERED AT ROOT LEVEL (outside z-index:1 container) */}
+            <div style={isMobile ? sidebarMobile : sidebarDesktop}>
+                <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />
+            </div>
+
+            {/* Main content — sidebar is a sibling, not parent */}
             <div style={{
                 position: 'relative',
                 zIndex: 1,
+                flex: 1,
                 display: 'flex',
-                width: '100%',
+                minWidth: 0,
                 height: '100%',
-                padding: isMobile ? '0' : '10px',
+                padding: isMobile ? '0' : '10px 10px 10px 0',
                 gap: isMobile ? '0' : '10px',
                 boxSizing: 'border-box',
             }}>
-                {/* Floating sidebar wrapper */}
-                <div style={sidebarStyle}>
-                    <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />
-                </div>
                 <div style={{ flex: 1, display: 'flex', minWidth: 0, height: '100%' }}>
                     <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }} className="custom-scrollbar hide-scrollbar">
                         <div style={{
