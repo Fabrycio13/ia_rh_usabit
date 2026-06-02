@@ -63,30 +63,54 @@ serve(async (req) => {
             
             <div style="color: #94a3b8; font-size: 16px; line-height: 1.7; margin-bottom: 40px;">
                 <p style="margin: 0 0 20px;">
-                    Agradecemos pelo seu interesse em fazer parte da <strong>${displayName}</strong>. Seu currículo já está com nossa equipe de recrutamento e será analisado com atenção.
+                    Agradecemos pelo envio do seu currículo.
                 </p>
                 
                 <p style="margin: 0 0 20px;">
-                    Assim que identificarmos uma oportunidade compatível com seu perfil, entraremos em contato para agendar os próximos passos.
+                    Seu perfil foi incluído em nosso Banco de Talentos e poderá ser considerado para futuras oportunidades compatíveis com sua experiência e qualificações.
+                </p>
+                
+                <p style="margin: 0 0 20px;">
+                    Sempre que surgirem vagas aderentes ao seu perfil, nossa equipe poderá entrar em contato.
                 </p>
                 
                 <p style="margin: 0; color: #ffffff; font-weight: 600;">
-                    Desejamos muito sucesso em sua jornada!
+                    Agradecemos pelo seu interesse em fazer parte da ${displayName}!
                 </p>
             </div>
             
-            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="font-size: 14px; color: #64748b; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
-                <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
+            <!-- Signature -->
+            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
+                <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0 0 32px; font-family: 'Space Grotesk', sans-serif;">
                     Equipe de Talentos<br/>
                     <span style="color: #2C58FD;">${displayName}</span>
                 </p>
+
+                <!-- Tagline -->
+                <p style="color: #94a3b8; font-size: 14px; margin: 0 0 24px; line-height: 1.5;">
+                    Impulsionando crescimento de negócios através da tecnologia
+                </p>
+
+                <!-- Social -->
+                <div style="margin-bottom: 24px;">
+                    <a href="https://br.linkedin.com/company/usabit" target="_blank" style="display: inline-block; margin: 0 6px; padding: 8px 14px; border-radius: 8px; background: rgba(44, 88, 253, 0.12); border: 1px solid rgba(44, 88, 253, 0.25); color: #2C58FD; text-decoration: none; font-size: 12px; font-weight: 600;">LinkedIn</a>
+                    <a href="https://www.instagram.com/usabitglobal/" target="_blank" style="display: inline-block; margin: 0 6px; padding: 8px 14px; border-radius: 8px; background: rgba(44, 88, 253, 0.12); border: 1px solid rgba(44, 88, 253, 0.25); color: #2C58FD; text-decoration: none; font-size: 12px; font-weight: 600;">Instagram</a>
+                    <a href="https://www.facebook.com/usabitdigital" target="_blank" style="display: inline-block; margin: 0 6px; padding: 8px 14px; border-radius: 8px; background: rgba(44, 88, 253, 0.12); border: 1px solid rgba(44, 88, 253, 0.25); color: #2C58FD; text-decoration: none; font-size: 12px; font-weight: 600;">Facebook</a>
+                    <a href="https://www.youtube.com/@UsabitGlobal" target="_blank" style="display: inline-block; margin: 0 6px; padding: 8px 14px; border-radius: 8px; background: rgba(44, 88, 253, 0.12); border: 1px solid rgba(44, 88, 253, 0.25); color: #2C58FD; text-decoration: none; font-size: 12px; font-weight: 600;">YouTube</a>
+                </div>
+
+                <!-- WhatsApp -->
+                <div style="margin-bottom: 32px;">
+                    <a href="https://wa.me/5511999999999" target="_blank" style="display: inline-block; padding: 10px 20px; border-radius: 10px; background: #2C58FD; color: #fff; text-decoration: none; font-size: 14px; font-weight: 700;">Fale conosco</a>
+                </div>
             </div>
         </div>
-        
-        <div style="margin-top: 40px; color: #475569; font-size: 13px;">
-            <p style="margin: 0; font-weight: 500;">Powered by <span style="color: #94a3b8;">Space Talent</span></p>
-            <p style="margin: 10px 0 0;">&copy; 2026 ${displayName}. Todos os direitos reservados.</p>
+
+        <!-- Branding Footer -->
+        <div style="text-align: center; margin-top: 8px; color: #5C636D; font-size: 12px;">
+            <p style="margin: 0 0 4px;">&copy; 2026 ${displayName}. Todos os direitos reservados.</p>
+            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Space Talent</strong></p>
         </div>
     </div>
 </body>
@@ -99,9 +123,9 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Equipe de Carreiras <noreply@space.pro.br>',
+        from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
         to: [candidateEmail],
-        subject: `Recebemos seu curr\u00edculo \u2014 ${displayName}`,
+        subject: `Cadastro realizado com sucesso - ${displayName}`,
         html,
         attachments: [
           {
