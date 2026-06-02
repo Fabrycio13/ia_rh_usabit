@@ -83,6 +83,8 @@ export const PoolTalentos = () => {
     const [selectedVagaId, setSelectedVagaId] = useState<string | null>(null);
     const [analyzing, setAnalyzing] = useState(false);
     const [vagaSearch, setVagaSearch] = useState('');
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [confirmCandidate, setConfirmCandidate] = useState<Candidate | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -248,11 +250,23 @@ export const PoolTalentos = () => {
         }
     };
 
-    const openAnalyzeModal = async (candidate: Candidate) => {
-        setAnalyzingCandidate(candidate);
+    const openConfirmModal = (candidate: Candidate) => {
+        setConfirmCandidate(candidate);
+        setShowConfirm(true);
+    };
+
+    const closeConfirmModal = () => {
+        setShowConfirm(false);
+        setConfirmCandidate(null);
+    };
+
+    const openAnalyzeModal = () => {
+        if (!confirmCandidate) return;
+        setAnalyzingCandidate(confirmCandidate);
         setSelectedVagaId(null);
         setVagaSearch('');
-        await fetchVagas();
+        setShowConfirm(false);
+        fetchVagas();
     };
 
     const closeAnalyzeModal = () => {
@@ -260,6 +274,8 @@ export const PoolTalentos = () => {
         setSelectedVagaId(null);
         setAnalyzing(false);
         setVagaSearch('');
+        setShowConfirm(false);
+        setConfirmCandidate(null);
     };
 
     const downloadResume = async (url: string, fileName: string): Promise<File> => {
@@ -579,7 +595,7 @@ export const PoolTalentos = () => {
                                                 title="Analisar para uma Vaga"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    openAnalyzeModal(candidato);
+                                                    openConfirmModal(candidato);
                                                 }}
                                                 style={{
                                                     width: 34, height: 34,
@@ -655,7 +671,7 @@ export const PoolTalentos = () => {
                     showAnalyzeWithVagas={true}
                     onAnalyzeWithVagas={(cid) => {
                         const cand = candidatos.find(c => c.id === cid);
-                        if (cand) openAnalyzeModal(cand);
+                        if (cand) openConfirmModal(cand);
                     }}
                 />
             )}
@@ -776,6 +792,64 @@ export const PoolTalentos = () => {
                                 ) : (
                                     <>Analisar</>
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {showConfirm && confirmCandidate && (
+                <>
+                    <div onClick={closeConfirmModal} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{
+                        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        zIndex: 401, width: 'clamp(380px, 35vw, 500px)',
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 20, fontFamily: 'Inter, sans-serif',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        display: 'flex', flexDirection: 'column'
+                    }}>
+                        <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>
+                                Confirmar análise
+                            </h2>
+                        </div>
+                        <div style={{ padding: '20px 24px' }}>
+                            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-main)', lineHeight: '1.6' }}>
+                                Deseja analisar <strong>{confirmCandidate.name}</strong> para uma vaga?
+                            </p>
+                            <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--text-dim)', lineHeight: '1.5' }}>
+                                Isso vai consumir uma análise via IA e remover o candidato do Pool de Talentos.
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={closeConfirmModal}
+                                style={{
+                                    padding: '10px 20px', background: 'transparent',
+                                    border: '1px solid var(--border)', borderRadius: 12,
+                                    color: 'var(--text-dim)', fontSize: 13, fontWeight: 600,
+                                    cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={openAnalyzeModal}
+                                style={{
+                                    padding: '10px 24px',
+                                    background: 'var(--primary)',
+                                    border: 'none', borderRadius: 12,
+                                    color: '#fff', fontSize: 13, fontWeight: 700,
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                            >
+                                Sim, analisar
                             </button>
                         </div>
                     </div>

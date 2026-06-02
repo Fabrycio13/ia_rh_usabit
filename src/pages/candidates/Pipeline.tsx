@@ -873,10 +873,8 @@ export const Pipeline = () => {
                 return;
             }
 
-            const newName = `${linkVagaPipeline.name} - ${vagaCheck.title}`;
-
             await supabase.from('pipelines')
-                .update({ vaga_id: linkVagaVagaId, name: newName })
+                .update({ vaga_id: linkVagaVagaId })
                 .eq('id', linkVagaPipeline.id);
 
             await supabase.from('vagas_white_label')
@@ -887,7 +885,7 @@ export const Pipeline = () => {
 
             setPipelines(prev => prev.map(p =>
                 p.id === linkVagaPipeline.id
-                    ? { ...p, vaga_id: linkVagaVagaId, name: newName }
+                    ? { ...p, vaga_id: linkVagaVagaId }
                     : p
             ));
 
@@ -2186,14 +2184,8 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                         <div onClick={() => { setLinkVagaPipeline(null); setLinkVagaVagaId(''); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
                         <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
                             <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Vincular Pipeline a Vaga</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 8px' }}>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 20px' }}>
                                 Pipeline: <strong style={{ color: 'var(--text-main)' }}>{linkVagaPipeline.name}</strong>
-                            </p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '0 0 20px' }}>
-                                Ao vincular, o nome será renomeado para: <br />
-                                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                                    "{linkVagaPipeline.name}{linkVagaVagaId ? (() => { const v = availableVagas.find(x => x.id === linkVagaVagaId); return v ? ` - ${v.title}` : ' - [Título da vaga]'; })() : ' - [Título da vaga]'}"
-                                </span>
                             </p>
                             <div style={{ position: 'relative', marginBottom: 24, zIndex: 50 }}>
                                 <div
