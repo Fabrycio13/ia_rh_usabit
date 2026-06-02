@@ -47,6 +47,8 @@ export const DashboardLayout = () => {
         flexShrink: 0,
         height: '100%',
         display: 'flex',
+        padding: '10px 0 10px 10px',
+        boxSizing: 'border-box',
     };
 
     return (
@@ -93,7 +95,7 @@ export const DashboardLayout = () => {
 
             {/* Sidebar — RENDERED AT ROOT LEVEL (outside z-index:1 container) */}
             <div style={isMobile ? sidebarMobile : sidebarDesktop}>
-                <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} />
+                <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} hideToggle={isMobile} />
             </div>
 
             {/* Main content — sidebar is a sibling, not parent */}
