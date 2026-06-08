@@ -18,23 +18,6 @@ function gotrueHeaders() {
   };
 }
 
-async function generateLink(body: Record<string, unknown>): Promise<{ userId?: string; link: string } | { error: string; data?: unknown }> {
-  const url = SUPABASE_URL!.replace(/\/+$/, '') + '/auth/v1/admin/generate_link';
-  const res = await fetch(url, { method: 'POST', headers: gotrueHeaders(), body: JSON.stringify(body) });
-  const json = await res.json();
-  if (!res.ok) {
-    const code = json?.error_code || json?.code || res.status;
-    return { error: code, data: json };
-  }
-  const actionLink = json?.properties?.action_link || json?.properties?.url || '';
-  if (!actionLink) {
-    // For invite type, GoTrue returns user object without action_link.
-    // Return the userId so we can call recovery to get the link.
-    return { error: 'no_link_in_invite', data: json, userId: json?.id };
-  }
-  return { userId: json?.id, link: actionLink };
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -53,22 +36,20 @@ serve(async (req) => {
 
     const redirectTo = APP_URL + '/#/set-password';
 
-    // Step 1: Try invite (creates user if doesn't exist; doesn't return action_link)
-    await generateLink({ type: 'invite', email, data: { full_name: name, user_role: role }, redirect_to: redirectTo });
+    // DEBUG: Return full GoTrue responses for both calls
+    const gotrueUrl = SUPABASE_URL.replace(/\/+$/, '') + '/auth/v1/admin/generate_link';
+    const headers = gotrueHeaders();
 
-    // Step 2: Generate recovery link (this returns action_link for password reset)
-    const recoveryResult = await generateLink({ type: 'recovery', email, redirect_to: redirectTo });
+    const inviteRes = await fetch(gotrueUrl, { method: 'POST', headers, body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role }, redirect_to: redirectTo }) });
+    const inviteJson = await inviteRes.json();
 
-    if ('error' in recoveryResult) {
-      return new Response(JSON.stringify({ error: 'GoTrue error', code: recoveryResult.error, data: recoveryResult.data }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const recoveryRes = await fetch(gotrueUrl, { method: 'POST', headers, body: JSON.stringify({ type: 'recovery', email, redirect_to: redirectTo }) });
+    const recoveryJson = await recoveryRes.json();
 
-    const userId = recoveryResult.userId;
-    const actionLink = recoveryResult.link;
-
-    if (!actionLink) {
-      return new Response(JSON.stringify({ error: 'No link from recovery' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    return new Response(JSON.stringify({
+      invite: { status: inviteRes.status, body: inviteJson },
+      recovery: { status: recoveryRes.status, body: recoveryJson },
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     // Step 3: Send email via Resend
     if (!RESEND_API_KEY) {
