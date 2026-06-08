@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SideRays from '@/components/SideRays';
+import { SplineScene } from '@/components/ui/splite';
 
 // Fake avatar initials → use a color avatar service
 const avatar = (name: string, bg: string) =>
@@ -7,69 +8,6 @@ const avatar = (name: string, bg: string) =>
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    const NUM_STARS = 450;
-    const stars = Array.from({ length: NUM_STARS }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      r: Math.random() * 2 + 0.4,
-      speed: Math.random() * 0.008 + 0.003,
-      baseOpacity: Math.random() * 0.8 + 0.2,
-      twinkleSpeed: Math.random() * 0.04 + 0.015,
-      phase: Math.random() * Math.PI * 2
-    }));
-
-    let scrollY = window.scrollY;
-    let t = 0;
-    const draw = () => {
-      t += 0.012;
-      scrollY = window.scrollY;
-      ctx.clearRect(0, 0, width, height);
-
-      // Deep Space Gradient
-      const bg = ctx.createLinearGradient(0, 0, 0, height);
-      bg.addColorStop(0, '#04050a');
-      bg.addColorStop(1, '#080a18');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, width, height);
-
-      // Draw Stars
-      stars.forEach((s) => {
-        const sy = (s.y - scrollY * 0.08) % height;
-        const twinkle = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(t * s.twinkleSpeed * 65 + s.phase));
-        
-        ctx.beginPath();
-        ctx.arc(s.x, sy < 0 ? sy + height : sy, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${s.baseOpacity * twinkle})`;
-        if (s.r > 1.2) {
-          ctx.shadowBlur = 4;
-          ctx.shadowColor = 'white';
-        }
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-
-      animRef.current = requestAnimationFrame(draw);
-    };
-    draw();
-
-    const onResize = () => { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; };
-    window.addEventListener('resize', onResize);
-    return () => { cancelAnimationFrame(animRef.current); window.removeEventListener('resize', onResize); };
-  }, []);
 
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
@@ -94,44 +32,95 @@ export const LandingPage = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .lp-root { font-family: 'Space Grotesk', sans-serif; background: transparent; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; }
-        .lp-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+        .lp-root, .lp-root * { font-family: 'Oxanium', sans-serif !important; }
+        .lp-root { background: transparent; color: #e2e8f0; min-height: 100vh; overflow-x: hidden; position: relative; z-index: 1; }
+        .lp-galaxy-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 
         /* ── NAV ── */
-        .lp-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 14px 60px; background: rgba(7,9,15,0.8); backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .lp-nav { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; background: rgba(7,9,15,0.85); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; max-width: 1300px; width: calc(100% - 40px); }
         .lp-logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
         .lp-nav-links { display: flex; align-items: center; gap: 4px; }
-        .lp-nav-link { background: transparent; color: rgba(255,255,255,0.6); border: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: color 0.2s, background 0.2s; }
+        .lp-nav-link { background: transparent; color: rgba(255,255,255,0.6); border: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; font-family: 'Oxanium', sans-serif; cursor: pointer; transition: color 0.2s, background 0.2s; }
         .lp-nav-link:hover { color: #fff; background: rgba(255,255,255,0.06); }
         .lp-nav-actions { display: flex; align-items: center; gap: 10px; }
-        .btn-ghost { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.12); padding: 9px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: color 0.2s, background 0.2s; }
+
+        /* ── BUTTONS ── */
+        .btn-ghost, .btn-primary, .btn-hero-primary, .btn-hero-ghost, .btn-price {
+          outline: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: space-between;
+          border: 0;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+          box-sizing: border-box;
+          font-family: 'Oxanium', sans-serif !important;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          overflow: hidden;
+          cursor: pointer;
+          transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-ghost:hover, .btn-primary:hover, .btn-hero-primary:hover, .btn-hero-ghost:hover, .btn-price:hover {
+          opacity: 0.95;
+          transform: translateY(-2px);
+        }
+
+        .btn-ghost .animation, .btn-primary .animation, .btn-hero-primary .animation, .btn-hero-ghost .animation, .btn-price .animation {
+          border-radius: 100%;
+          animation: ripple 0.6s linear infinite;
+          width: 6px;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.7);
+          margin-left: 14px;
+          flex-shrink: 0;
+        }
+
+        @keyframes ripple {
+          0% {
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.1), 0 0 0 10px rgba(255, 255, 255, 0.1), 0 0 0 20px rgba(255, 255, 255, 0.1), 0 0 0 30px rgba(255, 255, 255, 0.1);
+          }
+          100% {
+            box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.1), 0 0 0 20px rgba(255, 255, 255, 0.1), 0 0 0 30px rgba(255, 255, 255, 0.1), 0 0 0 40px rgba(255, 255, 255, 0);
+          }
+        }
+
+        .btn-ghost { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.12); padding: 10px 18px; min-width: 130px; }
         .btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.06); }
-        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 10px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59,130,246,0.5); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; padding: 11px 18px; min-width: 170px; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+        .btn-primary:hover { box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
 
         /* ── HERO ── */
-        .lp-hero { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 140px 40px 80px; text-align: center; }
+        .lp-hero { position: relative; z-index: 1; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 140px 60px 80px; overflow: visible; }
+        .lp-hero-card { background: transparent; border: none; border-radius: 0; padding: 60px; display: flex; align-items: center; gap: 0; max-width: 1300px; width: 100%; overflow: visible; }
+        .lp-hero-left { flex: 1.1; min-width: 0; text-align: left; overflow: visible; }
+        .lp-hero-left .lp-sub { margin-left: 0; }
+        .lp-hero-left .lp-hero-btns { justify-content: flex-start; }
+        .lp-hero-3d { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 520px; overflow: visible; transform: scale(1.8); transform-origin: center center; margin: -80px -100px -80px -40px; pointer-events: auto; }
         .lp-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); border-radius: 100px; padding: 6px 16px; font-size: 12px; font-weight: 600; color: #93c5fd; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 28px; animation: fadeSlideIn 0.8s both; }
         .lp-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; animation: pulse-badge 2s infinite; }
         @keyframes pulse-badge { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.5)} }
-        .lp-title { font-size: clamp(42px,6vw,84px); font-weight: 800; line-height: 1.06; letter-spacing: -2.5px; margin-bottom: 24px; animation: fadeSlideIn 0.9s 0.1s both; background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lp-title { font-size: clamp(42px,5.5vw,78px); font-weight: 800; line-height: 1.06; letter-spacing: -2.5px; margin-bottom: 24px; animation: fadeSlideIn 0.9s 0.1s both; background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; padding-right: 4px; }
         .lp-title-accent { background: linear-gradient(135deg, #3b82f6, #0ea5e9, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .lp-sub { font-size: clamp(16px,2vw,20px); color: rgba(255,255,255,0.5); max-width: 560px; line-height: 1.7; margin-bottom: 44px; animation: fadeSlideIn 1s 0.2s both; }
         .lp-hero-btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; animation: fadeSlideIn 1s 0.3s both; }
-        .btn-hero-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border: none; padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 6px 30px rgba(59,130,246,0.4); display: flex; align-items: center; gap: 10px; }
-        .btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(59,130,246,0.55); }
-        .btn-hero-ghost { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); padding: 16px 36px; border-radius: 14px; font-size: 16px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.2s; backdrop-filter: blur(10px); }
+        .btn-hero-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; padding: 16px 20px; min-width: 240px; box-shadow: 0 6px 20px rgba(59,130,246,0.3); }
+        .btn-hero-primary:hover { box-shadow: 0 12px 32px rgba(59,130,246,0.45); }
+        .btn-hero-ghost { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.12); padding: 16px 20px; min-width: 240px; backdrop-filter: blur(10px); }
         .btn-hero-ghost:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
 
         /* ── STATS ── */
         .lp-stats { position: relative; z-index: 1; display: flex; justify-content: center; padding: 0 40px 100px; flex-wrap: wrap; }
-        .lp-stat { padding: 28px 50px; text-align: center; border-right: 1px solid rgba(255,255,255,0.07); }
+        .lp-stat { padding: 28px 60px; text-align: center; border-right: 1px solid rgba(255,255,255,0.07); }
         .lp-stat:last-child { border-right: none; }
-        .lp-stat-num { font-size: 42px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #3b82f6, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .lp-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+        .lp-stat-num { font-size: clamp(48px, 5.5vw, 68px); font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #3b82f6, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lp-stat-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.55); margin-top: 8px; }
 
         /* ── COMMON SECTION ── */
         .lp-section { position: relative; z-index: 1; padding: 100px 80px 120px; max-width: 1400px; margin: 0 auto; width: 100%; }
@@ -143,7 +132,30 @@ export const LandingPage = () => {
         .lp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
         .lp-feature-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 40px 36px; transition: border-color 0.3s, transform 0.3s, background 0.3s; }
         .lp-feature-card:hover { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); transform: translateY(-5px); }
-        .lp-feature-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 22px; }
+        .lp-feature-icon, .lp-insight-ico {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform: skewX(-15deg);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 4px 4px 0 #000;
+          transition: transform 0.3s, box-shadow 0.3s, background 0.3s;
+          border-radius: 2px;
+        }
+        .lp-feature-icon {
+          width: 56px;
+          height: 56px;
+          font-size: 26px;
+          margin-bottom: 26px;
+        }
+        .lp-icon-inner {
+          display: inline-block;
+          transform: skewX(15deg);
+        }
+        .lp-feature-card:hover .lp-feature-icon {
+          transform: skewX(-15deg) translateY(-2px);
+          box-shadow: 6px 6px 0 #3b82f6;
+        }
         .lp-feature-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px; }
         .lp-feature-desc { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.5); }
 
@@ -151,7 +163,11 @@ export const LandingPage = () => {
         .lp-insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
         .lp-insight-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 26px; transition: border-color 0.3s, transform 0.3s; }
         .lp-insight-card:hover { border-color: rgba(59,130,246,0.35); transform: translateY(-3px); }
-        .lp-insight-ico { width: 42px; height: 42px; border-radius: 12px; background: rgba(59,130,246,0.18); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 14px; }
+        .lp-insight-card:hover .lp-insight-ico {
+          transform: skewX(-15deg) translateY(-2px);
+          box-shadow: 6px 6px 0 #0ea5e9;
+        }
+        .lp-insight-ico { width: 42px; height: 42px; background: rgba(59,130,246,0.18); font-size: 20px; margin-bottom: 18px; }
         .lp-insight-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
         .lp-insight-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.6; margin-bottom: 16px; }
         .lp-insight-stat { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #6ee7b7; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.15); border-radius: 8px; padding: 8px 14px; }
@@ -170,9 +186,9 @@ export const LandingPage = () => {
         .lp-price-features { list-style: none; display: flex; flex-direction: column; gap: 13px; margin-bottom: 32px; flex: 1; }
         .lp-price-features li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: rgba(255,255,255,0.7); }
         .lp-price-features li::before { content: '✓'; color: #3b82f6; font-weight: 700; flex-shrink: 0; font-size: 15px; }
-        .btn-price { width: 100%; padding: 15px; border-radius: 13px; font-size: 15px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border: none; margin-top: auto; }
-        .btn-price-main { background: linear-gradient(135deg,#3b82f6,#2563eb); color: #fff; box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
-        .btn-price-main:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(59,130,246,0.5); }
+        .btn-price { width: 100%; padding: 16px 20px; margin-top: auto; min-width: 200px; }
+        .btn-price-main { background: linear-gradient(135deg,#3b82f6,#2563eb); color: #fff; box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+        .btn-price-main:hover { box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
         .btn-price-ghost { background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.12) !important; }
         .btn-price-ghost:hover { background: rgba(255,255,255,0.04); color: #fff; }
 
@@ -216,9 +232,14 @@ export const LandingPage = () => {
           .lp-cta-card { padding: 60px 48px; }
         }
         @media (max-width: 768px) {
-          .lp-nav { padding: 14px 20px; }
+          .lp-nav { padding: 10px 16px; width: calc(100% - 20px); top: 10px; border-radius: 16px; }
           .lp-nav-links { display: none; }
-          .lp-hero { padding: 120px 20px 60px; }
+          .lp-hero { flex-direction: column; padding: 120px 20px 60px; }
+          .lp-hero-card { flex-direction: column; padding: 32px 24px; text-align: center; }
+          .lp-hero-left { text-align: center; }
+          .lp-hero-left .lp-sub { margin-left: auto; }
+          .lp-hero-left .lp-hero-btns { justify-content: center; }
+          .lp-hero-3d { width: 100%; min-height: 350px; margin: 0; transform: scale(1.3); }
           .lp-grid-3, .lp-pricing-grid, .lp-reviews-grid { grid-template-columns: 1fr; }
           .lp-section { padding: 60px 24px 80px; }
           .lp-stat { padding: 18px 22px; }
@@ -226,9 +247,21 @@ export const LandingPage = () => {
         }
       `}</style>
 
-      <div className="lp-root">
-        <canvas ref={canvasRef} className="lp-canvas" />
+      <div className="lp-galaxy-bg">
+        <SideRays
+          rayColor1="#3b82f6"
+          rayColor2="#0ea5e9"
+          speed={2.5}
+          intensity={2}
+          spread={2}
+          origin="top-right"
+          blend={0.75}
+          falloff={1.6}
+          opacity={0.4}
+        />
+      </div>
 
+      <div className="lp-root">
         {/* ── NAV ── */}
         <nav className="lp-nav">
           <div className="lp-logo">
@@ -248,7 +281,10 @@ export const LandingPage = () => {
           </div>
 
           <div className="lp-nav-actions">
-            <button className="btn-ghost" onClick={() => navigate('/login')}>Entrar</button>
+            <button className="btn-ghost" onClick={() => navigate('/login')}>
+              Entrar
+              <span className="animation"></span>
+            </button>
             <button
               className="btn-primary"
               disabled
@@ -256,27 +292,42 @@ export const LandingPage = () => {
               title="Registro temporariamente desativado"
             >
               Começar Grátis
+              <span className="animation"></span>
             </button>
           </div>
         </nav>
 
         {/* ── HERO ── */}
         <section className="lp-hero">
-          <h1 className="lp-title">
-            Recrutamento inteligente<br />
-            <span className="lp-title-accent">do universo para você</span>
-          </h1>
-          <p className="lp-sub">Analise currículos com IA de ponta, encontre os melhores talentos em segundos e construa o time dos seus sonhos.</p>
-          <div className="lp-hero-btns">
-            <button
-              className="btn-hero-primary"
-              disabled
-              style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
-              title="Registro temporariamente desativado"
-            >
-              🚀 Começar Grátis
-            </button>
-            <button className="btn-hero-ghost" onClick={() => navigate('/login')}>Entrar na conta</button>
+          <div className="lp-hero-card">
+            <div className="lp-hero-left">
+              <h1 className="lp-title">
+                Recrutamento inteligente<br />
+                <span className="lp-title-accent">do universo para você</span>
+              </h1>
+              <p className="lp-sub">Analise currículos com IA de ponta, encontre os melhores talentos em segundos e construa o time dos seus sonhos.</p>
+              <div className="lp-hero-btns">
+                <button
+                  className="btn-hero-primary"
+                  disabled
+                  style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}
+                  title="Registro temporariamente desativado"
+                >
+                  <span>🚀 Começar Grátis</span>
+                  <span className="animation"></span>
+                </button>
+                <button className="btn-hero-ghost" onClick={() => navigate('/login')}>
+                  Entrar na conta
+                  <span className="animation"></span>
+                </button>
+              </div>
+            </div>
+            <div className="lp-hero-3d">
+              <SplineScene
+                scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                className="w-full h-full"
+              />
+            </div>
           </div>
         </section>
 
@@ -309,7 +360,9 @@ export const LandingPage = () => {
               { icon: '⚡', bg: 'rgba(59,130,246,0.12)', title: 'Integração Simples', desc: 'Importe currículos em PDF com um clique e tenha resultados completos em segundos, sem configuração complexa.' },
             ].map((f) => (
               <div key={f.title} className="lp-feature-card">
-                <div className="lp-feature-icon" style={{ background: f.bg }}>{f.icon}</div>
+                <div className="lp-feature-icon" style={{ background: f.bg }}>
+                  <span className="lp-icon-inner">{f.icon}</span>
+                </div>
                 <div className="lp-feature-title">{f.title}</div>
                 <div className="lp-feature-desc">{f.desc}</div>
               </div>
@@ -325,7 +378,9 @@ export const LandingPage = () => {
             <div className="lp-insights-grid">
               {insights.map((ins) => (
                 <div key={ins.title} className="lp-insight-card">
-                  <div className="lp-insight-ico">{ins.icon}</div>
+                  <div className="lp-insight-ico">
+                    <span className="lp-icon-inner">{ins.icon}</span>
+                  </div>
                   <div className="lp-insight-title">{ins.title}</div>
                   <div className="lp-insight-desc">{ins.desc}</div>
                   <div className="lp-insight-stat">{ins.stat}</div>
@@ -339,7 +394,8 @@ export const LandingPage = () => {
                 disabled
                 title="Registro temporariamente desativado"
               >
-                🧠 Experimentar a IA Grátis →
+                <span>🧠 Experimentar a IA Grátis →</span>
+                <span className="animation"></span>
               </button>
             </div>
           </section>
@@ -361,7 +417,10 @@ export const LandingPage = () => {
                 <li>Dashboard de métricas</li>
                 <li>Suporte por e-mail</li>
               </ul>
-              <button className="btn-price btn-price-ghost" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>Começar Grátis</button>
+              <button className="btn-price btn-price-ghost" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>
+                Começar Grátis
+                <span className="animation"></span>
+              </button>
             </div>
 
             <div className="lp-price-card popular">
@@ -378,7 +437,10 @@ export const LandingPage = () => {
                 <li>Relatórios detalhados</li>
                 <li>Suporte prioritário</li>
               </ul>
-              <button className="btn-price btn-price-main" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>Teste Grátis 14 Dias</button>
+              <button className="btn-price btn-price-main" disabled style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>
+                Teste Grátis 14 Dias
+                <span className="animation"></span>
+              </button>
             </div>
 
             <div className="lp-price-card">
@@ -395,7 +457,10 @@ export const LandingPage = () => {
                 <li>Suporte dedicado 24/7</li>
                 <li>API personalizada</li>
               </ul>
-              <button className="btn-price btn-price-ghost" onClick={() => {}}>Falar com Vendas</button>
+              <button className="btn-price btn-price-ghost" onClick={() => {}}>
+                Falar com Vendas
+                <span className="animation"></span>
+              </button>
             </div>
           </div>
         </section>
@@ -440,7 +505,8 @@ export const LandingPage = () => {
               disabled
               title="Registro temporariamente desativado"
             >
-              🚀 Começar Teste Grátis Agora →
+              <span>🚀 Começar Teste Grátis Agora →</span>
+              <span className="animation"></span>
             </button>
             <p className="lp-cta-hint">Sem cartão de crédito · Cancele quando quiser · Configuração em 5 minutos</p>
           </div>

@@ -201,11 +201,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     }
                     query = query.in('id', vagaIds);
                 } else if (fetchedOrgId && fetchedOrgId !== 'null') {
-                    if (role === 'rh') {
-                        query = query.eq('user_id', user.id);
-                    } else {
-                        query = query.or(`organization_id.eq.${fetchedOrgId},user_id.eq.${user.id}`);
-                    }
+                    query = query.or(`organization_id.eq.${fetchedOrgId},user_id.eq.${user.id}`);
                 } else {
                     query = query.eq('user_id', user.id);
                 }

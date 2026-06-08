@@ -45,11 +45,11 @@ serve(async (req) => {
       type: 'signup',
       email,
       options: {
-        redirectTo: `${APP_URL}/login`,
+        redirectTo: `${APP_URL}/#/login`,
       },
     });
 
-    const confirmLink = session?.url || `${APP_URL}/login`;
+    const confirmLink = session?.url || `${APP_URL}/#/login`;
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',

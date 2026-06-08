@@ -1,0 +1,1037 @@
+MANUAL DO SISTEMA DE GESTAO DE TALENTOS - IA RH
+Versao 1.0 - Maio 2026
+
+================================================================================
+INTRODUCAO
+================================================================================
+
+Este sistema foi desenvolvido para auxiliar o RH na gestao de candidatos
+durante todo o processo seletivo. Ele utiliza Inteligencia Artificial para
+analisar curriculos, calcular compatibilidade com vagas e fornecer feedback
+detalhado sobre cada candidato.
+
+O sistema funciona com dois ambientes principais:
+
+1. POOL DE TALENTOS - Area onde candidatos espontaneos ou adicionados
+   manualmente aguardam para serem direcionados a uma vaga.
+   
+2. BANCO DE TALENTOS - Area onde candidatos que ja passaram por analise
+   estao armazenados e podem ser reanalisados ou direcionados a novas vagas.
+
+================================================================================
+ACESSO AO SISTEMA
+================================================================================
+
+Para acessar o sistema:
+
+1. Abra o navegador e acesse o endereco do sistema.
+2. Faca login com seu usuario e senha fornecidos pelo administrador.
+3. A tela principal mostrara o menu de navegacao no canto esquerdo.
+
+================================================================================
+MENU DE NAVEGACAO
+================================================================================
+
+O sistema possui os seguintes menus principais:
+
+- Dashboard - Visão geral do sistema
+- Vagas - Gestão de vagas e Pool de Talentos
+- Candidatos - Banco de Talentos e Pipeline
+- Configuracoes - Ajustes do sistema
+
+================================================================================
+VAGAS
+================================================================================
+
+O que e:
+O modulo de Vagas e onde voce cria e gerencia as oportunidades de emprego
+da sua empresa. Cada vaga pode ser publicada no portal de carreiras para
+receber candidatos espontaneos, ou pode ser usada para analisar candidatos
+do Pool de Talentos.
+
+------------------------------------------------------------
+COMO ACESSAR O MODULO DE VAGAS
+------------------------------------------------------------
+
+1. Clique em "Vagas" no menu de navegacao do lado esquerdo.
+2. Voce vera a lista de todas as vagas criadas.
+3. Use a barra de busca para encontrar uma vaga especifica.
+4. Use os filtros para buscar por status (Aberta, Fechada, Pausada).
+
+------------------------------------------------------------
+COMO CRIAR UMA NOVA VAGA
+------------------------------------------------------------
+
+1. Acesse o menu "Vagas" no canto esquerdo.
+2. Clique no botao "Nova Vaga" no canto superior direito.
+3. O sistema abrira o formulario de criacao de vaga com 4 etapas.
+
+------------------------------------------------------------
+ETAPA 1: INFORMACOES BASICAS
+------------------------------------------------------------
+
+Nesta etapa, preencha os dados principais da vaga:
+
+a) Titulo da Vaga
+   - Digite o nome da posicao (ex: Designer UX, Analista de Marketing).
+   - Este titulo aparecera no portal de carreiras e no sistema.
+
+b) Descricao da Vaga
+   - Escreva uma descricao geral da oportunidade.
+   - Inclua informacoes sobre a empresa e o contexto da vaga.
+
+c) Clique em "Proximo" para avancar para a proxima etapa.
+
+------------------------------------------------------------
+ETAPA 2: DETALHES DA VAGA
+------------------------------------------------------------
+
+Nesta etapa, configure as condicoes de trabalho:
+
+a) Salario
+   - Ative "Possui faixa salarial" se a vaga tiver salario definido.
+   - Preencha o salario minimo e maximo em Reais.
+   - Se nao ativar, o salario nao sera exibido na vaga.
+
+b) Tipo de Contrato
+   - Selecione entre: CLT, PJ, Estagio, Apprentice, Temporario.
+
+c) Localizacao
+   - Ative "Possui localizacao" se a vaga tiver endereco especifico.
+   - Preencha cidade e bairro.
+   - Selecione o modelo de trabalho: Remoto, Hibrido, Presencial.
+
+d) Regime de Trabalho
+   - Selecione: Tempo Integral, Meio Periodo, Freelancer.
+
+e) PCD (Pessoa com Deficiencia)
+   - Selecione se a vaga e exclusiva para PCD ou nao.
+
+f) Clique em "Proximo" para avancar.
+
+------------------------------------------------------------
+ETAPA 3: CONTEUDO DA VAGA
+------------------------------------------------------------
+
+Nesta etapa, preencha os requisitos e beneficios:
+
+a) Atribuicoes (O que o candidato fara)
+   - Descreva as principais atividades da posicao.
+   - Use bullet points para facilitar a leitura.
+
+b) Requisitos (O que e obrigatorio)
+   - Liste os requisitos obrigatorios para a vaga.
+   - Inclua formacao minima, experiencia necessaria,
+     e habilidades tecnicas obrigatorias.
+
+c) Diferenciais (O que e desejavel)
+   - Liste habilidades ou experiencias que dao
+     vantagem ao candidato mas nao sao obrigatorias.
+
+d) Informacoes Adicionais
+   - Espaco para beneficios, cultura da empresa,
+     ou qualquer outra informacao relevante.
+
+e) Area / Categoria
+   - Selecione a area de atuacao da vaga
+     (ex: Design, Tecnologia, Marketing, etc).
+
+f) Status Inicial
+   - Escolha se a vaga comeca como Aberta ou Rascunho.
+   - Vagas em rascunho nao aparecem no portal ate serem publicadas.
+
+g) Clique em "Proximo" para avancar.
+
+------------------------------------------------------------
+ETAPA 4: CONFIGURACOES ADICIONAIS
+------------------------------------------------------------
+
+Nesta etapa, configure opcoes avancadas:
+
+a) Vaga para Terceiros (RPO/Agencia)
+   - Se a vaga e para uma empresa cliente (via RPO ou agencia),
+     ative "Vaga para terceiros".
+   - Preencha o nome da empresa e faca upload do logo.
+   - Escolha se o nome da empresa aparece ou nao no portal.
+
+b) Perguntas Personalizadas
+   - Adicione perguntas extras no formulario de candidatura.
+   - Tipos disponiveis: texto simples, paragrafo, multipla escolha.
+   - Marque como obrigatorio se necessario.
+
+c) Design da Vaga (Visual)
+   - Personalize as cores da pagina da vaga para combinar
+     com a identidade visual da empresa.
+
+d) Pipeline de Recrutamento
+   - Vincule esta vaga a um pipeline especifico.
+   - Isso permite gerenciar candidatos desta vaga no quadro Kanban.
+
+e) Clique em "Salvar Vaga" para finalizar a criacao.
+
+------------------------------------------------------------
+COMO EDITAR UMA VAGA EXISTENTE
+------------------------------------------------------------
+
+1. Na lista de vagas, localize a vaga desejada.
+2. Clique no botao de menu (3 pontinhos) na linha da vaga.
+3. Selecione "Editar".
+4. O formulario de edicao abrira com os dados atuais.
+5. Faca as alteracoes necessarias.
+6. Clique em "Salvar" para aplicar as mudancas.
+
+------------------------------------------------------------
+COMO EXCLUIR UMA VAGA
+------------------------------------------------------------
+
+1. Na lista de vagas, localize a vaga desejada.
+2. Clique no botao de menu (3 pontinhos) na linha da vaga.
+3. Selecione "Excluir".
+4. Confirme a exclusao na janela de confirmacao.
+
+IMPORTANTE: A exclusao de uma vaga nao remove automaticamente
+os candidatos ja inscritos. Candidatos permanecem no sistema
+e precisam ser gerenciados manualmente.
+
+------------------------------------------------------------
+STATUS DAS VAGAS
+------------------------------------------------------------
+
+Cada vaga possui um status que indica sua situacao atual:
+
+a) ABERTA (verde)
+   - A vaga esta ativa e aceitando candidatos.
+   - Aparecera no portal de carreiras.
+   - Candidatos podem se candidatar.
+
+b) FECHADA (cinza)
+   - A vaga nao esta mais ativa.
+   - Nao aparecera no portal de carreiras.
+   - Candidatos ja inscritos permanecem no sistema.
+
+c) PAUSADA (amarelo)
+   - A vaga temporariamente nao esta aceitando novos candidatos.
+   - Nao aparecera no portal de carreiras.
+   - Pode ser reaberta posteriormente.
+
+d) CANCELADA (vermelho)
+   - A vaga foi cancelada definitivamente.
+   - Nao aparecera no portal.
+   - Usada para encerrar uma vaga sem remove-la do historico.
+
+e) INVISIVEL (cinza escuro)
+   - Vaga existe no sistema mas nao aparece em lugar nenhum.
+   - Usada para vagas de rascunho ou que ainda nao devem ser visiveis.
+
+------------------------------------------------------------
+COMO VISUALIZAR CANDIDATOS DE UMA VAGA
+------------------------------------------------------------
+
+1. Na lista de vagas, clique no botao de numero na coluna
+   "Candidaturas" da vaga desejada.
+2. O sistema abrira a tela de candidatos daquela vaga especifica.
+3. Nesta tela, voce vera:
+   - Lista de todos os candidatos que se aplicaram a esta vaga.
+   - Status de cada candidato (analisando, pendente, aprovado, reprovado).
+   - Porcentagem de match de cada candidato.
+   - Data da inscricao.
+
+------------------------------------------------------------
+LINK PUBLICO DA VAGA
+------------------------------------------------------------
+
+Cada vaga possui um link unico que pode ser compartilhado:
+
+1. Na tela de edicao da vaga ou na lista de vagas, clique no icone
+   de link (corrente) na coluna "Link".
+2. O link sera copiado para sua area de transferencia.
+3. Use este link para compartilhar a vaga diretamente em
+   redes sociais, sites de emprego, ou por email.
+
+------------------------------------------------------------
+LINK PUBLICO DA VAGA
+------------------------------------------------------------
+
+Cada vaga possui um link unico que pode ser compartilhado:
+
+1. Na lista de vagas, clique no icone de link (corrente).
+2. O link sera copiado para sua area de transferencia.
+3. Use este link para compartilhar a vaga diretamente em
+   redes sociais, sites de emprego, ou por email.
+
+================================================================================
+POOL DE TALENTOS
+================================================================================
+
+O que e:
+O Pool de Talentos e uma area de espera onde candidatos ficam armazenados
+ate que sejam direcionados para uma vaga especifica. Candidatos chegam ao
+Pool de duas formas:
+
+a) Candidatura Espontanea - Quando alguém se candata atraves do site
+   carreiras ou formulario publiko.
+
+b) Adicao Manual - Quando voce adiciona um candidato diretamente
+   atraves do botao "Adicionar Candidato" no Pool.
+
+------------------------------------------------------------
+COMO ADICIONAR UM CANDIDATO MANUALMENTE AO POOL
+------------------------------------------------------------
+
+1. Acesse o menu "Vagas" no canto esquerdo.
+2. Clique em "Pool de Talentos".
+3. Clique no botao "Adicionar Candidato" (sinal de +).
+4. Selecione a opcao "Upload de Curriculo" ou "Preencher Formulario".
+
+Se escolher Upload de Curriculo:
+   - Clique em "Selecionar Arquivo" e escolha o PDF do curriculo.
+   - Clique em "Enviar" para processar o curriculo.
+   - Aguarde a extracao dos dados.
+   - Revise as informacoes extraidas na tela de revisao.
+   - Clique em "Confirmar" para salvar.
+
+Se escolher Preencher Formulario:
+   - Preencha os campos: Nome, Email, Telefone, Localizacao.
+   - Clique em "Enviar" para salvar.
+
+------------------------------------------------------------
+COMO ANALISAR UM CANDIDATO DO POOL
+------------------------------------------------------------
+
+1. No Pool de Talentos, localize o candidato desejado.
+2. Clique sobre o card do candidato para abrir os detalhes.
+3. Na tela de detalhes, voce vera o curriculo do candidato.
+4. Selecione a vaga para qual deseja analisar o candidato:
+   - Escolha a vaga no dropdown "Selecione a Vaga".
+5. Clique no botao "Analisar Candidato".
+6. O sistema processara o curriculo com Inteligencia Artificial.
+7. A analise levara alguns segundos e mostrara:
+   - Porcentagem de compatibilidade (match)
+   - Análise da Nota (feedback detalhado)
+   - Formacao (educacao e cursos)
+   - Pontos Positivos
+   - Pontos de Atencao
+8. Aps a analise, o candidato sera automaticamente movido para
+   o Banco de Talentos.
+
+------------------------------------------------------------
+DADOS EXIBIDOS NA ANALISE DO CANDIDATO
+------------------------------------------------------------
+
+O sistema exibe os seguintes campos apos a analise:
+
+a) Porcentagem de Compatibilidade (Match)
+   - Indica quanto o candidato se encaixa na vaga (0% a 100%)
+   - Verde: 70% ou mais (forte compatibilidade)
+   - Amarelo: 40% a 69% (compatibilidade media)
+   - Vermelho: abaixo de 40% (baixa compatibilidade)
+
+b) Analise da Nota
+   - Texto detalhado da Inteligencia Artificial explicando
+     a avaliação do candidato para a vaga.
+
+c) Formacao
+   - Lista de cursos, graduações e treinamentos do candidato.
+
+d) Pontos Positivos
+   - Destaques do candidato relevantes para a vaga.
+
+e) Pontos de Atencao
+   - Pontos que merecem cuidado ou verificação adicional.
+
+================================================================================
+BANCO DE TALENTOS
+================================================================================
+
+O que e:
+O Banco de Talentos e onde candidatos ja analisados ficam armazenados.
+Aps a analise no Pool, o candidato vai automaticamente para o Banco.
+No Banco, voce pode:
+
+- Visualizar todos os candidatos ja analisados
+- Ver o historico de分析 de cada candidato
+- Reanalisar um candidato para outra vaga
+- Enviar candidatos para o Pipeline de recrutamento
+
+------------------------------------------------------------
+COMO VISUALIZAR DETALHES DE UM CANDIDADO NO BANCO
+------------------------------------------------------------
+
+1. Acesse o menu "Candidatos" no canto esquerdo.
+2. Clique em "Banco de Talentos".
+3. Localize o candidato desejado na lista.
+4. Clique sobre o card do candidato para abrir os detalhes.
+
+Na tela de detalhes voce vera:
+
+a) Informacoes Basicas
+   - Nome, email, telefone, localizacao
+   - Link do LinkedIn (se disponivel)
+   - Score geral do candidato
+
+b) Analise Atual
+   - Vagas as quais o candidato foi analisado
+   - Porcentagem de match de cada analise
+   - Data da analise
+
+c) Feedback da Inteligencia Artificial
+   - Análise da Nota
+   - Formacao
+   - Pontos Positivos
+   - Pontos de Atencao
+
+d) Aba de Vagas (representada pelo icone de maleta)
+   - Lista de vagas as quais o candidato foi inscrito
+   - Status de cada inscricao
+   - Score em cada vaga
+
+------------------------------------------------------------
+COMO REANALISAR UM CANDIDADO DO BANCO DE TALENTOS
+------------------------------------------------------------
+
+A reanálise permite gerar uma nova análise do candidato para uma vaga
+diferente ou atualizar a análise existente.
+
+1. No Banco de Talentos, localize o candidato.
+2. Clique sobre o card para abrir os detalhes.
+3. Clique no botao "Reanalisar Candidato" (seta de refresh).
+4. Selecione a vaga no dropdown.
+5. Escolha se deseja criar um novo processo no Pipeline ou usar
+   um existente.
+6. Clique em "Iniciar Reanalise".
+7. Aguarde o processamento (pode levar ate 2 minutos).
+8. A nova analise sera exibida e o historico sera atualizado.
+
+IMPORTANTE: Cada reanálise cria um novo registro no historico.
+O historico mantem todas as analises anteriores para fins de consulta,
+porem a analise mais recente sera usada como principal.
+
+------------------------------------------------------------
+COMO ENVIAR UM CANDIDATO DO BANCO PARA O PIPELINE
+------------------------------------------------------------
+
+1. No Banco de Talentos, localize o candidato.
+2. Clique sobre o card para abrir os detalhes.
+3. Na aba de Vagas, clique no botao "Enviar para Pipeline"
+   ao lado da vaga desejada.
+4. Selecione o pipeline de destino na lista.
+5. Escolha a coluna inicial do candidato (ex: Triagem).
+6. Clique em "Confirmar".
+
+================================================================================
+PIPELINE DE RECRUTAMENTO
+================================================================================
+
+O que e:
+O Pipeline e um quadro visual de kanban onde voce gerencia o progresso
+dos candidatos atraves das etapas do processo seletivo.
+
+O pipeline padrao possui as seguintes colunas:
+
+- Triagem (cor roxa) - Candidatos novos recebidos
+- Entrevista (cor azul) - Candidatos em entrevista
+- Proposta (cor laranja) - Candidatos com proposta emitida
+- Aprovado (cor verde) - Candidatos aprovados
+- Reprovado (cor vermelha) - Candidatos reprovados
+
+------------------------------------------------------------
+COMO ADICIONAR UM CANDIDADO AO PIPELINE
+------------------------------------------------------------
+
+1. Acesse o menu "Candidatos" e clique em "Pipeline".
+2. Selecione o pipeline desejado no topo da tela.
+3. Clique no botao "Adicionar Candidato" (+).
+4. Na lista de candidatos elegiveis, selecione o desejado.
+5. (Opcional) Escolha uma vaga especifica e score do match.
+6. Selecione a coluna inicial (padrao: Triagem).
+7. Clique em "Adicionar".
+
+------------------------------------------------------------
+COMO MOVER UM CANDIDATO NO PIPELINE
+------------------------------------------------------------
+
+1. No quadro do Pipeline, localize o candidato.
+2. Clique e arraste o card do candidato para a coluna desejada.
+3. O sistema registrara automaticamente a movimentacao.
+
+------------------------------------------------------------
+COMO VISUALIZAR DETALHES DO CANDIDATO NO PIPELINE
+------------------------------------------------------------
+
+1. No Pipeline, clique sobre o card do candidato.
+2. Abrira um painel lateral com os detalhes completos.
+3. Neste painel voce pode:
+   - Ver todas as informacoes do candidato
+   - Ver o feedback da analise
+   - Ver o historico de分析和inscricoes
+   - Adicionar notas ao candidato
+   - Ver o status no pipeline
+
+------------------------------------------------------------
+ACOES DISPONIVEIS NO CARD DO PIPELINE
+------------------------------------------------------------
+
+Botao de menu (3 pontinhos):
+- Ver Card Completo - Abre painel lateral
+- Mover para... - Move o candidato para outra coluna
+- Ver Vaga - Abre a pagina da vaga
+- Remover do Pipeline - Remove o candidato do processo
+
+------------------------------------------------------------
+COMO REMOVER UM CANDIDADO DO PIPELINE
+------------------------------------------------------------
+
+1. Clique no botao de menu (3 pontinhos) no card do candidato.
+2. Selecione "Remover do Pipeline".
+3. Confirme a remocao.
+
+IMPORTANTE: Remover um candidato do Pipeline nao exclui seus dados
+do Banco de Talentos. O candidato continua existindo normalmente.
+
+================================================================================
+INTERPRETACAO DOS DADOS DE ANALISE
+================================================================================
+
+------------------------------------------------------------
+PORCENTAGEM DE MATCH (COMPATIBILIDADE)
+------------------------------------------------------------
+
+A porcentagem de match indica quao bem o candidato se encaixa na vaga:
+
+- 70% a 100% (VERDE): Candidato strongly qualificado. Recomenda-se
+  dar prioridade a este candidato.
+
+- 40% a 69% (AMARELO): Candidato com qualificacao media. Pode
+  ser considerado, porem exige avaliacao mais detalhada.
+
+- 0% a 39% (VERMELHO): Candidato com baixa compatibilidade.
+  Avalie com cautela antes de prosseguir.
+
+------------------------------------------------------------
+COMO A INTELIGENCIA ARTIFICIAL ANALISA O CANDIDATO
+------------------------------------------------------------
+
+A IA analisa o curriculo do candidato comparando com os requisitos
+da vaga. Ela avalia:
+
+1. Experiencia Profissional
+   - Tempo de experiencia na area
+   - Relevancia das empresas anteriores
+   - Nivel hierarquico alcancado
+
+2. Formacao e Cursos
+   - Formacao academica
+   - Cursos tecnicos e especializaciones
+   - Certificacoes relevantes
+
+3. Habilidades Tecnicas
+   - Ferramentas e tecnologias mencionadas
+   - Nivel de proficiencia indicado
+
+4. Pontos Positivos Identificados
+   - Diferenciais do candidato
+   - Experiencias relevantes especificas
+
+5. Pontos de Atencao
+   - Possiveis gaps de qualificacao
+   - Inconsistencias no curriculo
+   - Informacoes faltantes
+
+================================================================================
+TABS E ABAS DO SISTEMA
+================================================================================
+
+------------------------------------------------------------
+ABA VAGAS (no painel do candidato)
+------------------------------------------------------------
+
+Mostra todas as vagas as quais o candidato foi inscrito.
+
+Para cada vaga exibe:
+- Nome da vaga e codigo
+- Porcentagem de match
+- Data da inscricao
+- Botoes de acao: Ver, Pipeline, Reanalisar
+
+------------------------------------------------------------
+ABA FEEDBACK DA IA (no painel do candidato)
+------------------------------------------------------------
+
+Mostra o feedback detalhado da Inteligencia Artificial incluindo:
+- Análise da Nota (visao geral da compatibilidade)
+- Formacao (educacao e cursos)
+- Pontos Positivos (forcas do candidato)
+- Pontos de Atencao (pontos de cuidado)
+
+------------------------------------------------------------
+BADGE DE VAGAS APLICADAS
+------------------------------------------------------------
+
+No topo do card do candidato no Banco de Talentos, voce pode ver
+um badge colorido mostrando ate 3 vagas as quais o candidato foi
+inscrito. Cada cor representa uma vaga diferente.
+
+================================================================================
+BOTOES E ICONES DO SISTEMA
+================================================================================
+
+Icones principais:
+
+[+] Botao Adicionar - Usado para adicionar candidatos ou colunas
+[?] Botao Ajuda - Exibe informacoes de help
+[X] Botao Fechar - Usado para fechar modais e paineis
+[Setas] Botao Expandir/Recolher - Usado para expandir ou recolher secoes
+
+Botao de Menu (tres pontinhos):
+   - Abre menu de opcoes adicionales
+
+Botao de Visualizar Curriculo:
+   - Abre o PDF do curriculo para visualizacao
+
+Botao de Navegar para Vaga:
+   - Abre a pagina da vaga especificaa
+
+Botao de Pipeline:
+   - Abre o pipeline com o candidato selecionado
+
+================================================================================
+CORES DO SISTEMA
+================================================================================
+
+O sistema utiliza cores para identificar status e prioritas:
+
+- Roxo: Triagem no Pipeline
+- Azul: Entrevista no Pipeline
+- Laranja: Proposta no Pipeline
+- Verde: Aprovado no Pipeline / Match alto (70%+)
+- Amarelo: Match medio (40-69%)
+- Vermelho: Reprovado no Pipeline / Match baixo (0-39%)
+
+================================================================================
+FLUXO TIPICO DE TRABALHO
+================================================================================
+
+------------------------------------------------------------
+FLUXO 1: CANDIDATO ESPONTANEO
+------------------------------------------------------------
+
+1. Candidato se inscreve atraves do site ou formulario publiko.
+2. Candidato aparece no Pool de Talentos.
+3. RH analisa o candidato selecionando a vaga.
+4. Sistema processa a analise com IA.
+5. Candidato automaticamente vai para o Banco de Talentos.
+6. Se necessario, RH reanalisa para outra vaga.
+7. RH envia candidato para o Pipeline.
+8. Candidato e gerenciado no Pipeline ate conclusao.
+
+------------------------------------------------------------
+FLUXO 2: ADICAO MANUAL DE CANDIDATO
+------------------------------------------------------------
+
+1. RH decide adicionar um candidato manualmente.
+2. RH acessa Pool de Talentos e clica em "Adicionar".
+3. RH faz upload do curriculo ou preenche formulario.
+4. Candidato e salvo no Pool.
+5. RH analiza o candidato para a vaga desejada.
+6. Sistema processa a analise com IA.
+7. Candidato automaticamente vai para o Banco de Talentos.
+8. A partir da, fluxo normal como acima.
+
+------------------------------------------------------------
+FLUXO 3: REANALISE DE CANDIDADO
+------------------------------------------------------------
+
+1. Candidato ja existe no Banco de Talentos.
+2. Surge uma nova vaga que pode interessar ao candidato.
+3. RH clica em "Reanalisar" no painel do candidato.
+4. RH seleciona a nova vaga.
+5. Sistema processa nova analise com IA.
+6. Nova analise e adicionada ao historico.
+7. RH pode agora enviar para o Pipeline da nova vaga.
+
+================================================================================
+TELEMETRIA E HISTORICO
+================================================================================
+
+O sistema registra todas as acoes realizadas:
+
+- Quando um candidato e adicionado ao Pipeline
+- Quando um candidato e movido entre colunas
+- Quando uma analise e realizada
+- Quando uma reanálise e feita
+
+Esse historico permite auditoria e analise de metrics do processo
+de recrutamento.
+
+================================================================================
+DICAS IMPORTANTES
+================================================================================
+
+1. Sempre revise a analise da IA antes de tomar decisoes.
+   A IA辅助 mais na triagem, mas a avaliacao humana permanece essencial.
+
+2. Mantenha o Banco de Talentos atualizado.
+   Candidatos desatualizados podem gerar analises menos precisas.
+
+3. Use a funcao de reanálise quando surgirem novas vagas.
+   Um candidato pode ser excelente para uma vaga e nao para outra.
+
+4. Registre notas sobre os candidatos no sistema.
+   Isso ajuda outros membros do time que tambem avaliarem o mesmo candidato.
+
+5. Faca upload do curriculo em formato PDF.
+   Documentos em outros formatos podem nao ser processados corretamente.
+
+6. Verifique se o campo "Experiencia" esta preenchido no curriculo.
+   Curriculos sem informacoes claras de experiencia geram analises
+   com menos detalhes.
+
+================================================================================
+SUPORTE E CONTATO - GUIA DE AJUDA RAPIDA
+================================================================================
+
+Este section serve como guia de ajuda rapida para duvidas frequentes.
+Aqui esta o passo a passo detalhado de todas as funcionalidades principais.
+
+------------------------------------------------------------
+COMO CRIAR UMA NOVA VAGA
+------------------------------------------------------------
+
+PASSO 1: Acesse o sistema e clique em "Vagas" no menu lateral.
+
+PASSO 2: Clique no botao "Nova Vaga" no canto superior direito.
+
+PASSO 3: No formulario, preencha as 4 etapas:
+
+   ETAPA 1 - Informacoes Basicas:
+   - Digite o titulo da vaga (ex: Designer UX)
+   - Escreva a descricao geral da oportunidade
+   - Clique em "Proximo"
+
+   ETAPA 2 - Detalhes da Vaga:
+   - Configure o salario (minimo e maximo) se tiver
+   - Selecione o tipo de contrato (CLT, PJ, etc)
+   - Preencha a localizacao e modelo de trabalho
+   - Escolha o regime de trabalho
+   - Indique se e vaga para PCD
+   - Clique em "Proximo"
+
+   ETAPA 3 - Conteudo da Vaga:
+   - Preencha as atribuicoes (o que o candidato fara)
+   - Liste os requisitos obrigatorios
+   - Adicione os diferenciais (nao obrigatorios)
+   - Inclua informacoes adicionais se quiser
+   - Selecione a area/categoria da vaga
+   - Escolha o status inicial (Aberta ou Rascunho)
+   - Clique em "Proximo"
+
+   ETAPA 4 - Configuracoes Avancadas:
+   - Se for vaga para terceiros (RPO), ative e preencha dados da empresa
+   - Adicione perguntas personalizadas se necessario
+   - Personalize as cores da vaga se quiser
+   - Vincule a um pipeline de recrutamento se tiver
+   - Clique em "Salvar Vaga"
+
+PASSO 4: Pronto! A vaga foi criada. Se ficou como "Aberta", ela
+aparecera no portal de carreiras automaticamente.
+
+------------------------------------------------------------
+COMO ADICIONAR UM CANDIDATO MANUALMENTE AO POOL
+------------------------------------------------------------
+
+PASSO 1: Clique em "Vagas" no menu lateral.
+
+PASSO 2: Clique em "Pool de Talentos".
+
+PASSO 3: Clique no botao "Adicionar Candidato" (sinal de +).
+
+PASSO 4: Escolha entre duas opcoes:
+
+   OPCAO A - Upload de Curriculo (recomendado):
+   - Clique em "Selecionar Arquivo"
+   - Escolha o PDF do curriculo do candidato
+   - Clique em "Enviar"
+   - Aguarde o processamento (pode levar alguns segundos)
+   - Revise os dados extraidos na tela de revisao
+   - Verifique se nome, email e telefone estao corretos
+   - Clique em "Confirmar" para salvar
+
+   OPCAO B - Preencher Formulario Manualmente:
+   - Digite o nome completo do candidato
+   - Digite o email do candidato
+   - Digite o telefone do candidato
+   - Digite a localizacao (cidade)
+   - Clique em "Enviar" para salvar
+
+PASSO 5: O candidato aparecera no Pool de Talentos aguardando analise.
+
+------------------------------------------------------------
+COMO ANALISAR UM CANDIDATO DO POOL
+------------------------------------------------------------
+
+PASSO 1: No Pool de Talentos, localize o candidato na lista.
+
+PASSO 2: Clique sobre o card do candidato para abrir os detalhes.
+
+PASSO 3: Na tela de detalhes, voce vera o curriculo carregado.
+   - role ate encontrar o dropdown "Selecione a Vaga"
+   - Escolha a vaga para qual deseja analisar o candidato
+
+PASSO 4: Clique no botao "Analisar Candidato" (ou botao similar).
+
+PASSO 5: Aguarde o processamento.
+   - O sistema processara o curriculo com Inteligencia Artificial
+   - Levara entre 30 segundos e 2 minutos
+   - Uma barra de progresso pode aparecer
+
+PASSO 6: Aps o processamento, o sistema exibira:
+   - Porcentagem de Match (ex: 78% match)
+   - Analise da Nota (feedback detalhado da IA)
+   - Formacao (cursos e educacao)
+   - Pontos Positivos
+   - Pontos de Atencao
+
+PASSO 7: Automaticamente, o candidato sera movido para
+   o Banco de Talentos. Você pode encontra-lo la futuramente.
+
+------------------------------------------------------------
+COMO REANALISAR UM CANDIDADO DO BANCO DE TALENTOS
+------------------------------------------------------------
+
+PASSO 1: Acesse "Candidatos" no menu lateral.
+
+PASSO 2: Clique em "Banco de Talentos".
+
+PASSO 3: Localize o candidato desejado e clique para abrir os detalhes.
+
+PASSO 4: No painel de detalhes, clique no botao "Reanalisar"
+   (icones de setas circulares).
+
+PASSO 5: Na tela de reanálise:
+   - Selecione a nova vaga no dropdown
+   - Escolha se deseja criar um novo pipeline ou usar existente
+   - Se usar existente, selecione qual pipeline
+   - Clique em "Iniciar Reanalise"
+
+PASSO 6: Aguarde o processamento (ate 2 minutos).
+
+PASSO 7: A nova analise sera exibida.
+   - A nova analise entra no historico do candidato
+   - A analise mais recente aparece como principal
+   - Voce pode ver todas as analises anteriores expandindo o historico
+
+------------------------------------------------------------
+COMO ENVIAR CANDIDATO DO BANCO PARA O PIPELINE
+------------------------------------------------------------
+
+PASSO 1: No Banco de Talentos, localize o candidato.
+
+PASSO 2: Clique para abrir os detalhes do candidato.
+
+PASSO 3: Clique na aba "Vagas" (icones de maleta).
+
+PASSO 4: Localize a vaga desejada e clique em "Enviar para Pipeline"
+   ao lado dela.
+
+PASSO 5: Na janela que abrir:
+   - Selecione o pipeline de destino
+   - Escolha a coluna inicial (ex: Triagem)
+   - Clique em "Confirmar"
+
+PASSO 6: O candidato agora aparecera no Pipeline na coluna escolhida.
+
+------------------------------------------------------------
+COMO FUNCIONA O PIPELINE
+------------------------------------------------------------
+
+O Pipeline e um quadro visual de gestao de candidatos em etapas.
+Funciona como um quadro Kanban com colunas que representam etapas
+do processo seletivo.
+
+COLUNAS PADRAO:
+- Triagem (roxo): Candidatos novos recebidos
+- Entrevista (azul): Candidatos em entrevista
+- Proposta (laranja): Candidatos com proposta emitida
+- Aprovado (verde): Candidatos aprovados
+- Reprovado (vermelho): Candidatos reprovados
+
+PASSO 1: Acesse "Candidatos" no menu e clique em "Pipeline".
+
+PASSO 2: Selecione o pipeline desejado no topo da tela
+   (se tiver mais de um).
+
+PASSO 3: Para mover um candidato:
+   - Clique e arraste o card do candidato para outra coluna
+   - Solte na coluna desejada
+   - O sistema registra automaticamente a movimentacao
+
+PASSO 4: Para ver detalhes do candidato:
+   - Clique sobre o card do candidato
+   - Um painel lateral abrira com todas as informacoes
+
+PASSO 5: Para remover um candidato do Pipeline:
+   - Clique no botao de menu (3 pontinhos) no card
+   - Selecione "Remover do Pipeline"
+   - Confirme a remocao
+
+IMPORTANTE: Remover do Pipeline nao exclui o candidato do
+Banco de Talentos. O candidato continua existindo normalmente.
+
+------------------------------------------------------------
+COMO VISUALIZAR CANDIDATOS DE UMA VAGA ESPECIFICA
+------------------------------------------------------------
+
+PASSO 1: Acesse "Vagas" no menu lateral.
+
+PASSO 2: Na lista de vagas, veja a coluna "Candidaturas".
+
+PASSO 3: Clique no numero de candidaturas da vaga desejada
+   (ex: se aparecer "12", clique em "12").
+
+PASSO 4: O sistema abrir a tela com todos os candidatos
+   daquela vaga especifica.
+
+PASSO 5: Nesta tela voce pode:
+   - Ver o status de cada candidato
+   - Ver a porcentagem de match
+   - Ver a data de inscricao
+   - Analisar novos candidatos
+   - Ver o historico de analise
+
+------------------------------------------------------------
+COMO RESOLVER PROBLEMAS COMUNS
+------------------------------------------------------------
+
+PROBLEMA: Candidato aparece duplicado no Banco de Talentos
+SOLUCAO: Isso acontece quando ha dois registros de analise para
+a mesma vaga. O sistema agora deduplica automaticamente. Se
+persistir, entre em contato com o administrador.
+
+PROBLEMA: Curriculo nao carrega ou da erro
+SOLUCAO: Verifique se o arquivo esta em formato PDF. Outros
+formatos podem nao funcionar. Tente fazer upload novamente
+ou converter o arquivo para PDF.
+
+PROBLEMA: Analise demora muito
+SOLUCAO: O tempo normal e entre 30 segundos e 2 minutos.
+Se passar de 5 minutos, tente novamente ou entre em contato
+com o administrador.
+
+PROBLEMA: Match muito baixo ou muito alto
+SOLUCAO: A analise da IA compara o curriculo com os requisitos
+da vaga. Se o match nao refletir a realidade, revise os
+requisitos da vaga no formulario de edicao.
+
+PROBLEMA: Candidato nao aparece no Pipeline apos envio
+SOLUCAO: Verifique se o pipeline esta ativo e se a coluna
+selecionada existe. Se o problema persistir, recarregue a
+pagina e tente novamente.
+
+PROBLEMA: Nao consigo criar vaga
+SOLUCAO: Verifique se seu usuario tem permissao de gestao
+de vagas. Usuarios com perfil "convidado" podem ter acesso
+limitado. Entre em contato com o administrador.
+
+------------------------------------------------------------
+COMPARTILHAR VAGA NO SITE OU REDES SOCIAIS
+------------------------------------------------------------
+
+PASSO 1: Acesse "Vagas" no menu lateral.
+
+PASSO 2: Na lista de vagas, veja a coluna "Link".
+
+PASSO 3: Clique no icone de link (corrente) para copiar
+   o URL da vaga.
+
+PASSO 4: Cole o link em:
+   - Redes sociais (LinkedIn, Instagram, Facebook)
+   - Sites de emprego (Catho, Gupy, etc)
+   - WhatsApp ou email para candidatos
+
+O link levara diretamente para a pagina publica da vaga onde
+o candidato pode se candidatar diretamente.
+
+------------------------------------------------------------
+COMO CADASTRAR NOVO USUARIO NO SISTEMA
+------------------------------------------------------------
+
+O cadastro de novos usuarios e feito pelo administrador do
+sistema atraves do menu "Configuracoes" > "Usuarios" ou
+"Configuracoes" > "Equipe".
+
+Perfis disponiveis:
+- Administrador: Acesso completo ao sistema
+- RH Gestor: Acesso a todas as vagas e candidatos da empresa
+- RH Operador: Acesso limitado a vagas especificas
+- Convidado: Acesso apenas visualizacao (nao pode criar ou editar)
+
+------------------------------------------------------------
+GLOSSARIO DE TERMOS
+------------------------------------------------------------
+
+Pool de Talentos: Area de espera onde candidatos aguardam
+direcionamento para uma vaga.
+
+Banco de Talentos: Area onde candidatos ja analisados ficam
+armazenados para consultas futuras.
+
+Pipeline: Quadro visual de gestao do processo seletivo
+em etapas (Kanban).
+
+Match: Porcentagem de compatibilidade entre candidato e vaga,
+calculada pela Inteligencia Artificial.
+
+Reanálise: Processo de gerar nova analise de um candidato
+para uma vaga diferente ou atualizada.
+
+RLS (Row Level Security): Sistema de seguranca que controla
+acesso aos dados baseado em permissoes.
+
+Source: Origem do candidato no sistema (espontaneo, manual,
+pool, etc).
+
+------------------------------------------------------------
+DICAS DE USO DO SISTEMA
+------------------------------------------------------------
+
+1. USE O FILTRO DE STATUS
+   Quando tiver muitas vagas ou candidatos, use os filtros
+   para encontrar rapidamente o que precisa. Filtros por
+   status (Aberta, Fechada) economizam tempo.
+
+2. MANTENHA O BANCO ATUALIZADO
+   Candidatos muito antigos podem ter informacoes defasadas.
+   Revise periodicamente e arquive ou remova candidatos
+   que nao sao mais relevantes.
+
+3. REGISTRE NOTAS
+   Use o campo de notas para registrar informacoes importantes
+   sobre candidatos. Isso ajuda quando outros membros do
+   time precisarem continuar a avaliacao.
+
+4. USE A REANALISE QUANDO PRECISO
+   Um candidato pode ser otimo para uma vaga e nao ser para
+   outra. Use a reanálise para atualizar a analise quando
+   surgirem novas oportunidades.
+
+5. REVISE O FEEDBACK DA IA
+   A Inteligencia Artificial辅助 na triagem, mas a decis final
+   sempre deve ser humana. Use o feedback como referencia,
+   nao como veredicto definitivo.
+
+6. MANTENHA REQUISITOS CLAROS
+   Vagas com requisitos vagos geram analises menos precisas.
+   Seja especifico nos requisitos para melhorar a qualidade
+   das analises.
+
+================================================================================
+SUPORTE E CONTATO
+================================================================================
+
+Em caso de duvidas ou problemas tecnicos, entre em contato com:
+- Equipe de TI: [inserir contato]
+- Administrador do Sistema: [inserir contato]
+
+================================================================================
+FIM DO MANUAL
+================================================================================

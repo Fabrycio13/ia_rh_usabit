@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { User, Building2, Phone, Mail, Briefcase, Camera, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
@@ -504,7 +505,6 @@ export const Configuracoes = () => {
 
         try {
             // CRIAR UM CLIENTE TEMPORÁRIO QUE NÃO PERSISTE SESSÃO
-            const { createClient } = await import('@supabase/supabase-js');
             const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
             const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
             
@@ -627,6 +627,24 @@ export const Configuracoes = () => {
         } else {
             showToast('success', `Organização ${newStatus === 'active' ? 'ativada' : 'desativada'} com sucesso!`);
             loadUsers();
+        }
+    };
+
+    const handleResendInvite = async (user: AdminUser) => {
+        try {
+            await supabase.functions.invoke('send-invite-email', {
+                body: {
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name || user.email,
+                    role: user.user_role,
+                    createdBy: profile.userName || 'Administrador',
+                },
+            });
+            showToast('success', `Convite reenviado para ${user.name || user.email}`);
+        } catch (e) {
+            console.warn('[Configuracoes] Erro ao reenviar convite:', e);
+            showToast('error', 'Erro ao reenviar convite. Verifique o console.');
         }
     };
 
@@ -1319,34 +1337,109 @@ export const Configuracoes = () => {
                                             // Se for Owner, mostramos Organizações agrupadas
                                             if (profile.user_role === 'owner') {
                                                 const orgsMap = new Map();
+                                                const pendingUsers: AdminUser[] = [];
                                                 
                                                 allUsers.forEach(u => {
-                                                    // Ignorar o próprio Owner da lista de organizações cliente
                                                     if (u.user_role === 'owner') return;
 
-                                                    const orgId = u.organization_id || 'sem-org';
-                                                    if (!orgsMap.has(orgId)) {
-                                                        orgsMap.set(orgId, {
-                                                            id: orgId,
-                                                            name: u.organization_name || 'Empresa s/ Nome',
-                                                            gestor: null,
-                                                            members: [],
-                                                            status: u.status
-                                                        });
-                                                    }
-                                                    
-                                                    const org = orgsMap.get(orgId);
-                                                    org.members.push(u);
-                                                    // Define o gestor como o contato principal
-                                                    if (u.user_role === 'gestor') {
-                                                        org.gestor = u;
-                                                        org.name = u.organization_name || org.name;
+                                                    if (u.organization_id) {
+                                                        const orgId = u.organization_id;
+                                                        if (!orgsMap.has(orgId)) {
+                                                            orgsMap.set(orgId, {
+                                                                id: orgId,
+                                                                name: u.organization_name || 'Empresa s/ Nome',
+                                                                gestor: null,
+                                                                members: [],
+                                                                status: u.status
+                                                            });
+                                                        }
+                                                        
+                                                        const org = orgsMap.get(orgId);
+                                                        org.members.push(u);
+                                                        if (u.user_role === 'gestor') {
+                                                            org.gestor = u;
+                                                            org.name = u.organization_name || org.name;
+                                                        }
+                                                    } else {
+                                                        pendingUsers.push(u);
                                                     }
                                                 });
 
                                                 const displayOrgs = Array.from(orgsMap.values());
 
-                                                return displayOrgs.map(org => {
+                                                const pendingRows = pendingUsers.map(u => {
+                                                    const userRole = roleDefinitions.find(r => r.key === u.user_role) || roleDefinitions[1];
+                                                    return (
+                                                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border)', opacity: 0.85 }}>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                    <div style={{
+                                                                        width: '36px', height: '36px', borderRadius: '8px',
+                                                                        background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                        fontSize: '12px', fontWeight: 700
+                                                                    }}>
+                                                                        <AlertCircle size={18} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
+                                                                            {u.name || 'Sem nome'}
+                                                                        </p>
+                                                                        <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>
+                                                                            {u.email}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <span style={{
+                                                                    padding: '4px 10px', borderRadius: '20px',
+                                                                    background: `${userRole.color}15`, color: userRole.color,
+                                                                    fontSize: '11px', fontWeight: 600, border: `1px solid ${userRole.color}30`
+                                                                }}>
+                                                                    {userRole.label}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <span style={{ color: 'var(--text-dim)', fontSize: '12px' }}>-</span>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+                                                                    <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 600 }}>Setup Pendente</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                                    <button 
+                                                                        onClick={() => handleResendInvite(u)}
+                                                                        style={{ 
+                                                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                                                            padding: '8px 16px', borderRadius: '8px',
+                                                                            border: '1px solid var(--border)', background: 'transparent',
+                                                                            color: 'var(--primary)', cursor: 'pointer', fontSize: '11px',
+                                                                            fontWeight: 600, transition: 'all 0.2s'
+                                                                        }}
+                                                                        title="Reenviar convite por email"
+                                                                    >
+                                                                        <Mail size={14} />
+                                                                        REENVIAR
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
+
+                                                const separator = pendingUsers.length > 0 && displayOrgs.length > 0 ? (
+                                                    <tr key="__sep__">
+                                                        <td colSpan={5} style={{ padding: '12px 16px 6px', color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>
+                                                            Organizações Ativas
+                                                        </td>
+                                                    </tr>
+                                                ) : null;
+
+                                                const orgRows = displayOrgs.map(org => {
                                                     const gestor = org.gestor || org.members[0];
 
                                                     return (
@@ -1419,6 +1512,8 @@ export const Configuracoes = () => {
                                                         </tr>
                                                     );
                                                 });
+
+                                                return [...pendingRows, separator, ...orgRows].filter(Boolean);
                                             }
 
                                             // Comportamento normal para Gestores (ver equipe)
