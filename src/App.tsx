@@ -118,12 +118,12 @@ export const App = () => {
 
     useEffect(() => {
         const hash = window.location.hash;
-        const isSignupFlow = hash.includes('type=signup');
+        const isSetPasswordFlow = hash.includes('type=signup') || hash.includes('type=invite');
 
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
-            if (isSignupFlow && session) {
+            if (isSetPasswordFlow && session) {
                 window.location.hash = '#/set-password';
             }
         });
