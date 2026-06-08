@@ -252,7 +252,7 @@ export const Configuracoes = () => {
     // Perfis state
     const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', user_role: 'rh', organization_name: '' });
     const [creatingUser, setCreatingUser] = useState(false);
     const [vagaModalUserId, setVagaModalUserId] = useState<string | null>(null);
     const [vagasList, setVagasList] = useState<Array<{ id: string; title: string; job_code?: string | null }>>([]);
@@ -462,12 +462,8 @@ export const Configuracoes = () => {
 
     // Criar novo usuário (somente admin/gestor) - Hierarquia Multi Talent
     const handleCreateUser = async () => {
-        if (!newUser.name || !newUser.email || !newUser.password) {
+        if (!newUser.name || !newUser.email) {
             showToast('error', 'Preencha todos os campos.');
-            return;
-        }
-        if (newUser.password.length < 6) {
-            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
             return;
         }
 
@@ -512,10 +508,10 @@ export const Configuracoes = () => {
                 auth: { persistSession: false, autoRefreshToken: false }
             });
 
-            // Enviar metadados completos para o Trigger handle_new_user()
+            const randomPassword = crypto.randomUUID() + 'Aa1!';
             const { data: authData, error: authError } = await tempClient.auth.signUp({
                 email: newUser.email,
-                password: newUser.password,
+                password: randomPassword,
                 options: { 
                     data: { 
                         full_name: newUser.name,
@@ -572,7 +568,7 @@ export const Configuracoes = () => {
                 }
 
                 logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
-                setNewUser({ name: '', email: '', password: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
+                setNewUser({ name: '', email: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
                 setShowCreateModal(false);
                 loadUsers();
             }
@@ -1287,7 +1283,6 @@ export const Configuracoes = () => {
                                         setNewUser({
                                             name: '',
                                             email: '',
-                                            password: '',
                                             user_role: profile.user_role === 'owner' ? 'gestor' : 'rh',
                                             organization_name: ''
                                         });
@@ -1709,22 +1704,6 @@ export const Configuracoes = () => {
                                         placeholder="email@empresa.com"
                                         value={newUser.email}
                                         onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Senha */}
-                            <div>
-                                <label style={labelStyle}>Senha temporária</label>
-                                <div style={fieldWrapStyle}>
-                                    <Lock style={iconFieldStyle} />
-                                    <input
-                                        className="field-input"
-                                        type="password"
-                                        style={inputStyle}
-                                        placeholder="Senha inicial (min. 6 caracteres)"
-                                        value={newUser.password}
-                                        onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))}
                                     />
                                 </div>
                             </div>
