@@ -41,7 +41,7 @@ serve(async (req) => {
       );
     }
 
-    const { data: { session } } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
       options: {
@@ -49,7 +49,15 @@ serve(async (req) => {
       },
     });
 
-    const confirmLink = session?.url || APP_URL;
+    if (linkError || !linkData?.properties?.url) {
+      console.error('[send-invite-email] Erro ao gerar link:', linkError || 'URL vazia');
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate link', details: linkError }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const confirmLink = linkData.properties.url;
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
