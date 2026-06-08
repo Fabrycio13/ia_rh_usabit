@@ -564,8 +564,10 @@ export const Configuracoes = () => {
                     if (fnError) throw fnError;
                     showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
                 } catch (e) {
-                    console.warn('[Configuracoes] Erro ao enviar email (ignorado):', e);
-                    showToast('info', `Usuário ${newUser.name} criado! Mas o email de convite pode não ter sido enviado. Reenvie manualmente na lista de pendentes.`);
+                    const err = e as Error;
+                    console.warn('[Configuracoes] Erro ao enviar email:', err.message);
+                    console.warn('[Configuracoes] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+                    showToast('info', `Usuário criado! Mas email falhou. Detalhe: ${err.message}`);
                 }
 
                 logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
