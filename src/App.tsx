@@ -126,6 +126,9 @@ export const App = () => {
             if (isSetPasswordFlow && session) {
                 window.location.hash = '#/set-password';
             }
+        }).catch(() => {
+            setSession(null);
+            setLoading(false);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
