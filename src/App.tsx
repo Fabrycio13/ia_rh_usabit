@@ -20,6 +20,7 @@ import { AdminLogs } from './pages/dashboard/AdminLogs';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
+import { SetPassword } from './pages/auth/SetPassword';
 // import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 // import { TrialExpired } from './pages/auth/TrialExpired';
 
@@ -59,7 +60,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
     return (
         <HashRouter>
             {/* Onboarding Modal - Só abre se não estiver completo no banco E não houver trava local */}
-            {session && <OnboardingModal />}
+            {session && !window.location.hash.includes('/set-password') && <OnboardingModal />}
             <Toaster
                 position="bottom-right"
                 toastOptions={{
@@ -104,6 +105,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
                     )}
                 </Route>
 
+                <Route path="/set-password" element={<SetPassword />} />
                 <Route path="*" element={<Navigate to="/" />} />
             </Routes>
         </HashRouter>

@@ -45,11 +45,11 @@ serve(async (req) => {
       type: 'signup',
       email,
       options: {
-        redirectTo: `${APP_URL}/#/login`,
+        redirectTo: `${APP_URL}/#/set-password`,
       },
     });
 
-    const confirmLink = session?.url || `${APP_URL}/#/login`;
+    const confirmLink = session?.url || `${APP_URL}/#/set-password`;
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
@@ -98,14 +98,8 @@ serve(async (req) => {
 
                 <div style="text-align: center; margin: 32px 0;">
                     <a href="${confirmLink}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 12px; background: #2C58FD;">
-                        Ativar Minha Conta
+                        Definir Minha Senha
                     </a>
-                </div>
-
-                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 16px; margin: 28px 0;">
-                    <p style="margin: 0; font-size: 13px; color: #fbbf24; line-height: 1.5;">
-                        Este link expira em <strong>3 dias</strong>. Após esse prazo, sua conta será desativada automaticamente.
-                    </p>
                 </div>
 
                 <p style="margin: 0; font-size: 14px; color: #64748b;">
