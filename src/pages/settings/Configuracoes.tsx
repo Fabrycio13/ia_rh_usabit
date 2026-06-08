@@ -565,10 +565,13 @@ export const Configuracoes = () => {
                     if (fnError) throw fnError;
                     showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
                 } catch (e) {
-                    const err = e as Error;
-                    console.warn('[Configuracoes] Erro ao enviar email:', err.message);
-                    console.warn('[Configuracoes] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                    showToast('info', `Usuário criado! Mas email falhou. Detalhe: ${err.message}`);
+                    let detail = (e as Error).message;
+                    const ctx = (e as { context?: Response })?.context;
+                    if (ctx?.text) {
+                        try { detail = await ctx.text() || detail; } catch { /* ctx.text failed */ }
+                    }
+                    console.warn('[Configuracoes] Erro ao enviar email:', detail);
+                    showToast('info', `Email falhou: ${detail.substring(0, 300)}`);
                 }
 
                 logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
