@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { createClient } from '@supabase/supabase-js';
 import { User, Building2, Phone, Mail, Briefcase, Camera, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
@@ -500,81 +499,60 @@ export const Configuracoes = () => {
         }
 
         try {
-            // CRIAR UM CLIENTE TEMPORÁRIO QUE NÃO PERSISTE SESSÃO
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-            
-            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-                auth: { persistSession: false, autoRefreshToken: false }
-            });
-
-            const randomPassword = crypto.randomUUID() + 'Aa1!';
-            const { data: authData, error: authError } = await tempClient.auth.signUp({
-                email: newUser.email,
-                password: randomPassword,
-                options: { 
-                    data: { 
-                        full_name: newUser.name,
-                        user_role: newUser.user_role,
-                        organization_id: organizationId,
-                        organization_name: organizationName
-                    } 
+            // Criar usuário + enviar convite via Edge Function (GoTrue admin API)
+            const { data: fnData, error: fnError } = await supabase.functions.invoke('send-invite-email', {
+                body: {
+                    email: newUser.email,
+                    name: newUser.name,
+                    role: newUser.user_role,
                 },
             });
 
-            if (authError) {
-                showToast('error', `Erro ao criar usuário: ${authError.message}`);
+            if (fnError) {
+                let detail = fnError.message;
+                const ctx = (fnError as { context?: Response })?.context;
+                if (ctx?.text) {
+                    try { detail = (await ctx.text()) || detail; } catch { /* ignore */ }
+                }
+                showToast('error', `Erro ao criar convite: ${detail.substring(0, 300)}`);
                 setCreatingUser(false);
                 return;
             }
 
-            if (authData.user) {
-
-                // USAR UPSERT: Evita erro se o Trigger do banco for mais rápido que o frontend
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: authData.user.id,
-                        email: newUser.email,
-                        name: newUser.name,
-                        user_role: newUser.user_role as string,
-                        status: 'active',
-                        account_type: 'active',
-                        organization_id: organizationId,
-                        organization_name: organizationName,
-                        onboarding_completed: false,
-                    }, { onConflict: 'id' });
-
-                if (profileError) {
-                    showToast('error', `Conta criada mas erro ao salvar perfil: ${profileError.message}`);
-                    return;
-                }
-
-                // Enviar email de convite via Edge Function
-                try {
-                    const { error: fnError } = await supabase.functions.invoke('send-invite-email', {
-                        body: {
-                            userId: authData.user.id,
-                            email: newUser.email,
-                            name: newUser.name,
-                            role: newUser.user_role,
-                            createdBy: profile.userName || 'Administrador',
-                        },
-                    });
-                    if (fnError) throw fnError;
-                    showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
-                } catch (e) {
-                    const err = e as Error;
-                    console.warn('[Configuracoes] Erro ao enviar email:', err.message);
-                    console.warn('[Configuracoes] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-                    showToast('info', `Usuário criado! Mas email falhou. Detalhe: ${err.message}`);
-                }
-
-                logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
-                setNewUser({ name: '', email: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
-                setShowCreateModal(false);
-                loadUsers();
+            const userId = fnData?.userId;
+            if (!userId) {
+                showToast('error', `Erro: userId não retornado. Resposta: ${JSON.stringify(fnData).substring(0, 2000)}`);
+                setCreatingUser(false);
+                return;
             }
+
+            // Salvar perfil no banco
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: userId,
+                    email: newUser.email,
+                    name: newUser.name,
+                    user_role: newUser.user_role as string,
+                    status: 'active',
+                    account_type: 'active',
+                    organization_id: organizationId,
+                    organization_name: organizationName,
+                    onboarding_completed: false,
+                }, { onConflict: 'id' });
+
+            if (profileError) {
+                showToast('error', `Usuário criado mas erro ao salvar perfil: ${profileError.message}`);
+                setCreatingUser(false);
+                return;
+            }
+
+            showToast('success', `Convite enviado para ${newUser.name}!`);
+            logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
+            setNewUser({ name: '', email: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
+            setShowCreateModal(false);
+            loadUsers();
+
         } catch (err: unknown) {
             console.error('[Configuracoes] Erro fatal:', err);
             showToast('error', `Ocorreu um erro inesperado: ${(err as Error).message}`);
