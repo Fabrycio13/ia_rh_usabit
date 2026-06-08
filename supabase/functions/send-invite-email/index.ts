@@ -5,6 +5,8 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const APP_URL = Deno.env.get('APP_URL') || 'https://usabit.github.io/rh-ia-v2';
 
+const LOGO_BASE64 = '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';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,13 +36,11 @@ serve(async (req) => {
     if (!SUPABASE_URL) return new Response(JSON.stringify({ error: 'SUPABASE_URL not set' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     if (!SUPABASE_SERVICE_ROLE_KEY) return new Response(JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY not set' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
+    const candidateFirstName = name.split(' ')[0];
     const redirectTo = APP_URL;
     const headers = gotrueHeaders();
 
-    // Step 1: Don't create user — let generateLink do it via invite
-    // invite creates user auto-confirmed + returns action_link at root level
-
-    // Step 2: Generate invite link
+    // Generate invite link via GoTrue admin API
     const linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
       method: 'POST',
       headers,
@@ -62,36 +62,78 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'No userId' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Step 3: Send email via Resend
+    // Send email via Resend
     if (RESEND_API_KEY) {
       const html = `
-        <div style="background:#0f111a;padding:40px 20px;font-family:'Segoe UI',system-ui,sans-serif">
-          <div style="max-width:480px;margin:0 auto;background:#1a1d27;border-radius:16px;overflow:hidden;border:1px solid rgba(59,130,246,0.15)">
-            <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);padding:32px;text-align:center">
-              <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700">RH - Usabit</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.8);font-size:14px">Plataforma de Talentos</p>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convite de Acesso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 0; background-color: #04070c; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+    <div style="background-color: #04070c; background-image: radial-gradient(circle at top right, #1a3597 0%, #04070c 100%); padding: 32px 16px; text-align: center; min-height: 100%;">
+        <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #0b111a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 40px 24px; text-align: left; box-sizing: border-box;">
+
+            <div style="text-align: center; margin-bottom: 32px;">
+                <img src="cid:logo" alt="Usabit Global" style="height: 32px; width: auto; display: block; margin: 0 auto;" />
             </div>
-            <div style="padding:32px">
-              <h2 style="margin:0 0 8px;color:#fff;font-size:20px">Olá, ${name}!</h2>
-              <p style="margin:0 0 24px;color:#94a3b8;font-size:14px;line-height:1.6">
-                Você foi convidado para fazer parte da plataforma de RH da Usabit.
-                Clique no botão abaixo para criar sua senha e acessar o sistema.
-              </p>
-              <div style="text-align:center;margin:0 0 24px">
-                <a href="${actionLink}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:600">ACEITAR CONVITE</a>
-              </div>
-              <p style="margin:0 0 8px;color:#64748b;font-size:13px">Ou se preferir, faça login com Google/GitHub após criar sua conta.</p>
-              <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:24px 0" />
-              <p style="margin:0;color:#64748b;font-size:12px">Se você não esperava este convite, ignore este email.</p>
+
+            <div style="background: linear-gradient(135deg, rgba(44, 88, 253, 0.15) 0%, transparent 100%); border-radius: 20px; padding: 2px; margin-bottom: 32px;">
+                <div style="background: #0b111a; border-radius: 18px; padding: 32px;">
+                    <h2 style="color: #2C58FD; font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.02em;">Olá, ${candidateFirstName}!</h2>
+                    <p style="font-size: 17px; line-height: 1.6; color: #ffffff; margin: 0; font-weight: 500;">
+                        Você foi convidado para a plataforma de RH da Usabit.
+                    </p>
+                </div>
             </div>
-          </div>
+
+            <div style="color: #94a3b8; font-size: 16px; line-height: 1.7; margin-bottom: 40px;">
+                <p style="margin: 0 0 20px;">
+                    Clique no botão abaixo para criar sua senha e acessar o sistema.
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${actionLink}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #2C58FD, #1a3fa0); color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.02em;">ACEITAR CONVITE</a>
+                </div>
+            </div>
+
+            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
+                <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
+                    Equipe de Talentos<br/>
+                    <span style="color: #2C58FD;">Usabit</span>
+                </p>
+            </div>
         </div>
+
+        <div style="text-align: center; margin-top: 8px; color: #5C636D; font-size: 12px;">
+            <p style="margin: 0 0 4px;">&copy; 2026 Usabit. Todos os direitos reservados.</p>
+            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Space Talent</strong></p>
+        </div>
+    </div>
+</body>
+</html>
       `;
+
       const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-        body: JSON.stringify({ from: 'Equipe de Talentos Usabit <noreply@space.pro.br>', to: [email], subject: `Convite de Acesso - ${name}`, html }),
+        body: JSON.stringify({
+          from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
+          to: [email],
+          subject: `Convite de Acesso - ${name}`,
+          html,
+          attachments: [{
+            filename: 'usabit-logo-email.png',
+            content: LOGO_BASE64,
+            type: 'image/png',
+            content_id: 'logo',
+          }],
+        }),
       });
+
       if (!emailRes.ok) {
         const err = await emailRes.json();
         return new Response(JSON.stringify({ error: 'Resend error', details: err, userId, link: actionLink }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
