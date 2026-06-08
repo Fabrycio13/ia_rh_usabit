@@ -117,9 +117,15 @@ export const App = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const hash = window.location.hash;
+        const isSignupFlow = hash.includes('type=signup');
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
+            if (isSignupFlow && session) {
+                window.location.hash = '#/set-password';
+            }
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
