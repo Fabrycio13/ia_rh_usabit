@@ -247,11 +247,7 @@ export const Dashboard = () => {
         .select('id, title, created_at, organization_id');
       
       if (profile.organization_id && profile.organization_id !== 'null') {
-        if (profile.user_role === 'rh') {
-          query = query.eq('user_id', profile.userId);
-        } else {
-          query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
-        }
+        query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${profile.userId}`);
       } else {
         query = query.eq('user_id', profile.userId);
       }
