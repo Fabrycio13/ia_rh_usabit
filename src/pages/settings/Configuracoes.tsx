@@ -521,7 +521,7 @@ export const Configuracoes = () => {
 
             const userId = fnData?.userId;
             if (!userId) {
-                showToast('error', `Erro: userId não retornado. Resposta: ${JSON.stringify(fnData).substring(0, 500)}`);
+                showToast('error', `Erro: userId não retornado. Resposta: ${JSON.stringify(fnData).substring(0, 2000)}`);
                 setCreatingUser(false);
                 return;
             }
