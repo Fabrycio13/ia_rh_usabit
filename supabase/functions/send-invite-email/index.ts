@@ -24,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, email, name, role, createdBy, password } = await req.json();
+    const { userId, email, name, role, createdBy } = await req.json();
 
     if (!userId || !email || !name || !role) {
       return new Response(
@@ -41,32 +41,32 @@ serve(async (req) => {
       );
     }
 
-    if (!password) {
-      console.error('[send-invite-email] password ausente');
-      return new Response(
-        JSON.stringify({ error: 'Missing password field' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
+      type: 'invite',
       email,
-      password,
       options: {
         redirectTo: APP_URL,
       },
     });
 
-    if (linkError || !linkData?.properties?.action_link) {
-      console.error('[send-invite-email] Erro ao gerar link:', linkError || 'action_link vazia');
+    if (linkError) {
+      console.error('[send-invite-email] Erro generateLink:', linkError);
       return new Response(
-        JSON.stringify({ error: 'Failed to generate link', details: linkError }),
+        JSON.stringify({ error: 'generateLink', message: linkError.message, status: linkError.status }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const confirmLink = linkData.properties.action_link;
+    const actionUrl = linkData?.properties?.action_link || linkData?.properties?.url;
+    if (!actionUrl) {
+      console.error('[send-invite-email] linkData sem action_link nem url:', JSON.stringify(linkData));
+      return new Response(
+        JSON.stringify({ error: 'No link in response', data: linkData }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const confirmLink = actionUrl;
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',

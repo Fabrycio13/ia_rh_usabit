@@ -559,7 +559,6 @@ export const Configuracoes = () => {
                             name: newUser.name,
                             role: newUser.user_role,
                             createdBy: profile.userName || 'Administrador',
-                            password: randomPassword,
                         },
                     });
                     if (fnError) throw fnError;
