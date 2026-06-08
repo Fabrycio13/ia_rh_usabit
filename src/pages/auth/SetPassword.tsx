@@ -23,13 +23,15 @@ export const SetPassword = () => {
 
     useEffect(() => {
         loadFont();
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+            if (error || !session) {
                 toast.error('Link inválido ou expirado. Solicite um novo convite.');
                 navigate('/login', { replace: true });
                 return;
             }
             setLoading(false);
+        }).catch(() => {
+            navigate('/login', { replace: true });
         });
     }, [navigate]);
 
@@ -56,7 +58,7 @@ export const SetPassword = () => {
         }
 
         toast.success('Senha definida com sucesso!');
-        await supabase.auth.signOut();
+        supabase.auth.signOut().catch(() => {});
         navigate('/login', { replace: true });
     };
 
