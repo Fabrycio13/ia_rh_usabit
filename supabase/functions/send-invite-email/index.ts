@@ -10,6 +10,7 @@ const LOGO_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAHEAAAAgCAYAAAAlrJeCAAAACXBIWXMAAAs
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
 function gotrueHeaders() {
@@ -41,12 +42,22 @@ serve(async (req) => {
     const headers = gotrueHeaders();
 
     // Generate invite link via GoTrue admin API
-    const linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
+    let linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
       method: 'POST',
       headers,
       body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role }, redirect_to: redirectTo }),
     });
-    const linkJson = await linkRes.json();
+    let linkJson = await linkRes.json();
+
+    // If user already exists, fall back to recovery link
+    if (!linkRes.ok && linkJson?.error_code === 'email_exists') {
+      linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type: 'recovery', email, redirect_to: redirectTo }),
+      });
+      linkJson = await linkRes.json();
+    }
 
     if (!linkRes.ok) {
       return new Response(JSON.stringify({ error: 'Generate link error', code: linkJson?.error_code || linkRes.status, body: linkJson }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
