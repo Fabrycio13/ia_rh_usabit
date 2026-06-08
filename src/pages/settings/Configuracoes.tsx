@@ -552,7 +552,7 @@ export const Configuracoes = () => {
 
                 // Enviar email de convite via Edge Function
                 try {
-                    await supabase.functions.invoke('send-invite-email', {
+                    const { error: fnError } = await supabase.functions.invoke('send-invite-email', {
                         body: {
                             userId: authData.user.id,
                             email: newUser.email,
@@ -561,10 +561,11 @@ export const Configuracoes = () => {
                             createdBy: profile.userName || 'Administrador',
                         },
                     });
+                    if (fnError) throw fnError;
                     showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
                 } catch (e) {
                     console.warn('[Configuracoes] Erro ao enviar email (ignorado):', e);
-                    showToast('success', `Usuário ${newUser.name} criado!`);
+                    showToast('info', `Usuário ${newUser.name} criado! Mas o email de convite pode não ter sido enviado. Reenvie manualmente na lista de pendentes.`);
                 }
 
                 logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
