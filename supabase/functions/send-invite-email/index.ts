@@ -37,12 +37,12 @@ serve(async (req) => {
     const redirectTo = APP_URL + '/#/set-password';
     const headers = gotrueHeaders();
 
-    // Step 1: Create user with random password + auto-confirm
+    // Step 1: Create user WITHOUT confirming (so signup link can be generated)
     const randomPassword = crypto.randomUUID() + 'Aa1!';
     const createRes = await fetch(baseUrl() + '/auth/v1/admin/users', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ email, password: randomPassword, email_confirm: true, user_metadata: { full_name: name, user_role: role } }),
+      body: JSON.stringify({ email, password: randomPassword, email_confirm: false, user_metadata: { full_name: name, user_role: role } }),
     });
     const createJson = await createRes.json();
 
@@ -50,11 +50,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Create user error', code: createJson?.error_code || createRes.status, body: createJson }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Step 2: Generate recovery link (action_link is at ROOT level, not properties)
+    // Step 2: Generate magiclink for the user (logs them in, no password needed)
     const linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ type: 'recovery', email, redirect_to: redirectTo }),
+      body: JSON.stringify({ type: 'magiclink', email, redirect_to: redirectTo }),
     });
     const linkJson = await linkRes.json();
 
