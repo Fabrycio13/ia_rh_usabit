@@ -24,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, email, name, role, createdBy } = await req.json();
+    const { userId, email, name, role, createdBy, password } = await req.json();
 
     if (!userId || !email || !name || !role) {
       return new Response(
@@ -41,23 +41,32 @@ serve(async (req) => {
       );
     }
 
+    if (!password) {
+      console.error('[send-invite-email] password ausente');
+      return new Response(
+        JSON.stringify({ error: 'Missing password field' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
+      password,
       options: {
         redirectTo: APP_URL,
       },
     });
 
-    if (linkError || !linkData?.properties?.url) {
-      console.error('[send-invite-email] Erro ao gerar link:', linkError || 'URL vazia');
+    if (linkError || !linkData?.properties?.action_link) {
+      console.error('[send-invite-email] Erro ao gerar link:', linkError || 'action_link vazia');
       return new Response(
         JSON.stringify({ error: 'Failed to generate link', details: linkError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const confirmLink = linkData.properties.url;
+    const confirmLink = linkData.properties.action_link;
 
     const roleLabels: Record<string, string> = {
       admin: 'Administrador',
