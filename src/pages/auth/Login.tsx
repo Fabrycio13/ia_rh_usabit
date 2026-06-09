@@ -52,18 +52,10 @@ export const Login = () => {
         <>
             <SpatialBackground />
             <div className="flex flex-col lg:flex-row h-screen overflow-hidden font-['Inter',system-ui,sans-serif] relative">
-            {/* Botão voltar */}
-            <button
-                onClick={() => navigate('/')}
-                className="hidden lg:block absolute top-5 left-6 z-50 flex items-center gap-1.5 bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.12)] rounded-[10px] text-[rgba(255,255,255,0.7)] text-[13px] font-medium font-['Inter',system-ui,sans-serif] px-3.5 py-1.5 cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.13)] hover:text-white"
-            >
-                ← Voltar
-            </button>
-
             {/* PAINEL ESQUERDO */}
             <div className="hidden lg:flex flex-1 flex-col items-center justify-center bg-[#0B1020] relative overflow-hidden min-w-0">
                 <div className="relative z-1 text-center max-w-[850px] w-full px-12 flex flex-col items-center mt-[-100px]">
-                    <div className="relative top-[50px] w-full z-2">
+                    <div className="relative top-[95px] w-full z-2">
                         <h2 className="text-white text-[36px] font-extrabold leading-[1.1] mb-2 mt-0 w-full">
                             Analise currículos com{' '}
                             <br />
@@ -177,6 +169,15 @@ export const Login = () => {
                             className="w-full py-[13px] bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none rounded-lg text-[15px] font-semibold cursor-pointer font-['Inter',system-ui,sans-serif] tracking-wide transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             {loading ? 'Entrando...' : 'ENTRAR'}
+                        </button>
+
+                        {/* Voltar */}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/')}
+                            className="mt-4 text-center text-[13px] text-[#64748b] bg-transparent border-none cursor-pointer transition-colors hover:text-blue-500 font-['Inter',system-ui,sans-serif] flex items-center justify-center gap-1 mx-auto outline-none"
+                        >
+                            ← Voltar para a página inicial
                         </button>
                     </form>
                 </div>
