@@ -29,7 +29,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { email, name, role } = await req.json();
+    const { email, name, role, organizationId, organizationName } = await req.json();
 
     if (!email || !name || !role) {
       return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -45,7 +45,7 @@ serve(async (req) => {
     let linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role }, redirect_to: redirectTo }),
+      body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role, organization_id: organizationId, organization_name: organizationName }, redirect_to: redirectTo }),
     });
     let linkJson = await linkRes.json();
 
