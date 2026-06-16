@@ -75,7 +75,7 @@ export const OrganizationCareerPage = () => {
       document.title = `Oportunidades | ${orgInfo.name}`;
     }
     return () => {
-      document.title = 'Space Talent';
+      document.title = 'Usabit people';
     };
   }, [orgInfo]);
 

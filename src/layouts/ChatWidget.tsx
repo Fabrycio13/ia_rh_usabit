@@ -1,11 +1,51 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, Loader2 } from 'lucide-react';
-import OpenAI from 'openai';
 import ReactMarkdown from 'react-markdown';
 import { AI_SYSTEM_PROMPT } from '../core/config/aiPrompt';
 import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
 import { type OpenAIMessage } from '../core/services/ai/types';
+import { supabase } from '../core/services/supabase';
+
+const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
+const CHAT_MODEL = 'gpt-4o-mini';
+
+type ChatCompletionMessage = {
+    role: 'assistant' | 'tool';
+    content: string | null;
+    tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>;
+};
+
+async function callOpenAIProxy(
+    messages: OpenAIMessage[]
+): Promise<ChatCompletionMessage> {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const response = await fetch(OPENAI_PROXY_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+            messages,
+            model: CHAT_MODEL,
+            tools: openAiToolDefinitions,
+            tool_choice: 'auto',
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`OpenAI proxy error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const message = data?.choices?.[0]?.message;
+    if (!message) {
+        throw new Error('Resposta vazia do proxy OpenAI.');
+    }
+    return message as ChatCompletionMessage;
+}
 
 interface ChatMessage {
     id: string;
@@ -35,12 +75,6 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-
-    // Initialize OpenAI
-    const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-        dangerouslyAllowBrowser: true
-    });
 
     const assistantTools = get_assistant_tools();
     const orgContext = profile.organization_name
@@ -76,10 +110,6 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         setIsTyping(true);
 
         try {
-            if (!import.meta.env.VITE_OPENAI_API_KEY) {
-                throw new Error('Chave de API da OpenAI não encontrada no .env.local');
-            }
-
             const apiMessages: OpenAIMessage[] = [
                 { role: 'system', content: AI_SYSTEM_PROMPT + orgContext },
                 ...messages.map(m => ({
@@ -89,23 +119,16 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 { role: 'user', content: currentInput }
             ];
 
-            let response = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: apiMessages as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
-                tools: openAiToolDefinitions as unknown as OpenAI.Chat.ChatCompletionTool[],
-                tool_choice: "auto",
-            });
-
-            let assistantMessage = response.choices[0].message;
+            let assistantMessage = await callOpenAIProxy(apiMessages);
 
             while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
                 apiMessages.push({
-                    role: (assistantMessage.role ?? 'assistant') as 'assistant',
+                    role: 'assistant',
                     content: assistantMessage.content ?? '',
                     tool_calls: assistantMessage.tool_calls as OpenAIMessage['tool_calls']
                 });
 
-                for (const toolCall of (assistantMessage.tool_calls as unknown as Array<{ id: string; function: { name: string; arguments: string } }>)) {
+                for (const toolCall of assistantMessage.tool_calls) {
                     const toolName = toolCall.function.name as keyof typeof assistantTools;
                     const args = JSON.parse(toolCall.function.arguments);
 
@@ -128,13 +151,7 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                     });
                 }
 
-                response = await openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    messages: apiMessages as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
-                    tools: openAiToolDefinitions as unknown as OpenAI.Chat.ChatCompletionTool[],
-                    tool_choice: "auto",
-                });
-                assistantMessage = response.choices[0].message;
+                assistantMessage = await callOpenAIProxy(apiMessages);
             }
 
             const text = assistantMessage.content || "";

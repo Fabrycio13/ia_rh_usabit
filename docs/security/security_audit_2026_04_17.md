@@ -1,4 +1,4 @@
-# Relatório de Auditoria de Segurança: Space Talent IA RH
+# Relatório de Auditoria de Segurança: Usabit people
 **Data**: 17 de Abril, 2026
 **Auditor**: Antigravity Security Auditor
 **Padrão**: OWASP Top 10:2025

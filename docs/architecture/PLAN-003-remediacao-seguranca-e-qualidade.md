@@ -1,4 +1,4 @@
-# Plano de Remediação Cirúrgico — Space Talent AI
+# Plano de Remediação Cirúrgico — Usabit people
 
 **Versão**: 1.0.0
 **Data**: 2026-05-14
@@ -356,7 +356,7 @@ npm run build  # build deve funcionar sem erros
 
 ```env
 # ============================================
-# Space Talent AI - Variáveis de Ambiente
+# Usabit people - Variáveis de Ambiente
 # Copie este arquivo para .env.local e preencha
 # ============================================
 

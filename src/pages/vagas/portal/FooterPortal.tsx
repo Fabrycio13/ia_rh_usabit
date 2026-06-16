@@ -202,7 +202,7 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
               margin: 0,
             }}
           >
-            Powered by <strong style={{ color: '#C3C7CD' }}>Space Talent</strong>
+            Powered by <strong style={{ color: '#C3C7CD' }}>Usabit people</strong>
           </p>
         </div>
       </div>

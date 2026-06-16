@@ -1,4 +1,4 @@
-# Plano de Correção de Lint — Space Talent AI
+# Plano de Correção de Lint — Usabit people
 
 **Data**: 2026-05-18 (final da sessão)
 **Erros iniciais**: 236

@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -121,7 +122,7 @@ serve(async (req) => {
 
         <div style="text-align: center; margin-top: 8px; color: #5C636D; font-size: 12px;">
             <p style="margin: 0 0 4px;">&copy; 2026 Usabit. Todos os direitos reservados.</p>
-            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Space Talent</strong></p>
+            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Usabit people</strong></p>
         </div>
     </div>
 </body>
@@ -147,8 +148,28 @@ serve(async (req) => {
 
       if (!emailRes.ok) {
         const err = await emailRes.json();
-        return new Response(JSON.stringify({ error: 'Resend error', details: err, userId, link: actionLink }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error('[send-invite-email] Resend error:', err);
       }
+    }
+
+    // Upsert profile via service_role (bypass RLS)
+    const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: userId,
+        email,
+        name,
+        user_role: role,
+        status: 'active',
+        account_type: 'active',
+        organization_id: organizationId || null,
+        organization_name: organizationName || null,
+        onboarding_completed: false,
+      }, { onConflict: 'id' });
+
+    if (profileError) {
+      return new Response(JSON.stringify({ error: 'Profile creation failed', details: profileError, userId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ success: true, userId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

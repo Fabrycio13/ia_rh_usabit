@@ -199,7 +199,7 @@ export const PortalPreview = ({
                     </div>
 
                     <div style={{ marginTop: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '11px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-                        Powered by <strong>Space Talent</strong>
+                        Powered by <strong>Usabit people</strong>
                     </div>
                 </div>
             </div>

@@ -22,7 +22,11 @@ serve(async (req) => {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  const { messages, model = 'gpt-4o', max_tokens = 8192 } = await req.json()
+  const { messages, model = 'gpt-4o', max_tokens = 8192, tools, tool_choice } = await req.json()
+
+  const openaiBody: Record<string, unknown> = { model, messages, max_tokens }
+  if (tools) openaiBody.tools = tools
+  if (tool_choice) openaiBody.tool_choice = tool_choice
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -30,7 +34,7 @@ serve(async (req) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${OPENAI_API_KEY}`,
     },
-    body: JSON.stringify({ model, messages, max_tokens }),
+    body: JSON.stringify(openaiBody),
   })
 
   const data = await response.json()

@@ -69,7 +69,7 @@ npx supabase functions deploy send-candidate-vaga-reopened-email
 
 1. **send-spontaneous-email** — manter `orgName`/`displayName` (multi-tenant). A assinatura "Equipe de Talentos Usabit" vira `Equipe de Talentos ${displayName}`. As outras 5 funções mantêm "Usabit" fixo (não recebem `orgName` no payload)
 2. **From name** — atualizar de `Equipe de Carreiras <noreply@space.pro.br>` para `Equipe de Talentos Usabit <noreply@space.pro.br>` em todas as 6 funções
-3. **HTML wrapper preservado** — manter a estrutura HTML existente (gradiente, card, logo, footer "Powered by Space Talent" e copyright). Apenas substituir o conteúdo textual interno (subject + corpo do e-mail)
+3. **HTML wrapper preservado** — manter a estrutura HTML existente (gradiente, card, logo, footer "Powered by Usabit people" e copyright). Apenas substituir o conteúdo textual interno (subject + corpo do e-mail)
 4. **`[e-mail RH]` no reopened** — placeholder literal no novo texto. O usuário substitui manualmente quando for usar ou pode virar variável de ambiente futuramente
 5. **Assuntos duplicados** — `thankyou` e `congratulations` ambos usam `Retorno do Processo Seletivo – {jobTitle}`. Confirmado manter assim.
 6. **Deploy necessário** — Edge Functions são serverless, toda alteração precisa ser deployada via `npx supabase functions deploy`

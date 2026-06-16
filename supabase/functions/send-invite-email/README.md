@@ -25,4 +25,4 @@ supabase functions serve --env-file .env
 1. Acesse https://resend.com/api-keys
 2. Verifique o domínio: `resend domains add --domain seudominio.com`
 3. Configure DNS conforme instruções do Resend
-4. Atualize o `from` na edge function para: `from: 'Space Talent <convite@seudominio.com>'`
+4. Atualize o `from` na edge function para: `from: 'Usabit people <convite@seudominio.com>'`
