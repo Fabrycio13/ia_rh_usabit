@@ -505,6 +505,8 @@ export const Configuracoes = () => {
                     email: newUser.email,
                     name: newUser.name,
                     role: newUser.user_role,
+                    organizationId: organizationId,
+                    organizationName: organizationName,
                 },
             });
 
