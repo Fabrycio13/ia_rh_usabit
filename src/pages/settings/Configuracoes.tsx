@@ -528,27 +528,6 @@ export const Configuracoes = () => {
                 return;
             }
 
-            // Salvar perfil no banco
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .upsert({
-                    id: userId,
-                    email: newUser.email,
-                    name: newUser.name,
-                    user_role: newUser.user_role as string,
-                    status: 'active',
-                    account_type: 'active',
-                    organization_id: organizationId,
-                    organization_name: organizationName,
-                    onboarding_completed: false,
-                }, { onConflict: 'id' });
-
-            if (profileError) {
-                showToast('error', `Usuário criado mas erro ao salvar perfil: ${profileError.message}`);
-                setCreatingUser(false);
-                return;
-            }
-
             showToast('success', `Convite enviado para ${newUser.name}!`);
             logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
             setNewUser({ name: '', email: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });

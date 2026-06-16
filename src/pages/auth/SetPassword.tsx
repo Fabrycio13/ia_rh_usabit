@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { SpatialBackground } from '../../common/components/ui/SpatialBackground';
 import toast from 'react-hot-toast';
 
 const loadFont = () => {
@@ -71,72 +70,43 @@ export const SetPassword = () => {
     }
 
     return (
-        <>
-            <SpatialBackground />
-            <div className="flex flex-col lg:flex-row h-screen overflow-hidden font-['Inter',system-ui,sans-serif] relative">
-                <button
-                    onClick={() => navigate('/')}
-                    className="hidden lg:block absolute top-5 left-6 z-50 flex items-center gap-1.5 bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.12)] rounded-[10px] text-[rgba(255,255,255,0.7)] text-[13px] font-medium font-['Inter',system-ui,sans-serif] px-3.5 py-1.5 cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.13)] hover:text-white"
-                >
-                    ← Voltar
-                </button>
+        <div className="min-h-screen w-screen bg-[#07080a] flex items-center justify-center p-0 md:p-6 relative overflow-hidden font-['Inter',sans-serif] select-none">
+            {/* Imagem de Fundo Borrada sob o card */}
+            <div className="absolute inset-0 z-0 pointer-events-none select-none">
+                <img
+                    src={`${import.meta.env.BASE_URL}logos/Close-up_of_hands.jpeg`}
+                    alt="Background Blur"
+                    className="w-full h-full object-cover blur-[40px] opacity-30 scale-105"
+                />
+            </div>
 
-                <div className="hidden lg:flex flex-1 flex-col items-center justify-center bg-[#0B1020] relative overflow-hidden min-w-0">
-                    <div className="relative z-1 text-center max-w-[850px] w-full px-12 flex flex-col items-center mt-[-100px]">
-                        <div className="relative top-[50px] w-full z-2">
-                            <h2 className="text-white text-[36px] font-extrabold leading-[1.1] mb-2 mt-0 w-full">
-                                Defina sua senha
-                            </h2>
-                            <p className="text-[#94a3b8] text-[18px] leading-[1.4] mb-4 mt-0 w-full">
-                                Crie uma senha segura para acessar sua conta.
-                            </p>
-                        </div>
-
-                        <div className="relative w-full max-w-[850px] leading-0">
-                            <img
-                                src={`${import.meta.env.BASE_URL}illustrations/hr-illustration.png`}
-                                alt="RH com IA"
-                                className="w-full block mx-auto"
-                            />
-                            <div className="absolute top-0 left-0 right-0 bottom-0 bg-[radial-gradient(circle,transparent_30%,#0B1020_95%)] pointer-events-none" />
-                        </div>
-
-                        <div className="flex gap-10 justify-center mt-2.5">
-                            {[
-                                { value: '200+', label: 'Análises/dia' },
-                                { value: '95%', label: 'Precisão' },
-                                { value: '10x', label: 'Velocidade' },
-                            ].map((stat, i) => (
-                                <div key={i} className="text-center">
-                                    <p className="text-blue-500 text-[18px] font-bold m-0">{stat.value}</p>
-                                    <p className="text-[#64748b] text-[10px] mt-0.5 uppercase tracking-[0.5px]">{stat.label}</p>
-                                </div>
-                            ))}
-                        </div>
+            {/* Container do Card Principal */}
+            <div className="w-full h-full md:h-[calc(100vh-32px)] md:max-h-[860px] md:w-[98%] xl:w-[96%] md:max-w-[1800px] bg-[#121316] md:rounded-[24px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex overflow-hidden md:border border-[#2d2f36]/40 z-10 relative">
+                {/* PAINEL ESQUERDO: Formulário */}
+                <div className="w-full md:w-[380px] lg:w-[400px] xl:w-[420px] flex-shrink-0 h-full flex flex-col justify-between p-8 md:p-10 bg-[#121316] z-10 overflow-y-auto">
+                    {/* Header Logo Centralizado e Maior */}
+                    <div className="flex justify-center mt-2">
+                        <img
+                            src={`${import.meta.env.BASE_URL}logos/usabit-people-logo.svg`}
+                            alt="Usabit People"
+                            className="h-[44px] sm:h-[48px] object-contain cursor-pointer"
+                            onClick={() => navigate('/')}
+                        />
                     </div>
-                </div>
 
-                <div className="flex-1 w-full flex flex-col items-center justify-center sm:p-12 p-6 relative">
-                    <div className="w-full max-w-[520px] bg-white rounded-3xl sm:px-11 px-5 py-13 shadow-[0_30px_80px_rgba(0,0,0,0.4)]">
-                        <div className="text-center mb-0 mt-[-20px] overflow-hidden">
-                            <img
-                                src={`${import.meta.env.BASE_URL}logos/usabit-logo.png`}
-                                alt="usabit"
-                                className="w-full sm:max-w-[200px] max-w-[140px] h-auto object-contain inline-block mix-blend-multiply contrast-125 brightness-110 mx-auto translate-x-[10px]"
-                            />
-                        </div>
-
-                        <p className="text-center text-[#64748b] text-[12px] mb-7 mt-0">
-                            Analista de Currículos · Powered by IA
-                        </p>
-
-                        <h1 className="text-center text-[#0f172a] text-[20px] font-bold mb-7 mt-0">
+                    {/* Form Content */}
+                    <div className="my-auto w-full max-w-[320px] mx-auto flex flex-col justify-center">
+                        <h1 className="text-white text-[26px] font-bold mb-2 text-center">
                             Criar Nova Senha
                         </h1>
+                        <p className="text-[#8e929e] text-[15px] mb-16 text-center">
+                            Crie uma senha de acesso segura para sua conta.
+                        </p>
 
-                        <form onSubmit={handleSetPassword} className="flex flex-col gap-4">
+                        <form onSubmit={handleSetPassword} className="flex flex-col gap-5.5">
+                            {/* Nova Senha */}
                             <div>
-                                <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
+                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
                                     Nova senha
                                 </label>
                                 <input
@@ -146,46 +116,60 @@ export const SetPassword = () => {
                                     onChange={e => setPassword(e.target.value)}
                                     required
                                     minLength={6}
-                                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
+                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
 
+                            {/* Confirmar Senha */}
                             <div>
-                                <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
+                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
                                     Confirmar senha
                                 </label>
                                 <input
                                     type="password"
-                                    placeholder="Repita a senha"
+                                    placeholder="Repita a nova senha"
                                     value={confirm}
                                     onChange={e => setConfirm(e.target.value)}
                                     required
                                     minLength={6}
-                                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
+                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
 
                             {message && (
-                                <p className={`text-[12px] text-center m-0 p-2 rounded-md ${message.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                <p className={`text-[12px] text-center m-0 p-3 rounded-xl ${message.type === 'success' ? 'bg-green-950/40 text-green-400 border border-green-800/30' : 'bg-red-950/40 text-red-400 border border-red-800/30'}`}>
                                     {message.text}
                                 </p>
                             )}
 
+                            {/* Botão */}
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="w-full py-[13px] bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none rounded-lg text-[15px] font-semibold cursor-pointer font-['Inter',system-ui,sans-serif] tracking-wide transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-none rounded-xl text-[14px] font-semibold cursor-pointer tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-blue-900/20 mt-2"
                             >
                                 {saving ? 'Definindo...' : 'DEFINIR SENHA'}
                             </button>
                         </form>
                     </div>
 
-                    <p className="text-[#94a3b8] text-[12px] mt-6 text-center">
+                    {/* Footer Copyright */}
+                    <div className="text-center text-[#6b6e79] text-[12px] mt-8 md:mt-0">
                         © 2026 usabit · Todos os direitos reservados
-                    </p>
+                    </div>
+                </div>
+
+                {/* PAINEL DIREITO: Imagem de Fundo (Recrutador) */}
+                <div className="flex-1 h-full relative hidden md:block select-none overflow-hidden">
+                    <img
+                        src={`${import.meta.env.BASE_URL}logos/Close-up_of_hands.jpeg`}
+                        alt="Usabit People Recrutamento"
+                        className="w-full h-full object-cover object-center"
+                    />
+                    {/* Degradê de fusão suave entre a imagem e o formulário */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#121316] via-transparent to-transparent opacity-80" />
                 </div>
             </div>
-        </>
+        </div>
     );
 };

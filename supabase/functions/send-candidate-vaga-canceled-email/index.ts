@@ -91,7 +91,7 @@ serve(async (req) => {
         <!-- Branding Footer -->
         <div style="text-align: center; margin-top: 8px; color: #5C636D; font-size: 12px;">
             <p style="margin: 0 0 4px;">© 2026 Usabit. Todos os direitos reservados.</p>
-            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Space Talent</strong></p>
+            <p style="margin: 0;">Powered by <strong style="color: #C3C7CD;">Usabit people</strong></p>
         </div>
     </div>
 </body>

@@ -1,4 +1,4 @@
-# 🧩 Manual de Componentes e Padrões — Space Talent
+# 🧩 Manual de Componentes e Padrões — Usabit people
 
 > **Objetivo:** Guia de como usar e criar componentes no projeto, mantendo a consistência visual e de código.
 > Consulte este documento antes de criar novas páginas, abas ou colunas.

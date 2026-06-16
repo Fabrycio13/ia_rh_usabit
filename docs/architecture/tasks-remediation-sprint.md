@@ -2,7 +2,7 @@
 description: "Task list for remediation sprint — seguranca e qualidade"
 ---
 
-# Tasks: Remediação Segurança e Qualidade — Space Talent AI
+# Tasks: Remediação Segurança e Qualidade — Usabit people
 
 **Input**: `docs/architecture/PLAN-003-remediacao-seguranca-e-qualidade.md`
 

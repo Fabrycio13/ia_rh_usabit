@@ -9,7 +9,7 @@ import { hasPermission } from '../core/config/permissions';
 import toast from 'react-hot-toast';
 
 
-/* ─── Animated Space Talent Logo ────────────────────────────────────────── */
+/* ─── Animated Usabit people Logo ─────────────────────────────────────────── */
 const SpaceLogo = ({ size = 48 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
         {/* Document Icon */}
@@ -280,7 +280,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, ...(hideToggle ? { paddingLeft: '52px' } : {}) }}>
                             <SpaceLogo size={50} />
                             <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                                <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Space Talent</p>
+                                <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Usabit people</p>
                                 <p style={{ color: 'var(--primary)', fontSize: '10px', fontWeight: 700, margin: '1px 0 0', whiteSpace: 'nowrap', letterSpacing: '0.1em', opacity: 0.9, fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>IA RECRUITMENT</p>
                             </div>
                         </div>
