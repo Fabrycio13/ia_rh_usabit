@@ -21,8 +21,15 @@ export const Register = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [honeypot, setHoneypot] = useState('');
+    const [cooldown, setCooldown] = useState(0);
 
     useEffect(() => { loadFont(); }, []);
+
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,6 +75,7 @@ export const Register = () => {
             setEmail('');
             setPassword('');
             setConfirmPassword('');
+            setCooldown(30);
         }
         setLoading(false);
     };
@@ -188,10 +196,10 @@ export const Register = () => {
                             {/* Botão */}
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || cooldown > 0}
                                 className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-none rounded-xl text-[14px] font-semibold cursor-pointer tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-blue-900/20 mt-1"
                             >
-                                {loading ? 'Criando conta...' : 'CRIAR CONTA'}
+                                {loading ? 'Criando conta...' : cooldown > 0 ? `Aguarde ${cooldown}s` : 'CRIAR CONTA'}
                             </button>
 
                             {/* Link para Login */}
