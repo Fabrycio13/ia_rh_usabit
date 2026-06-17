@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
 
 const loadFont = () => {
     if (document.querySelector('#poppins-font')) return;
@@ -63,13 +64,8 @@ export const Login = () => {
                 {/* PAINEL ESQUERDO: Formulário */}
                 <div className="w-full md:w-[380px] lg:w-[400px] xl:w-[420px] flex-shrink-0 h-full flex flex-col justify-between p-8 md:p-10 bg-[#121316] z-10 overflow-y-auto">
                     {/* Header Logo Centralizado e Maior */}
-                    <div className="flex justify-center mt-6 mb-8 md:mt-2 md:mb-0">
-                        <img
-                            src={`${import.meta.env.BASE_URL}logos/usabit-people-logo.svg`}
-                            alt="Usabit people"
-                            className="h-[44px] sm:h-[48px] object-contain cursor-pointer"
-                            onClick={() => navigate('/')}
-                        />
+                    <div className="flex justify-center mt-6 mb-8 md:mt-2 md:mb-0 cursor-pointer" onClick={() => navigate('/')}>
+                        <UsabitPeopleLogo height={44} />
                     </div>
 
                     {/* Form Content */}
