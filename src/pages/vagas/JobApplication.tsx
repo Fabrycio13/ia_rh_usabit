@@ -7,6 +7,7 @@ import {
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 
@@ -502,6 +503,8 @@ export const JobApplication = () => {
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [honeypot, setHoneypot] = useState('');
     
 
     const [genderOpen, setGenderOpen] = useState(false);
@@ -786,6 +789,8 @@ export const JobApplication = () => {
 
     const handleSubmit = async () => {
         if (!resumeFile) { toast.error('Envie seu currículo em PDF.'); return; }
+        if (honeypot) { toast.error('Erro de validação. Recarregue a página.'); return; }
+        if (!captchaToken) { toast.error('Verificação de segurança necessária. Aguarde.'); return; }
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
@@ -850,25 +855,41 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 aiKeys: finalAnswers._ai_analysis ? Object.keys(finalAnswers._ai_analysis as object) : 'n/a'
             });
 
-            const { error: err } = await supabase.from('vagas_candidaturas').insert({
-                vaga_id: job!.id,
-                organization_id: job!.organization_id, // Adicionado vínculo direto com a org
-                candidate_name: formData.name,
-                candidate_email: formData.email,
-                candidate_phone: formData.phone || null,
-                candidate_location: formData.location || null,
-                candidate_linkedin: formData.linkedin || null,
-                candidate_gender: formData.gender || null,
-                candidate_age: formData.age || null,
-                resume_url: resumeUrl,
-                resume_file_name: resumeFile.name,
-                status: aiResult ? 'reviewed' : 'pending',
-                match_score: aiResult ? aiResult.score : 0,
-                source: 'public_link',
-                answers: finalAnswers
+            const submitRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-application`, {
+                method: 'POST',
+                headers: {
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    vaga_id: job!.id,
+                    organization_id: job!.organization_id,
+                    candidate_name: formData.name,
+                    candidate_email: formData.email,
+                    candidate_phone: formData.phone || null,
+                    candidate_location: formData.location || null,
+                    candidate_linkedin: formData.linkedin || null,
+                    candidate_gender: formData.gender || null,
+                    candidate_age: formData.age || null,
+                    resume_url: resumeUrl,
+                    resume_file_name: resumeFile.name,
+                    status: aiResult ? 'reviewed' : 'pending',
+                    match_score: aiResult ? aiResult.score : 0,
+                    source: 'public_link',
+                    answers: finalAnswers,
+                    turnstileToken: captchaToken,
+                })
             });
-            
-            if (err) throw err;
+
+            if (!submitRes.ok) {
+                const errBody = await submitRes.text();
+                console.error('submit-application error:', submitRes.status, errBody);
+                throw new Error('Erro ao enviar candidatura');
+            }
+
+            const submitData = await submitRes.json();
+            const applicationId = submitData.id;
 
             setSubmitted(true);
 
@@ -876,9 +897,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
             try {
                 await supabase.functions.invoke('send-application-email', {
                     body: {
-                        candidateName: formData.name,
-                        candidateEmail: formData.email,
-                        jobTitle: job!.title
+                        applicationId: applicationId,
                     }
                 });
             } catch (emailErr) {
@@ -1565,13 +1584,32 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     </label>
                                 </div>
 
+                                {/* Honeypot - invisível para humanos, bots preenchem */}
+                                <input
+                                    type="text"
+                                    name="website"
+                                    tabIndex={-1}
+                                    autoComplete="off"
+                                    aria-hidden="true"
+                                    style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
+                                    value={honeypot}
+                                    onChange={e => setHoneypot(e.target.value)}
+                                />
+
+                                <Turnstile
+                                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY!}
+                                    onSuccess={(token: string) => setCaptchaToken(token)}
+                                    onError={() => setCaptchaToken(null)}
+                                    options={{ theme: 'dark', size: 'invisible' }}
+                                />
+
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(hasQuestions ? 2 : 1); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
                                     <button
                                         className="wizard-btn-primary"
-                                        disabled={!resumeFile || submitting || !termsAccepted}
+                                        disabled={!resumeFile || submitting || !termsAccepted || !captchaToken}
                                         onClick={handleSubmit}
                                         style={{ 
                                             background: submitting ? '#64748b' : '#2C58FD',

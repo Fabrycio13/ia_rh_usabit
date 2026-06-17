@@ -7,28 +7,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface CandidatePayload {
-  email: string
+interface ApplicationPayload {
+  vaga_id: string
   organization_id: string
-  name: string
-  phone?: string | null
-  location?: string | null
-  linkedin?: string | null
-  resume_url?: string | null
-  resume_file_name?: string | null
-  gender?: string | null
-  age?: string | number | null
-  address?: string | null
-  portfolio?: string | null
-  cep?: string | null
-  address_number?: string | null
-  complement?: string | null
-  vaga_id?: string | null
+  candidate_name: string
+  candidate_email: string
+  candidate_phone?: string | null
+  candidate_location?: string | null
+  candidate_linkedin?: string | null
+  candidate_gender?: string | null
+  candidate_age?: string | null
+  resume_url: string
+  resume_file_name: string
+  match_score?: number
   status?: string
-  source?: string | null
-  skills?: string | null
-  experience?: string | null
-  analysis?: Record<string, unknown> | null
+  source?: string
+  answers?: Record<string, unknown>
   turnstileToken?: string
 }
 
@@ -38,7 +32,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000
 async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
   const secret = Deno.env.get('TURNSTILE_SECRET_KEY')
   if (!secret) {
-    console.error('[submit-candidate] TURNSTILE_SECRET_KEY não configurado')
+    console.error('[submit-application] TURNSTILE_SECRET_KEY não configurado')
     return false
   }
   try {
@@ -50,7 +44,7 @@ async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
     const data = await res.json()
     return data.success === true
   } catch (err) {
-    console.error('[submit-candidate] Erro ao verificar Turnstile:', err)
+    console.error('[submit-application] Erro ao verificar Turnstile:', err)
     return false
   }
 }
@@ -91,10 +85,10 @@ serve(async (req) => {
     || 'unknown'
 
   try {
-    const body: CandidatePayload = await req.json()
+    const body: ApplicationPayload = await req.json()
 
-    if (!body.email || !body.organization_id || !body.name) {
-      return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name' }), {
+    if (!body.vaga_id || !body.organization_id || !body.candidate_email || !body.candidate_name) {
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios: vaga_id, organization_id, candidate_email, candidate_name' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
@@ -128,7 +122,7 @@ serve(async (req) => {
     const allowed = await checkRateLimit(
       supabaseAdmin,
       `ip:${clientIp}`,
-      'submit-candidate',
+      'submit-application',
       RATE_LIMIT_MAX,
       RATE_LIMIT_WINDOW_MS,
     )
@@ -139,37 +133,51 @@ serve(async (req) => {
       })
     }
 
-    // 3. Upsert do candidato
+    // 3. Validar vaga (existe, organization_id bate)
+    const { data: vaga, error: vagaError } = await supabaseAdmin
+      .from('vagas_white_label')
+      .select('id, organization_id, status')
+      .eq('id', body.vaga_id)
+      .single()
+
+    if (vagaError || !vaga) {
+      return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 404,
+      })
+    }
+    if (vaga.organization_id !== body.organization_id) {
+      return new Response(JSON.stringify({ error: 'Vaga não pertence à organização' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // 4. Inserir candidatura
     const { data, error } = await supabaseAdmin
-      .from('candidates')
-      .upsert({
-        email: body.email,
+      .from('vagas_candidaturas')
+      .insert({
+        vaga_id: body.vaga_id,
         organization_id: body.organization_id,
-        name: body.name,
-        phone: body.phone || null,
-        location: body.location || null,
-        linkedin: body.linkedin || null,
-        resume_url: body.resume_url || null,
-        resume_file_name: body.resume_file_name || null,
-        gender: body.gender || null,
-        age: body.age != null ? String(body.age) : null,
-        address: body.address || null,
-        portfolio: body.portfolio || null,
-        cep: body.cep || null,
-        address_number: body.address_number || null,
-        complement: body.complement || null,
-        vaga_id: body.vaga_id || null,
+        candidate_name: body.candidate_name,
+        candidate_email: body.candidate_email,
+        candidate_phone: body.candidate_phone || null,
+        candidate_location: body.candidate_location || null,
+        candidate_linkedin: body.candidate_linkedin || null,
+        candidate_gender: body.candidate_gender || null,
+        candidate_age: body.candidate_age || null,
+        resume_url: body.resume_url,
+        resume_file_name: body.resume_file_name,
         status: body.status || 'pending',
-        source: body.source || null,
-        skills: body.skills || null,
-        experience: body.experience || null,
-        analysis: body.analysis || null,
-      }, { onConflict: 'email,organization_id' })
+        match_score: body.match_score || 0,
+        source: body.source || 'public_link',
+        answers: body.answers || {},
+      })
       .select('id')
       .single()
 
     if (error) {
-      console.error('Erro no upsert de candidato:', error.message, error.details, error.hint)
+      console.error('Erro no insert de candidatura:', error.message, error.details, error.hint)
       return new Response(JSON.stringify({ error: error.message, details: error.details }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -182,7 +190,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Erro na função submit-candidate:', (error as Error).message)
+    console.error('Erro na função submit-application:', (error as Error).message)
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

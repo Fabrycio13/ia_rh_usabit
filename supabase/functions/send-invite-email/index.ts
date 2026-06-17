@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const APP_URL = Deno.env.get('APP_URL') || 'https://usabit.github.io/rh-ia-v2';
 
@@ -30,7 +31,48 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    // 1. Validar JWT do caller
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token || !SUPABASE_ANON_KEY) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabaseAuth = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY);
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Token inválido' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+
+    // 2. Verificar role do caller e impedir escalação de privilégio
+    const { data: callerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_role, organization_id')
+      .eq('id', user.id)
+      .single();
+
+    const hierarchy: Record<string, number> = { owner: 4, gestor: 3, rh: 2, convidado: 1 };
+    const callerLevel = hierarchy[callerProfile?.user_role as keyof typeof hierarchy] || 0;
+    if (callerLevel === 0) {
+      return new Response(JSON.stringify({ error: 'Permissão insuficiente' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { email, name, role, organizationId, organizationName } = await req.json();
+
+    const targetLevel = hierarchy[role as keyof typeof hierarchy] || 0;
+    if (targetLevel >= callerLevel && callerProfile?.user_role !== 'owner') {
+      return new Response(JSON.stringify({ error: 'Permissão insuficiente para atribuir esta role' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!email || !name || !role) {
       return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -153,7 +195,6 @@ serve(async (req) => {
     }
 
     // Upsert profile via service_role (bypass RLS)
-    const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
