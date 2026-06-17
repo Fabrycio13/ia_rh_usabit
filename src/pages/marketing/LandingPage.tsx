@@ -982,16 +982,6 @@ export const LandingPage = () => {
                     </a>
                   ))}
                 </div>
-                <a
-                  href="https://wa.me/5511999999999"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-hero-primary"
-                  style={{ textDecoration: 'none', minWidth: '220px' }}
-                >
-                  <span>Fale conosco →</span>
-                  <span className="animation"></span>
-                </a>
               </div>
             </div>
 
