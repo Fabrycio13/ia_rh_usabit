@@ -85,10 +85,11 @@ export const Login = () => {
                         <form onSubmit={handleLogin} className="flex flex-col gap-5.5">
                             {/* Email */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
+                                <label htmlFor="login-email" className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
                                     E-mail
                                 </label>
                                 <input
+                                    id="login-email"
                                     type="email"
                                     placeholder="exemplo@usabit.com.br"
                                     value={email}
@@ -100,11 +101,12 @@ export const Login = () => {
 
                             {/* Senha */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
+                                <label htmlFor="login-password" className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
                                     Senha
                                 </label>
                                 <div className="relative">
                                     <input
+                                        id="login-password"
                                         type={showPassword ? 'text' : 'password'}
                                         placeholder="Insira sua senha"
                                         value={password}
@@ -130,8 +132,8 @@ export const Login = () => {
 
                             {/* Checkbox + Esqueceu */}
                             <div className="flex items-center justify-between mt-1">
-                                <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input type="checkbox" className="w-4 h-4 rounded bg-[#1c1d22] border-[#2d2f36] accent-blue-500 text-blue-500" />
+                                <label htmlFor="login-remember" className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input id="login-remember" type="checkbox" className="w-4 h-4 rounded bg-[#1c1d22] border-[#2d2f36] accent-blue-500 text-blue-500" />
                                     <span className="text-[#8e929e] text-[13px]">Manter conectado</span>
                                 </label>
                                 <button
