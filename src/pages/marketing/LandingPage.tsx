@@ -104,8 +104,11 @@ export const LandingPage = () => {
         }
  
         /* ── NAV ── */
-        .lp-nav { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; background: rgba(7,9,15,0.85); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; max-width: 1300px; width: calc(100% - 40px); }
-        .lp-logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+        .lp-nav { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 12px 40px; background: rgba(7,9,15,0.85); backdrop-filter: blur(24px); border: 1px solid rgba(59,130,246,0.18); box-shadow: 0 0 0 1px rgba(59,130,246,0.05), 0 8px 32px rgba(59,130,246,0.08); border-radius: 20px; max-width: 1300px; width: calc(100% - 40px); transition: border-color 0.2s, box-shadow 0.2s; }
+        .lp-nav:hover { border-color: rgba(59,130,246,0.32); box-shadow: 0 0 0 1px rgba(59,130,246,0.08), 0 8px 32px rgba(59,130,246,0.14); }
+        .lp-logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: #fff; background: transparent; border: none; padding: 0; cursor: pointer; transition: opacity 0.2s, transform 0.2s; }
+        .lp-logo:hover { opacity: 0.85; transform: translateY(-1px); }
+        .lp-logo:active { transform: translateY(0); }
         .lp-nav-links { display: flex; align-items: center; gap: 4px; }
         .lp-nav-link { background: transparent; color: rgba(255,255,255,0.6); border: none; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif; cursor: pointer; transition: color 0.2s, background 0.2s; }
         .lp-nav-link:hover { color: #fff; background: rgba(255,255,255,0.06); }
@@ -698,13 +701,13 @@ export const LandingPage = () => {
       <div className="lp-root">
         {/* ── NAV ── */}
         <nav className="lp-nav">
-          <div className="lp-logo">
+          <button className="lp-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Voltar ao topo">
             <img
               src={`${import.meta.env.BASE_URL}logos/usabit-people-logo.svg`}
                   alt="Usabit people"
               style={{ height: 26, objectFit: 'contain' }}
             />
-          </div>
+          </button>
 
           <div className="lp-nav-links">
             <button className="lp-nav-link" onClick={() => scrollTo('como-funciona')}>Como Funciona</button>
