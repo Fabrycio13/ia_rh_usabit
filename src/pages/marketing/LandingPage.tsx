@@ -618,8 +618,8 @@ export const LandingPage = () => {
           .lp-hero-left .lp-sub { margin-left: auto; margin-right: auto; }
           .lp-hero-left .lp-hero-btns { justify-content: center; }
           .lp-hero-right { margin-top: 28px; }
-          .lp-hero-illustration { max-width: 100%; height: auto; }
-          .lp-hero-illustration video { transform: none !important; }
+          .lp-hero-illustration { max-width: 100%; height: 220px; overflow: hidden; }
+          .lp-hero-illustration video { transform: scale(1.5) !important; transform-origin: top left !important; width: 100% !important; height: 100% !important; object-fit: cover; }
           .lp-section { padding: 48px 18px 56px; }
           #depoimentos-section { padding: 48px 18px 56px; }
           .lp-section-title { font-size: clamp(26px, 7vw, 36px); letter-spacing: -1px; }
