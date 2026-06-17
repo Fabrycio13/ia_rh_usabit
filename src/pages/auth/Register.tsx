@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { Turnstile } from '@marsidev/react-turnstile';
+import { isDisposableEmail } from '../../core/constants/disposableEmails';
 
 const loadFont = () => {
     if (document.querySelector('#poppins-font')) return;
@@ -19,6 +21,8 @@ export const Register = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [honeypot, setHoneypot] = useState('');
 
     useEffect(() => { loadFont(); }, []);
 
@@ -28,21 +32,47 @@ export const Register = () => {
             setMessage({ type: 'error', text: 'As senhas não coincidem.' });
             return;
         }
+
+        if (honeypot) {
+            setMessage({ type: 'error', text: 'Erro de validação. Recarregue a página.' });
+            return;
+        }
+
+        if (isDisposableEmail(email)) {
+            setMessage({ type: 'error', text: 'E-mails temporários não são permitidos. Use um e-mail pessoal ou corporativo.' });
+            return;
+        }
+
+        if (!captchaToken) {
+            setMessage({ type: 'error', text: 'Verificação de segurança falhou. Recarregue e tente novamente.' });
+            return;
+        }
         
         setLoading(true);
         setMessage(null);
 
+        // Em produção, envia captchaToken pro Supabase validar.
+        // Em dev, não envia (token de teste do Turnstile é rejeitado pela chave real do Supabase).
+        const signUpOptions: {
+            data: Record<string, string>;
+            emailRedirectTo: string;
+            captchaToken?: string;
+        } = {
+            data: {
+                full_name: name,
+                name: name,
+                organization_name: '',
+            },
+            emailRedirectTo: window.location.origin + window.location.pathname.split('#')[0] + '#/login',
+        };
+        if (captchaToken) {
+            signUpOptions.captchaToken = captchaToken;
+        }
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
-            options: {
-                data: {
-                    full_name: name,
-                    name: name,
-                    organization_name: '',
-                },
-                emailRedirectTo: window.location.origin + window.location.pathname.split('#')[0] + '#/login',
-            }
+            options: signUpOptions,
         });
 
         if (error) {
@@ -155,11 +185,31 @@ export const Register = () => {
                                 />
                             </div>
 
+                            {/* Honeypot - invisível para humanos, bots preenchem */}
+                            <input
+                                type="text"
+                                name="website"
+                                tabIndex={-1}
+                                autoComplete="off"
+                                aria-hidden="true"
+                                style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
+                                value={honeypot}
+                                onChange={e => setHoneypot(e.target.value)}
+                            />
+
                             {message && (
                                 <p className={`text-[12px] text-center m-0 p-3 rounded-xl ${message.type === 'success' ? 'bg-green-950/40 text-green-400 border border-green-800/30' : 'bg-red-950/40 text-red-400 border border-red-800/30'}`}>
                                     {message.text}
                                 </p>
                             )}
+
+                            {/* Turnstile */}
+                            <Turnstile
+                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY!}
+                                onSuccess={(token: string) => setCaptchaToken(token)}
+                                onError={() => setCaptchaToken(null)}
+                                options={{ theme: 'dark', size: 'invisible' }}
+                            />
 
                             {/* Botão */}
                             <button
