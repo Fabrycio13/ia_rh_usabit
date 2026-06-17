@@ -7,7 +7,6 @@ import {
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 
@@ -503,7 +502,6 @@ export const JobApplication = () => {
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const [honeypot, setHoneypot] = useState('');
     
 
@@ -790,7 +788,6 @@ export const JobApplication = () => {
     const handleSubmit = async () => {
         if (!resumeFile) { toast.error('Envie seu currículo em PDF.'); return; }
         if (honeypot) { toast.error('Erro de validação. Recarregue a página.'); return; }
-        if (!captchaToken) { toast.error('Verificação de segurança necessária. Aguarde.'); return; }
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
@@ -878,7 +875,6 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     match_score: aiResult ? aiResult.score : 0,
                     source: 'public_link',
                     answers: finalAnswers,
-                    turnstileToken: captchaToken,
                 })
             });
 
@@ -1596,20 +1592,13 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                     onChange={e => setHoneypot(e.target.value)}
                                 />
 
-                                <Turnstile
-                                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY!}
-                                    onSuccess={(token: string) => setCaptchaToken(token)}
-                                    onError={() => setCaptchaToken(null)}
-                                    options={{ theme: 'dark', size: 'invisible' }}
-                                />
-
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(hasQuestions ? 2 : 1); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
                                     <button
                                         className="wizard-btn-primary"
-                                        disabled={!resumeFile || submitting || !termsAccepted || !captchaToken}
+                                        disabled={!resumeFile || submitting || !termsAccepted}
                                         onClick={handleSubmit}
                                         style={{ 
                                             background: submitting ? '#64748b' : '#2C58FD',

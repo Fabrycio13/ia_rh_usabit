@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
 
 const loadFont = () => {
@@ -19,25 +18,14 @@ export const Login = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
     useEffect(() => { loadFont(); }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!captchaToken) {
-            setMessage({ type: 'error', text: 'Verificação de segurança falhou. Recarregue e tente novamente.' });
-            return;
-        }
         setLoading(true);
         setMessage(null);
-        // Em produção, envia captchaToken pro Supabase validar.
-        // Em dev, não envia (token de teste do Turnstile é rejeitado pela chave real do Supabase).
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-            ...(captchaToken ? { options: { captchaToken } } : {}),
-        });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             console.error('Auth error:', error);
             setMessage({ type: 'error', text: `Erro: ${error.message}` });
@@ -143,14 +131,6 @@ export const Login = () => {
                                     Recuperar senha
                                 </button>
                             </div>
-
-                            {/* Turnstile */}
-                            <Turnstile
-                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY!}
-                                onSuccess={(token: string) => setCaptchaToken(token)}
-                                onError={() => setCaptchaToken(null)}
-                                options={{ theme: 'dark', size: 'invisible' }}
-                            />
 
                             {/* Botão */}
                             <button

@@ -5,7 +5,6 @@ import { extractTextFromPDF, pdfToImages } from '../../../core/services/pdfExtra
 import { extractCandidateData } from '../../../core/services/cvAnalyzer';
 import { analyzeResume } from '../../../core/services/analyzers/resumeAnalyzer';
 import { X, Upload, Check, Loader } from 'lucide-react';
-import { Turnstile } from '@marsidev/react-turnstile';
 import toast from 'react-hot-toast';
 import type { ResumeAnalysis } from '../../../core/services/ai/types';
 
@@ -56,7 +55,6 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
   const [resumeFileName, setResumeFileName] = useState<string>('');
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [fullAnalysis, setFullAnalysis] = useState<ResumeAnalysis | null>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const resetForm = useCallback(() => {
     setStep('upload');
@@ -68,7 +66,6 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
     setResumeFileName('');
     setFormData(INITIAL_FORM);
     setFullAnalysis(null);
-    setCaptchaToken(null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -202,10 +199,6 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
       toast.error('Nome é obrigatório');
       return;
     }
-    if (!captchaToken) {
-      toast.error('Verificação de segurança necessária. Aguarde.');
-      return;
-    }
 
     const isDup = await hasDuplicate();
     if (isDup) return;
@@ -272,7 +265,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
     } finally {
       setSubmitting(false);
     }
-  }, [profile, formData, fullAnalysis, resumeUrl, resumeFileName, hasDuplicate, resetForm, onSuccess, captchaToken]);
+  }, [profile, formData, fullAnalysis, resumeUrl, resumeFileName, hasDuplicate, resetForm, onSuccess]);
 
   if (!isOpen) return null;
 
@@ -539,14 +532,8 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
                 }}>
                   Voltar
                 </button>
-                <Turnstile
-                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY!}
-                  onSuccess={(token: string) => setCaptchaToken(token)}
-                  onError={() => setCaptchaToken(null)}
-                  options={{ theme: 'auto', size: 'invisible' }}
-                />
 
-                <button onClick={handleSave} disabled={submitting || !captchaToken} style={{
+                <button onClick={handleSave} disabled={submitting} style={{
                   padding: '10px 24px',
                   background: submitting ? 'var(--border)' : 'var(--primary)',
                   border: 'none', borderRadius: 12,
