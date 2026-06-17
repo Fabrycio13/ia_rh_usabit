@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { isDisposableEmail } from '../../core/constants/disposableEmails';
+import { Eye, EyeOff } from 'lucide-react';
 
 const loadFont = () => {
     if (document.querySelector('#poppins-font')) return;
@@ -18,11 +19,20 @@ export const Register = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [honeypot, setHoneypot] = useState('');
+    const [cooldown, setCooldown] = useState(0);
 
     useEffect(() => { loadFont(); }, []);
+
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+        return () => clearInterval(timer);
+    }, [cooldown]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,6 +78,7 @@ export const Register = () => {
             setEmail('');
             setPassword('');
             setConfirmPassword('');
+            setCooldown(30);
         }
         setLoading(false);
     };
@@ -142,14 +153,23 @@ export const Register = () => {
                                 <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     Senha
                                 </label>
-                                <input
-                                    type="password"
-                                    placeholder="Insira sua senha"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-2.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Insira sua senha"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                        className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-2.5 pr-11 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e929e] hover:text-white bg-transparent border-none cursor-pointer p-0"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Confirmar Senha */}
@@ -157,14 +177,23 @@ export const Register = () => {
                                 <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     Confirmar senha
                                 </label>
-                                <input
-                                    type="password"
-                                    placeholder="Confirme sua senha"
-                                    value={confirmPassword}
-                                    onChange={e => setConfirmPassword(e.target.value)}
-                                    required
-                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-2.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        placeholder="Confirme sua senha"
+                                        value={confirmPassword}
+                                        onChange={e => setConfirmPassword(e.target.value)}
+                                        required
+                                        className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-2.5 pr-11 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e929e] hover:text-white bg-transparent border-none cursor-pointer p-0"
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Honeypot - invisível para humanos, bots preenchem */}
@@ -188,10 +217,10 @@ export const Register = () => {
                             {/* Botão */}
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || cooldown > 0}
                                 className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-none rounded-xl text-[14px] font-semibold cursor-pointer tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-blue-900/20 mt-1"
                             >
-                                {loading ? 'Criando conta...' : 'CRIAR CONTA'}
+                                {loading ? 'Criando conta...' : cooldown > 0 ? `Aguarde ${cooldown}s` : 'CRIAR CONTA'}
                             </button>
 
                             {/* Link para Login */}

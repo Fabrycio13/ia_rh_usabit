@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
+import { Eye, EyeOff } from 'lucide-react';
 
 const loadFont = () => {
     if (document.querySelector('#poppins-font')) return;
@@ -16,6 +17,7 @@ export const Login = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -101,14 +103,23 @@ export const Login = () => {
                                 <label className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
                                     Senha
                                 </label>
-                                <input
-                                    type="password"
-                                    placeholder="Insira sua senha"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Insira sua senha"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                        className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 pr-11 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e929e] hover:text-white bg-transparent border-none cursor-pointer p-0"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
 
                             {message && (
