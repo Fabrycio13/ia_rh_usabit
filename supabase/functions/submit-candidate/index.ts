@@ -29,31 +29,10 @@ interface CandidatePayload {
   skills?: string | null
   experience?: string | null
   analysis?: Record<string, unknown> | null
-  turnstileToken?: string
 }
 
 const RATE_LIMIT_MAX = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
-
-async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
-  const secret = Deno.env.get('TURNSTILE_SECRET_KEY')
-  if (!secret) {
-    console.error('[submit-candidate] TURNSTILE_SECRET_KEY não configurado')
-    return false
-  }
-  try {
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret, response: token, remoteip: ip }),
-    })
-    const data = await res.json()
-    return data.success === true
-  } catch (err) {
-    console.error('[submit-candidate] Erro ao verificar Turnstile:', err)
-    return false
-  }
-}
 
 async function checkRateLimit(
   supabaseAdmin: ReturnType<typeof createClient>,
@@ -109,22 +88,7 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
-    // 1. Validar Turnstile
-    if (!body.turnstileToken) {
-      return new Response(JSON.stringify({ error: 'Verificação de segurança ausente' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403,
-      })
-    }
-    const turnstileOk = await verifyTurnstile(body.turnstileToken, clientIp)
-    if (!turnstileOk) {
-      return new Response(JSON.stringify({ error: 'Verificação de segurança falhou' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403,
-      })
-    }
-
-    // 2. Rate limit por IP
+    // 1. Rate limit por IP
     const allowed = await checkRateLimit(
       supabaseAdmin,
       `ip:${clientIp}`,
@@ -139,7 +103,7 @@ serve(async (req) => {
       })
     }
 
-    // 3. Upsert do candidato
+    // 2. Upsert do candidato
     const { data, error } = await supabaseAdmin
       .from('candidates')
       .upsert({
