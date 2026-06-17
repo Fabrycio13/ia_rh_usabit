@@ -46,7 +46,7 @@ export const LandingPage = () => {
       metricLabel2: 'Configuração do portal de vagas',
       image: `${import.meta.env.BASE_URL}logos/Professional.jpeg`,
       imagePosition: '55% center',
-      avatar: `${import.meta.env.BASE_URL}logos/Diverse_female_HR_professional_in_202606161745.jpeg`,
+      avatar: `${import.meta.env.BASE_URL}logos/mulher%202.png`,
       avatarPosition: 'center top'
     },
     {
