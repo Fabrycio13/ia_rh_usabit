@@ -46,7 +46,7 @@ export const LandingPage = () => {
       metricLabel2: 'Configuração do portal de vagas',
       image: `${import.meta.env.BASE_URL}logos/Professional.jpeg`,
       imagePosition: '55% center',
-      avatar: `${import.meta.env.BASE_URL}logos/Diverse_female_HR_professional_in_202606161745.jpeg`,
+      avatar: `${import.meta.env.BASE_URL}logos/mulher%202.png`,
       avatarPosition: 'center top'
     },
     {
@@ -618,8 +618,8 @@ export const LandingPage = () => {
           .lp-hero-left .lp-sub { margin-left: auto; margin-right: auto; }
           .lp-hero-left .lp-hero-btns { justify-content: center; }
           .lp-hero-right { margin-top: 28px; }
-          .lp-hero-illustration { max-width: 100%; height: auto; }
-          .lp-hero-illustration video { transform: none !important; }
+          .lp-hero-illustration { max-width: 100%; height: 220px; overflow: hidden; }
+          .lp-hero-illustration video { transform: scale(1.5) !important; transform-origin: top left !important; width: 100% !important; height: 100% !important; object-fit: cover; }
           .lp-section { padding: 48px 18px 56px; }
           #depoimentos-section { padding: 48px 18px 56px; }
           .lp-section-title { font-size: clamp(26px, 7vw, 36px); letter-spacing: -1px; }
@@ -982,16 +982,6 @@ export const LandingPage = () => {
                     </a>
                   ))}
                 </div>
-                <a
-                  href="https://wa.me/5511999999999"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-hero-primary"
-                  style={{ textDecoration: 'none', minWidth: '220px' }}
-                >
-                  <span>Fale conosco →</span>
-                  <span className="animation"></span>
-                </a>
               </div>
             </div>
 

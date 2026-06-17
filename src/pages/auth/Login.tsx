@@ -63,7 +63,7 @@ export const Login = () => {
                 {/* PAINEL ESQUERDO: Formulário */}
                 <div className="w-full md:w-[380px] lg:w-[400px] xl:w-[420px] flex-shrink-0 h-full flex flex-col justify-between p-8 md:p-10 bg-[#121316] z-10 overflow-y-auto">
                     {/* Header Logo Centralizado e Maior */}
-                    <div className="flex justify-center mt-2">
+                    <div className="flex justify-center mt-6 mb-8 md:mt-2 md:mb-0">
                         <img
                             src={`${import.meta.env.BASE_URL}logos/usabit-people-logo.svg`}
                             alt="Usabit people"
