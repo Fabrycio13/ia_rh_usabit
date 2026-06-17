@@ -120,10 +120,11 @@ export const Register = () => {
                         <form onSubmit={handleRegister} className="flex flex-col gap-4">
                             {/* Nome */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
+                                <label htmlFor="reg-name" className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     Nome completo
                                 </label>
                                 <input
+                                    id="reg-name"
                                     type="text"
                                     placeholder="Seu nome completo"
                                     value={name}
@@ -135,10 +136,11 @@ export const Register = () => {
 
                             {/* Email */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
+                                <label htmlFor="reg-email" className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     E-mail
                                 </label>
                                 <input
+                                    id="reg-email"
                                     type="email"
                                     placeholder="exemplo@usabit.com.br"
                                     value={email}
@@ -150,11 +152,12 @@ export const Register = () => {
 
                             {/* Senha */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
+                                <label htmlFor="reg-password" className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     Senha
                                 </label>
                                 <div className="relative">
                                     <input
+                                        id="reg-password"
                                         type={showPassword ? 'text' : 'password'}
                                         placeholder="Insira sua senha"
                                         value={password}
@@ -174,11 +177,12 @@ export const Register = () => {
 
                             {/* Confirmar Senha */}
                             <div>
-                                <label className="block text-[#8e929e] text-[13px] font-medium mb-1">
+                                <label htmlFor="reg-confirm-password" className="block text-[#8e929e] text-[13px] font-medium mb-1">
                                     Confirmar senha
                                 </label>
                                 <div className="relative">
                                     <input
+                                        id="reg-confirm-password"
                                         type={showConfirmPassword ? 'text' : 'password'}
                                         placeholder="Confirme sua senha"
                                         value={confirmPassword}
