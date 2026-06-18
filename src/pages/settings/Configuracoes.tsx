@@ -742,7 +742,7 @@ export const Configuracoes = () => {
                                 }
                             }}
                         >
-                            <Icon size={16} />
+                            <Icon size={tab.key === 'seguranca' || tab.key === 'aparencia' ? 18 : 16} />
                             {tab.label}
                         </button>
                     );
@@ -1098,7 +1098,7 @@ export const Configuracoes = () => {
                             <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '4px 0 0' }}>Escolha o estilo visual do seu painel</p>
                         </div>
 
-                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: '44px' }}>
+                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: isMobile ? '48px' : '44px' }}>
                             <div className="theme-switch-slider" style={{
                                 width: 'calc(33.33% - 8px)',
                                 transform: bgTheme === 'simple' ? 'translateX(0)' : bgTheme === 'planets' ? 'translateX(calc(100% + 4px))' : 'translateX(calc(200% + 8px))',
@@ -1112,7 +1112,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'simple' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('simple')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Layout size={15} />
                                 Simples
@@ -1121,7 +1121,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'planets' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('planets')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Star size={15} />
                                 Planetário
@@ -1130,7 +1130,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'spatial' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('spatial')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Sparkles size={15} />
                                 Espacial
