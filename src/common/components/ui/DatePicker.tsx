@@ -101,7 +101,7 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 
                     border: '1px solid var(--border)',
                     borderRadius: '16px',
                     padding: '20px',
-                    width: compact ? '300px' : '300px',
+                    maxWidth: '300px', width: 'calc(100vw - 32px)',
                     boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
                     backdropFilter: 'blur(16px)',
                 }}>

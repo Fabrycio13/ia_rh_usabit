@@ -36,6 +36,14 @@ export const AdminLogs = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
 
     // Dropdown states
     const [isOrgOpen, setIsOrgOpen] = useState(false);
@@ -190,8 +198,8 @@ export const AdminLogs = () => {
             <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Database size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        <Database size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             Logs de Atividade
                         </h1>
                     </div>
@@ -205,31 +213,41 @@ export const AdminLogs = () => {
             <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', flex: 1 }}>
                     {/* Date Range Group - FIRST */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                            <DatePicker 
-                                value={startDate} 
-                                onChange={val => { setStartDate(val); setCurrentPage(1); }}
-                            />
+                    {isMobile ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+                                    <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                                    <DatePicker compact value={startDate} onChange={val => { setStartDate(val); setCurrentPage(1); }} />
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+                                    <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                                    <DatePicker compact value={endDate} onChange={val => { setEndDate(val); setCurrentPage(1); }} />
+                                </div>
+                            </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                            <DatePicker 
-                                value={endDate} 
-                                onChange={val => { setEndDate(val); setCurrentPage(1); }}
-                            />
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                                <DatePicker value={startDate} onChange={val => { setStartDate(val); setCurrentPage(1); }} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                                <DatePicker value={endDate} onChange={val => { setEndDate(val); setCurrentPage(1); }} />
+                            </div>
                         </div>
-                    </div>
+                    )}
 
-                    <div style={{ height: '24px', width: '1px', background: 'var(--border)', margin: '0 4px' }} />
+                    {!isMobile && <div style={{ height: '24px', width: '1px', background: 'var(--border)', margin: '0 4px' }} />}
 
-                    <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Filtrar por:</span>
+                    {!isMobile && <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Filtrar por:</span>}
                     
                     {/* Organization Selector - Apenas para Owner */}
                     {userRole === 'owner' && (
-                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '240px', flexShrink: 0 }}>
+                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: isMobile ? '100%' : '240px', flexShrink: 0 }}>
                             <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
                                     <Database size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
@@ -241,7 +259,7 @@ export const AdminLogs = () => {
                             </div>
 
                             {isOrgOpen && (
-                                <div className="cs-dropdown">
+                                <div className="cs-dropdown" style={{ ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                     <div 
                                         className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
                                         onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); setCurrentPage(1); }}
@@ -266,7 +284,7 @@ export const AdminLogs = () => {
                     )}
 
                     {/* User Search */}
-                    <div style={{ position: 'relative', width: '200px' }}>
+                    <div style={{ position: 'relative', width: isMobile ? '100%' : '200px' }}>
                         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
                         <input 
                             type="text"
@@ -278,7 +296,7 @@ export const AdminLogs = () => {
                     </div>
 
                     {/* Status Filter - CUSTOM PREMIUM SELECT */}
-                    <div className="cs-container" ref={statusRef} style={{ width: '160px' }}>
+                    <div className="cs-container" ref={statusRef} style={{ width: isMobile ? '100%' : '160px' }}>
                         <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <AlertCircle 
@@ -293,7 +311,7 @@ export const AdminLogs = () => {
                         </div>
 
                         {isStatusOpen && (
-                            <div className="cs-dropdown" style={{ minWidth: '150px' }}>
+                            <div className="cs-dropdown" style={{ minWidth: '150px', ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                 <div 
                                     className={`cs-item ${statusFilter === '' ? 'active' : ''}`}
                                     onClick={() => { setStatusFilter(''); setIsStatusOpen(false); setCurrentPage(1); }}
@@ -320,7 +338,7 @@ export const AdminLogs = () => {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: isMobile ? '4px' : '8px' }}>
                     {(searchUser || selectedOrgId || statusFilter || startDate || endDate) && (
                         <button 
                             onClick={clearFilters}
@@ -335,7 +353,7 @@ export const AdminLogs = () => {
                     <button 
                         onClick={fetchLogs}
                         style={{ 
-                            padding: '10px 20px', 
+                            padding: isMobile ? '10px 14px' : '10px 20px', 
                             borderRadius: '10px', 
                             background: 'var(--primary)', 
                             border: 'none', 
@@ -368,13 +386,13 @@ export const AdminLogs = () => {
 
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                 {filteredLogs.length === 0 ? (
-                    <div style={{ padding: '64px', textAlign: 'center', color: 'var(--text-dim)' }}>
-                        <Info size={40} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                    <div style={{ padding: isMobile ? '32px 16px' : '64px', textAlign: 'center', color: 'var(--text-dim)' }}>
+                        <Info size={isMobile ? 28 : 40} style={{ marginBottom: '16px', opacity: 0.5 }} />
                         <p style={{ fontSize: '16px' }}>Nenhum log encontrado para os critérios selecionados.</p>
                     </div>
                 ) : (
                     <>
-                        <div style={{ overflowX: 'auto' }}>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                                 <colgroup>
                                     <col style={{ width: '15%' }} />
@@ -395,24 +413,24 @@ export const AdminLogs = () => {
                                 <tbody>
                                     {paginatedLogs.map(log => (
                                         <tr key={log.id} style={{ borderBottom: '1px solid var(--border)', fontSize: '13px', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                            <td style={{ padding: '16px', color: 'var(--text-dim)', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                                            <td style={{ padding: isMobile ? '10px 8px' : '16px', color: 'var(--text-dim)', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <Clock size={14} style={{ opacity: 0.6 }} />
                                                     {formatDate(log.created_at)}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'left' }}>
+                                            <td style={{ padding: isMobile ? '10px 8px' : '16px', verticalAlign: 'middle', textAlign: 'left' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                     <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{log.profiles?.name || 'Sistema'}</span>
                                                     <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{log.profiles?.email}</span>
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '16px', textAlign: 'left', verticalAlign: 'middle' }}>
+                                            <td style={{ padding: isMobile ? '10px 8px' : '16px', textAlign: 'left', verticalAlign: 'middle' }}>
                                                 <span style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.15)', textTransform: 'uppercase', display: 'inline-block' }}>
                                                     {log.action}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '16px', color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle', textAlign: 'left' }}>
+                                            <td style={{ padding: isMobile ? '10px 8px' : '16px', color: 'var(--text-muted)', maxWidth: isMobile ? '150px' : '300px', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle', textAlign: 'left' }}>
                                                 {typeof log.details === 'object' && log.details !== null ? (
                                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                                                         {Object.entries(log.details).map(([k, v]) => (
@@ -425,10 +443,10 @@ export const AdminLogs = () => {
                                                     String(log.details || '-')
                                                 )}
                                             </td>
-                                            <td style={{ padding: '16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                            <td style={{ padding: isMobile ? '10px 8px' : '16px', verticalAlign: 'middle', textAlign: 'center' }}>
                                                 <div style={{ display: 'inline-flex', justifyContent: 'center', width: '100%' }}>
                                                     {log.error ? (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '12px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: isMobile ? '4px 6px' : '6px 10px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)', fontSize: isMobile ? '10px' : '12px' }}>
                                                             <AlertCircle size={14} />
                                                             <span style={{ fontWeight: 500 }}>Erro</span>
                                                         </div>
@@ -448,7 +466,7 @@ export const AdminLogs = () => {
 
                         {/* Pagination Controls - Standardized Style */}
                         {totalPages > 1 && (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '12px 14px' : '14px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-card)', gap: isMobile ? '8px' : 0 }}>
                                 <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                                     Página {currentPage} de {totalPages} · {filteredLogs.length} logs
                                 </span>
@@ -456,9 +474,9 @@ export const AdminLogs = () => {
                                     <button 
                                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
                                         disabled={currentPage === 1}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: 13, transition: 'all 0.2s' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: isMobile ? '6px 10px' : '7px 14px', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: 13, transition: 'all 0.2s' }}
                                     >
-                                        <ChevronLeft style={{ width: 15, height: 15 }} /> Anterior
+                                        <ChevronLeft style={{ width: 15, height: 15 }} /> {!isMobile && 'Anterior'}
                                     </button>
                                     
                                     {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -474,8 +492,8 @@ export const AdminLogs = () => {
                                                 key={p} 
                                                 onClick={() => setCurrentPage(p as number)}
                                                 style={{ 
-                                                    width: 34, 
-                                                    height: 34, 
+                                                    width: isMobile ? 30 : 34, 
+                                                    height: isMobile ? 30 : 34, 
                                                     borderRadius: 8, 
                                                     border: '1px solid', 
                                                     borderColor: p === currentPage ? '#3b82f6' : 'var(--border)', 
@@ -494,9 +512,9 @@ export const AdminLogs = () => {
                                     <button 
                                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
                                         disabled={currentPage === totalPages}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: currentPage === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: 13, transition: 'all 0.2s' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: isMobile ? '6px 10px' : '7px 14px', color: currentPage === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: 13, transition: 'all 0.2s' }}
                                     >
-                                        Próximo <ChevronRight style={{ width: 15, height: 15 }} />
+                                        {!isMobile && 'Próximo'} <ChevronRight style={{ width: 15, height: 15 }} />
                                     </button>
                                 </div>
                             </div>
