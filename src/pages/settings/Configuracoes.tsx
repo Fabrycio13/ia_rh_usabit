@@ -833,57 +833,57 @@ export const Configuracoes = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                             {/* Nome */}
                             <div>
-                                <label style={labelStyle}>Nome completo</label>
+                                <label htmlFor="cfg-name" style={labelStyle}>Nome completo</label>
                                 <div style={fieldWrapStyle}>
                                     <User style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
+                                    <input id="cfg-name" name="name" autoComplete="name" className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Endereço */}
                             <div>
-                                <label style={labelStyle}>Endereço</label>
+                                <label htmlFor="cfg-address" style={labelStyle}>Endereço</label>
                                 <div style={fieldWrapStyle}>
                                     <MapPin style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
+                                    <input id="cfg-address" name="street-address" autoComplete="street-address" className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Telefone */}
                             <div>
-                                <label style={labelStyle}>Telefone</label>
+                                <label htmlFor="cfg-phone" style={labelStyle}>Telefone</label>
                                 <div style={fieldWrapStyle}>
                                     <Phone style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
+                                    <input id="cfg-phone" name="tel" type="tel" autoComplete="tel" className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
                                 </div>
                             </div>
 
                             {/* Cargo */}
                             <div>
-                                <label style={labelStyle}>Cargo</label>
+                                <label htmlFor="cfg-role" style={labelStyle}>Cargo</label>
                                 <div style={fieldWrapStyle}>
                                     <Briefcase style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
+                                    <input id="cfg-role" name="role" autoComplete="organization-title" className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Organização */}
                             {profile.user_role !== 'convidado' && (
                             <div>
-                                <label style={labelStyle}>Organização</label>
+                                <label htmlFor="cfg-orgname" style={labelStyle}>Organização</label>
                                 <div style={fieldWrapStyle}>
                                     <Building2 style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
+                                    <input id="cfg-orgname" name="organization" autoComplete="organization" className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
                                 </div>
                             </div>
                             )}
 
                             {/* Email readonly */}
                             <div>
-                                <label style={labelStyle}>E-mail</label>
+                                <label htmlFor="cfg-email" style={labelStyle}>E-mail</label>
                                 <div style={fieldWrapStyle}>
                                     <Mail style={iconFieldStyle} />
-                                    <input style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
+                                    <input id="cfg-email" name="email" type="email" autoComplete="email" style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
                                 </div>
                             </div>
                         </div>
@@ -917,10 +917,12 @@ export const Configuracoes = () => {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', flex: 1 }}>
                             <div>
-                                <label style={labelStyle}>Nova Senha</label>
+                                <label htmlFor="cfg-new-password" style={labelStyle}>Nova Senha</label>
                                 <div style={fieldWrapStyle}>
                                     <Lock style={iconFieldStyle} />
                                     <input
+                                        id="cfg-new-password"
+                                        name="new-password"
                                         className="field-input"
                                         type="password"
                                         style={inputStyle}
@@ -932,10 +934,12 @@ export const Configuracoes = () => {
                                 </div>
                             </div>
                             <div>
-                                <label style={labelStyle}>Confirmar</label>
+                                <label htmlFor="cfg-confirm-password" style={labelStyle}>Confirmar</label>
                                 <div style={fieldWrapStyle}>
                                     <ShieldCheck style={iconFieldStyle} />
                                     <input
+                                        id="cfg-confirm-password"
+                                        name="confirm-password"
                                         className="field-input"
                                         type="password"
                                         style={inputStyle}
@@ -1093,9 +1097,11 @@ export const Configuracoes = () => {
                                                 <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Botões, abas, destaques e bordas</p>
                                             </div>
                                         </div>
-                                        <input 
-                                            type="color" 
-                                            value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')} 
+                                        <input
+                                            id="cfg-primary-color"
+                                            name="primary-color"
+                                            type="color"
+                                            value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')}
                                             onChange={handlePrimary}
                                             onInput={handlePrimary}
                                             style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
@@ -1113,9 +1119,11 @@ export const Configuracoes = () => {
                                                 <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Títulos, legendas, textos de apoio — afeta toda a tipografia</p>
                                             </div>
                                         </div>
-                                        <input 
-                                            type="color" 
-                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')} 
+                                        <input
+                                            id="cfg-text-color"
+                                            name="text-color"
+                                            type="color"
+                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')}
                                             onChange={handleText}
                                             onInput={handleText}
                                             style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
@@ -1641,10 +1649,13 @@ export const Configuracoes = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Nome */}
                             <div>
-                                <label style={labelStyle}>Nome completo</label>
+                                <label htmlFor="newuser-name" style={labelStyle}>Nome completo</label>
                                 <div style={fieldWrapStyle}>
                                     <User style={iconFieldStyle} />
                                     <input
+                                        id="newuser-name"
+                                        name="name"
+                                        autoComplete="name"
                                         className="field-input"
                                         style={inputStyle}
                                         placeholder="Nome do usuário"
@@ -1656,10 +1667,14 @@ export const Configuracoes = () => {
 
                             {/* Email */}
                             <div>
-                                <label style={labelStyle}>E-mail</label>
+                                <label htmlFor="newuser-email" style={labelStyle}>E-mail</label>
                                 <div style={fieldWrapStyle}>
                                     <Mail style={iconFieldStyle} />
                                     <input
+                                        id="newuser-email"
+                                        name="email"
+                                        type="email"
+                                        autoComplete="email"
                                         className="field-input"
                                         style={inputStyle}
                                         placeholder="email@empresa.com"
@@ -1802,6 +1817,8 @@ export const Configuracoes = () => {
                                             transition: 'all 0.15s'
                                         }}>
                                             <input
+                                                id={`vaga-access-${vaga.id}`}
+                                                name={`vaga-access-${vaga.id}`}
                                                 type="checkbox"
                                                 checked={hasAccess}
                                                 onChange={() => handleToggleVagaAccess(vagaModalUserId, vaga.id, hasAccess)}
@@ -1882,24 +1899,24 @@ export const Configuracoes = () => {
                                 <div style={{ padding: '0 28px 24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
                                         <div>
-                                            <label style={labelStyle}>Server URL</label>
+                                            <label htmlFor="cfg-evo-url" style={labelStyle}>Server URL</label>
                                             <div style={fieldWrapStyle}>
                                                 <ShieldCheck style={iconFieldStyle} />
-                                                <input className="field-input" style={inputStyle} placeholder="https://evolution.seuservidor.com" value={evoUrl} onChange={e => setEvoUrl(e.target.value)} />
+                                                <input id="cfg-evo-url" name="evo-url" autoComplete="url" className="field-input" style={inputStyle} placeholder="https://evolution.seuservidor.com" value={evoUrl} onChange={e => setEvoUrl(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>API Key</label>
+                                            <label htmlFor="cfg-evo-key" style={labelStyle}>API Key</label>
                                             <div style={fieldWrapStyle}>
                                                 <Lock style={iconFieldStyle} />
-                                                <input className="field-input" type="password" style={inputStyle} placeholder="Sua Global API Key" value={evoKey} onChange={e => setEvoKey(e.target.value)} />
+                                                <input id="cfg-evo-key" name="evo-key" type="password" autoComplete="off" className="field-input" style={inputStyle} placeholder="Sua Global API Key" value={evoKey} onChange={e => setEvoKey(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>Nome da Instância</label>
+                                            <label htmlFor="cfg-evo-instance" style={labelStyle}>Nome da Instância</label>
                                             <div style={fieldWrapStyle}>
                                                 <Zap style={iconFieldStyle} />
-                                                <input className="field-input" style={inputStyle} placeholder="agente-rh" value={evoInstance} onChange={e => setEvoInstance(e.target.value)} />
+                                                <input id="cfg-evo-instance" name="evo-instance" autoComplete="off" className="field-input" style={inputStyle} placeholder="agente-rh" value={evoInstance} onChange={e => setEvoInstance(e.target.value)} />
                                             </div>
                                         </div>
                                     </div>
