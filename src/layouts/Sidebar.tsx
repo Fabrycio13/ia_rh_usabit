@@ -71,7 +71,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
 
 
     // Persist collapsed state in localStorage so navigation doesn't reset it
-    const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sb-col') === '1');
+    const [collapsedLocal, setCollapsedLocal] = useState(() => localStorage.getItem('sb-col') === '1');
+    const collapsed = hideToggle ? false : collapsedLocal;
     const [ddOpen, setDdOpen] = useState(false);
     const [langSub, setLangSub] = useState(false);
 
@@ -156,7 +157,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const toggle = () => setCollapsed(c => { const n = !c; localStorage.setItem('sb-col', n ? '1' : '0'); return n; });
+    const toggle = () => setCollapsedLocal(c => { const n = !c; localStorage.setItem('sb-col', n ? '1' : '0'); return n; });
     const handleLogout = async () => { await supabase.auth.signOut(); };
 
     const openDd = () => {
@@ -228,14 +229,14 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 height: '100%', 
                 flexShrink: 0, 
                 transition: 'width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1)', 
-                overflow: 'hidden',
+                overflowY: hideToggle ? 'auto' : 'hidden',
                 willChange: 'width, min-width',
                 boxShadow: '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05)'
             }}>
 
                 {/* Logo + Toggle */}
                 <div style={{ 
-                    padding: collapsed ? '20px 10px' : '16px 12px', 
+                    padding: collapsed ? '20px 10px' : (hideToggle ? '14px 12px 16px' : '16px 12px'), 
                     display: 'flex', 
                     flexDirection: collapsed ? 'column' : 'row',
                     alignItems: 'center', 
@@ -292,7 +293,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 )}
 
                 {/* Nav items */}
-                <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+                <nav style={{ flex: 1, padding: '0 8px', overflowY: hideToggle ? 'visible' : 'auto', overflowX: 'hidden' }}>
                     {/* Dashboard - todos os perfis exceto convidado */}
                     {hasPermission(profile.user_role, 'dashboard') && (
                         <NavItem to="/dashboard" icon={LayoutGrid} label={t('dashboard')} collapsed={collapsed} end />

@@ -15,10 +15,11 @@ export const DashboardLayout = () => {
     const [isChatOpen, setIsChatOpen] = React.useState(false);
     const [isMobileOpen, setIsMobileOpen] = React.useState(false);
     const [isMobile, setIsMobile] = React.useState(false);
+    const [vh, setVh] = React.useState(window.innerHeight);
     const location = useLocation();
 
     React.useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 768);
+        const check = () => { setIsMobile(window.innerWidth < 768); setVh(window.innerHeight); };
         check();
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
@@ -34,13 +35,13 @@ export const DashboardLayout = () => {
 
     const sidebarMobile: React.CSSProperties = {
         position: 'fixed',
-        top: 10,
+        top: 0,
         left: 0,
-        height: 'calc(100vh - 20px)',
+        height: vh + 'px',
         zIndex: 40,
         transform: isMobileOpen ? 'translateX(0)' : 'translateX(-110%)',
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        padding: '0 0 0 10px',
+        padding: '10px 0 0 10px',
         display: 'flex',
     };
 
@@ -64,11 +65,11 @@ export const DashboardLayout = () => {
                         display: 'flex',
                         position: 'fixed',
                         top: 16,
-                        left: 16,
+                        left: 20,
                         zIndex: 45,
-                        width: 40,
-                        height: 40,
-                        borderRadius: 12,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
                         color: 'var(--text-main)',
@@ -78,7 +79,7 @@ export const DashboardLayout = () => {
                         boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
                     }}
                 >
-                    <PanelLeft size={20} style={{ transform: isMobileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+                    <PanelLeft size={18} style={{ transform: isMobileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
                 </button>
             )}
 
@@ -114,7 +115,7 @@ export const DashboardLayout = () => {
                 <div style={{ flex: 1, display: 'flex', minWidth: 0, height: '100%' }}>
                     <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }} className="custom-scrollbar hide-scrollbar">
                         <div style={{
-                            padding: isMobile ? '16px 16px 60px' : '30px 30px 60px',
+                            padding: isMobile ? '64px 16px 60px' : '30px 30px 60px',
                             width: '100%',
                             boxSizing: 'border-box',
                         }}>
