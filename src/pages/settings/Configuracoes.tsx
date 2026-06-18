@@ -315,7 +315,7 @@ export const Configuracoes = () => {
         setUploadingPhoto(true);
         const ext = file.name.split('.').pop();
         const path = `${userId}/avatar.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
         if (uploadError) { 
             toast.error('Erro ao enviar foto.'); 
             setUploadingPhoto(false); 
