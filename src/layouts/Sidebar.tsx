@@ -9,41 +9,6 @@ import { hasPermission } from '../core/config/permissions';
 import toast from 'react-hot-toast';
 
 
-/* ─── Animated Usabit people Logo ─────────────────────────────────────────── */
-const SpaceLogo = ({ size = 48 }: { size?: number }) => (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-        {/* Document Icon */}
-        <g>
-            <path d="M12 6C12 4.89543 12.8954 4 14 4H30L38 12V42C38 43.1046 37.1046 44 36 44H14C12.8954 44 12 43.1046 12 42V6Z" 
-                  fill="var(--logo-doc-fill)" stroke="url(#grad1)" strokeWidth="1.5" />
-            <path d="M30 4H30.5L38 11.5V12H30V4Z" fill="#14b8a6" opacity="0.6" />
-            <line x1="18" y1="16" x2="32" y2="16" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-            <line x1="18" y1="22" x2="32" y2="22" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-            <line x1="18" y1="28" x2="26" y2="28" stroke="var(--logo-line)" strokeWidth="1.5" strokeLinecap="round" opacity="0.2" />
-        </g>
-
-        {/* AI Network Circular Symbol */}
-        <g transform="translate(12, 22)">
-            <g style={{ animation: 'pulse 2s ease-in-out infinite' }}>
-                <circle cx="0" cy="0" r="10" fill="var(--logo-ai-fill)" stroke="url(#grad2)" strokeWidth="1.2" filter="url(#glow)" />
-                <text x="0" y="3.5" textAnchor="middle" fill="white" fontSize="7" fontWeight="900" style={{ letterSpacing: '0.2px' }}>IA</text>
-                
-                {/* Orbital Nodes */}
-                <g style={{ animation: 'rotate 10s linear infinite' }}>
-                    <circle cx="10" cy="0" r="1.5" fill="#14b8a6" />
-                    <circle cx="-7" cy="7" r="1.5" fill="#3b82f6" />
-                    <circle cx="-7" cy="-7" r="1.5" fill="#8b5cf6" />
-                </g>
-            </g>
-        </g>
-
-        <style>{`
-            @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-            @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        `}</style>
-    </svg>
-);
-
 /* ─── CSS ───────────────────────────────────────────────────────────────────── */
 const css = `
 @keyframes iconBounce { 0%{transform:scale(1)} 40%{transform:scale(1.3) rotate(-8deg)} 70%{transform:scale(1.15) rotate(4deg)} 100%{transform:scale(1)} }
@@ -114,6 +79,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
     const userCardRef = useRef<HTMLButtonElement>(null);
     const ddRef = useRef<HTMLDivElement>(null);
     const [ddPos, setDdPos] = useState({ bottom: 0, left: 0, right: 0 });
+    const [notifPos, setNotifPos] = useState({ bottom: 0, left: 0 });
 
     // ─── Realtime Notifications ──────────────────────────────────────────────
     interface Notification { id: string; candidate_name: string; applied_at: string; vaga_id: string; status: string; vaga: { title: string } }
@@ -121,6 +87,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
     const [unreadCount, setUnreadCount] = useState(0);
     const [showNotifDd, setShowNotifDd] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
+    const notifBtnRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         if (!profile.organization_id) return;
@@ -278,7 +245,6 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 }}>
                     {!collapsed && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, ...(hideToggle ? { paddingLeft: '52px' } : {}) }}>
-                            <SpaceLogo size={50} />
                             <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                 <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Usabit people</p>
                                 <p style={{ color: 'var(--primary)', fontSize: '10px', fontWeight: 700, margin: '1px 0 0', whiteSpace: 'nowrap', letterSpacing: '0.1em', opacity: 0.9, fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>IA RECRUITMENT</p>
@@ -436,12 +402,59 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 <div style={{ padding: '0 8px 20px' }}>
                     <div style={{ height: '1px', background: 'var(--border)', margin: '0 4px 10px' }} />
 
-                    <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', gap: collapsed ? '12px' : '4px', justifyContent: 'center' }}>
-                        {/* Notification Bell Row - Bottom Left Position */}
+                    <div style={{ display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', gap: collapsed ? '12px' : '4px', justifyContent: collapsed ? 'center' : 'space-between' }}>
+                        {/* User card - Reduced button */}
+                        <button
+                            ref={userCardRef}
+                            className="usr-card"
+                            onClick={openDd}
+                            title={collapsed ? (profile.firstName || 'Usuário') : undefined}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: collapsed ? '0' : '10px', 
+                                padding: collapsed ? '0' : '9px 10px', 
+                                borderRadius: '10px', 
+                                background: 'transparent', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                width: collapsed ? '40px' : 'auto',
+                                height: collapsed ? '40px' : 'auto',
+                                flex: collapsed ? 'none' : 1, 
+                                minWidth: 0,
+                                textAlign: 'left', 
+                                transition: 'background 0.15s', 
+                                justifyContent: collapsed ? 'center' : 'flex-start'
+                            }}
+                        >
+                            {/* Avatar — left-aligned when not collapsed */}
+                            <div style={{ width: '100%', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start', alignItems: 'center', gap: collapsed ? '0' : '10px', minWidth: 0 }}>
+                                {profile.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0, display: 'block' }} />
+                                ) : (
+                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0, border: '2px solid var(--border)' }}>
+                                        {profile.initials || '?'}
+                                    </div>
+                                )}
+                                {!collapsed && (
+                                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                                        <p style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.firstName || '...'}</p>
+                                        <p style={{ color: 'var(--text-dim)', fontSize: '10px', margin: 0 }}>{planLabels[profile.plan] || t('planTrial')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </button>
+
+                        {/* Notification Bell - on the right side */}
                         <div style={{ position: 'relative' }} ref={notifRef}>
                             <button
+                                ref={notifBtnRef}
                                 onClick={() => {
-                                    setShowNotifDd(!showNotifDd);
+                                    if (notifBtnRef.current) {
+                                        const r = notifBtnRef.current.getBoundingClientRect();
+                                        setNotifPos({ bottom: window.innerHeight - r.top + 14, left: 8 });
+                                    }
+                                    setShowNotifDd(o => !o);
                                     setUnreadCount(0);
                                 }}
                                 title="Notificações"
@@ -487,51 +500,10 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                                     </div>
                                 )}
                             </button>
-
-
                         </div>
-
-                        {/* User card - Reduced button */}
-                        <button
-                            ref={userCardRef}
-                            className="usr-card"
-                            onClick={openDd}
-                            title={collapsed ? (profile.firstName || 'Usuário') : undefined}
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: collapsed ? '0' : '10px', 
-                                padding: collapsed ? '0' : '9px 10px', 
-                                borderRadius: '10px', 
-                                background: 'transparent', 
-                                border: 'none', 
-                                cursor: 'pointer', 
-                                width: collapsed ? '40px' : 'auto',
-                                height: collapsed ? '40px' : 'auto',
-                                flex: collapsed ? 'none' : 1, 
-                                minWidth: 0,
-                                textAlign: 'left', 
-                                transition: 'background 0.15s', 
-                                justifyContent: 'center' 
-                            }}
-                        >
-                            {/* Avatar — always centered when collapsed */}
-                            <div style={{ width: '100%', display: 'flex', justifyContent: collapsed ? 'center' : 'flex-start', alignItems: 'center', gap: collapsed ? '0' : '10px', minWidth: 0 }}>
-                                {profile.avatarUrl ? (
-                                    <img src={profile.avatarUrl} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0, display: 'block' }} />
-                                ) : (
-                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0, border: '2px solid var(--border)' }}>
-                                        {profile.initials || '?'}
-                                    </div>
-                                )}
-                                {!collapsed && (
-                                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                                        <p style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.firstName || '...'}</p>
-                                        <p style={{ color: 'var(--text-dim)', fontSize: '10px', margin: 0 }}>{planLabels[profile.plan] || t('planTrial')}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </button>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                        <img src="./logos/usabit-people-logo.svg" alt="Usabit People" style={{ height: '14px', opacity: 0.7 }} />
                     </div>
                 </div>
             </aside>
@@ -587,27 +559,25 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 <div 
                     style={{
                         position: 'fixed',
-                        bottom: '80px', // Above the profile area
-                        left: collapsed ? '20px' : '20px',
-                        width: '300px',
+                        bottom: notifPos.bottom || 80,
+                        left: notifPos.left || 20,
+                        width: collapsed ? '200px' : 'calc(260px - 16px)',
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
-                        borderRadius: '16px',
-                        padding: '12px',
-                        boxShadow: '0 10px 50px rgba(0,0,0,0.5)',
-                        zIndex: 10000,
-                        backdropFilter: 'blur(24px)',
-                        animation: 'csSlideUp 0.2s ease-out'
+                        borderRadius: '12px',
+                        padding: '6px',
+                        boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+                        zIndex: 9999,
                     }}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', padding: '0 4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '4px 10px' }}>
                         <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>Recentes</span>
-                        <button onClick={() => setShowNotifDd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
+                        <button onClick={() => setShowNotifDd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4 }}>
                             <X size={14} />
                         </button>
                     </div>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '380px', overflowY: 'auto' }} className="hide-scrollbar">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '380px', overflowY: 'auto' }} className="hide-scrollbar">
                         {notifications.length === 0 ? (
                             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
                                 Nenhuma notificação nova.

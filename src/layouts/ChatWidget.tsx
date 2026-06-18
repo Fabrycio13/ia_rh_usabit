@@ -62,7 +62,7 @@ const typingDotsStyle = `
 }
 `;
 
-export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; onClose: () => void; fullScreen?: boolean }) => {
     const { profile } = useUser();
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
@@ -179,21 +179,22 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
     return (
         <div style={{
-            width: isOpen ? '400px' : '0px',
-            minWidth: isOpen ? '400px' : '0px',
-            height: '100vh',
+            width: fullScreen ? '100%' : (isOpen ? '400px' : '0px'),
+            minWidth: fullScreen ? '100%' : (isOpen ? '400px' : '0px'),
+            height: fullScreen ? '100%' : '100vh',
             background: 'var(--bg-card)',
-            borderLeft: isOpen ? '1px solid var(--border)' : 'none',
+            borderLeft: isOpen && !fullScreen ? '1px solid var(--border)' : 'none',
             display: 'flex',
             flexDirection: 'column',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             overflow: 'hidden',
-            position: 'relative',
-            zIndex: 10
+            position: fullScreen ? 'fixed' : 'relative',
+            inset: fullScreen ? 0 : undefined,
+            zIndex: fullScreen ? 9999 : 10
         }}>
             {/* Header */}
             <div style={{
-                padding: '24px',
+                padding: fullScreen ? '24px 24px 24px 72px' : '24px',
                 background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                 display: 'flex',
                 alignItems: 'center',
@@ -201,7 +202,7 @@ export const ChatWidget = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 color: '#fff',
                 flexShrink: 0
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: '200px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: '200px' }}>
                     <div style={{ width: 44, height: 44, borderRadius: '15px', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Bot size={28} />
                     </div>
