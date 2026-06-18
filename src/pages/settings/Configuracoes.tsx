@@ -315,12 +315,14 @@ export const Configuracoes = () => {
         setUploadingPhoto(true);
         const ext = file.name.split('.').pop();
         const path = `${userId}/avatar.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-        if (uploadError) { 
-            toast.error('Erro ao enviar foto.'); 
-            setUploadingPhoto(false); 
+        console.log('[Avatar Upload] path:', path, 'file.type:', file.type, 'file.size:', file.size);
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+        if (uploadError) {
+            console.error('[Avatar Upload] error:', uploadError);
+            toast.error(`Erro ao enviar foto: ${uploadError.message}`);
+            setUploadingPhoto(false);
             logActivity(userId, 'Fez alterações na foto', { filename: file.name }, uploadError.message);
-            return; 
+            return;
         }
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
         const urlWithCache = `${publicUrl}?t=${Date.now()}`;
