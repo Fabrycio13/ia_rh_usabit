@@ -38,12 +38,14 @@ export const OwnerAdminApiPanel = ({
     fieldWrapStyle,
     iconFieldStyle,
     inputStyle,
+    isMobile,
 }: {
     allUsers: AdminUser[];
     labelStyle: React.CSSProperties;
     fieldWrapStyle: React.CSSProperties;
     iconFieldStyle: React.CSSProperties;
     inputStyle: React.CSSProperties;
+    isMobile?: boolean;
 }) => {
     const gestores = allUsers.filter(u => u.user_role === 'gestor');
     const [expanded, setExpanded] = useState<string | null>(null);
@@ -127,8 +129,8 @@ export const OwnerAdminApiPanel = ({
 
                         {/* Conteúdo expandido */}
                         {isOpen && (
-                            <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
-                                <div style={{ paddingTop: '16px', display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '14px' }}>
+                            <div style={{ padding: isMobile ? '0 14px 14px' : '0 20px 20px', borderTop: '1px solid var(--border)' }}>
+                                <div style={{ paddingTop: '16px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1.5fr 1fr', gap: '14px' }}>
                                     <div>
                                         <label style={labelStyle}>Server URL</label>
                                         <div style={fieldWrapStyle}>
@@ -208,9 +210,11 @@ const planLabels: Record<string, string> = {
 
 export const OwnerAdminPlanPanel = ({
     allUsers,
+    isMobile,
 }: {
     allUsers: AdminUser[];
     plans?: Plan[];
+    isMobile?: boolean;
 }) => {
     const gestores = allUsers.filter(u => u.user_role === 'gestor');
     const [editing, setEditing] = useState<string | null>(null);
@@ -259,7 +263,8 @@ export const OwnerAdminPlanPanel = ({
             </div>
 
             {/* Tabela de gestores */}
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'auto' }}>
+                <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -357,10 +362,11 @@ export const OwnerAdminPlanPanel = ({
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             {/* Legenda dos planos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '10px', marginTop: '4px' }}>
                 {([['trial', '#f59e0b', 'Grátis – 7 dias'], ['pro', '#6366f1', 'R$ 99,90/mês'], ['enterprise', '#10b981', 'Sob consulta'], ['lifetime', '#dc2626', 'Acesso vitalício']] as const).map(([key, color, desc]) => (
                     <div key={key} style={{ padding: '12px 14px', borderRadius: '10px', background: `${color}08`, border: `1px solid ${color}20` }}>
                         <p style={{ color: color, fontWeight: 700, fontSize: '12px', margin: '0 0 2px', textTransform: 'capitalize' }}>{planLabels[key]}</p>

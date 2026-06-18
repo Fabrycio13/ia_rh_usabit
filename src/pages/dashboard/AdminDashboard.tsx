@@ -1,7 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown } from 'lucide-react';
+import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown, Mail, Plus, Briefcase, Building2, User as UserIcon } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
+import toast from 'react-hot-toast';
+import { logActivity } from '../../core/services/logger';
+import { roleDefinitions } from '../../common/constants/roleDefinitions';
 import { 
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
@@ -49,6 +53,42 @@ const css = `
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
+const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: 'var(--bg-input)',
+    border: '1px solid var(--border)',
+    borderRadius: '10px',
+    padding: '11px 14px 11px 42px',
+    color: 'var(--text-main)',
+    fontSize: '14px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s, background 0.2s',
+};
+
+const labelStyle: React.CSSProperties = {
+    display: 'block',
+    color: 'var(--text-muted)',
+    fontSize: '11px',
+    fontWeight: 600,
+    letterSpacing: '0.07em',
+    textTransform: 'uppercase',
+    marginBottom: '6px',
+};
+
+const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
+
+const iconFieldStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: '13px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '16px',
+    height: '16px',
+    color: 'var(--text-dim)',
+    pointerEvents: 'none',
+};
+
 const initials = (name: string) =>
     name?.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 
@@ -59,6 +99,7 @@ interface UserProfile {
     user_role: string;
     status: string;
     organization_id?: string;
+    organization_name?: string;
     created_at: string;
 }
 
@@ -82,6 +123,23 @@ export const AdminDashboard = () => {
     const [jobDateSet, setJobDateSet] = useState<Set<string>>(new Set());
     const [selectedOrgId, setSelectedOrgId] = useState<string>('');
     const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
+
+    // Perfis state
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newUser, setNewUser] = useState({ name: '', email: '', user_role: 'rh' });
+    const [creatingUser, setCreatingUser] = useState(false);
+    const [vagaModalUserId, setVagaModalUserId] = useState<string | null>(null);
+    const [vagasList, setVagasList] = useState<Array<{ id: string; title: string; job_code?: string | null }>>([]);
+    const [userVagaIds, setUserVagaIds] = useState<Set<string>>(new Set());
+    const [vagaLoading, setVagaLoading] = useState(false);
 
     // Calendar state
     const today = new Date();
@@ -113,7 +171,8 @@ export const AdminDashboard = () => {
     }, []);
 
     const fetchDashboardData = async () => {
-        setLoading(true);
+        const isInitial = users.length === 0;
+        if (isInitial) setLoading(true);
         
         let userQuery = supabase
             .from('profiles')
@@ -192,7 +251,7 @@ export const AdminDashboard = () => {
             setAnalysisData(chartData);
         }
 
-        setLoading(false);
+        if (isInitial) setLoading(false);
     };
     const fetchDashboardDataRef = useRef<() => Promise<void> | null>(null);
 
@@ -243,6 +302,128 @@ export const AdminDashboard = () => {
         setUpdatingId(null);
     };
 
+    const loadVagas = async () => {
+        const { data } = await supabase.from('vagas_white_label').select('id, title, job_code').eq('status', 'aberta').order('job_code', { ascending: true, nullsFirst: false });
+        if (data) setVagasList(data);
+    };
+
+    const loadUserVagaAccess = async (convidadoUserId: string) => {
+        setVagaLoading(true);
+        const { data } = await supabase.from('convidado_vaga_access').select('vaga_id').eq('convidado_user_id', convidadoUserId);
+        setUserVagaIds(new Set((data || []).map(d => d.vaga_id)));
+        setVagaLoading(false);
+    };
+
+    const handleToggleVagaAccess = async (convidadoUserId: string, vagaId: string, hasAccess: boolean) => {
+        if (hasAccess) {
+            const { error } = await supabase.from('convidado_vaga_access').delete().eq('convidado_user_id', convidadoUserId).eq('vaga_id', vagaId);
+            if (error) { toast.error('Erro ao remover acesso'); return; }
+            setUserVagaIds(prev => { const next = new Set(prev); next.delete(vagaId); return next; });
+        } else {
+            const { error } = await supabase.from('convidado_vaga_access').insert({ convidado_user_id: convidadoUserId, vaga_id: vagaId, created_by: profile.userId });
+            if (error) { toast.error('Erro ao adicionar acesso'); return; }
+            setUserVagaIds(prev => { const next = new Set(prev); next.add(vagaId); return next; });
+        }
+    };
+
+    const handleCreateUser = async () => {
+        if (!newUser.name || !newUser.email) {
+            toast.error('Preencha todos os campos.');
+            return;
+        }
+
+        const canCreate = (creatorRole: string, targetRole: string): boolean => {
+            if (creatorRole === 'owner') return targetRole === 'gestor';
+            if (creatorRole === 'gestor') return ['rh', 'convidado'].includes(targetRole);
+            return false;
+        };
+
+        if (!canCreate(userRole, newUser.user_role)) {
+            const allowed = userRole === 'owner' ? 'Gestor' : 'RH ou Convidado';
+            toast.error(`Seu perfil só pode criar: ${allowed}`);
+            return;
+        }
+
+        setCreatingUser(true);
+
+        const isCreatingGestor = newUser.user_role === 'gestor';
+        const creatorIsOwner = userRole === 'owner';
+
+        let organizationId: string | null = null;
+        let organizationName: string | null = null;
+
+        if (creatorIsOwner && isCreatingGestor) {
+            organizationId = null;
+            organizationName = null;
+        } else {
+            organizationId = profile.organization_id || null;
+            organizationName = profile.organization_name || null;
+        }
+
+        try {
+            const { data: fnData, error: fnError } = await supabase.functions.invoke('create-user-and-invite', {
+                body: {
+                    email: newUser.email,
+                    name: newUser.name,
+                    user_role: newUser.user_role,
+                    organization_id: organizationId,
+                    organization_name: organizationName,
+                }
+            });
+            if (fnError) {
+                const detail = fnError.message || JSON.stringify(fnError);
+                toast.error(`Erro ao criar convite: ${detail.substring(0, 300)}`);
+                setCreatingUser(false);
+                return;
+            }
+            const userId = fnData?.userId;
+            if (!userId) {
+                toast.error(`Erro: userId não retornado. Resposta: ${JSON.stringify(fnData).substring(0, 2000)}`);
+                setCreatingUser(false);
+                return;
+            }
+            toast.success(`Convite enviado para ${newUser.name}!`);
+            logActivity(profile.userId, 'Criou novo usuário', { tipo: newUser.user_role, email: newUser.email });
+            setShowCreateModal(false);
+            setNewUser({ name: '', email: '', user_role: 'rh' });
+        } catch (err) {
+            toast.error(`Ocorreu um erro inesperado: ${(err as Error).message}`);
+        }
+        setCreatingUser(false);
+    };
+
+    const handleToggleOrgStatus = async (orgId: string, currentStatus: string) => {
+        if (!orgId) {
+            toast.error('Não é possível desativar usuários sem organização definida.');
+            return;
+        }
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        const { error } = await supabase
+            .from('profiles')
+            .update({ status: newStatus })
+            .eq('organization_id', orgId);
+        if (error) {
+            toast.error(`Erro ao atualizar organização: ${error.message}`);
+            return;
+        }
+        setUsers(prev => prev.map(u => u.organization_id === orgId ? { ...u, status: newStatus } : u));
+        toast.success(`Organização ${newStatus === 'active' ? 'ativada' : 'desativada'} com sucesso!`);
+        logActivity(profile.userId, `${newStatus === 'active' ? 'Ativou' : 'Desativou'} organização`, { organization_id: orgId });
+    };
+
+    const handleResendInvite = async (targetUser: { id: string; name?: string; email: string }) => {
+        const { error } = await supabase.functions.invoke('send-invite-email', {
+            body: { userId: targetUser.id, email: targetUser.email, name: targetUser.name || targetUser.email }
+        });
+        if (error) {
+            toast.error('Erro ao reenviar convite. Verifique o console.');
+            logActivity(profile.userId, 'Erro ao reenviar convite', { email: targetUser.email, error: error.message });
+            return;
+        }
+        toast.success(`Convite reenviado para ${targetUser.name || targetUser.email}`);
+        logActivity(profile.userId, 'Reenviou convite', { email: targetUser.email });
+    };
+
     const filteredUsers = users.filter(u => {
         const matchesSearch = (u.name?.toLowerCase().includes(search.toLowerCase()) || 
                                u.email?.toLowerCase().includes(search.toLowerCase()));
@@ -275,21 +456,21 @@ export const AdminDashboard = () => {
             <style>{css}</style>
             <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                    <ShieldCheck size={32} style={{ color: 'var(--primary)' }} />
-                    <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                    <ShieldCheck size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                    <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                         Painel Administrador
                     </h1>
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
                     Gerencie usuários e monitore o status das contas.
                 </p>
-                
+
                 {/* Organization Selection Filter - Apenas para Owner */}
                 {userRole === 'owner' && (
-                    <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>Filtrar Dashboard por Organização:</span>
+                    <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                        {!isMobile && <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>Filtrar Dashboard por Organização:</span>}
                         
-                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: '320px', flexShrink: 0 }}>
+                        <div className="cs-container" ref={orgRef} style={{ width: 'auto', minWidth: isMobile ? '100%' : '320px', flexShrink: 0 }}>
                             <div className="cs-trigger" onClick={() => setIsOrgOpen(!isOrgOpen)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, overflow: 'hidden' }}>
                                     <Database size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
@@ -301,7 +482,7 @@ export const AdminDashboard = () => {
                             </div>
 
                             {isOrgOpen && (
-                                <div className="cs-dropdown">
+                                <div className="cs-dropdown" style={{ ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                     <div 
                                         className={`cs-item ${selectedOrgId === '' ? 'active' : ''}`}
                                         onClick={() => { setSelectedOrgId(''); setIsOrgOpen(false); }}
@@ -328,13 +509,13 @@ export const AdminDashboard = () => {
             </div>
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? '12px' : '20px', marginBottom: isMobile ? '20px' : '32px' }}>
                 {[
                     { label: 'Total de Usuários', value: stats.total, icon: Users, color: '#3b82f6' },
                     { label: 'Usuários Ativos', value: stats.active, icon: UserCheck, color: '#10b981' },
                     { label: 'Usuários Inativos', value: stats.inactive, icon: UserX, color: '#ef4444' },
                 ].map((s, i) => (
-                    <div key={i} style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div key={i} style={{ background: 'var(--bg-card)', padding: isMobile ? '14px' : '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ padding: '12px', background: `${s.color}20`, borderRadius: '12px', color: s.color }}>
                             <s.icon size={24} />
                         </div>
@@ -347,9 +528,34 @@ export const AdminDashboard = () => {
             </div>
 
             {/* Charts Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: isMobile ? '12px' : '20px', marginBottom: '32px' }}>
+                {isMobile && (
+                <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ marginBottom: 12 }}>
+                        <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filtro</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>Período:</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                            <DatePicker compact value={rangeStart || ''} onChange={val => setRangeStart(val || null)} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                            <DatePicker compact value={rangeEnd || ''} onChange={val => setRangeEnd(val || null)} />
+                        </div>
+                    </div>
+                    {(rangeStart || rangeEnd) && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                            <button onClick={clearRange} style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '6px 14px', color: 'var(--text-error)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <X size={14} /> Limpar filtros
+                            </button>
+                        </div>
+                    )}
+                </div>
+                )}
                 {/* Analyses Per Day */}
-                <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
+                <div style={{ background: 'var(--bg-card)', padding: isMobile ? '14px' : '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: '#3b82f6' }}>
@@ -363,8 +569,8 @@ export const AdminDashboard = () => {
                             </h3>
                         </div>
                     </div>
-                    <div style={{ height: '300px', width: '100%', minWidth: 0, position: 'relative' }}>
-                        <ResponsiveContainer width="100%" height={300} debounce={50}>
+                    <div style={{ height: isMobile ? '180px' : '300px', width: '100%', minWidth: 0, position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={isMobile ? 180 : 300} debounce={50}>
                             <AreaChart data={analysisData}>
                                 <defs>
                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -413,7 +619,8 @@ export const AdminDashboard = () => {
                     </div>
                 </div>
 
-                {/* Calendar Filter */}
+                {/* Calendar Filter (desktop) */}
+                {!isMobile && (
                 <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
                     {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -481,11 +688,12 @@ export const AdminDashboard = () => {
                         )}
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Filter Bar */}
             <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ position: 'relative', width: '240px' }}>
+                <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
                     <input 
                         type="text" 
@@ -498,18 +706,18 @@ export const AdminDashboard = () => {
                     />
                 </div>
                 
-                <div style={{ height: '20px', width: '1px', background: 'var(--border)', margin: '0 4px' }} />
+                {!isMobile && <div style={{ height: '20px', width: '1px', background: 'var(--border)', margin: '0 4px' }} />}
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Cargo:</span>
-                        <div className="cs-container" ref={roleRef} style={{ width: '160px' }}>
+                        <div className="cs-container" ref={roleRef} style={{ width: isMobile ? '100%' : '160px' }}>
                             <div className="cs-trigger" onClick={() => setIsRoleOpen(!isRoleOpen)}>
                                 <span>{roleFilter === '' ? 'Todos' : roleFilter.toUpperCase()}</span>
                                 <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isRoleOpen ? 'rotate(180deg)' : 'none' }} />
                             </div>
                             {isRoleOpen && (
-                                <div className="cs-dropdown">
+                                <div className="cs-dropdown" style={{ ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                     <div className={`cs-item ${roleFilter === '' ? 'active' : ''}`} onClick={() => { setRoleFilter(''); setIsRoleOpen(false); }}>Todos</div>
                                     <div className={`cs-item ${roleFilter === 'rh' ? 'active' : ''}`} onClick={() => { setRoleFilter('rh'); setIsRoleOpen(false); }}>RH</div>
                                     <div className={`cs-item ${roleFilter === 'gestor' ? 'active' : ''}`} onClick={() => { setRoleFilter('gestor'); setIsRoleOpen(false); }}>GESTOR</div>
@@ -521,13 +729,13 @@ export const AdminDashboard = () => {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Status:</span>
-                        <div className="cs-container" ref={statusRef} style={{ width: '160px' }}>
+                        <div className="cs-container" ref={statusRef} style={{ width: isMobile ? '100%' : '160px' }}>
                             <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
                                 <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : 'Inativo'}</span>
                                 <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'none' }} />
                             </div>
                             {isStatusOpen && (
-                                <div className="cs-dropdown">
+                                <div className="cs-dropdown" style={{ ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                     <div className={`cs-item ${statusFilter === '' ? 'active' : ''}`} onClick={() => { setStatusFilter(''); setIsStatusOpen(false); }}>Todos</div>
                                     <div className={`cs-item ${statusFilter === 'active' ? 'active' : ''}`} onClick={() => { setStatusFilter('active'); setIsStatusOpen(false); }}>
                                         <div className="cs-dot" style={{ background: '#10b981' }} /> Ativo
@@ -544,31 +752,137 @@ export const AdminDashboard = () => {
                 {(roleFilter || statusFilter || search) && (
                     <button
                         onClick={() => { setRoleFilter(''); setStatusFilter(''); setSearch(''); }}
-                        style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                        style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: isMobile ? '7px 10px' : '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
                     >
                         <X style={{ width: 12, height: 12 }} /> Limpar filtros
                     </button>
                 )}
             </div>
 
+            {/* Convidar Usuário */}
+            {(userRole === 'owner' || userRole === 'gestor') && (
+                    <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: 'var(--primary)',
+                            color: '#fff',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'opacity 0.15s',
+                        }}
+                    >
+                        <Plus size={18} />
+                        Convidar Usuário
+                    </button>
+                </div>
+            )}
+
             {/* User List */}
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                <div style={{ width: '100%' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
+                {userRole === 'owner' ? (
+                    /* Owner: Visão agrupada por organização */
+                    <div>
+                        {(() => {
+                            const orgs = new Map<string, { id: string; name: string; status: string; users: UserProfile[] }>();
+                            filteredUsers.forEach(u => {
+                                const oid = u.organization_id || 'sem-org';
+                                if (!orgs.has(oid)) {
+                                    orgs.set(oid, { id: oid, name: u.organization_name || 'Sem Organização', status: u.status, users: [] });
+                                }
+                                orgs.get(oid)!.users.push(u);
+                            });
+                            return Array.from(orgs.values()).map(org => {
+                                const gestor = org.users.find(u => u.user_role === 'gestor');
+                                const membros = org.users.filter(u => u.id !== gestor?.id);
+                                const totalMembros = org.users.length;
+                                const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : 'inactive';
+                                return (
+                                    <div key={org.id} style={{ borderBottom: '1px solid var(--border)', padding: isMobile ? '12px 14px' : '16px 20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : '#ef4444'} />
+                                                </div>
+                                                <div>
+                                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>{org.name}</p>
+                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>
+                                                        {totalMembros} {totalMembros === 1 ? 'membro' : 'membros'} {gestor ? `• Gestor: ${gestor.name || gestor.email.split('@')[0]}` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : '#ef4444' }} />
+                                                <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                                    {orgStatus === 'active' ? 'Ativa' : 'Inativa'}
+                                                </span>
+                                                {org.id !== 'sem-org' && (
+                                                    <button
+                                                        onClick={() => handleToggleOrgStatus(org.id, orgStatus)}
+                                                        style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                        {orgStatus === 'active' ? <UserX size={12} /> : <UserCheck size={12} />}
+                                                        {orgStatus === 'active' ? 'Desativar' : 'Ativar'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {membros.length > 0 && (
+                                            <div style={{ marginTop: '10px', marginLeft: isMobile ? 0 : '46px' }}>
+                                                {membros.map(u => (
+                                                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', flexWrap: 'wrap', gap: '6px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(u.name)}</div>
+                                                            <div>
+                                                                <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 500, margin: 0 }}>{u.name || u.email.split('@')[0]}</p>
+                                                                <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0 }}>{u.email}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : '#10b981' }}>
+                                                                {u.user_role?.toUpperCase()}
+                                                            </span>
+                                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            });
+                        })()}
+                        {filteredUsers.length === 0 && (
+                            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '14px' }}>
+                                Nenhum usuário encontrado.
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    /* Gestor/RH/Convidado: Tabela plana com ações estendidas */
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: isMobile ? 'auto' : 'fixed' }}>
                         <colgroup>
-                            <col style={{ width: '28%' }} />
-                            <col style={{ width: '22%' }} />
-                            <col style={{ width: '16%' }} />
-                            <col style={{ width: '16%' }} />
-                            <col style={{ width: '18%' }} />
+                            <col style={{ width: isMobile ? 'auto' : '28%' }} />
+                            <col style={{ width: isMobile ? '0%' : '20%' }} />
+                            <col style={{ width: isMobile ? 'auto' : '14%' }} />
+                            <col style={{ width: isMobile ? '0%' : '14%' }} />
+                            <col style={{ width: isMobile ? 'auto' : '24%' }} />
                         </colgroup>
                         <thead>
                             <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Usuário</th>
-                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Organização</th>
-                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Cargo</th>
-                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Status</th>
-                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Ações</th>
+                                <th style={{ padding: isMobile ? '12px 6px 12px 8px' : '14px 16px', fontSize: isMobile ? '10px' : '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Usuário</th>
+                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: isMobile ? 'none' : 'table-cell' }}>Organização</th>
+                                <th style={{ padding: isMobile ? '12px 2px' : '14px 16px', fontSize: isMobile ? '10px' : '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>Cargo</th>
+                                <th style={{ padding: '14px 16px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', display: isMobile ? 'none' : 'table-cell' }}>Status</th>
+                                <th style={{ padding: isMobile ? '12px 4px' : '14px 16px', fontSize: isMobile ? '10px' : '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -578,8 +892,9 @@ export const AdminDashboard = () => {
 
                                 return (
                                 <tr key={user.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
-                                    <td style={{ padding: '16px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <td style={{ padding: isMobile ? '10px 8px' : '16px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10 }}>
+                                            {!isMobile && (
                                             <div style={{ 
                                                 width: 32, 
                                                 height: 32, 
@@ -595,35 +910,42 @@ export const AdminDashboard = () => {
                                             }}>
                                                 {initials(user.name)}
                                             </div>
-                                            <div style={{ minWidth: 0 }}>
-                                                <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {user.name || user.email.split('@')[0] || 'Usuário'}
-                                                </p>
+                                            )}
+                                            <div style={{ minWidth: 0, position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {(() => { const n = user.name || user.email.split('@')[0] || 'Usuário'; const m = isMobile ? 12 : 999; return n.length > m ? n.substring(0, m) + '…' : n; })()}
+                                                    </p>
+                                                    {isMobile && (
+                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444', flexShrink: 0 }} />
+                                                    )}
+                                                </div>
                                                 <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                     {user.email}
                                                 </p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '16px' }}>
+                                    <td style={{ padding: isMobile ? '10px 8px' : '16px', display: isMobile ? 'none' : 'table-cell' }}>
                                         <p style={{ color: 'var(--text-main)', fontSize: 13, margin: 0, fontWeight: 500 }}>
-                                            {(user as { organization_name?: string }).organization_name || 'Sem Organização'}
+                                            {user.organization_name || 'Sem Organização'}
                                         </p>
                                     </td>
-                                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                                        <span style={{ 
-                                            padding: '4px 8px', 
-                                            borderRadius: '6px', 
-                                            fontSize: '11px', 
-                                            fontWeight: 700, 
-                                            background: isOwner ? 'rgba(239, 68, 68, 0.1)' : '#3b82f620', 
-                                            color: isOwner ? '#ef4444' : '#3b82f6', 
-                                            textTransform: 'uppercase' 
+                                    <td style={{ padding: isMobile ? '10px 6px' : '10px 8px', textAlign: 'center' }}>
+                                        <span style={{
+                                            padding: isMobile ? '3px 6px' : '4px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: isMobile ? '10px' : '11px',
+                                            fontWeight: 700,
+                                            background: isOwner ? 'rgba(239, 68, 68, 0.1)' : '#3b82f620',
+                                            color: isOwner ? '#ef4444' : '#3b82f6',
+                                            textTransform: 'uppercase',
+                                            whiteSpace: 'nowrap',
                                         }}>
                                             {roleLabel}
                                         </span>
                                     </td>
-                                    <td style={{ padding: '16px' }}>
+                                    <td style={{ padding: isMobile ? '10px 8px' : '16px', display: isMobile ? 'none' : 'table-cell' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
                                             <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : '#ef4444' }}>
@@ -631,28 +953,84 @@ export const AdminDashboard = () => {
                                             </span>
                                         </div>
                                     </td>
-                                    <td style={{ padding: '16px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                            <button 
+                                    <td style={{ padding: isMobile ? '10px 8px' : '10px 8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? '6px' : '6px' }}>
+                                            <button
                                                 onClick={() => toggleStatus(user.id, user.status)}
                                                 disabled={updatingId === user.id}
+                                                title={user.status === 'active' ? 'Desativar' : 'Ativar'}
                                                 style={{
-                                                    padding: '6px 12px',
+                                                    padding: isMobile ? '6px' : '6px 12px',
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
                                                     color: user.status === 'active' ? '#ef4444' : '#10b981',
-                                                    fontSize: '12px',
+                                                    fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: 'pointer',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: '6px',
-                                                    transition: 'all 0.2s'
+                                                    justifyContent: 'center',
+                                                    gap: '4px',
+                                                    transition: 'all 0.2s',
+                                                    whiteSpace: 'nowrap',
+                                                    minWidth: isMobile ? 28 : 'auto',
                                                 }}
                                             >
-                                                {updatingId === user.id ? <Loader2 className="animate-spin" size={14} /> : (user.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
-                                                {user.status === 'active' ? 'Desativar' : 'Ativar'}
+                                                {updatingId === user.id ? <Loader2 className="animate-spin" size={12} /> : (user.status === 'active' ? <UserX size={12} /> : <UserCheck size={12} />)}
+                                                {isMobile ? '' : (user.status === 'active' ? 'Desativar' : 'Ativar')}
+                                            </button>
+                                            <button
+                                                onClick={() => handleResendInvite({ id: user.id, name: user.name, email: user.email })}
+                                                title="Reenviar convite"
+                                                style={{
+                                                    padding: isMobile ? '6px' : '6px 10px',
+                                                    borderRadius: '8px',
+                                                    border: '1px solid var(--border)',
+                                                    background: 'var(--bg-main)',
+                                                    color: '#3b82f6',
+                                                    fontSize: isMobile ? '10px' : '11px',
+                                                    fontWeight: 600,
+                                                    cursor: user.user_role === 'owner' ? 'default' : 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '4px',
+                                                    transition: 'all 0.2s',
+                                                    whiteSpace: 'nowrap',
+                                                    visibility: user.user_role === 'owner' ? 'hidden' : 'visible',
+                                                    pointerEvents: user.user_role === 'owner' ? 'none' : 'auto',
+                                                    minWidth: isMobile ? 28 : 'auto',
+                                                }}
+                                            >
+                                                <Mail size={12} />
+                                                {isMobile ? '' : 'Reenviar'}
+                                            </button>
+                                            <button
+                                                onClick={() => { setVagaModalUserId(user.id); loadVagas(); loadUserVagaAccess(user.id); }}
+                                                title="Vagas"
+                                                style={{
+                                                    padding: isMobile ? '6px' : '6px 10px',
+                                                    borderRadius: '8px',
+                                                    border: '1px solid var(--border)',
+                                                    background: 'var(--bg-main)',
+                                                    color: '#10b981',
+                                                    fontSize: isMobile ? '10px' : '11px',
+                                                    fontWeight: 600,
+                                                    cursor: user.user_role === 'convidado' ? 'pointer' : 'default',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '4px',
+                                                    transition: 'all 0.2s',
+                                                    whiteSpace: 'nowrap',
+                                                    visibility: user.user_role === 'convidado' ? 'visible' : 'hidden',
+                                                    pointerEvents: user.user_role === 'convidado' ? 'auto' : 'none',
+                                                    minWidth: isMobile ? 28 : 'auto',
+                                                }}
+                                            >
+                                                <Briefcase size={12} />
+                                                {isMobile ? '' : 'Vagas'}
                                             </button>
                                         </div>
                                     </td>
@@ -661,8 +1039,177 @@ export const AdminDashboard = () => {
                             })}
                         </tbody>
                     </table>
-                </div>
+                    {filteredUsers.length === 0 && (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '14px' }}>
+                            Nenhum usuário encontrado.
+                        </div>
+                    )}
+                    </div>
+                )}
             </div>
+
+            {/* Create User Modal */}
+            {showCreateModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}>
+                    <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: isMobile ? '20px' : '28px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                            <h2 style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0 }}>Convidar Usuário</h2>
+                            <button onClick={() => setShowCreateModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                            <label htmlFor="newuser-name" style={labelStyle}>Nome completo</label>
+                            <div style={fieldWrapStyle}>
+                                <UserIcon style={iconFieldStyle} />
+                                <input
+                                    id="newuser-name"
+                                    style={inputStyle}
+                                    placeholder="Nome do usuário"
+                                    value={newUser.name}
+                                    onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                            <label htmlFor="newuser-email" style={labelStyle}>E-mail</label>
+                            <div style={fieldWrapStyle}>
+                                <Mail style={iconFieldStyle} />
+                                <input
+                                    id="newuser-email"
+                                    type="email"
+                                    style={inputStyle}
+                                    placeholder="email@exemplo.com"
+                                    value={newUser.email}
+                                    onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={labelStyle}>Perfil de Acesso</label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {roleDefinitions
+                                    .filter(r => {
+                                        if (userRole === 'owner') return r.key === 'gestor';
+                                        if (userRole === 'gestor') return ['rh', 'convidado'].includes(r.key);
+                                        return false;
+                                    })
+                                    .map(r => (
+                                        <button
+                                            key={r.key}
+                                            onClick={() => setNewUser(prev => ({ ...prev, user_role: r.key }))}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                padding: '12px 14px',
+                                                borderRadius: '12px',
+                                                border: `2px solid ${newUser.user_role === r.key ? r.color : 'var(--border)'}`,
+                                                background: newUser.user_role === r.key ? `${r.color}10` : 'var(--bg-main)',
+                                                cursor: 'pointer',
+                                                textAlign: 'left',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            <r.icon size={20} color={r.color} />
+                                            <div>
+                                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '13px', margin: 0 }}>{r.label}</p>
+                                                <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>{r.description}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleCreateUser}
+                            disabled={creatingUser}
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                borderRadius: '12px',
+                                border: 'none',
+                                background: 'var(--primary)',
+                                color: '#fff',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                cursor: creatingUser ? 'not-allowed' : 'pointer',
+                                opacity: creatingUser ? 0.6 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                            }}
+                        >
+                            {creatingUser ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />}
+                            {creatingUser ? 'Enviando convite…' : 'Enviar Convite'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Vaga Permission Modal */}
+            {vagaModalUserId && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}>
+                    <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: isMobile ? '20px' : '24px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                            <h2 style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0 }}>Permissão de Vagas</h2>
+                            <button onClick={() => setVagaModalUserId(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', marginBottom: '16px' }}>
+                            Selecione as vagas que este convidado poderá acessar:
+                        </p>
+                        {vagaLoading ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                                <Loader2 className="animate-spin" size={24} color="var(--primary)" />
+                            </div>
+                        ) : vagasList.length === 0 ? (
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                                Nenhuma vaga aberta disponível.
+                            </p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {vagasList.map(vaga => {
+                                    const hasAccess = userVagaIds.has(vaga.id);
+                                    return (
+                                        <label
+                                            key={vaga.id}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                padding: '10px 12px',
+                                                borderRadius: '10px',
+                                                border: `1px solid ${hasAccess ? 'var(--primary)' : 'var(--border)'}`,
+                                                background: hasAccess ? 'rgba(59,130,246,0.05)' : 'var(--bg-main)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={hasAccess}
+                                                onChange={() => handleToggleVagaAccess(vagaModalUserId, vaga.id, hasAccess)}
+                                                style={{ accentColor: 'var(--primary)', width: 16, height: 16 }}
+                                            />
+                                            <div>
+                                                <p style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 500, margin: 0 }}>
+                                                    {vaga.job_code ? `${vaga.job_code} - ` : ''}{vaga.title}
+                                                </p>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
