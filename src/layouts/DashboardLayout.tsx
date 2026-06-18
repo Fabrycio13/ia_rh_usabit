@@ -65,7 +65,7 @@ export const DashboardLayout = () => {
                         display: 'flex',
                         position: 'fixed',
                         top: 16,
-                        left: 12,
+                        left: 20,
                         zIndex: 45,
                         width: 36,
                         height: 36,
