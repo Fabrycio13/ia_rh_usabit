@@ -64,11 +64,11 @@ export const DashboardLayout = () => {
                     style={{
                         display: 'flex',
                         position: 'fixed',
-                        top: 12,
+                        top: 16,
                         left: 12,
                         zIndex: 45,
-                        width: 34,
-                        height: 34,
+                        width: 36,
+                        height: 36,
                         borderRadius: 10,
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
@@ -115,7 +115,7 @@ export const DashboardLayout = () => {
                 <div style={{ flex: 1, display: 'flex', minWidth: 0, height: '100%' }}>
                     <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }} className="custom-scrollbar hide-scrollbar">
                         <div style={{
-                            padding: isMobile ? '56px 16px 60px' : '30px 30px 60px',
+                            padding: isMobile ? '64px 16px 60px' : '30px 30px 60px',
                             width: '100%',
                             boxSizing: 'border-box',
                         }}>

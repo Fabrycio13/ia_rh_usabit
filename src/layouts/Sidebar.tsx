@@ -236,7 +236,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
 
                 {/* Logo + Toggle */}
                 <div style={{ 
-                    padding: collapsed ? '20px 10px' : '16px 12px', 
+                    padding: collapsed ? '20px 10px' : (hideToggle ? '14px 12px 16px' : '16px 12px'), 
                     display: 'flex', 
                     flexDirection: collapsed ? 'column' : 'row',
                     alignItems: 'center', 
