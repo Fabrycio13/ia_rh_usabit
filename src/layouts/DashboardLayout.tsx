@@ -34,13 +34,13 @@ export const DashboardLayout = () => {
 
     const sidebarMobile: React.CSSProperties = {
         position: 'fixed',
-        top: 10,
+        top: 0,
         left: 0,
-        height: 'calc(100vh - 20px)',
+        height: '100dvh',
         zIndex: 40,
         transform: isMobileOpen ? 'translateX(0)' : 'translateX(-110%)',
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        padding: '0 0 0 10px',
+        padding: '10px 0 0 10px',
         display: 'flex',
     };
 

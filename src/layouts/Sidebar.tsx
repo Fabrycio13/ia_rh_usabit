@@ -71,7 +71,10 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
 
 
     // Persist collapsed state in localStorage so navigation doesn't reset it
-    const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sb-col') === '1');
+    const [collapsed, setCollapsed] = useState(() => {
+        if (window.innerWidth < 768) return false;
+        return localStorage.getItem('sb-col') === '1';
+    });
     const [ddOpen, setDdOpen] = useState(false);
     const [langSub, setLangSub] = useState(false);
 
@@ -228,7 +231,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 height: '100%', 
                 flexShrink: 0, 
                 transition: 'width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1)', 
-                overflow: 'hidden',
+                overflowY: hideToggle ? 'auto' : 'hidden',
                 willChange: 'width, min-width',
                 boxShadow: '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05)'
             }}>
@@ -292,7 +295,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 )}
 
                 {/* Nav items */}
-                <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+                <nav style={{ flex: 1, padding: '0 8px', overflowY: hideToggle ? 'visible' : 'auto', overflowX: 'hidden' }}>
                     {/* Dashboard - todos os perfis exceto convidado */}
                     {hasPermission(profile.user_role, 'dashboard') && (
                         <NavItem to="/dashboard" icon={LayoutGrid} label={t('dashboard')} collapsed={collapsed} end />
