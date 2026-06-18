@@ -71,10 +71,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
 
 
     // Persist collapsed state in localStorage so navigation doesn't reset it
-    const [collapsed, setCollapsed] = useState(() => {
-        if (window.innerWidth < 768) return false;
-        return localStorage.getItem('sb-col') === '1';
-    });
+    const [collapsedLocal, setCollapsedLocal] = useState(() => localStorage.getItem('sb-col') === '1');
+    const collapsed = hideToggle ? false : collapsedLocal;
     const [ddOpen, setDdOpen] = useState(false);
     const [langSub, setLangSub] = useState(false);
 
@@ -159,7 +157,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const toggle = () => setCollapsed(c => { const n = !c; localStorage.setItem('sb-col', n ? '1' : '0'); return n; });
+    const toggle = () => setCollapsedLocal(c => { const n = !c; localStorage.setItem('sb-col', n ? '1' : '0'); return n; });
     const handleLogout = async () => { await supabase.auth.signOut(); };
 
     const openDd = () => {

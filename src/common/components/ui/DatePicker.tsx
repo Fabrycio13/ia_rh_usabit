@@ -5,9 +5,10 @@ interface DatePickerProps {
     value: string; // YYYY-MM-DD
     onChange: (date: string) => void;
     placeholder?: string;
+    compact?: boolean;
 }
 
-const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 'dd/mm/aaaa' }) => {
+const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 'dd/mm/aaaa', compact }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const today = new Date();
@@ -69,38 +70,39 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
-                    padding: '8px 12px',
+                    padding: compact ? '6px 8px' : '8px 12px',
                     color: value ? 'var(--text-main)' : 'var(--text-dim)',
-                    fontSize: '13px',
+                    fontSize: compact ? '12px' : '13px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '12px',
-                    minWidth: '130px',
-                    height: '38px',
+                    gap: compact ? '4px' : '12px',
+                    minWidth: compact ? '88px' : '130px',
+                    height: compact ? '32px' : '38px',
                     transition: 'border-color 0.2s'
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
                 onMouseLeave={e => { if(!isOpen) e.currentTarget.style.borderColor = 'var(--border)'; }}
             >
                 <span>{value ? fmtDisplayDate(value) : placeholder}</span>
-                <CalendarIcon size={14} style={{ opacity: 0.6 }} />
+                <CalendarIcon size={compact ? 12 : 14} style={{ opacity: 0.6 }} />
             </div>
 
             {/* Dropdown Calendar */}
             {isOpen && (
                 <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    left: 0,
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
                     zIndex: 2000,
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
                     borderRadius: '16px',
                     padding: '20px',
-                    width: '300px',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                    width: compact ? '300px' : '300px',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
                     backdropFilter: 'blur(16px)',
                 }}>
                     {/* Calendar Header */}

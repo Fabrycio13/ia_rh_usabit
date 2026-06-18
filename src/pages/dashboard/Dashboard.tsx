@@ -5,7 +5,8 @@ import {
 } from 'recharts';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid } from 'lucide-react';
+import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settings2, Check, RefreshCw, LayoutGrid, X } from 'lucide-react';
+import DatePicker from '../../common/components/ui/DatePicker';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../core/contexts/ThemeContext';
 
@@ -95,6 +96,8 @@ const css = `
 .cal-nav:hover { background:var(--bg-main); color:var(--text-main); }
 .cal-range { background:rgba(99,102,241,0.15) !important; color:var(--text-main) !important; border-radius:0 !important; }
 .cal-range-start { border-radius:8px 0 0 8px !important; }
+input[type="date"] { color-scheme:dark; }
+input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1) brightness(1.5); cursor:pointer; }
 `;
 
 // ─── Planet Overlay Component ─────────────────────────────────────────────────
@@ -176,6 +179,13 @@ export const Dashboard = () => {
   const { profile } = useUser();
   const { bgTheme, theme } = useTheme();
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
   const [jobs, setJobs] = useState<JobWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -409,41 +419,40 @@ export const Dashboard = () => {
       <style>{css}</style>
 
       {/* ── Header ── */}
-      <div className="anim-1" style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <LayoutGrid size={32} style={{ color: 'var(--primary)' }} />
-              <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                  Dashboard
-              </h1>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Visão geral</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button 
-            onClick={() => setIsCustomizing(!isCustomizing)}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: 8, 
-              background: 'var(--primary)', 
-              border: 'none', 
-              borderRadius: 12, padding: '8px 16px',
-              color: '#fff',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-              boxShadow: '0 4px 12px rgba(99,102,241,0.25)'
-            }}
-          >
-            {isCustomizing ? <Check style={{ width: 15, height: 15 }} /> : <Settings2 style={{ width: 15, height: 15 }} />}
-            {isCustomizing ? 'Concluir' : 'Customizar'}
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 14px' }}>
-            <div className="live-dot" />
-            <span style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>Tempo real</span>
+      <div className="anim-1" style={{ marginBottom: isMobile ? 20 : 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '20px' : '16px', marginBottom: '6px' }}>
+          <LayoutGrid size={isMobile ? 24 : 32} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+          <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+            Dashboard
+          </h1>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+            <button 
+              onClick={() => setIsCustomizing(!isCustomizing)}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, 
+                background: 'var(--primary)', 
+                border: 'none', 
+                borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 12px' : '8px 16px',
+                color: '#fff',
+                fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 12px rgba(99,102,241,0.25)'
+              }}
+            >
+              {isCustomizing ? <Check style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} /> : <Settings2 style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} />}
+              {isCustomizing ? 'Concluir' : 'Customizar'}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 10px' : '8px 14px', whiteSpace: 'nowrap' }}>
+              <div className="live-dot" style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8 }} />
+              <span style={{ color: '#22c55e', fontSize: isMobile ? 11 : 12, fontWeight: 600 }}>Tempo real</span>
+            </div>
           </div>
         </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>Visão geral</p>
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="anim-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="anim-2" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 24 }}>
         {[
           { 
             label: 'Vagas Totais', value: totalVagas, suffix: '', icon: Briefcase, 
@@ -597,8 +606,8 @@ export const Dashboard = () => {
         </div>
       ) : (
         <>
-          {/* ── Row 1: Area Chart + Calendar ── */}
-          <div className="anim-3" style={{ position: 'relative', display: 'flex', flexDirection: layout.calendarPos === 'right' ? 'row' : 'row-reverse', gap: 16, marginBottom: 16 }}>
+          {/* ── Row 1: Calendar + Area Chart ── */}
+          <div className="anim-3" style={{ position: 'relative', display: 'flex', flexDirection: isMobile ? 'column-reverse' : (layout.calendarPos === 'right' ? 'row' : 'row-reverse'), gap: 16, marginBottom: 16 }}>
             {isCustomizing && (
               <div 
                 onClick={() => saveLayout({ ...layout, calendarPos: layout.calendarPos === 'right' ? 'left' : 'right' })}
@@ -610,10 +619,10 @@ export const Dashboard = () => {
 
             {/* Area Chart */}
             <div className="d-card" style={{ flex: 1, padding: '24px 20px 16px', minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 12 : 0, marginBottom: isMobile ? 16 : 24 }}>
                 <div>
                   <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Volume Histórico</p>
-                  <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>Candidatos & Match</p>
+                  <p style={{ color: 'var(--text-main)', fontSize: isMobile ? 17 : 20, fontWeight: 700, whiteSpace: 'nowrap' }}>Candidatos & Match</p>
                   <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: -4 }}>
                     {activeStart
                       ? activeEnd && activeEnd !== activeStart
@@ -622,7 +631,7 @@ export const Dashboard = () => {
                       : ''}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', gap: isMobile ? 12 : 16, flexWrap: 'wrap' }}>
                   {[
                     { color: '#6366f1', label: 'Vagas' }, 
                     { color: '#a78bfa', label: 'Análises' }, 
@@ -685,79 +694,110 @@ export const Dashboard = () => {
             </div>
 
             {/* Calendar */}
-            <div className="d-card" style={{ width: 360, padding: 20, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Filtro</p>
-                  <p style={{ color: 'var(--text-main)', fontSize: 16, fontWeight: 700 }}>{monthNames[calMonth]} {calYear}</p>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="cal-nav" onClick={prevMonth}>‹</button>
-                  <button className="cal-nav" onClick={nextMonth}>›</button>
-                </div>
-              </div>
-
-              {/* Day names */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 4 }}>
-                {dayNames.map(d => (
-                  <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--text-dim)', padding: '4px 0' }}>{d}</div>
-                ))}
-              </div>
-
-              {/* Days grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-                {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const ds = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
-                  const isToday = ds === todayStr;
-                  const hasJob = jobDateSet.has(ds);
-                  const lo = activeStart && activeEnd ? (activeStart < activeEnd ? activeStart : activeEnd) : activeStart;
-                  const hi = activeStart && activeEnd ? (activeStart < activeEnd ? activeEnd : activeStart) : activeStart;
-                  const isStart = ds === lo;
-                  const isEnd = ds === hi;
-                  const inRange = lo && hi && ds > lo && ds < hi;
-                  const isActive = isStart || isEnd;
-                  const isPending = rangeStart && !rangeEnd && ds === rangeStart;
-                  let cls = 'cal-day';
-                  if (isActive || isPending) cls += ' cal-active';
-                  else if (isToday) cls += ' cal-today';
-                  if (inRange) cls += ' cal-range';
-                  if (isStart && activeEnd && activeEnd !== activeStart) cls += ' cal-range-start';
-                  if (isEnd && activeStart && activeEnd !== activeStart) cls += ' cal-range-end';
-                  if (hasJob) cls += ' cal-has-job';
-                  return (
-                    <div key={day} className={cls} onClick={() => handleDayClick(day)}>{day}</div>
-                  );
-                })}
-              </div>
-
-              {/* Legend + Selection info */}
-              <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
-                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>Dia com vaga criada</span>
-                </div>
-                {activeStart ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-                      {activeEnd && activeEnd !== activeStart
-                        ? <><b style={{ color: 'var(--primary)' }}>{fmtDate(activeStart)}</b> → <b style={{ color: 'var(--primary)' }}>{fmtDate(activeEnd)}</b></>
-                        : <><b style={{ color: 'var(--primary)' }}>{fmtDate(activeStart)}</b>{!rangeEnd ? <span style={{ color: '#f59e0b' }}> • clique p/ finalizar</span> : ''}</>
-                      }
-                    </span>
-                    <button onClick={clearRange} style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontWeight: 600 }}>Limpar</button>
+            <div className="d-card" style={{ width: isMobile ? '100%' : 360, padding: 20, display: 'flex', flexDirection: 'column', flexShrink: isMobile ? 0 : 0, overflow: isMobile ? 'visible' : undefined }}>
+              {isMobile ? (
+                <>
+                  <div style={{ marginBottom: 10 }}>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Filtro</p>
                   </div>
-                ) : (
-                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>Clique num dia (ou selecione um período)</span>
-                )}
-              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, whiteSpace: 'nowrap' }}>Período:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                      <DatePicker compact value={rangeStart || ''} onChange={val => setRangeStart(val || null)} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                      <DatePicker compact value={rangeEnd || ''} onChange={val => setRangeEnd(val || null)} />
+                    </div>
+                  </div>
+                  {(rangeStart || rangeEnd) && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                      <button
+                        onClick={clearRange}
+                        style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: '8px', padding: '6px 14px', color: 'var(--text-error)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <X size={14} /> Limpar filtros
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div>
+                      <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>Filtro</p>
+                      <p style={{ color: 'var(--text-main)', fontSize: 16, fontWeight: 700 }}>{monthNames[calMonth]} {calYear}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="cal-nav" onClick={prevMonth}>‹</button>
+                      <button className="cal-nav" onClick={nextMonth}>›</button>
+                    </div>
+                  </div>
+
+                  {/* Day names */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', marginBottom: 4 }}>
+                    {dayNames.map(d => (
+                      <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--text-dim)', padding: '4px 0' }}>{d}</div>
+                    ))}
+                  </div>
+
+                  {/* Days grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+                    {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const ds = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
+                      const isToday = ds === todayStr;
+                      const hasJob = jobDateSet.has(ds);
+                      const lo = activeStart && activeEnd ? (activeStart < activeEnd ? activeStart : activeEnd) : activeStart;
+                      const hi = activeStart && activeEnd ? (activeStart < activeEnd ? activeEnd : activeStart) : activeStart;
+                      const isStart = ds === lo;
+                      const isEnd = ds === hi;
+                      const inRange = lo && hi && ds > lo && ds < hi;
+                      const isActive = isStart || isEnd;
+                      const isPending = rangeStart && !rangeEnd && ds === rangeStart;
+                      let cls = 'cal-day';
+                      if (isActive || isPending) cls += ' cal-active';
+                      else if (isToday) cls += ' cal-today';
+                      if (inRange) cls += ' cal-range';
+                      if (isStart && activeEnd && activeEnd !== activeStart) cls += ' cal-range-start';
+                      if (isEnd && activeStart && activeEnd !== activeStart) cls += ' cal-range-end';
+                      if (hasJob) cls += ' cal-has-job';
+                      return (
+                        <div key={day} className={cls} onClick={() => handleDayClick(day)}>{day}</div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend + Selection info */}
+                  <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                      <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>Dia com vaga criada</span>
+                    </div>
+                    {activeStart ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+                          {activeEnd && activeEnd !== activeStart
+                            ? <><b style={{ color: 'var(--primary)' }}>{fmtDate(activeStart)}</b> → <b style={{ color: 'var(--primary)' }}>{fmtDate(activeEnd)}</b></>
+                            : <><b style={{ color: 'var(--primary)' }}>{fmtDate(activeStart)}</b>{!rangeEnd ? <span style={{ color: '#f59e0b' }}> • clique p/ finalizar</span> : ''}</>
+                          }
+                        </span>
+                        <button onClick={clearRange} style={{ fontSize: 10, color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontWeight: 600 }}>Limpar</button>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>Clique num dia (ou selecione um período)</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
           {/* ── Row 2: Bar chart + Top Jobs table ── */}
-          <div className="anim-4" style={{ display: 'flex', flexDirection: layout.rankingPos === 'right' ? 'row' : 'row-reverse', gap: 16, marginBottom: 16, position: 'relative' }}>
+          <div className="anim-4" style={{ display: 'flex', flexDirection: isMobile ? 'column' : (layout.rankingPos === 'right' ? 'row' : 'row-reverse'), gap: 16, marginBottom: 16, position: 'relative' }}>
             {isCustomizing && (
               <div 
                 onClick={() => saveLayout({ ...layout, rankingPos: layout.rankingPos === 'right' ? 'left' : 'right' })}
@@ -769,9 +809,22 @@ export const Dashboard = () => {
 
             {/* Bar Chart */}
             <div className="d-card" style={{ flex: 1, padding: '24px 20px 16px', minWidth: 0 }}>
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Comparativo</p>
-                <p style={{ color: 'var(--text-main)', fontSize: 20, fontWeight: 700 }}>Candidatos por Vaga</p>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 10 : 0, marginBottom: isMobile ? 16 : 24 }}>
+                <div>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Comparativo</p>
+                  <p style={{ color: 'var(--text-main)', fontSize: isMobile ? 17 : 20, fontWeight: 700, whiteSpace: 'nowrap' }}>Candidatos por Vaga</p>
+                </div>
+                <div style={{ display: 'flex', gap: isMobile ? 12 : 16 }}>
+                  {[
+                    { color: '#6366f1', label: 'Avaliados' },
+                    { color: '#22c55e', label: 'Match' }
+                  ].map(l => (
+                    <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
+                      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{l.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div style={{ height: 220, width: '100%' }}>
                 {showCharts && (
@@ -812,7 +865,7 @@ export const Dashboard = () => {
             </div>
 
             {/* Top Jobs Table */}
-            <div className="d-card" style={{ width: 360, padding: 24, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div className="d-card" style={{ width: isMobile ? '100%' : 360, padding: 24, display: 'flex', flexDirection: 'column', flexShrink: isMobile ? 0 : 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <div>
                   <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Ranking</p>
