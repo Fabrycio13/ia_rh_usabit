@@ -701,89 +701,98 @@ export const Configuracoes = () => {
             
             {/* ABA 1: PERFIL */}
             {activeTab === 'perfil' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '24px' }}>
+                <>
+                {(() => {
+                    const currentUserRole = roleDefinitions.find(r => r.key === profile.user_role) || roleDefinitions[1];
+                    const RoleIcon = currentUserRole.icon;
+                    return (
+                    <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginBottom: '20px', alignItems: 'center' }}>
 
-                    {/* Card avatar */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', height: '100%' }}>
-                        <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
-                            {avatarPreview ? (
-                                <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
-                            ) : (
-                                <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
-                            )}
-                            <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
+                        {/* Foto + botões */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', minWidth: '160px' }}>
+                            <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
+                                {avatarPreview ? (
+                                    <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
+                                ) : (
+                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                                )}
+                                <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
+                                </div>
                             </div>
-                        </div>
-                        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
 
-                        <div style={{ textAlign: 'center' }}>
-                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
-                            <p style={{ 
-                                color: (roleDefinitions.find(r => r.key === profile.user_role)?.color || 'var(--text-dim)'), 
-                                fontSize: '12px', 
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                margin: '5px 0 0',
-                                letterSpacing: '0.5px'
-                            }}>
-                                {roleDefinitions.find(r => r.key === profile.user_role)?.label || profile.user_role}
-                            </p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
-                        </div>
-
-
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="save-btn"
-                            style={{
-                                marginTop: 'auto',
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
-                            }}
-                        >
-                            <Camera style={{ width: 14, height: 14 }} />
-                            Trocar foto
-                        </button>
-                        {avatarPreview && (
                             <button
-                                onClick={handleRemovePhoto}
+                                onClick={() => fileInputRef.current?.click()}
+                                className="save-btn"
                                 style={{
                                     width: '100%',
-                                    padding: '12px',
+                                    padding: '10px',
                                     borderRadius: '10px',
-                                    border: '1px solid rgba(239,68,68,0.3)',
-                                    background: 'transparent',
-                                    color: '#ef4444',
-                                    fontSize: '14px',
+                                    border: 'none',
+                                    background: 'var(--primary)',
+                                    color: '#fff',
+                                    fontSize: '13px',
                                     fontWeight: 600,
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.2s'
+                                    gap: '6px',
+                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
                             >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                            Remover foto
-                        </button>
-                        )}
+                                <Camera style={{ width: 14, height: 14 }} />
+                                Trocar foto
+                            </button>
+                            {avatarPreview && (
+                                <button
+                                    onClick={handleRemovePhoto}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '10px',
+                                        border: '1px solid rgba(239,68,68,0.3)',
+                                        background: 'transparent',
+                                        color: '#ef4444',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                    Remover foto
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Info do perfil */}
+                        <div>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '2px 0 16px' }}>{role}</p>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <RoleIcon style={{ width: 20, height: 20, color: currentUserRole.color }} />
+                                </div>
+                                <div>
+                                    <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{currentUserRole.label}</p>
+                                    <p style={{ color: currentUserRole.color, fontSize: '11px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
+                                </div>
+                            </div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
+                                {currentUserRole.description}
+                            </p>
+                        </div>
                     </div>
 
                     {/* Card formulário */}
@@ -860,7 +869,10 @@ export const Configuracoes = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                    </>
+                    );
+                })()}
+                </>
             )}
 
             {/* ABA 2: SEGURANÇA (Senha) */}
@@ -1182,50 +1194,6 @@ export const Configuracoes = () => {
             {/* ABA 3: PERFIS */}
             {activeTab === 'perfis' && (
                 <>
-                    {/* Card do perfil atual do usuário */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
-                        
-                        {(() => {
-                            const currentUserRole = roleDefinitions.find(r => r.key === profile.user_role) || roleDefinitions[1];
-                            const RoleIcon = currentUserRole.icon;
-                            return (
-                                <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    {/* Info do perfil */}
-                                    <div style={{ flex: 1, minWidth: '280px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <RoleIcon style={{ width: 24, height: 24, color: currentUserRole.color }} />
-                                            </div>
-                                            <div>
-                                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '18px', margin: 0 }}>{currentUserRole.label}</p>
-                                                <p style={{ color: currentUserRole.color, fontSize: '12px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
-                                            </div>
-                                        </div>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px' }}>
-                                            {currentUserRole.description}
-                                        </p>
-                                    </div>
-
-                                    {/* Permissões */}
-                                    <div style={{ flex: 1, minWidth: '280px' }}>
-                                        <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
-                                            Suas Atribuições
-                                        </p>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {currentUserRole.permissions.map(permission => (
-                                                <div key={permission} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0 }} />
-                                                    <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                    </div>
-
                     {/* Seção de gestão (Owner, Admin e Gestor) */}
                     {(profile.user_role === 'owner' || profile.user_role === 'gestor') && (
                         <>
