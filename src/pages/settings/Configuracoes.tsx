@@ -632,7 +632,7 @@ export const Configuracoes = () => {
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                         }}>
-                                            <RoleIcon style={{ width: 22, height: 22, color: '#fff' }} />
+                                            <RoleIcon size={22} color="#fff" />
                                         </div>
                                         <div>
                                             <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '17px', margin: 0 }}>{currentUserRole.label}</p>
