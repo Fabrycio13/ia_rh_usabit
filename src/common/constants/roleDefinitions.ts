@@ -3,7 +3,7 @@ import { ShieldCheck, Briefcase, Users, User } from 'lucide-react';
 export interface RoleDefinition {
     key: string;
     label: string;
-    icon: React.ComponentType<{ size?: number; className?: string }>;
+    icon: React.ComponentType<{ size?: number; className?: string; color?: string; style?: React.CSSProperties }>;
     color: string;
     description: string;
     permissions: string[];
