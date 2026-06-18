@@ -26,6 +26,7 @@ export const DashboardLayout = () => {
 
     React.useEffect(() => {
         setIsMobileOpen(false);
+        setIsChatOpen(false);
     }, [location]);
 
     const hamburgerVisible = isMobile;
@@ -95,7 +96,7 @@ export const DashboardLayout = () => {
 
             {/* Sidebar — RENDERED AT ROOT LEVEL (outside z-index:1 container) */}
             <div style={isMobile ? sidebarMobile : sidebarDesktop}>
-                <Sidebar onToggleChat={() => setIsChatOpen(!isChatOpen)} hideToggle={isMobile} />
+                <Sidebar onToggleChat={() => { setIsChatOpen(o => !o); if (isMobile) setIsMobileOpen(false); }} hideToggle={isMobile} />
             </div>
 
             {/* Main content — sidebar is a sibling, not parent */}
@@ -120,8 +121,12 @@ export const DashboardLayout = () => {
                             <Outlet />
                         </div>
                     </main>
-                    {hasPermission(profile.user_role, 'chat_widget') && !isMobile && (
-                        <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+                    {hasPermission(profile.user_role, 'chat_widget') && (
+                        isMobile ? (
+                            isChatOpen && <ChatWidget isOpen={true} onClose={() => setIsChatOpen(false)} fullScreen />
+                        ) : (
+                            <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+                        )
                     )}
                 </div>
             </div>

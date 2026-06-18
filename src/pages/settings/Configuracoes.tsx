@@ -260,6 +260,14 @@ export const Configuracoes = () => {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, []);
+
 
     useEffect(() => {
         if (!profile.loaded || dataLoaded) return;
@@ -316,7 +324,7 @@ export const Configuracoes = () => {
         const ext = file.name.split('.').pop();
         const path = `${userId}/avatar.${ext}`;
         console.log('[Avatar Upload] path:', path, 'file.type:', file.type, 'file.size:', file.size);
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, cacheControl: '0' });
         if (uploadError) {
             console.error('[Avatar Upload] error:', uploadError);
             toast.error(`Erro ao enviar foto: ${uploadError.message}`);
@@ -327,9 +335,20 @@ export const Configuracoes = () => {
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
         const urlWithCache = `${publicUrl}?t=${Date.now()}`;
         setAvatarPreview(urlWithCache);
-        setAvatarUrl(publicUrl);
+        setAvatarUrl(urlWithCache);
+
+        const { error: saveError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: urlWithCache, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (saveError) {
+            console.error('[Avatar Upload] save error:', saveError);
+            toast.error('Foto enviada, mas falhou ao salvar no perfil. Clique em "Salvar alterações".');
+        } else {
+            toast.success('Foto atualizada e salva!');
+        }
         setUploadingPhoto(false);
-        toast.success('Foto atualizada!');
         logActivity(userId, 'Fez alterações na foto', { filename: file.name });
     };
 
@@ -337,7 +356,18 @@ export const Configuracoes = () => {
         if (!userId) return;
         setAvatarPreview('');
         setAvatarUrl('');
-        toast.success('Foto removida! Lembre-se de salvar as alterações.');
+
+        const { error: saveError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: null, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (saveError) {
+            console.error('[Avatar Remove] save error:', saveError);
+            toast.error('Falha ao remover foto do perfil.');
+        } else {
+            toast.success('Foto removida!');
+        }
     };
 
     const handleSave = async () => {
@@ -619,7 +649,7 @@ export const Configuracoes = () => {
     const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
 
     return (
-        <>
+        <div className="cfg-root">
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes pulse {
@@ -635,15 +665,31 @@ export const Configuracoes = () => {
                 .plan-card { transition: border-color 0.2s, transform 0.2s; }
                 .plan-card:hover { transform: translateY(-2px); }
                 .upgrade-btn:hover { opacity: 0.85 !important; }
+                .cfg-save-row { justify-content: center; }
+                @media (max-width: 768px) {
+                    .cfg-grid-2col > div { padding: 18px 14px !important; }
+                    .cfg-grid-2col > div > div[style*="padding: 16px"] { padding: 12px !important; }
+                }
+                .cfg-root { overflow-x: hidden; max-width: 100%; box-sizing: border-box; }
+                .cfg-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                @media (max-width: 768px) {
+                    .cfg-root { padding: 0 4px; }
+                    .cfg-grid-2col { grid-template-columns: 1fr !important; align-items: stretch !important; }
+                    .cfg-grid-2col > * { min-width: 0 !important; }
+                    .cfg-photo-card { height: auto !important; }
+                    .cfg-inner-2col { grid-template-columns: 1fr !important; gap: 20px !important; }
+                    .cfg-form-grid { grid-template-columns: 1fr !important; }
+                    .cfg-save-row { justify-content: center !important; }
+                }
             `}</style>
 
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24, flexWrap: 'wrap' }}>
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Settings size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '20px' : '16px', marginBottom: '8px' }}>
+                            <Settings size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             Configurações
                         </h1>
                     </div>
@@ -654,7 +700,7 @@ export const Configuracoes = () => {
             </div>
 
             {/* ── Abas ── */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+            <div style={{ display: 'flex', gap: isMobile ? '2px' : '4px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '0', overflow: 'hidden' }}>
                 {getVisibleTabs(profile.user_role).map(tab => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.key;
@@ -665,19 +711,23 @@ export const Configuracoes = () => {
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px',
-                                padding: '12px 20px',
+                                justifyContent: 'center',
+                                gap: isMobile ? '4px' : '8px',
+                                padding: isMobile ? '8px 10px' : '12px 20px',
                                 borderRadius: '10px 10px 0 0',
                                 border: 'none',
                                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                                 background: isActive ? 'var(--bg-card)' : 'transparent',
                                 color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                                fontSize: '14px',
+                                fontSize: isMobile ? '11px' : '14px',
                                 fontWeight: isActive ? 600 : 500,
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',
                                 marginBottom: '-1px',
                                 position: 'relative',
+                                whiteSpace: 'nowrap',
+                                flex: isMobile ? '1 1 0%' : undefined,
+                                minWidth: 0,
                             }}
                             onMouseEnter={(e) => {
                                 if (!isActive) {
@@ -709,10 +759,10 @@ export const Configuracoes = () => {
                     const RoleIcon = currentUserRole.icon;
                     return (
                     <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '20px' }}>
+                    <div className="cfg-grid-2col" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '240px 1fr', gap: '20px', marginBottom: '20px', alignItems: 'stretch' }}>
 
                         {/* Card avatar separado */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                        <div className="cfg-photo-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', justifyContent: 'space-between' }}>
                             <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
@@ -740,40 +790,17 @@ export const Configuracoes = () => {
                                 <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
                             </div>
 
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="save-btn"
-                                style={{
-                                    width: '100%',
-                                    padding: '10px',
-                                    borderRadius: '10px',
-                                    border: 'none',
-                                    background: 'var(--primary)',
-                                    color: '#fff',
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
-                                }}
-                            >
-                                <Camera style={{ width: 14, height: 14 }} />
-                                Trocar foto
-                            </button>
-                            {avatarPreview && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '4px' }}>
                                 <button
-                                    onClick={handleRemovePhoto}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="save-btn"
                                     style={{
                                         width: '100%',
                                         padding: '10px',
                                         borderRadius: '10px',
-                                        border: '1px solid rgba(239,68,68,0.3)',
-                                        background: 'transparent',
-                                        color: '#ef4444',
+                                        border: 'none',
+                                        background: 'var(--primary)',
+                                        color: '#fff',
                                         fontSize: '13px',
                                         fontWeight: 600,
                                         cursor: 'pointer',
@@ -781,44 +808,97 @@ export const Configuracoes = () => {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '6px',
-                                        transition: 'all 0.2s'
+                                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
                                     }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                                    Remover foto
+                                    <Camera style={{ width: 14, height: 14 }} />
+                                    Trocar foto
                                 </button>
-                            )}
+                                {avatarPreview && (
+                                    <button
+                                        onClick={handleRemovePhoto}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            border: '1px solid rgba(239,68,68,0.3)',
+                                            background: 'transparent',
+                                            color: '#ef4444',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                        Remover foto
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Card do perfil atual (ao lado) */}
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
                             <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
-                            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '240px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <RoleIcon style={{ width: 24, height: 24, color: currentUserRole.color }} />
+
+                            <div className="cfg-inner-2col" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '32px' }}>
+                                {/* Lado esquerdo: card do role */}
+                                <div>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '14px',
+                                        padding: '16px',
+                                        borderRadius: '12px',
+                                        background: `${currentUserRole.color}10`,
+                                        border: `1px solid ${currentUserRole.color}30`,
+                                        marginBottom: '14px',
+                                    }}>
+                                        <div style={{
+                                            width: '44px',
+                                            height: '44px',
+                                            borderRadius: '10px',
+                                            background: currentUserRole.color,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}>
+                                            <RoleIcon style={{ width: 22, height: 22, color: '#fff' }} />
                                         </div>
                                         <div>
-                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '18px', margin: 0 }}>{currentUserRole.label}</p>
-                                            <p style={{ color: currentUserRole.color, fontSize: '12px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
+                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '17px', margin: 0 }}>{currentUserRole.label}</p>
+                                            <p style={{ color: currentUserRole.color, fontSize: '11px', fontWeight: 600, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Perfil ativo</p>
                                         </div>
                                     </div>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
                                         {currentUserRole.description}
                                     </p>
                                 </div>
 
-                                <div style={{ flex: 1, minWidth: '240px' }}>
+                                {/* Lado direito: atribuições */}
+                                <div>
                                     <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
                                         Suas Atribuições
                                     </p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         {currentUserRole.permissions.map(permission => (
-                                            <div key={permission} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0 }} />
+                                            <div key={permission} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                background: 'var(--bg-card-alt)',
+                                                border: '1px solid var(--border)',
+                                            }}>
+                                                <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0, strokeWidth: 3 }} />
                                                 <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
                                             </div>
                                         ))}
@@ -832,7 +912,7 @@ export const Configuracoes = () => {
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
                         <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Informações Pessoais</p>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                        <div className="cfg-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '16px' }}>
                             {/* Nome */}
                             <div>
                                 <label htmlFor="cfg-name" style={labelStyle}>Nome completo</label>
@@ -890,7 +970,7 @@ export const Configuracoes = () => {
                             </div>
                         </div>
 
-                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
                             <button
                                 className="save-btn"
                                 onClick={handleSave}
@@ -971,7 +1051,7 @@ export const Configuracoes = () => {
 
             {/* ABA APARÊNCIA: Tema e Notificações */}
             {activeTab === 'aparencia' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     {/* Aparência */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                         <style>{themeBtnCss}</style>
@@ -1279,8 +1359,8 @@ export const Configuracoes = () => {
                             </div>
 
                             {/* Tabela de usuários/organizações */}
-                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <div className={isMobile ? 'cfg-table-wrap' : ''} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: isMobile ? 'auto' : 'hidden' }}>
+                                <table style={{ width: isMobile ? 'auto' : '100%', minWidth: isMobile ? '600px' : undefined, borderCollapse: 'collapse' }}>
                                     <thead style={{ background: 'var(--bg-main)' }}>
                                         <tr style={{ borderBottom: '1px solid var(--border)' }}>
                                             <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
@@ -1899,7 +1979,7 @@ export const Configuracoes = () => {
 
                             {showEvoConfig && (
                                 <div style={{ padding: '0 28px 24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1.5fr 1fr', gap: '16px' }}>
                                         <div>
                                             <label htmlFor="cfg-evo-url" style={labelStyle}>Server URL</label>
                                             <div style={fieldWrapStyle}>
@@ -1923,7 +2003,7 @@ export const Configuracoes = () => {
                                         </div>
                                     </div>
 
-                                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div className="cfg-save-row" style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
                                         <button className="save-btn" onClick={handleSave} disabled={saving}
                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}>
                                             {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
@@ -1997,7 +2077,7 @@ export const Configuracoes = () => {
                                 <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
                                 {plans.map(plan => {
                                     const PlanIcon = plan.icon;
                                     const isActive = currentPlan === plan.key;
@@ -2032,6 +2112,6 @@ export const Configuracoes = () => {
                     )}
                 </>
             )}
-        </>
+        </div>
     );
 };

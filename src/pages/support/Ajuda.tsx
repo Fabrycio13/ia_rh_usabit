@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight, Key, Layout } from 'lucide-react';
 
@@ -17,6 +17,14 @@ const css = `
 .step-item::before { content: attr(data-step); position: absolute; left: 0; top: 0; width: 24px; height: 24px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .slide-down { animation: slideDown 0.3s ease-out; }
+@media (max-width: 768px) {
+    .ajuda-root { overflow-x: hidden; max-width: 100%; padding: 0 4px; }
+    .ajuda-grid-2col { grid-template-columns: 1fr !important; }
+    .ajuda-quicktips { grid-template-columns: 1fr 1fr !important; }
+    .ajuda-tabnav { width: 100% !important; }
+    .ajuda-tabnav > * { flex: 1 1 0%; font-size: 11px !important; padding: 8px 8px !important; gap: 4px !important; }
+    .ajuda-trouble-grid { grid-template-columns: 1fr !important; }
+}
 `;
 
 // ─── FAQ DATA ─────────────────────────────────────────────────────────────────
@@ -256,6 +264,13 @@ export const Ajuda = () => {
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState<'faq' | 'guide' | 'troubleshoot'>('faq');
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, []);
 
     const filtered = faqs.map(cat => ({
         ...cat,
@@ -270,14 +285,14 @@ export const Ajuda = () => {
     const whatsappMsg = encodeURIComponent('Olá! Preciso de ajuda com a plataforma.');
 
     return (
-        <>
+        <div className="ajuda-root">
             <style>{css}</style>
 
             {/* Header */}
-            <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                    <HelpCircle size={32} style={{ color: 'var(--primary)' }} />
-                    <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+            <div style={{ marginBottom: isMobile ? '20px' : '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '22px' : '16px', marginBottom: '8px' }}>
+                    <HelpCircle size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                    <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                         Central de Ajuda
                     </h1>
                 </div>
@@ -287,7 +302,7 @@ export const Ajuda = () => {
             </div>
 
             {/* Quick Tips Bar */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+            <div className="ajuda-quicktips" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
                 {quickTips.map((t, i) => (
                     <div key={i} className="tip-card" style={{ borderRadius: '12px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '20px' }}>{t.icon}</span>
@@ -297,7 +312,7 @@ export const Ajuda = () => {
             </div>
 
             {/* Tab Navigation */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '6px', width: 'fit-content' }}>
+            <div className="ajuda-tabnav" style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '6px', width: isMobile ? '100%' : 'fit-content' }}>
                 {[
                     { key: 'faq' as const, label: 'Perguntas Frequentes', icon: HelpCircle },
                     { key: 'guide' as const, label: 'Guia por Módulo', icon: BookOpen },
@@ -325,7 +340,7 @@ export const Ajuda = () => {
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', alignItems: 'start' }}>
+            <div className="ajuda-grid-2col" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap: '24px', alignItems: 'start' }}>
 
                 {/* LEFT COLUMN - Main Content */}
                 <div>
@@ -623,7 +638,7 @@ export const Ajuda = () => {
                                         <h3 style={{ color: 'var(--text-main)', fontSize: '16px', fontWeight: 700, margin: 0 }}>{item.problem}</h3>
                                     </div>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div className="ajuda-trouble-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
                                         {/* Causes */}
                                         <div>
                                             <p style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
@@ -763,7 +778,7 @@ export const Ajuda = () => {
                     </div>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 
