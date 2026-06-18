@@ -742,7 +742,7 @@ export const Configuracoes = () => {
                                 }
                             }}
                         >
-                            <Icon size={tab.key === 'seguranca' || tab.key === 'aparencia' ? 18 : 16} />
+                            <Icon size={tab.key === 'seguranca' || tab.key === 'aparencia' ? (isMobile ? 22 : 18) : 16} />
                             {tab.label}
                         </button>
                     );
