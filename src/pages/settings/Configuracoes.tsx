@@ -707,10 +707,10 @@ export const Configuracoes = () => {
                     const RoleIcon = currentUserRole.icon;
                     return (
                     <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginBottom: '20px', alignItems: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '20px' }}>
 
-                        {/* Foto + botões */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', minWidth: '160px' }}>
+                        {/* Card avatar separado */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
                             <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
@@ -722,6 +722,21 @@ export const Configuracoes = () => {
                                 </div>
                             </div>
                             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '16px', margin: 0 }}>{name || 'Sem nome'}</p>
+                                <p style={{
+                                    color: (roleDefinitions.find(r => r.key === profile.user_role)?.color || 'var(--text-dim)'),
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    margin: '5px 0 0',
+                                    letterSpacing: '0.5px'
+                                }}>
+                                    {currentUserRole.label}
+                                </p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
+                            </div>
 
                             <button
                                 onClick={() => fileInputRef.current?.click()}
@@ -775,23 +790,39 @@ export const Configuracoes = () => {
                             )}
                         </div>
 
-                        {/* Info do perfil */}
-                        <div>
-                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '2px 0 16px' }}>{role}</p>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <RoleIcon style={{ width: 20, height: 20, color: currentUserRole.color }} />
+                        {/* Card do perfil atual (ao lado) */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
+                            <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: '240px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <RoleIcon style={{ width: 24, height: 24, color: currentUserRole.color }} />
+                                        </div>
+                                        <div>
+                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '18px', margin: 0 }}>{currentUserRole.label}</p>
+                                            <p style={{ color: currentUserRole.color, fontSize: '12px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
+                                        </div>
+                                    </div>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px' }}>
+                                        {currentUserRole.description}
+                                    </p>
                                 </div>
-                                <div>
-                                    <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '15px', margin: 0 }}>{currentUserRole.label}</p>
-                                    <p style={{ color: currentUserRole.color, fontSize: '11px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
+
+                                <div style={{ flex: 1, minWidth: '240px' }}>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+                                        Suas Atribuições
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {currentUserRole.permissions.map(permission => (
+                                            <div key={permission} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0 }} />
+                                                <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
-                                {currentUserRole.description}
-                            </p>
                         </div>
                     </div>
 
