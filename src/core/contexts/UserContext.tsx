@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../services/supabase';
+import { rolePermissions } from '../config/permissions';
 
 interface UserProfile {
     userId: string;
@@ -95,7 +96,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 avatarUrl: data.avatar_url || '',
                 initials: profileInitials,
                 notificationsEnabled: data.notifications_enabled ?? false,
-                user_role: (data.user_role as UserProfile['user_role']) || 'rh',
+                user_role: ((data.user_role && data.user_role in rolePermissions) ? data.user_role : 'rh') as UserProfile['user_role'],
                 status: (data.status as UserProfile['status']) || 'active',
                 account_type: (data.account_type as UserProfile['account_type']) || 'trial',
                 plan: (data.account_type as UserProfile['account_type']) || 'trial',

@@ -11,10 +11,7 @@ export const OnboardingModal = () => {
     const [saving, setSaving] = useState(false);
     const [hasCompleted] = useState(false);
 
-    // Tipos de Onboarding: 
-    // - 'setup': Para Gestores/Owners (precisam criar a org)
-    // - 'welcome': Para RH/Convidados (já têm org, apenas boas-vindas)
-    const onboardingType = (profile.user_role === 'owner' || profile.user_role === 'administrador' || profile.user_role === 'supervisor') ? 'setup' : 'welcome';
+    const onboardingType = profile.user_role === 'administrador' ? 'setup' : 'welcome';
 
     // Se o Gestor já tiver uma org, ele cai no fluxo de 'welcome' mas com passos reduzidos
     const needsOrgSetup = onboardingType === 'setup' && (!profile.organization_id || !profile.organization_name);
@@ -50,19 +47,11 @@ export const OnboardingModal = () => {
 
             toast.success('Pronto! Vamos ao trabalho.');
             
-            // ESCAPE HATCH FINAL: Recarrega a página ou limpa o estado
-            // para que o App.tsx não renderize mais o modal.
             await refetch();
-            
-            // Forçamos a saída local mesmo se o refetch demorar
-            setTimeout(() => {
-                window.location.reload(); 
-            }, 500);
 
         } catch (err) {
             console.error('Erro ao finalizar onboarding:', err);
-            // Se der qualquer erro crítico, ainda assim tentamos deixar o usuário entrar
-            window.location.reload();
+            await refetch();
         } finally {
             setSaving(false);
         }
@@ -315,11 +304,17 @@ export const OnboardingModal = () => {
                                 <Layout size={40} />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>1. Dashboard Central</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Sua torre de controle. Veja métricas em tempo real, vagas ativas e os candidatos mais recentes que acabaram de entrar no seu radar.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                Sua torre de controle. Aqui você vê métricas em tempo real: total de análises realizadas, candidatos avaliados, taxa de aprovação e as vagas mais recentes.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: use o calendário no canto superior direito para filtrar análises por período. Os cards da dashboard são atualizados em tempo real.
                             </p>
                             <button onClick={() => setStep(5)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'var(--primary)', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', border: 'none' }}>
                                 Próximo: Vagas
+                            </button>
+                            <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
+                                Pular tutorial
                             </button>
                         </div>
                     )}
@@ -330,11 +325,17 @@ export const OnboardingModal = () => {
                                 <Briefcase size={40} />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>2. Gestão de Vagas</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Crie oportunidades detalhadas em segundos. Gere links de candidatura públicos para compartilhar em redes sociais e portais de emprego.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                Crie vagas com descrições detalhadas, requisitos, faixa salarial e muito mais. Cada vaga gera um link de candidatura público que você pode compartilhar onde quiser.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: vagas bem detalhadas geram análises de IA mais precisas. Inclua responsabilidades, requisitos obrigatórios e diferenciais.
                             </p>
                             <button onClick={() => setStep(6)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'var(--primary)', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', border: 'none' }}>
                                 Próximo: Análise IA
+                            </button>
+                            <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
+                                Pular tutorial
                             </button>
                         </div>
                     )}
@@ -345,11 +346,17 @@ export const OnboardingModal = () => {
                                 <Zap size={40} fill="#eab308" />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>3. Análise com IA</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Nossa inteligência artificial lê e compara todos os currículos com a vaga, criando um ranking automático das melhores pessoas para o cargo.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                Nossa IA lê e compara todos os currículos recebidos com os requisitos da vaga. O resultado é um ranking automático ranqueando os melhores candidatos com base na compatibilidade.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: você pode refinar os filtros da análise para destacar palavras-chave específicas ou requisitos obrigatórios.
                             </p>
                             <button onClick={() => setStep(7)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'var(--primary)', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', border: 'none' }}>
                                 Próximo: Banco de Talentos
+                            </button>
+                            <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
+                                Pular tutorial
                             </button>
                         </div>
                     )}
@@ -360,11 +367,17 @@ export const OnboardingModal = () => {
                                 <Users size={40} />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>4. Banco de Talentos</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Todos os currículos que você já recebeu ficam salvos aqui. Use filtros inteligentes para encontrar candidatos ideais mesmo meses depois.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                Todos os currículos recebidos ficam salvos automaticamente no banco de talentos. Use filtros por cargo, habilidades, escolaridade e data para encontrar candidatos ideais mesmo meses depois.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: você pode enviar currículos avulsos para o banco de talentos mesmo sem uma vaga aberta, criando um pool de candidatos para oportunidades futuras.
                             </p>
                             <button onClick={() => setStep(8)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'var(--primary)', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', border: 'none' }}>
                                 Próximo: Pipeline
+                            </button>
+                            <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
+                                Pular tutorial
                             </button>
                         </div>
                     )}
@@ -375,11 +388,17 @@ export const OnboardingModal = () => {
                                 <Kanban size={40} />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>5. Pipeline Visual</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Controle o fluxo seletivo movendo os candidatos entre colunas: Triagem, Entrevista, Proposta e Contratado. Organização visual total.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                Acompanhe o processo seletivo em um quadro visual estilo Kanban. Arraste e solte candidatos entre as colunas: Triagem, Entrevista, Proposta e Contratado.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: personalize as colunas do pipeline para adaptar ao seu processo seletivo. Cada vaga pode ter seu próprio pipeline.
                             </p>
                             <button onClick={() => setStep(9)} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: 'var(--primary)', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', border: 'none' }}>
                                 Próximo: Configurações
+                            </button>
+                            <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-dim)', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginTop: '8px' }}>
+                                Pular tutorial
                             </button>
                         </div>
                     )}
@@ -390,8 +409,11 @@ export const OnboardingModal = () => {
                                 <Building2 size={40} />
                             </div>
                             <h3 style={{ color: 'var(--text-main)', fontSize: '22px', fontWeight: 800, margin: '0 0 12px' }}>6. Configurações e Equipe</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '15px', lineHeight: '1.6', marginBottom: '32px' }}>
-                                Onde o Gestor gerencia a equipe de RH, convida novos membros e ajusta todos os detalhes da conta da organização.
+                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.7', marginBottom: '24px' }}>
+                                No menu Configurações, você gerencia sua equipe: convida novos membros (Supervisor, RH ou Convidado), altera perfis de acesso e ajusta as integrações da organização.
+                            </p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: '13px', lineHeight: '1.6', marginBottom: '32px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                Dica: como Administrador, você pode criar Supervisores (que têm acesso a logs) e membros de RH (foco operacional). Convidados têm acesso apenas a vagas específicas.
                             </p>
                             <button onClick={finalizeOnboarding} style={{ width: '100%', padding: '16px', borderRadius: '14px', background: '#10b981', color: '#fff', fontSize: '18px', fontWeight: 800, cursor: 'pointer', border: 'none' }}>
                                 Concluir e Entrar
