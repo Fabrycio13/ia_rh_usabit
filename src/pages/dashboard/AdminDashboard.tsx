@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown, Mail, Plus, Briefcase, Building2, User as UserIcon } from 'lucide-react';
+import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown, ChevronRight, Mail, Plus, Briefcase, Building2, User as UserIcon } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -123,6 +123,7 @@ export const AdminDashboard = () => {
     const [jobDateSet, setJobDateSet] = useState<Set<string>>(new Set());
     const [selectedOrgId, setSelectedOrgId] = useState<string>('');
     const [organizations, setOrganizations] = useState<{id: string, name: string}[]>([]);
+    const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 768px)');
@@ -205,28 +206,27 @@ export const AdminDashboard = () => {
             setOrganizations(orgs);
         }
 
-        // Fetch Analyses (Jobs) for the selected range or last 7 days
+        // Fetch activities (activity_logs) for the selected range or last 7 days
         const end = activeEnd ? new Date(activeEnd) : new Date();
         const start = activeStart ? new Date(activeStart) : new Date();
         if (!activeStart) start.setDate(end.getDate() - 7);
         
-        let jobQuery = supabase
-            .from('jobs')
+        let activityQuery = supabase
+            .from('activity_logs')
             .select('created_at')
             .gte('created_at', start.toISOString())
             .lte('created_at', end.toISOString());
 
         if (selectedOrgId) {
-            jobQuery = jobQuery.eq('organization_id', selectedOrgId);
+            activityQuery = activityQuery.eq('organization_id', selectedOrgId);
         } else if (userRole !== 'owner' && userOrgId) {
-            // Se não for owner, força o filtro da sua própria org mesmo que não tenha selecionado nada específico
-            jobQuery = jobQuery.eq('organization_id', userOrgId);
+            activityQuery = activityQuery.eq('organization_id', userOrgId);
         }
 
-        const { data: jobData } = await jobQuery;
+        const { data: activityData } = await activityQuery;
 
-        if (jobData) {
-            setJobDateSet(new Set(jobData.map(j => j.created_at.slice(0, 10))));
+        if (activityData) {
+            setJobDateSet(new Set(activityData.map(a => a.created_at.slice(0, 10))));
             const counts: Record<string, number> = {};
             const chartData = [];
             const current = new Date(start);
@@ -235,8 +235,8 @@ export const AdminDashboard = () => {
                 const label = current.toLocaleDateString('pt-BR', { weekday: 'short' });
                 counts[dateStr] = 0;
                 
-                jobData.forEach(job => {
-                    if (job.created_at.startsWith(dateStr)) {
+                activityData.forEach(a => {
+                    if (a.created_at.startsWith(dateStr)) {
                         counts[dateStr]++;
                     }
                 });
@@ -333,26 +333,29 @@ export const AdminDashboard = () => {
         }
 
         const canCreate = (creatorRole: string, targetRole: string): boolean => {
-            if (creatorRole === 'owner') return targetRole === 'gestor';
-            if (creatorRole === 'gestor') return ['rh', 'convidado'].includes(targetRole);
+            if (creatorRole === 'owner') return targetRole === 'administrador';
+            if (creatorRole === 'administrador') return ['supervisor', 'rh', 'convidado'].includes(targetRole);
+            if (creatorRole === 'supervisor') return ['rh', 'convidado'].includes(targetRole);
             return false;
         };
 
         if (!canCreate(userRole, newUser.user_role)) {
-            const allowed = userRole === 'owner' ? 'Gestor' : 'RH ou Convidado';
+            const allowed = userRole === 'owner' ? 'Administrador' :
+                            userRole === 'administrador' ? 'Supervisor, RH ou Convidado' :
+                            'RH ou Convidado';
             toast.error(`Seu perfil só pode criar: ${allowed}`);
             return;
         }
 
         setCreatingUser(true);
 
-        const isCreatingGestor = newUser.user_role === 'gestor';
+        const isCreatingAdmin = newUser.user_role === 'administrador';
         const creatorIsOwner = userRole === 'owner';
 
         let organizationId: string | null = null;
         let organizationName: string | null = null;
 
-        if (creatorIsOwner && isCreatingGestor) {
+        if (creatorIsOwner && isCreatingAdmin) {
             organizationId = null;
             organizationName = null;
         } else {
@@ -361,7 +364,7 @@ export const AdminDashboard = () => {
         }
 
         try {
-            const { data: fnData, error: fnError } = await supabase.functions.invoke('create-user-and-invite', {
+            const { data: fnData, error: fnError } = await supabase.functions.invoke('send-invite-email', {
                 body: {
                     email: newUser.email,
                     name: newUser.name,
@@ -554,7 +557,7 @@ export const AdminDashboard = () => {
                     )}
                 </div>
                 )}
-                {/* Analyses Per Day */}
+                {/* Activities Per Day */}
                 <div style={{ background: 'var(--bg-card)', padding: isMobile ? '14px' : '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -563,8 +566,8 @@ export const AdminDashboard = () => {
                             </div>
                             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                                 {activeStart 
-                                    ? `Análises: ${fmtDate(activeStart)}${activeEnd ? ` → ${fmtDate(activeEnd)}` : ''}`
-                                    : 'Análises Realizadas (Últimos 7 dias)'
+                                    ? `Atividades: ${fmtDate(activeStart)}${activeEnd ? ` → ${fmtDate(activeEnd)}` : ''}`
+                                    : 'Atividades Realizadas (Últimos 7 dias)'
                                 }
                             </h3>
                         </div>
@@ -603,7 +606,7 @@ export const AdminDashboard = () => {
                                     }}
                                     itemStyle={{ color: '#6366f1', fontWeight: 600 }}
                                     labelStyle={{ color: 'var(--text-dim)', fontSize: '11px', marginBottom: '4px' }}
-                                    formatter={(value: number | undefined) => [value || 0, 'Análises']}
+                                    formatter={(value: number | undefined) => [value || 0, 'Atividades']}
                                     labelFormatter={(label, payload) => payload[0]?.payload?.fullName || label}
                                 />
                                 <Area 
@@ -719,8 +722,9 @@ export const AdminDashboard = () => {
                             {isRoleOpen && (
                                 <div className="cs-dropdown" style={{ ...(isMobile ? { left: 'auto', right: 0, maxWidth: 'calc(100vw - 32px)' } : {}) }}>
                                     <div className={`cs-item ${roleFilter === '' ? 'active' : ''}`} onClick={() => { setRoleFilter(''); setIsRoleOpen(false); }}>Todos</div>
+                                    <div className={`cs-item ${roleFilter === 'administrador' ? 'active' : ''}`} onClick={() => { setRoleFilter('administrador'); setIsRoleOpen(false); }}>ADMINISTRADOR</div>
+                                    <div className={`cs-item ${roleFilter === 'supervisor' ? 'active' : ''}`} onClick={() => { setRoleFilter('supervisor'); setIsRoleOpen(false); }}>SUPERVISOR</div>
                                     <div className={`cs-item ${roleFilter === 'rh' ? 'active' : ''}`} onClick={() => { setRoleFilter('rh'); setIsRoleOpen(false); }}>RH</div>
-                                    <div className={`cs-item ${roleFilter === 'gestor' ? 'active' : ''}`} onClick={() => { setRoleFilter('gestor'); setIsRoleOpen(false); }}>GESTOR</div>
                                     <div className={`cs-item ${roleFilter === 'convidado' ? 'active' : ''}`} onClick={() => { setRoleFilter('convidado'); setIsRoleOpen(false); }}>CONVIDADO</div>
                                 </div>
                             )}
@@ -760,7 +764,7 @@ export const AdminDashboard = () => {
             </div>
 
             {/* Convidar Usuário */}
-            {(userRole === 'owner' || userRole === 'gestor') && (
+            {(userRole === 'owner' || userRole === 'administrador' || userRole === 'supervisor') && (
                     <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-start' }}>
                     <button
                         onClick={() => setShowCreateModal(true)}
@@ -788,7 +792,7 @@ export const AdminDashboard = () => {
             {/* User List */}
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                 {userRole === 'owner' ? (
-                    /* Owner: Visão agrupada por organização */
+                    /* Owner: Visão agrupada por organização (accordion) */
                     <div>
                         {(() => {
                             const orgs = new Map<string, { id: string; name: string; status: string; users: UserProfile[] }>();
@@ -799,65 +803,107 @@ export const AdminDashboard = () => {
                                 }
                                 orgs.get(oid)!.users.push(u);
                             });
-                            return Array.from(orgs.values()).map(org => {
-                                const gestor = org.users.find(u => u.user_role === 'gestor');
-                                const membros = org.users.filter(u => u.id !== gestor?.id);
-                                const totalMembros = org.users.length;
-                                const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : 'inactive';
-                                return (
-                                    <div key={org.id} style={{ borderBottom: '1px solid var(--border)', padding: isMobile ? '12px 14px' : '16px 20px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : '#ef4444'} />
-                                                </div>
-                                                <div>
-                                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>{org.name}</p>
-                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>
-                                                        {totalMembros} {totalMembros === 1 ? 'membro' : 'membros'} {gestor ? `• Gestor: ${gestor.name || gestor.email.split('@')[0]}` : ''}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : '#ef4444' }} />
-                                                <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                    {orgStatus === 'active' ? 'Ativa' : 'Inativa'}
-                                                </span>
-                                                {org.id !== 'sem-org' && (
-                                                    <button
-                                                        onClick={() => handleToggleOrgStatus(org.id, orgStatus)}
-                                                        style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                                    >
-                                                        {orgStatus === 'active' ? <UserX size={12} /> : <UserCheck size={12} />}
-                                                        {orgStatus === 'active' ? 'Desativar' : 'Ativar'}
-                                                    </button>
-                                                )}
-                                            </div>
+                            const orgEntries = Array.from(orgs.values());
+                            const allExpanded = orgEntries.length > 0 && orgEntries.every(o => expandedOrgs.has(o.id));
+                            return (
+                                <>
+                                    {orgEntries.length > 1 && (
+                                        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={() => {
+                                                    if (allExpanded) {
+                                                        setExpandedOrgs(new Set());
+                                                    } else {
+                                                        setExpandedOrgs(new Set(orgEntries.map(o => o.id)));
+                                                    }
+                                                }}
+                                                style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                                            >
+                                                {allExpanded ? 'Recolher todas' : 'Expandir todas'}
+                                            </button>
                                         </div>
-                                        {membros.length > 0 && (
-                                            <div style={{ marginTop: '10px', marginLeft: isMobile ? 0 : '46px' }}>
-                                                {membros.map(u => (
-                                                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', flexWrap: 'wrap', gap: '6px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(u.name)}</div>
-                                                            <div>
-                                                                <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 500, margin: 0 }}>{u.name || u.email.split('@')[0]}</p>
-                                                                <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0 }}>{u.email}</p>
-                                                            </div>
+                                    )}
+                                    {orgEntries.map(org => {
+                                        const adminUser = org.users.find(u => u.user_role === 'administrador');
+                                        const totalMembros = org.users.length;
+                                        const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : 'inactive';
+                                        const isOpen = expandedOrgs.has(org.id);
+                                        return (
+                                            <div key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                <div
+                                                    onClick={() => {
+                                                        const next = new Set(expandedOrgs);
+                                                        if (isOpen) next.delete(org.id); else next.add(org.id);
+                                                        setExpandedOrgs(next);
+                                                    }}
+                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', padding: isMobile ? '12px 14px' : '16px 20px', cursor: 'pointer', transition: 'background 0.15s', userSelect: 'none' }}
+                                                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-main)')}
+                                                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                                                        {isOpen ? <ChevronDown size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} /> : <ChevronRight size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />}
+                                                        <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : '#ef4444'} />
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : '#10b981' }}>
-                                                                {u.user_role?.toUpperCase()}
-                                                            </span>
-                                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>{org.name}</p>
+                                                            <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: '2px 0 0' }}>
+                                                                {totalMembros} {totalMembros === 1 ? 'membro' : 'membros'} {adminUser ? `• Admin: ${adminUser.name || adminUser.email.split('@')[0]}` : ''}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : '#ef4444' }} />
+                                                        <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                                            {orgStatus === 'active' ? 'Ativa' : 'Inativa'}
+                                                        </span>
+                                                        {org.id !== 'sem-org' && (
+                                                            <button
+                                                                onClick={() => handleToggleOrgStatus(org.id, orgStatus)}
+                                                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                            >
+                                                                {orgStatus === 'active' ? <UserX size={12} /> : <UserCheck size={12} />}
+                                                                {orgStatus === 'active' ? 'Desativar' : 'Ativar'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {isOpen && (
+                                                    <div style={{ padding: isMobile ? '0 14px 12px 14px' : '0 20px 16px 20px', marginLeft: isMobile ? 0 : '32px' }}>
+                                                        {org.users.map(u => (
+                                                            <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', flexWrap: 'wrap', gap: '6px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(u.name)}</div>
+                                                                    <div>
+                                                                        <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 500, margin: 0 }}>{u.name || u.email.split('@')[0]}</p>
+                                                                        <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0 }}>{u.email}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    {u.user_role === 'convidado' && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); setVagaModalUserId(u.id); loadVagas(); loadUserVagaAccess(u.id); }}
+                                                                            title="Vagas"
+                                                                            style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#10b981', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                                                        >
+                                                                            <Briefcase size={10} />
+                                                                            Vagas
+                                                                        </button>
+                                                                    )}
+                                                                    <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981' }}>
+                                                                        {u.user_role?.toUpperCase()}
+                                                                    </span>
+                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            });
+                                        );
+                                    })}
+                                </>
+                            );
                         })()}
                         {filteredUsers.length === 0 && (
                             <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '14px' }}>
@@ -866,7 +912,7 @@ export const AdminDashboard = () => {
                         )}
                     </div>
                 ) : (
-                    /* Gestor/RH/Convidado: Tabela plana com ações estendidas */
+                    /* Admin/Supervisor/RH/Convidado: Tabela plana com ações estendidas */
                     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: isMobile ? 'auto' : 'fixed' }}>
                         <colgroup>
@@ -937,8 +983,8 @@ export const AdminDashboard = () => {
                                             borderRadius: '6px',
                                             fontSize: isMobile ? '10px' : '11px',
                                             fontWeight: 700,
-                                            background: isOwner ? 'rgba(239, 68, 68, 0.1)' : '#3b82f620',
-                                            color: isOwner ? '#ef4444' : '#3b82f6',
+                                            background: user.user_role === 'owner' ? 'rgba(239, 68, 68, 0.1)' : user.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : user.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : user.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                            color: user.user_role === 'owner' ? '#ef4444' : user.user_role === 'administrador' ? '#f59e0b' : user.user_role === 'supervisor' ? '#8b5cf6' : user.user_role === 'rh' ? '#6366f1' : '#10b981',
                                             textTransform: 'uppercase',
                                             whiteSpace: 'nowrap',
                                         }}>
@@ -1093,8 +1139,9 @@ export const AdminDashboard = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {roleDefinitions
                                     .filter(r => {
-                                        if (userRole === 'owner') return r.key === 'gestor';
-                                        if (userRole === 'gestor') return ['rh', 'convidado'].includes(r.key);
+                                        if (userRole === 'owner') return r.key === 'administrador';
+                                        if (userRole === 'administrador') return ['supervisor', 'rh', 'convidado'].includes(r.key);
+                                        if (userRole === 'supervisor') return ['rh', 'convidado'].includes(r.key);
                                         return false;
                                     })
                                     .map(r => (

@@ -1,12 +1,13 @@
 import { supabase } from './supabase';
 
-export async function logActivity(userId: string, action: string, details?: string | object, errorMessage?: string) {
+export async function logActivity(userId: string, action: string, details?: string | object, errorMessage?: string, organizationId?: string) {
     try {
         const { error } = await supabase.from('activity_logs').insert({
             user_id: userId,
             action,
             details: details || {},
-            error: errorMessage || null
+            error: errorMessage || null,
+            organization_id: organizationId || null
         });
         
         if (error) {

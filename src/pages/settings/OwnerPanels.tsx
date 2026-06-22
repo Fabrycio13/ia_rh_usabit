@@ -47,7 +47,7 @@ export const OwnerAdminApiPanel = ({
     inputStyle: React.CSSProperties;
     isMobile?: boolean;
 }) => {
-    const gestores = allUsers.filter(u => u.user_role === 'gestor');
+    const gestores = allUsers.filter(u => u.user_role === 'administrador');
     const [expanded, setExpanded] = useState<string | null>(null);
     const [configs, setConfigs] = useState<Record<string, { evo_url: string; evo_key: string; evo_instance: string }>>(() =>
         Object.fromEntries(gestores.map(a => [a.id, {
@@ -76,7 +76,7 @@ export const OwnerAdminApiPanel = ({
     if (gestores.length === 0) {
         return (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
-                <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>Nenhum gestor cadastrado ainda.</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>Nenhum administrador cadastrado ainda.</p>
             </div>
         );
     }
@@ -85,7 +85,7 @@ export const OwnerAdminApiPanel = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ marginBottom: '8px' }}>
                 <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '16px', margin: '0 0 4px' }}>
-                    Configurações de API por Gestor
+                    Configurações de API por Administrador
                 </p>
                 <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>
                     Visualize e edite as integrações Evolution API de cada cliente.
@@ -216,7 +216,7 @@ export const OwnerAdminPlanPanel = ({
     plans?: Plan[];
     isMobile?: boolean;
 }) => {
-    const gestores = allUsers.filter(u => u.user_role === 'gestor');
+    const gestores = allUsers.filter(u => u.user_role === 'administrador');
     const [editing, setEditing] = useState<string | null>(null);
     const [selectedPlan, setSelectedPlan] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<string | null>(null);
@@ -246,7 +246,7 @@ export const OwnerAdminPlanPanel = ({
     if (gestores.length === 0) {
         return (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
-                <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>Nenhum gestor cadastrado ainda.</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>Nenhum administrador cadastrado ainda.</p>
             </div>
         );
     }
@@ -255,20 +255,20 @@ export const OwnerAdminPlanPanel = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ marginBottom: '8px' }}>
                 <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '16px', margin: '0 0 4px' }}>
-                    Planos por Gestor
+                    Planos por Administrador
                 </p>
                 <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: 0 }}>
                     Visualize e altere o plano de cada cliente. Você pode fazer upgrade ou downgrade manually.
                 </p>
             </div>
 
-            {/* Tabela de gestores */}
+            {/* Tabela de administradores */}
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'auto' }}>
                 <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                            <th style={{ padding: '14px 20px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left' }}>Gestor</th>
+                            <th style={{ padding: '14px 20px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left' }}>Administrador</th>
                             <th style={{ padding: '14px 20px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Plano Atual</th>
                             <th style={{ padding: '14px 20px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Status</th>
                             <th style={{ padding: '14px 20px', fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>Ações</th>

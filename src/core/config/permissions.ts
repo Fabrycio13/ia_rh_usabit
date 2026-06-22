@@ -1,5 +1,5 @@
 // Definição de permissões por perfil de acesso
-// Hierarquia: Owner → Gestor → RH → Convidado
+// Hierarquia: Owner → Administrador → Supervisor → {RH, Convidado}
 
 export interface RolePermissions {
     dashboard: boolean;
@@ -35,8 +35,8 @@ export const rolePermissions: Record<string, RolePermissions> = {
         logs: true,
     },
 
-    // GESTOR: admin da organização cliente — acesso total NA SUA org
-    gestor: {
+    // ADMINISTRADOR: admin da organização cliente — acesso total NA SUA org
+    administrador: {
         dashboard: true,
         vagas: true,
         vagas_edit: true,
@@ -48,7 +48,24 @@ export const rolePermissions: Record<string, RolePermissions> = {
         pipeline_edit: true,
         chat: false,
         chat_widget: true,
-        admin: true,   // painel de gerenciamento da sua própria org
+        admin: true,
+        logs: true,
+    },
+
+    // SUPERVISOR: operacional + supervisão — acesso total + logs
+    supervisor: {
+        dashboard: true,
+        vagas: true,
+        vagas_edit: true,
+        analises: true,
+        analises_edit: true,
+        candidatos: true,
+        candidatos_edit: true,
+        pipeline: true,
+        pipeline_edit: true,
+        chat: false,
+        chat_widget: true,
+        admin: true,
         logs: true,
     },
 
@@ -69,7 +86,7 @@ export const rolePermissions: Record<string, RolePermissions> = {
         logs: false,
     },
 
-    // CONVIDADO: visualiza vagas + pipeline read-only (vagas permitidas pelo gestor)
+    // CONVIDADO: visualiza vagas + pipeline read-only (vagas permitidas pelo administrador)
     convidado: {
         dashboard: false,
         vagas: true,
@@ -98,6 +115,6 @@ export const isViewOnly = (role: string, module: 'vagas' | 'analises' | 'candida
     return rolePermissions[role]?.[module] === true && rolePermissions[role]?.[editPermission] === false;
 };
 
-// Helper: owner vê tudo; gestor/rh veem sua org; convidado acesso minimal
+// Helper: owner vê tudo; administrador/supervisor/rh veem sua org; convidado acesso minimal
 export const isGlobalViewer = (role: string): boolean => role === 'owner';
-export const isOrgMember = (role: string): boolean => ['gestor', 'rh'].includes(role);
+export const isOrgMember = (role: string): boolean => ['administrador', 'supervisor', 'rh'].includes(role);

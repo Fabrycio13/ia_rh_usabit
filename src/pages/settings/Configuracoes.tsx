@@ -231,10 +231,10 @@ export const Configuracoes = () => {
 
     useEffect(() => {
         const isOwner = profile.user_role === 'owner';
-        const isGestor = profile.user_role === 'gestor';
-        const needsUsers = isOwner && (activeTab === 'api' || activeTab === 'plano');
+        const isAdmin = profile.user_role === 'administrador' || profile.user_role === 'supervisor';
+        const needsUsers = (isOwner || isAdmin) && (activeTab === 'api' || activeTab === 'plano');
 
-        if (needsUsers && (isOwner || isGestor)) {
+        if (needsUsers) {
             loadUsersRef.current = loadUsers;
             loadUsersRef.current?.();
         }
@@ -387,13 +387,13 @@ export const Configuracoes = () => {
         return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
     };
 
-    // Carregar usuários (owner vê todos; gestor vê sua org)
+    // Carregar usuários (owner vê todos; admin/supervisor vê sua org)
     const loadUsers = async () => {
         const role = profile.user_role;
-        if (role !== 'owner' && role !== 'gestor') return;
+        if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
         let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        // Gestor só vê usuários da sua organização
-        if (role === 'gestor' && profile.organization_id) {
+        // Admin/Supervisor só vê usuários da sua organização
+        if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
             query = query.eq('organization_id', profile.organization_id);
         }
         const { data } = await query;

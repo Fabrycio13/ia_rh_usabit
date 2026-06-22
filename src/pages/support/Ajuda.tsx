@@ -213,7 +213,7 @@ const faqs = [
             },
             {
                 q: 'Quais são os perfis de usuário?',
-                a: 'O sistema possui os seguintes perfis:\n\n👑 **Owner/Administrador**: Acesso completo ao sistema\n👔 **RH Gestor**: Acesso a todas as vagas e candidatos da empresa\n👤 **RH Operador**: Acesso a vagas e candidatos específicos\n👁️ **Convidado**: Apenas visualização, não pode criar ou editar\n\nAs permissões são definidas pelo administrador em "Configurações" > "Equipe".',
+                a: 'O sistema possui os seguintes perfis:\n\n👑 **Owner**: Super-admin do sistema, acesso completo\n👔 **Administrador**: Admin da empresa, acesso total à organização\n🛡️ **Supervisor**: Supervisiona a equipe, acesso a logs de atividades do RH\n👤 **RH**: Operacional, cria vagas e analisa candidatos\n👁️ **Convidado**: Apenas visualização de vagas permitidas\n\nAs permissões são definidas pelo administrador em "Configurações" > "Equipe".',
             },
 ],
     },
