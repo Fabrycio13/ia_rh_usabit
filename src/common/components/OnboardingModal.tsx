@@ -14,7 +14,7 @@ export const OnboardingModal = () => {
     // Tipos de Onboarding: 
     // - 'setup': Para Gestores/Owners (precisam criar a org)
     // - 'welcome': Para RH/Convidados (já têm org, apenas boas-vindas)
-    const onboardingType = (profile.user_role === 'owner' || profile.user_role === 'gestor') ? 'setup' : 'welcome';
+    const onboardingType = (profile.user_role === 'owner' || profile.user_role === 'administrador' || profile.user_role === 'supervisor') ? 'setup' : 'welcome';
 
     // Se o Gestor já tiver uma org, ele cai no fluxo de 'welcome' mas com passos reduzidos
     const needsOrgSetup = onboardingType === 'setup' && (!profile.organization_id || !profile.organization_name);

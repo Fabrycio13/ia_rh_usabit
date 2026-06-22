@@ -11,7 +11,7 @@ interface UserProfile {
     email: string;
     initials: string;
     notificationsEnabled: boolean;
-    user_role: 'owner' | 'gestor' | 'rh' | 'convidado';
+    user_role: 'owner' | 'administrador' | 'supervisor' | 'rh' | 'convidado';
     status: 'active' | 'inactive';
     account_type: 'trial' | 'active' | 'lifetime';
     trial_ends_at: string | null;
@@ -58,8 +58,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || 
                                     user.user_metadata?.user_role?.toLowerCase() === 'owner' ||
-                                    user.user_metadata?.user_role?.toLowerCase() === 'rh' ||
-                                    user.user_metadata?.user_role?.toLowerCase() === 'gestor';
+                                    user.user_metadata?.user_role?.toLowerCase() === 'administrador' ||
+                                    user.user_metadata?.user_role?.toLowerCase() === 'supervisor' ||
+                                    user.user_metadata?.user_role?.toLowerCase() === 'rh';
 
         // Optimistic update with what we already know from the session
         setProfile(prev => ({
@@ -104,10 +105,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 onboarding_completed: data.onboarding_completed ?? false,
                 isPremium: data.account_type === 'lifetime' ||
                            data.user_role?.toLowerCase() === 'owner' ||
-                           data.user_role?.toLowerCase() === 'gestor' ||
+                           data.user_role?.toLowerCase() === 'administrador' ||
+                           data.user_role?.toLowerCase() === 'supervisor' ||
                            data.user_role?.toLowerCase() === 'rh' ||
                            user.user_metadata?.user_role?.toLowerCase() === 'owner' ||
-                           user.user_metadata?.user_role?.toLowerCase() === 'gestor' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'administrador' ||
+                           user.user_metadata?.user_role?.toLowerCase() === 'supervisor' ||
                            user.user_metadata?.user_role?.toLowerCase() === 'rh',
                 evolution_api_url: data.evolution_api_url || '',
                 evolution_api_key: data.evolution_api_key || '',

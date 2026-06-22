@@ -179,7 +179,7 @@ export const CandidateBank = () => {
   const fetchCandidatesRef = useRef<(userId: string, userRole?: string) => Promise<void>>(() => Promise.resolve());
   fetchCandidatesRef.current = async function fetchCandidates(userId: string, userRole?: string) {
     const isGlobalViewer = userRole === 'owner';
-    const isOrgMember = userRole === 'gestor' || userRole === 'rh';
+    const isOrgMember = userRole === 'administrador' || userRole === 'supervisor' || userRole === 'rh';
     try {
       setLoading(true);
       let query = supabase

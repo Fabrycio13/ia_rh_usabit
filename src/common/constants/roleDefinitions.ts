@@ -1,4 +1,4 @@
-import { ShieldCheck, Briefcase, Users, User } from 'lucide-react';
+import { ShieldCheck, Briefcase, UserCog, Users, User } from 'lucide-react';
 
 export interface RoleDefinition {
     key: string;
@@ -17,7 +17,7 @@ export const roleDefinitions: RoleDefinition[] = [
         color: '#dc2626',
         description: 'Super-admin da plataforma. Vê e gerencia todas as organizações.',
         permissions: [
-            'Criar e gerenciar gestores',
+            'Criar e gerenciar administradores',
             'Acesso total a todas as funcionalidades',
             'Visão de todas as organizações',
             'Configurações globais do sistema',
@@ -26,18 +26,31 @@ export const roleDefinitions: RoleDefinition[] = [
         ]
     },
     {
-        key: 'gestor',
-        label: 'Gestor',
+        key: 'administrador',
+        label: 'Administrador',
         icon: Briefcase,
         color: '#f59e0b',
-        description: 'Admin da organização cliente. Acesso total dentro da sua org. Cria e gerencia RH e Convidados.',
+        description: 'Admin da organização cliente. Acesso total dentro da sua org. Cria e gerencia Supervisores, RH e Convidados.',
         permissions: [
             'Acesso total à sua organização',
-            'Criar e gerenciar RH e Convidados',
+            'Criar e gerenciar Supervisores, RH e Convidados',
             'Gerenciar vagas, análises e candidatos',
             'Pipeline e chat com candidatos',
             'Configurar integrações da organização',
             'Acesso a logs de atividade'
+        ]
+    },
+    {
+        key: 'supervisor',
+        label: 'Supervisor',
+        icon: UserCog,
+        color: '#8b5cf6',
+        description: 'Supervisiona a equipe operacional. Acesso a logs e atividades do RH. Cria e gerencia RH e Convidados.',
+        permissions: [
+            'Criar e gerenciar RH e Convidados',
+            'Acesso operacional completo (vagas, análises, candidatos)',
+            'Painel de logs e atividades',
+            'Visualizar relatórios de análise'
         ]
     },
     {
