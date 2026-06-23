@@ -11,6 +11,95 @@ import { roleDefinitions } from '../../common/constants/roleDefinitions';
 
 type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
+const FONT_OPTIONS = [
+    { value: '', label: 'Space Grotesk', family: "'Space Grotesk', sans-serif" },
+    { value: 'Inter', label: 'Inter', family: "'Inter', sans-serif" },
+    { value: 'Poppins', label: 'Poppins', family: "'Poppins', sans-serif" },
+    { value: 'Roboto', label: 'Roboto', family: "'Roboto', sans-serif" },
+    { value: 'Montserrat', label: 'Montserrat', family: "'Montserrat', sans-serif" },
+    { value: 'Open Sans', label: 'Open Sans', family: "'Open Sans', sans-serif" },
+    { value: 'Lato', label: 'Lato', family: "'Lato', sans-serif" },
+    { value: 'Manrope', label: 'Manrope', family: "'Manrope', sans-serif" },
+    { value: 'Outfit', label: 'Outfit', family: "'Outfit', sans-serif" },
+    { value: 'Playfair Display', label: 'Playfair Display', family: "'Playfair Display', serif" },
+    { value: 'Merriweather', label: 'Merriweather', family: "'Merriweather', serif" },
+    { value: 'Geist', label: 'Geist', family: "'Geist Variable', sans-serif" },
+];
+
+function FontSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [openUp, setOpenUp] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const selected = FONT_OPTIONS.find(f => f.value === value) || FONT_OPTIONS[0];
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen && triggerRef.current) {
+            triggerRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const rect = triggerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            setOpenUp(spaceBelow < 280);
+        }
+    }, [isOpen]);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <div
+                ref={triggerRef}
+                id="cfg-brand-font"
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'var(--bg-input)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '10px 12px', color: 'var(--text-main)',
+                    fontSize: '15px', cursor: 'pointer', minHeight: '44px',
+                    fontFamily: selected.family, fontWeight: 600,
+                    transition: 'all 0.2s'
+                }}
+            >
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected.label}</span>
+                <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0, opacity: 0.7 }} />
+            </div>
+            {isOpen && (
+                <div style={{
+                    position: 'absolute', top: openUp ? 'auto' : 'calc(100% + 4px)', bottom: openUp ? 'calc(100% + 4px)' : 'auto', left: 0, right: 0,
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '6px', zIndex: 1000,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                    maxHeight: '260px', overflowY: 'auto'
+                }}>
+                    {FONT_OPTIONS.map(opt => (
+                        <div
+                            key={opt.value || '__default__'}
+                            onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                            onMouseEnter={e => { if (value !== opt.value) e.currentTarget.style.background = 'var(--row-hover)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = value === opt.value ? 'rgba(59, 130, 246, 0.12)' : 'transparent'; }}
+                            style={{
+                                padding: '10px 12px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer', transition: 'all 0.15s',
+                                color: value === opt.value ? '#3b82f6' : 'var(--text-main)',
+                                background: value === opt.value ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                                fontFamily: opt.family, fontWeight: 500
+                            }}
+                        >
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 interface TabItem {
     key: TabKey;
     label: string;
@@ -152,7 +241,7 @@ const plans = [
 ];
 
 export const Configuracoes = () => {
-    const { profile, refetch } = useUser();
+    const { profile, refetch, updateProfile } = useUser();
     const { theme, toggleTheme, bgTheme, setBgTheme, customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabKey>('perfil');
@@ -174,6 +263,9 @@ export const Configuracoes = () => {
     const [orgName, setOrgName] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [brandName, setBrandName] = useState('');
+    const [brandColor, setBrandColor] = useState('');
+    const [brandFont, setBrandFont] = useState('');
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState('');
     const [avatarPreview, setAvatarPreview] = useState('');
@@ -213,6 +305,9 @@ export const Configuracoes = () => {
                 setOrgName(profileData.organization_name ?? '');
                 setPhone(profileData.phone ?? '');
                 setAddress(profileData.address ?? '');
+                setBrandName(profileData.brand_name ?? '');
+                setBrandColor(profileData.brand_color ?? '');
+                setBrandFont(profileData.brand_font ?? '');
                 setNotificationsEnabled(profileData.notifications_enabled ?? false);
                 setAvatarUrl(profileData.avatar_url ?? '');
                 setEvoUrl(profileData.evolution_api_url ?? '');
@@ -225,6 +320,23 @@ export const Configuracoes = () => {
         };
         load();
     }, [userId, profile.loaded, dataLoaded]);
+
+    // Auto-save para personalização da marca (debounced)
+    const brandSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (!dataLoaded || !userId) return;
+        if (brandSaveTimer.current) clearTimeout(brandSaveTimer.current);
+        brandSaveTimer.current = setTimeout(async () => {
+            await supabase.from('profiles').update({
+                brand_name: brandName,
+                brand_color: brandColor,
+                brand_font: brandFont,
+                updated_at: new Date().toISOString()
+            }).eq('id', userId);
+            refetch();
+        }, 800);
+        return () => { if (brandSaveTimer.current) clearTimeout(brandSaveTimer.current); };
+    }, [brandName, brandColor, brandFont, dataLoaded, userId, refetch]);
 
     // Carregar usuários quando entrar nas abas que dependem da lista de usuários
     const loadUsersRef = useRef<() => Promise<void> | null>(null);
@@ -314,6 +426,7 @@ export const Configuracoes = () => {
                 organization_name: orgName,
                 phone,
                 address,
+                brand_name: brandName,
                 notifications_enabled: notificationsEnabled,
                 avatar_url: avatarUrl,
                 evolution_api_url: evoUrl,
@@ -333,6 +446,7 @@ export const Configuracoes = () => {
                 organization_name: orgName,
                 phone,
                 address,
+                brand_name: brandName,
                 notifications_enabled: notificationsEnabled,
                 avatar_url: avatarUrl
             });
@@ -345,11 +459,13 @@ export const Configuracoes = () => {
             else {
                 toast.success('Perfil salvo com sucesso!');
                 logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
+                refetch();
             }
         } else {
             setSaving(false);
             toast.success('Perfil salvo com sucesso!');
             logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
+            refetch();
         }
     };
 
@@ -744,6 +860,37 @@ export const Configuracoes = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Card Personalização da Marca */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginTop: '20px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v8"/><path d="M6 12h12"/></svg>
+                            Personalização da Marca
+                        </p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '0 0 16px', lineHeight: 1.5 }}>
+                            Personalize o nome exibido no menu lateral (máx. 20 caracteres), escolha a fonte e defina a cor em Aparência &gt; Cores Customizadas.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px', alignItems: isMobile ? 'stretch' : 'flex-end' }}>
+                            <div style={{ flex: isMobile ? '1 1 auto' : '1 1 240px' }}>
+                                <label htmlFor="cfg-brand" style={labelStyle}>Nome da Marca</label>
+                                <div style={fieldWrapStyle}>
+                                    <span style={iconFieldStyle}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                    </span>
+                                    <input id="cfg-brand" className="field-input" style={inputStyle} placeholder="Usabit people" value={brandName} onChange={e => { const v = e.target.value.slice(0, 20); setBrandName(v); updateProfile({ brandName: v }); }} maxLength={20} />
+                                </div>
+                            </div>
+                            <div style={{ flex: isMobile ? '1 1 auto' : '1 1 280px' }}>
+                                <label htmlFor="cfg-brand-font" style={labelStyle}>Fonte</label>
+                                <FontSelect
+                                    value={brandFont}
+                                    onChange={v => { setBrandFont(v); updateProfile({ brandFont: v }); }}
+                                />
+                            </div>
+                        </div>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginTop: 12, marginBottom: 0 }}>As alterações são salvas automaticamente.</p>
+                    </div>
+
                     </>
                     );
                 })()}
@@ -920,6 +1067,7 @@ export const Configuracoes = () => {
                                         onClick={() => {
                                             setCustomPrimaryColor(null);
                                             setCustomTextColor(null);
+                                            setBrandColor('');
                                             toast.success('Cores resetadas para o padrão');
                                         }}
                                         style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
@@ -948,7 +1096,7 @@ export const Configuracoes = () => {
                                             value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')}
                                             onChange={handlePrimary}
                                             onInput={handlePrimary}
-                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                         />
                                     </div>
 
@@ -970,7 +1118,29 @@ export const Configuracoes = () => {
                                             value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')}
                                             onChange={handleText}
                                             onInput={handleText}
-                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                        />
+                                    </div>
+
+                                    {/* Cor da Marca (sidebar) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-light-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v8"/><path d="M6 12h12"/></svg>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor da Marca</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Nome da marca no menu lateral</p>
+                                            </div>
+                                        </div>
+                                        <input
+                                            id="cfg-brand-color"
+                                            name="brand-color"
+                                            type="color"
+                                            value={brandColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')}
+                                            onChange={e => { const v = e.target.value; setBrandColor(v); updateProfile({ brandColor: v }); }}
+                                            onInput={e => { const v = (e.target as HTMLInputElement).value; setBrandColor(v); updateProfile({ brandColor: v }); }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                         />
                                     </div>
                                 </div>

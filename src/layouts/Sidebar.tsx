@@ -228,7 +228,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 flexDirection: 'column', 
                 height: '100%', 
                 flexShrink: 0, 
-                transition: 'width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1)', 
+                transition: 'width 0.22s cubic-bezier(.4,0,.2,1), min-width 0.22s cubic-bezier(.4,0,.2,1)',
+                overflowX: 'hidden',
                 overflowY: hideToggle ? 'auto' : 'hidden',
                 willChange: 'width, min-width',
                 boxShadow: '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05)'
@@ -246,9 +247,9 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                 }}>
                     {!collapsed && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, ...(hideToggle ? { paddingLeft: '52px' } : {}) }}>
-                            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                                <p style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.02em', fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>Usabit people</p>
-                                <p style={{ color: 'var(--primary)', fontSize: '10px', fontWeight: 700, margin: '1px 0 0', whiteSpace: 'nowrap', letterSpacing: '0.1em', opacity: 0.9, fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>IA RECRUITMENT</p>
+                            <div style={{ padding: '4px 0', overflow: 'hidden', minWidth: 0 }}>
+                                <p style={{ color: profile.brandColor || 'var(--text-main)', fontSize: '16px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', letterSpacing: '0.02em', fontFamily: profile.brandFont || "var(--font-space, 'Space Grotesk', sans-serif)" }}>{profile.brandName || 'Usabit people'}</p>
+                                <p style={{ color: 'var(--primary)', fontSize: '10px', fontWeight: 700, margin: '2px 0 0', whiteSpace: 'nowrap', letterSpacing: '0.15em', opacity: 0.9, fontFamily: "var(--font-space, 'Space Grotesk', sans-serif)" }}>IA RECRUITMENT</p>
                             </div>
                         </div>
                     )}
