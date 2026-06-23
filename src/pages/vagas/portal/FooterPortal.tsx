@@ -1,25 +1,9 @@
-import { footerGroups } from './data';
+import usabitLogo from '/logos/usabit-logo.svg';
 
 interface FooterPortalProps {
   isMobile: boolean;
 }
 
-const linkStyle: React.CSSProperties = {
-  fontFamily: "'Manrope', sans-serif",
-  fontWeight: 600,
-  fontSize: 16,
-  lineHeight: '19.2px',
-  color: '#C3C7CD',
-};
-
-const headingStyle: React.CSSProperties = {
-  fontFamily: "'Space Grotesk', sans-serif",
-  fontWeight: 500,
-  fontSize: 24,
-  lineHeight: '28.8px',
-  color: '#F5F6F8',
-  margin: '0 0 24px',
-};
 
 export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
   return (
@@ -37,31 +21,31 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
           width: '100%',
           maxWidth: 1440,
           margin: '0 auto',
-          padding: isMobile ? '60px 24px' : '96px 64px 96px 200px',
+          padding: isMobile ? '60px 24px' : '96px 64px',
         }}
       >
-        {/* 3-Column Grid: Brand | Soluções | A Empresa + Legal */}
+        {/* Brand — horizontal layout */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
-            gap: isMobile ? 40 : 80,
-            marginBottom: 64,
-            alignItems: 'start',
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'center' : 'center',
+            justifyContent: 'space-between',
+            gap: isMobile ? 32 : 48,
+            marginBottom: 48,
           }}
         >
-          {/* Brand Column — centralizado no mobile */}
+          {/* Left: Logo + Tagline */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: isMobile ? 'center' : 'flex-start',
-              gap: 20,
+              gap: 16,
             }}
           >
-            {/* Logo */}
             <img
-              src="/logos/usabit-logo.svg"
+              src={usabitLogo}
               alt="Usabit"
               style={{
                 height: 32,
@@ -71,8 +55,6 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
                 display: 'block',
               }}
             />
-
-            {/* Tagline */}
             <p
               style={{
                 fontFamily: "'Manrope', sans-serif",
@@ -84,40 +66,21 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
                 textAlign: isMobile ? 'center' : 'left',
               }}
             >
-              Impulsionando crescimento de negócios
-              <br />
-              através da tecnologia
+              Impulsionando crescimento de negócios através da tecnologia
             </p>
+          </div>
 
-            {/* Botão: texto à esquerda, ícone à direita */}
-            <a
-              href="https://wa.me/5511999999999"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 32,
-                padding: '13px 20px',
-                borderRadius: 12,
-                background: '#2C58FD',
-                color: '#F5F6F8',
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 700,
-                fontSize: 16,
-                textDecoration: 'none',
-                cursor: 'pointer',
-                minWidth: 180,
-              }}
-            >
-              <span>Fale conosco</span>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-            </a>
-
-            {/* Social Icons — com links reais */}
+          {/* Right: WhatsApp + Social Icons */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: 'center',
+              gap: 24,
+              flexShrink: 0,
+            }}
+          >
+            {/* Social Icons */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {[
                 {
@@ -164,32 +127,38 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
                 </a>
               ))}
             </div>
-          </div>
 
-          {/* Soluções */}
-          <div>
-            <h4 style={headingStyle}>{footerGroups[0].title}</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {footerGroups[0].links.map((link) => (
-                <span key={link.label} style={linkStyle}>{link.label}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* A Empresa + Legal empilhados na coluna 3 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
-            {footerGroups.slice(1).map((group) => (
-              <div key={group.title}>
-                <h4 style={headingStyle}>{group.title}</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {group.links.map((link) => (
-                    <span key={link.label} style={linkStyle}>{link.label}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {/* WhatsApp Button */}
+            <a
+              href="https://wa.me/5511999999999"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '13px 20px',
+                borderRadius: 12,
+                background: '#2C58FD',
+                color: '#F5F6F8',
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 700,
+                fontSize: 16,
+                textDecoration: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>Fale conosco</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+            </a>
           </div>
         </div>
+
+
+
 
         {/* Divider */}
         <div
@@ -233,7 +202,7 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
               margin: 0,
             }}
           >
-            Powered by <strong style={{ color: '#C3C7CD' }}>Space Talent</strong>
+            Powered by <strong style={{ color: '#C3C7CD' }}>Usabit people</strong>
           </p>
         </div>
       </div>

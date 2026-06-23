@@ -20,6 +20,7 @@ import { AdminLogs } from './pages/dashboard/AdminLogs';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
+import { SetPassword } from './pages/auth/SetPassword';
 // import { ConfirmEmail } from './pages/auth/ConfirmEmail';
 // import { TrialExpired } from './pages/auth/TrialExpired';
 
@@ -59,7 +60,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
     return (
         <HashRouter>
             {/* Onboarding Modal - Só abre se não estiver completo no banco E não houver trava local */}
-            {session && <OnboardingModal />}
+            {session && !window.location.hash.includes('/set-password') && <OnboardingModal />}
             <Toaster
                 position="bottom-right"
                 toastOptions={{
@@ -81,8 +82,8 @@ const AppContent = ({ session }: { session: Session | null }) => {
 
                 {/* Perist Layout for Logged-in Routes */}
                 <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
-                    <Route path="/dashboard" element={hasPermission(profile.user_role, 'dashboard') ? <Dashboard /> : <Navigate to="/vagas" />} />
-                    <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <CareerPortalHub /> : <Navigate to="/dashboard" />} />
+                    <Route path="/dashboard" element={hasPermission(profile.user_role, 'dashboard') ? <Dashboard /> : <Navigate to={hasPermission(profile.user_role, 'vagas') ? '/vagas' : '/ajuda'} />} />
+                    <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <CareerPortalHub /> : <Navigate to={hasPermission(profile.user_role, 'dashboard') ? '/dashboard' : '/ajuda'} />} />
                     <Route path="/vagas/nova" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/editar/:id" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                     <Route path="/vagas/:id/candidatos" element={hasPermission(profile.user_role, 'vagas') ? <VagaCandidatos /> : <Navigate to="/dashboard" />} />
@@ -104,6 +105,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
                     )}
                 </Route>
 
+                <Route path="/set-password" element={<SetPassword />} />
                 <Route path="*" element={<Navigate to="/" />} />
             </Routes>
         </HashRouter>
@@ -115,8 +117,17 @@ export const App = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const hash = window.location.hash;
+        const isSetPasswordFlow = hash.includes('type=signup') || hash.includes('type=invite');
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
+            setLoading(false);
+            if (isSetPasswordFlow && session) {
+                window.location.hash = '#/set-password';
+            }
+        }).catch(() => {
+            setSession(null);
             setLoading(false);
         });
 

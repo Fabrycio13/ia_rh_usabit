@@ -95,6 +95,8 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; }
     box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
 }
 .wizard-input::placeholder { color: #475569; }
+.wizard-input.error { border-color: #ef4444; background: rgba(239,68,68,0.06); }
+.wizard-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
 
 .wizard-btn-primary {
     display: inline-flex; align-items: center; gap: 10px;
@@ -376,6 +378,7 @@ export const SpontaneousApplication = () => {
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
+    const [honeypot, setHoneypot] = useState('');
 
     const [genderOpen, setGenderOpen] = useState(false);
     const genderRef = useRef<HTMLDivElement>(null);
@@ -441,6 +444,7 @@ export const SpontaneousApplication = () => {
         if (!formData.phone && selectedCountry.code) {
             setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCountry]);
 
     const genderOptions = [
@@ -504,7 +508,7 @@ export const SpontaneousApplication = () => {
         if (!loading) {
             triggerStepReveal(200);
         }
-    }, [loading]);
+    }, [loading, triggerStepReveal]);
 
     const goToNextStep = useCallback(() => {
         setStep(s => s + 1);
@@ -537,27 +541,10 @@ export const SpontaneousApplication = () => {
 
     const handleSubmit = async () => {
         if (!resumeFile) { toast.error('Envie seu currículo em PDF.'); return; }
+        if (honeypot) { toast.error('Erro de validação. Recarregue a página.'); return; }
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
-
-            let aiAnalysis: Record<string, unknown> | null = null;
-            try {
-                const result = await analyzeResume(resumeFile);
-                aiAnalysis = {
-                    source: 'spontaneous',
-                    score: result.score,
-                    skills: result.skills.join(', '),
-                    experience: result.experience,
-                    education: result.education,
-                    summary: result.summary,
-                    strengths: result.strengths.join(', '),
-                    gaps: result.gaps.join(', '),
-                    suggested_areas: result.suggested_areas.join(', ')
-                };
-            } catch (aiErr) {
-                console.error('Erro na análise via IA, prosseguindo sem:', aiErr);
-            }
 
             const candidatePayload = {
                 email: formData.email,
@@ -577,21 +564,10 @@ export const SpontaneousApplication = () => {
                 complement: formData.complement || null,
                 vaga_id: null,
                 status: 'pending',
-                skills: aiAnalysis ? String(aiAnalysis.skills) : null,
-                experience: aiAnalysis ? String(aiAnalysis.experience) : null,
-                analysis: aiAnalysis ? {
-                    ...aiAnalysis,
-                    history: [{
-                        type: 'spontaneous',
-                        date: new Date().toISOString(),
-                        summary: aiAnalysis.summary,
-                        skills: aiAnalysis.skills,
-                        experience: aiAnalysis.experience,
-                        education: aiAnalysis.education,
-                        strengths: aiAnalysis.strengths,
-                        gaps: aiAnalysis.gaps
-                    }]
-                } : null
+                source: 'spontaneous',
+                skills: null,
+                experience: null,
+                analysis: null,
             };
 
             const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {
@@ -609,19 +585,52 @@ export const SpontaneousApplication = () => {
                 console.error('submit-candidate error:', res.status, errBody);
                 throw new Error('Erro ao salvar candidato');
             }
+            const submitData = await res.json();
+            const candidateId = submitData.id;
             setSubmitted(true);
 
             try {
                 await supabase.functions.invoke('send-spontaneous-email', {
-                    body: {
-                        candidateName: formData.name,
-                        candidateEmail: formData.email,
-                        orgName: orgName || 'Usabit'
-                    }
+                    body: { candidateId }
                 });
             } catch (emailErr) {
                 console.error('Erro ao enviar email:', emailErr);
             }
+
+            analyzeResume(resumeFile).then(result => {
+                const aiAnalysis = {
+                    source: 'spontaneous',
+                    score: result.score,
+                    skills: result.skills.join(', '),
+                    experience: result.experience,
+                    education: result.education,
+                    summary: result.summary,
+                    strengths: result.strengths.join(', '),
+                    gaps: result.gaps.join(', ')
+                };
+                supabase.from('candidates').update({
+                    score: result.score,
+                    skills: String(result.skills),
+                    experience: result.experience,
+                    analysis: {
+                        ...aiAnalysis,
+                        history: [{
+                            type: 'spontaneous',
+                            date: new Date().toISOString(),
+                            summary: result.summary,
+                            skills: result.skills,
+                            experience: result.experience,
+                            education: result.education,
+                            strengths: result.strengths,
+                            gaps: result.gaps
+                        }]
+                    }
+                }).eq('email', formData.email).eq('organization_id', orgId).then(({ error }) => {
+                    if (error) console.error('Erro ao atualizar análise:', error);
+                });
+            }).catch(err => {
+                console.error('Análise IA falhou silenciosamente:', err);
+            });
         } catch {
             toast.error('Erro ao enviar candidatura. Tente novamente.');
         } finally {
@@ -717,8 +726,10 @@ export const SpontaneousApplication = () => {
     };
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 =
-        formData.email.trim() &&
+        isValidEmail &&
         formData.phone.trim().length >= 14 &&
         formData.cep.trim().length === 9 &&
         formData.address.trim() &&
@@ -828,7 +839,7 @@ export const SpontaneousApplication = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                 <div style={{ position: 'relative' }}>
                                     <Mail size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                                    <input autoFocus className="wizard-input" style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
+                                    <input autoFocus className={`wizard-input${isEmailInvalid ? ' error' : ''}`} style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
                                 </div>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <div style={{ position: 'relative' }} ref={countryRef}>
@@ -978,6 +989,18 @@ export const SpontaneousApplication = () => {
                                         Li e aceito os <button type="button" onClick={(e) => { e.preventDefault(); setShowLGPD(true); }} style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Termos de Privacidade e LGPD</button>. Entendo que meus dados e currículo serão armazenados no banco de talentos para contato sobre processos seletivos.
                                     </label>
                                 </div>
+
+                                {/* Honeypot - invisível para humanos, bots preenchem */}
+                                <input
+                                    type="text"
+                                    name="website"
+                                    tabIndex={-1}
+                                    autoComplete="off"
+                                    aria-hidden="true"
+                                    style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
+                                    value={honeypot}
+                                    onChange={e => setHoneypot(e.target.value)}
+                                />
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(1); triggerStepReveal(); }}>

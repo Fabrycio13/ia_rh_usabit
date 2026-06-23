@@ -1,15 +1,104 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, AlertCircle, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Users, Key, CreditCard, X, Plus, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Key, CreditCard, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
 import toast from 'react-hot-toast';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
+import { roleDefinitions } from '../../common/constants/roleDefinitions';
 
+type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
-type TabKey = 'perfil' | 'seguranca' | 'perfis' | 'aparencia' | 'api' | 'plano';
+const FONT_OPTIONS = [
+    { value: '', label: 'Space Grotesk', family: "'Space Grotesk', sans-serif" },
+    { value: 'Inter', label: 'Inter', family: "'Inter', sans-serif" },
+    { value: 'Poppins', label: 'Poppins', family: "'Poppins', sans-serif" },
+    { value: 'Roboto', label: 'Roboto', family: "'Roboto', sans-serif" },
+    { value: 'Montserrat', label: 'Montserrat', family: "'Montserrat', sans-serif" },
+    { value: 'Open Sans', label: 'Open Sans', family: "'Open Sans', sans-serif" },
+    { value: 'Lato', label: 'Lato', family: "'Lato', sans-serif" },
+    { value: 'Manrope', label: 'Manrope', family: "'Manrope', sans-serif" },
+    { value: 'Outfit', label: 'Outfit', family: "'Outfit', sans-serif" },
+    { value: 'Playfair Display', label: 'Playfair Display', family: "'Playfair Display', serif" },
+    { value: 'Merriweather', label: 'Merriweather', family: "'Merriweather', serif" },
+    { value: 'Geist', label: 'Geist', family: "'Geist Variable', sans-serif" },
+];
+
+function FontSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [openUp, setOpenUp] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const selected = FONT_OPTIONS.find(f => f.value === value) || FONT_OPTIONS[0];
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen && triggerRef.current) {
+            triggerRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const rect = triggerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            setOpenUp(spaceBelow < 280);
+        }
+    }, [isOpen]);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <div
+                ref={triggerRef}
+                id="cfg-brand-font"
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'var(--bg-input)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '10px 12px', color: 'var(--text-main)',
+                    fontSize: '15px', cursor: 'pointer', minHeight: '44px',
+                    fontFamily: selected.family, fontWeight: 600,
+                    transition: 'all 0.2s'
+                }}
+            >
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected.label}</span>
+                <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0, opacity: 0.7 }} />
+            </div>
+            {isOpen && (
+                <div style={{
+                    position: 'absolute', top: openUp ? 'auto' : 'calc(100% + 4px)', bottom: openUp ? 'calc(100% + 4px)' : 'auto', left: 0, right: 0,
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '6px', zIndex: 1000,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                    maxHeight: '260px', overflowY: 'auto'
+                }}>
+                    {FONT_OPTIONS.map(opt => (
+                        <div
+                            key={opt.value || '__default__'}
+                            onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                            onMouseEnter={e => { if (value !== opt.value) e.currentTarget.style.background = 'var(--row-hover)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = value === opt.value ? 'rgba(59, 130, 246, 0.12)' : 'transparent'; }}
+                            style={{
+                                padding: '10px 12px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer', transition: 'all 0.15s',
+                                color: value === opt.value ? '#3b82f6' : 'var(--text-main)',
+                                background: value === opt.value ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
+                                fontFamily: opt.family, fontWeight: 500
+                            }}
+                        >
+                            {opt.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface TabItem {
     key: TabKey;
@@ -20,7 +109,6 @@ interface TabItem {
 const allTabs: TabItem[] = [
     { key: 'perfil', label: 'Perfil', icon: User },
     { key: 'seguranca', label: 'Segurança', icon: Lock },
-    { key: 'perfis', label: 'Perfis', icon: Users },
     { key: 'aparencia', label: 'Aparência', icon: Moon },
     { key: 'api', label: 'API', icon: Key },
     { key: 'plano', label: 'Plano', icon: CreditCard },
@@ -28,7 +116,7 @@ const allTabs: TabItem[] = [
 
 // Abas visíveis para cada perfil
 const getVisibleTabs = (userRole: string): TabItem[] => {
-    const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'perfis', 'aparencia'].includes(tab.key));
+    const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'aparencia'].includes(tab.key));
     // Apenas Owner veem API e Plano
     if (userRole === 'owner') {
         return [...baseTabs, ...allTabs.filter(tab => ['api', 'plano'].includes(tab.key))];
@@ -152,67 +240,8 @@ const plans = [
     },
 ];
 
-const roleDefinitions = [
-    {
-        key: 'owner',
-        label: 'Owner',
-        icon: ShieldCheck,
-        color: '#dc2626',
-        description: 'Super-admin da plataforma. Vê e gerencia todas as organizações.',
-        permissions: [
-            'Criar e gerenciar gestores',
-            'Acesso total a todas as funcionalidades',
-            'Visão de todas as organizações',
-            'Configurações globais do sistema',
-            'Gerenciar planos e assinaturas',
-            'Acesso a logs e auditoria completa'
-        ]
-    },
-    {
-        key: 'gestor',
-        label: 'Gestor',
-        icon: Briefcase,
-        color: '#f59e0b',
-        description: 'Admin da organização cliente. Acesso total dentro da sua org. Cria e gerencia RH e Convidados.',
-        permissions: [
-            'Acesso total à sua organização',
-            'Criar e gerenciar RH e Convidados',
-            'Gerenciar vagas, análises e candidatos',
-            'Pipeline e chat com candidatos',
-            'Configurar integrações da organização',
-            'Acesso a logs de atividade'
-        ]
-    },
-    {
-        key: 'rh',
-        label: 'RH',
-        icon: Users,
-        color: '#6366f1',
-        description: 'Focado em recrutamento e seleção. Acesso operacional completo à organização.',
-        permissions: [
-            'Criar e editar vagas',
-            'Analisar candidatos',
-            'Gerenciar banco de candidatos',
-            'Pipeline de candidatos',
-            'Visualizar relatórios de análise'
-        ]
-    },
-    {
-        key: 'convidado',
-        label: 'Convidado',
-        icon: User,
-        color: '#10b981',
-        description: 'Acesso somente leitura às vagas da organização.',
-        permissions: [
-            'Visualizar vagas publicadas',
-            'Acessar links públicos de vagas',
-            'Visualizar dados básicos'
-        ]
-    },
-];
-
 export const Configuracoes = () => {
-    const { profile, refetch } = useUser();
+    const { profile, refetch, updateProfile } = useUser();
     const { theme, toggleTheme, bgTheme, setBgTheme, customPrimaryColor, setCustomPrimaryColor, customTextColor, setCustomTextColor } = useTheme();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabKey>('perfil');
@@ -234,6 +263,9 @@ export const Configuracoes = () => {
     const [orgName, setOrgName] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [brandName, setBrandName] = useState('');
+    const [brandColor, setBrandColor] = useState('');
+    const [brandFont, setBrandFont] = useState('');
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState('');
     const [avatarPreview, setAvatarPreview] = useState('');
@@ -248,13 +280,18 @@ export const Configuracoes = () => {
     const [evoInstance, setEvoInstance] = useState('');
     const [showEvoConfig, setShowEvoConfig] = useState(false);
 
-    // Perfis state
+    // Perfis state (mantido para API/Plano)
     const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', user_role: 'rh', organization_name: '' });
-    const [creatingUser, setCreatingUser] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const mql = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, []);
 
 
     useEffect(() => {
@@ -268,6 +305,9 @@ export const Configuracoes = () => {
                 setOrgName(profileData.organization_name ?? '');
                 setPhone(profileData.phone ?? '');
                 setAddress(profileData.address ?? '');
+                setBrandName(profileData.brand_name ?? '');
+                setBrandColor(profileData.brand_color ?? '');
+                setBrandFont(profileData.brand_font ?? '');
                 setNotificationsEnabled(profileData.notifications_enabled ?? false);
                 setAvatarUrl(profileData.avatar_url ?? '');
                 setEvoUrl(profileData.evolution_api_url ?? '');
@@ -281,15 +321,36 @@ export const Configuracoes = () => {
         load();
     }, [userId, profile.loaded, dataLoaded]);
 
+    // Auto-save para personalização da marca (debounced)
+    const brandSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (!dataLoaded || !userId) return;
+        if (brandSaveTimer.current) clearTimeout(brandSaveTimer.current);
+        brandSaveTimer.current = setTimeout(async () => {
+            await supabase.from('profiles').update({
+                brand_name: brandName,
+                brand_color: brandColor,
+                brand_font: brandFont,
+                updated_at: new Date().toISOString()
+            }).eq('id', userId);
+            refetch();
+        }, 800);
+        return () => { if (brandSaveTimer.current) clearTimeout(brandSaveTimer.current); };
+    }, [brandName, brandColor, brandFont, dataLoaded, userId, refetch]);
+
     // Carregar usuários quando entrar nas abas que dependem da lista de usuários
+    const loadUsersRef = useRef<() => Promise<void> | null>(null);
+
     useEffect(() => {
         const isOwner = profile.user_role === 'owner';
-        const isGestor = profile.user_role === 'gestor';
-        const needsUsers = activeTab === 'perfis' || (isOwner && (activeTab === 'api' || activeTab === 'plano'));
+        const isAdmin = profile.user_role === 'administrador' || profile.user_role === 'supervisor';
+        const needsUsers = (isOwner || isAdmin) && (activeTab === 'api' || activeTab === 'plano');
 
-        if (needsUsers && (isOwner || isGestor)) {
-            loadUsers();
+        if (needsUsers) {
+            loadUsersRef.current = loadUsers;
+            loadUsersRef.current?.();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, profile.user_role]);
 
     // Redirecionar para aba "perfil" se tentar acessar aba restrita sem permissão
@@ -307,19 +368,32 @@ export const Configuracoes = () => {
         setUploadingPhoto(true);
         const ext = file.name.split('.').pop();
         const path = `${userId}/avatar.${ext}`;
-        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-        if (uploadError) { 
-            toast.error('Erro ao enviar foto.'); 
-            setUploadingPhoto(false); 
+        console.log('[Avatar Upload] path:', path, 'file.type:', file.type, 'file.size:', file.size);
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, cacheControl: '0' });
+        if (uploadError) {
+            console.error('[Avatar Upload] error:', uploadError);
+            toast.error(`Erro ao enviar foto: ${uploadError.message}`);
+            setUploadingPhoto(false);
             logActivity(userId, 'Fez alterações na foto', { filename: file.name }, uploadError.message);
-            return; 
+            return;
         }
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
         const urlWithCache = `${publicUrl}?t=${Date.now()}`;
         setAvatarPreview(urlWithCache);
-        setAvatarUrl(publicUrl);
+        setAvatarUrl(urlWithCache);
+
+        const { error: saveError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: urlWithCache, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (saveError) {
+            console.error('[Avatar Upload] save error:', saveError);
+            toast.error('Foto enviada, mas falhou ao salvar no perfil. Clique em "Salvar alterações".');
+        } else {
+            toast.success('Foto atualizada e salva!');
+        }
         setUploadingPhoto(false);
-        toast.success('Foto atualizada!');
         logActivity(userId, 'Fez alterações na foto', { filename: file.name });
     };
 
@@ -327,7 +401,18 @@ export const Configuracoes = () => {
         if (!userId) return;
         setAvatarPreview('');
         setAvatarUrl('');
-        toast.success('Foto removida! Lembre-se de salvar as alterações.');
+
+        const { error: saveError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: null, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+
+        if (saveError) {
+            console.error('[Avatar Remove] save error:', saveError);
+            toast.error('Falha ao remover foto do perfil.');
+        } else {
+            toast.success('Foto removida!');
+        }
     };
 
     const handleSave = async () => {
@@ -341,6 +426,7 @@ export const Configuracoes = () => {
                 organization_name: orgName,
                 phone,
                 address,
+                brand_name: brandName,
                 notifications_enabled: notificationsEnabled,
                 avatar_url: avatarUrl,
                 evolution_api_url: evoUrl,
@@ -360,6 +446,7 @@ export const Configuracoes = () => {
                 organization_name: orgName,
                 phone,
                 address,
+                brand_name: brandName,
                 notifications_enabled: notificationsEnabled,
                 avatar_url: avatarUrl
             });
@@ -372,11 +459,13 @@ export const Configuracoes = () => {
             else {
                 toast.success('Perfil salvo com sucesso!');
                 logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
+                refetch();
             }
         } else {
             setSaving(false);
             toast.success('Perfil salvo com sucesso!');
             logActivity(userId, 'Fez alterações no perfil', { name, role, organization_name: orgName });
+            refetch();
         }
     };
 
@@ -414,188 +503,17 @@ export const Configuracoes = () => {
         return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
     };
 
-    // Carregar usuários (owner vê todos; gestor vê sua org)
+    // Carregar usuários (owner vê todos; admin/supervisor vê sua org)
     const loadUsers = async () => {
         const role = profile.user_role;
-        if (role !== 'owner' && role !== 'gestor') return;
+        if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
         let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        // Gestor só vê usuários da sua organização
-        if (role === 'gestor' && profile.organization_id) {
+        // Admin/Supervisor só vê usuários da sua organização
+        if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
             query = query.eq('organization_id', profile.organization_id);
         }
         const { data } = await query;
         if (data) setAllUsers(data);
-    };
-
-    // Criar novo usuário (somente admin/gestor) - Hierarquia Multi Talent
-    const handleCreateUser = async () => {
-        if (!newUser.name || !newUser.email || !newUser.password) {
-            showToast('error', 'Preencha todos os campos.');
-            return;
-        }
-        if (newUser.password.length < 6) {
-            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
-            return;
-        }
-
-        const canCreate = (creatorRole: string, targetRole: string): boolean => {
-            if (creatorRole === 'owner') return targetRole === 'gestor';
-            if (creatorRole === 'gestor') return ['rh', 'convidado'].includes(targetRole);
-            return false;
-        };
-
-        if (!canCreate(profile.user_role, newUser.user_role)) {
-            const allowed = profile.user_role === 'owner' ? 'Gestor' : 'RH ou Convidado';
-            showToast('error', `Seu perfil só pode criar: ${allowed}`);
-            return;
-        }
-
-        setCreatingUser(true);
-
-        // Definir campos de organização com base na hierarquia ANTES do signUp para enviar via metadados
-        const isCreatingGestor = newUser.user_role === 'gestor';
-        const creatorIsOwner = profile.user_role === 'owner';
-
-        let organizationId: string | null = null;
-        let organizationName: string | null = null;
-
-        if (creatorIsOwner && isCreatingGestor) {
-            // Owner criando Gestor: Org começa zerada para o Gestor configurar no tutorial
-            organizationId = null;
-            organizationName = null;
-        } else {
-            // Gestor criando RH/Convidado: Herda a org do Gestor
-            // Garantir que não enviamos string vazia para o banco (deve ser UUID válido ou NULL)
-            organizationId = profile.organization_id || null;
-            organizationName = profile.organization_name || null;
-        }
-
-        try {
-            // CRIAR UM CLIENTE TEMPORÁRIO QUE NÃO PERSISTE SESSÃO
-            const { createClient } = await import('@supabase/supabase-js');
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-            
-            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-                auth: { persistSession: false, autoRefreshToken: false }
-            });
-
-            // Enviar metadados completos para o Trigger handle_new_user()
-            const { data: authData, error: authError } = await tempClient.auth.signUp({
-                email: newUser.email,
-                password: newUser.password,
-                options: { 
-                    data: { 
-                        full_name: newUser.name,
-                        user_role: newUser.user_role,
-                        organization_id: organizationId,
-                        organization_name: organizationName
-                    } 
-                },
-            });
-
-            if (authError) {
-                showToast('error', `Erro ao criar usuário: ${authError.message}`);
-                setCreatingUser(false);
-                return;
-            }
-
-            if (authData.user) {
-
-                // USAR UPSERT: Evita erro se o Trigger do banco for mais rápido que o frontend
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: authData.user.id,
-                        email: newUser.email,
-                        name: newUser.name,
-                        user_role: newUser.user_role as string,
-                        status: 'active',
-                        account_type: 'active',
-                        organization_id: organizationId,
-                        organization_name: organizationName,
-                        onboarding_completed: false,
-                    }, { onConflict: 'id' });
-
-                if (profileError) {
-                    showToast('error', `Conta criada mas erro ao salvar perfil: ${profileError.message}`);
-                    return;
-                }
-
-                // Enviar email de convite via Edge Function
-                try {
-                    await supabase.functions.invoke('send-invite-email', {
-                        body: {
-                            userId: authData.user.id,
-                            email: newUser.email,
-                            name: newUser.name,
-                            role: newUser.user_role,
-                            createdBy: profile.userName || 'Administrador',
-                        },
-                    });
-                    showToast('success', `Usuário ${newUser.name} criado! Email de convite enviado.`);
-                } catch (e) {
-                    console.warn('[Configuracoes] Erro ao enviar email (ignorado):', e);
-                    showToast('success', `Usuário ${newUser.name} criado!`);
-                }
-
-                logActivity(profile.userId, 'Criou novo usuário', { nome: newUser.name, perfil: newUser.user_role });
-                setNewUser({ name: '', email: '', password: '', user_role: profile.user_role === 'owner' ? 'gestor' : 'rh', organization_name: '' });
-                setShowCreateModal(false);
-                loadUsers();
-            }
-        } catch (err: unknown) {
-            console.error('[Configuracoes] Erro fatal:', err);
-            showToast('error', `Ocorreu um erro inesperado: ${(err as Error).message}`);
-        } finally {
-            setCreatingUser(false);
-        }
-    };
-
-    // Atualizar perfil de usuário
-    const handleUpdateUserRole = async (userId: string, newRole: string) => {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ user_role: newRole })
-            .eq('id', userId);
-
-        if (error) {
-            showToast('error', `Erro ao atualizar perfil: ${error.message}`);
-        } else {
-            showToast('success', 'Perfil atualizado com sucesso!');
-            logActivity(userId, 'Atualizou perfil de usuário', { usuarioId: userId, novoPerfil: newRole });
-            
-            // Se o usuário alterado for o próprio usuário logado, recarrega o perfil
-            if (userId === profile.userId) {
-                await refetch();
-                showToast('success', `Seu perfil foi alterado para: ${roleDefinitions.find(r => r.key === newRole)?.label || newRole}`);
-            }
-            
-            loadUsers();
-        }
-    };
-
-
-
-    // Toggle status da ORGANIZAÇÃO (afeta todos os membros)
-    const handleToggleOrgStatus = async (orgId: string, currentStatus: string) => {
-        if (orgId === 'sem-org') {
-            showToast('error', 'Não é possível desativar usuários sem organização definida.');
-            return;
-        }
-        
-        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-        const { error } = await supabase
-            .from('profiles')
-            .update({ status: newStatus })
-            .eq('organization_id', orgId);
-
-        if (error) {
-            showToast('error', `Erro ao atualizar organização: ${error.message}`);
-        } else {
-            showToast('success', `Organização ${newStatus === 'active' ? 'ativada' : 'desativada'} com sucesso!`);
-            loadUsers();
-        }
     };
 
     if (loading) {
@@ -609,7 +527,7 @@ export const Configuracoes = () => {
     const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
 
     return (
-        <>
+        <div className="cfg-root">
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes pulse {
@@ -625,15 +543,31 @@ export const Configuracoes = () => {
                 .plan-card { transition: border-color 0.2s, transform 0.2s; }
                 .plan-card:hover { transform: translateY(-2px); }
                 .upgrade-btn:hover { opacity: 0.85 !important; }
+                .cfg-save-row { justify-content: center; }
+                @media (max-width: 768px) {
+                    .cfg-grid-2col > div { padding: 18px 14px !important; }
+                    .cfg-grid-2col > div > div[style*="padding: 16px"] { padding: 12px !important; }
+                }
+                .cfg-root { overflow-x: hidden; max-width: 100%; box-sizing: border-box; }
+                .cfg-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                @media (max-width: 768px) {
+                    .cfg-root { padding: 0 4px; }
+                    .cfg-grid-2col { grid-template-columns: 1fr !important; align-items: stretch !important; }
+                    .cfg-grid-2col > * { min-width: 0 !important; }
+                    .cfg-photo-card { height: auto !important; }
+                    .cfg-inner-2col { grid-template-columns: 1fr !important; gap: 20px !important; }
+                    .cfg-form-grid { grid-template-columns: 1fr !important; }
+                    .cfg-save-row { justify-content: center !important; }
+                }
             `}</style>
 
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24, flexWrap: 'wrap' }}>
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Settings size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '20px' : '16px', marginBottom: '8px' }}>
+                            <Settings size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             Configurações
                         </h1>
                     </div>
@@ -644,7 +578,7 @@ export const Configuracoes = () => {
             </div>
 
             {/* ── Abas ── */}
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+            <div style={{ display: 'flex', gap: isMobile ? '2px' : '4px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '0', overflow: 'hidden' }}>
                 {getVisibleTabs(profile.user_role).map(tab => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.key;
@@ -655,19 +589,23 @@ export const Configuracoes = () => {
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px',
-                                padding: '12px 20px',
+                                justifyContent: 'center',
+                                gap: isMobile ? '4px' : '8px',
+                                padding: isMobile ? '8px 10px' : '12px 20px',
                                 borderRadius: '10px 10px 0 0',
                                 border: 'none',
                                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                                 background: isActive ? 'var(--bg-card)' : 'transparent',
                                 color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                                fontSize: '14px',
+                                fontSize: isMobile ? '11px' : '14px',
                                 fontWeight: isActive ? 600 : 500,
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',
                                 marginBottom: '-1px',
                                 position: 'relative',
+                                whiteSpace: 'nowrap',
+                                flex: isMobile ? '1 1 0%' : undefined,
+                                minWidth: 0,
                             }}
                             onMouseEnter={(e) => {
                                 if (!isActive) {
@@ -682,7 +620,7 @@ export const Configuracoes = () => {
                                 }
                             }}
                         >
-                            <Icon size={16} />
+                            <Icon size={tab.key === 'seguranca' || tab.key === 'aparencia' ? (isMobile ? 22 : 18) : 16} />
                             {tab.label}
                         </button>
                     );
@@ -693,152 +631,224 @@ export const Configuracoes = () => {
             
             {/* ABA 1: PERFIL */}
             {activeTab === 'perfil' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginBottom: '24px' }}>
+                <>
+                {(() => {
+                    const currentUserRole = roleDefinitions.find(r => r.key === profile.user_role) || roleDefinitions[1];
+                    const RoleIcon = currentUserRole.icon;
+                    return (
+                    <>
+                    <div className="cfg-grid-2col" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '240px 1fr', gap: '20px', marginBottom: '20px', alignItems: 'stretch' }}>
 
-                    {/* Card avatar */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', height: '100%' }}>
-                        <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
-                            {avatarPreview ? (
-                                <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
-                            ) : (
-                                <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
-                            )}
-                            <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
+                        {/* Card avatar separado */}
+                        <div className="cfg-photo-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', justifyContent: 'space-between' }}>
+                            <div className="avatar-wrapper" style={{ position: 'relative', width: '120px', height: '120px', cursor: 'pointer' }} onClick={() => fileInputRef.current?.click()}>
+                                {avatarPreview ? (
+                                    <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
+                                ) : (
+                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                                )}
+                                <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
+                                </div>
+                            </div>
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+
+                            <div style={{ textAlign: 'center' }}>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '16px', margin: 0 }}>{name || 'Sem nome'}</p>
+                                <p style={{
+                                    color: (roleDefinitions.find(r => r.key === profile.user_role)?.color || 'var(--text-dim)'),
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    margin: '5px 0 0',
+                                    letterSpacing: '0.5px'
+                                }}>
+                                    {currentUserRole.label}
+                                </p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '4px' }}>
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="save-btn"
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '10px',
+                                        border: 'none',
+                                        background: 'var(--primary)',
+                                        color: '#fff',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px',
+                                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
+                                    }}
+                                >
+                                    <Camera style={{ width: 14, height: 14 }} />
+                                    Trocar foto
+                                </button>
+                                {avatarPreview && (
+                                    <button
+                                        onClick={handleRemovePhoto}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            border: '1px solid rgba(239,68,68,0.3)',
+                                            background: 'transparent',
+                                            color: '#ef4444',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                        Remover foto
+                                    </button>
+                                )}
                             </div>
                         </div>
-                        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
 
-                        <div style={{ textAlign: 'center' }}>
-                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>{name || 'Sem nome'}</p>
-                            <p style={{ 
-                                color: (roleDefinitions.find(r => r.key === profile.user_role)?.color || 'var(--text-dim)'), 
-                                fontSize: '12px', 
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                margin: '5px 0 0',
-                                letterSpacing: '0.5px'
-                            }}>
-                                {roleDefinitions.find(r => r.key === profile.user_role)?.label || profile.user_role}
-                            </p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>{role}</p>
+                        {/* Card do perfil atual (ao lado) */}
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
+                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
+
+                            <div className="cfg-inner-2col" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '32px' }}>
+                                {/* Lado esquerdo: card do role */}
+                                <div>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '14px',
+                                        padding: '16px',
+                                        borderRadius: '12px',
+                                        background: `${currentUserRole.color}10`,
+                                        border: `1px solid ${currentUserRole.color}30`,
+                                        marginBottom: '14px',
+                                    }}>
+                                        <div style={{
+                                            width: '44px',
+                                            height: '44px',
+                                            borderRadius: '10px',
+                                            background: currentUserRole.color,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}>
+                                            <RoleIcon size={22} color="#fff" />
+                                        </div>
+                                        <div>
+                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '17px', margin: 0 }}>{currentUserRole.label}</p>
+                                            <p style={{ color: currentUserRole.color, fontSize: '11px', fontWeight: 600, margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Perfil ativo</p>
+                                        </div>
+                                    </div>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
+                                        {currentUserRole.description}
+                                    </p>
+                                </div>
+
+                                {/* Lado direito: atribuições */}
+                                <div>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+                                        Suas Atribuições
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {currentUserRole.permissions.map(permission => (
+                                            <div key={permission} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                background: 'var(--bg-card-alt)',
+                                                border: '1px solid var(--border)',
+                                            }}>
+                                                <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0, strokeWidth: 3 }} />
+                                                <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-
-
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="save-btn"
-                            style={{
-                                marginTop: 'auto',
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                background: 'var(--primary)',
-                                color: '#fff',
-                                fontSize: '14px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.2)'
-                            }}
-                        >
-                            <Camera style={{ width: 14, height: 14 }} />
-                            Trocar foto
-                        </button>
-                        {avatarPreview && (
-                            <button
-                                onClick={handleRemovePhoto}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    borderRadius: '10px',
-                                    border: '1px solid rgba(239,68,68,0.3)',
-                                    background: 'transparent',
-                                    color: '#ef4444',
-                                    fontSize: '14px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; }}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                            Remover foto
-                        </button>
-                        )}
                     </div>
 
                     {/* Card formulário */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px' }}>
                         <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Informações Pessoais</p>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                        <div className="cfg-form-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '16px' }}>
                             {/* Nome */}
                             <div>
-                                <label style={labelStyle}>Nome completo</label>
+                                <label htmlFor="cfg-name" style={labelStyle}>Nome completo</label>
                                 <div style={fieldWrapStyle}>
                                     <User style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
+                                    <input id="cfg-name" name="name" autoComplete="name" className="field-input" style={inputStyle} placeholder="Seu nome completo" value={name} onChange={e => setName(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Endereço */}
                             <div>
-                                <label style={labelStyle}>Endereço</label>
+                                <label htmlFor="cfg-address" style={labelStyle}>Endereço</label>
                                 <div style={fieldWrapStyle}>
                                     <MapPin style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
+                                    <input id="cfg-address" name="street-address" autoComplete="street-address" className="field-input" style={inputStyle} placeholder="Cidade - UF ou Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Telefone */}
                             <div>
-                                <label style={labelStyle}>Telefone</label>
+                                <label htmlFor="cfg-phone" style={labelStyle}>Telefone</label>
                                 <div style={fieldWrapStyle}>
                                     <Phone style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
+                                    <input id="cfg-phone" name="tel" type="tel" autoComplete="tel" className="field-input" style={inputStyle} placeholder="(00) 00000-0000" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} />
                                 </div>
                             </div>
 
                             {/* Cargo */}
                             <div>
-                                <label style={labelStyle}>Cargo</label>
+                                <label htmlFor="cfg-role" style={labelStyle}>Cargo</label>
                                 <div style={fieldWrapStyle}>
                                     <Briefcase style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
+                                    <input id="cfg-role" name="role" autoComplete="organization-title" className="field-input" style={inputStyle} placeholder="Ex: Analista de RH" value={role} onChange={e => setRole(e.target.value)} />
                                 </div>
                             </div>
 
                             {/* Organização */}
+                            {profile.user_role !== 'convidado' && (
                             <div>
-                                <label style={labelStyle}>Organização</label>
+                                <label htmlFor="cfg-orgname" style={labelStyle}>Organização</label>
                                 <div style={fieldWrapStyle}>
                                     <Building2 style={iconFieldStyle} />
-                                    <input className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
+                                    <input id="cfg-orgname" name="organization" autoComplete="organization" className="field-input" style={inputStyle} placeholder="Nome da organização" value={orgName} onChange={e => setOrgName(e.target.value)} />
                                 </div>
                             </div>
+                            )}
 
                             {/* Email readonly */}
                             <div>
-                                <label style={labelStyle}>E-mail</label>
+                                <label htmlFor="cfg-email" style={labelStyle}>E-mail</label>
                                 <div style={fieldWrapStyle}>
                                     <Mail style={iconFieldStyle} />
-                                    <input style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
+                                    <input id="cfg-email" name="email" type="email" autoComplete="email" style={{ ...inputStyle, color: 'var(--text-dim)', cursor: 'not-allowed' }} value={email} readOnly title="O e-mail não pode ser alterado aqui" />
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
                             <button
                                 className="save-btn"
                                 onClick={handleSave}
@@ -850,7 +860,41 @@ export const Configuracoes = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+
+                    {/* Card Personalização da Marca */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginTop: '20px' }}>
+                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v8"/><path d="M6 12h12"/></svg>
+                            Personalização da Marca
+                        </p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '0 0 16px', lineHeight: 1.5 }}>
+                            Personalize o nome exibido no menu lateral (máx. 20 caracteres), escolha a fonte e defina a cor em Aparência &gt; Cores Customizadas.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px', alignItems: isMobile ? 'stretch' : 'flex-end' }}>
+                            <div style={{ flex: isMobile ? '1 1 auto' : '1 1 240px' }}>
+                                <label htmlFor="cfg-brand" style={labelStyle}>Nome da Marca</label>
+                                <div style={fieldWrapStyle}>
+                                    <span style={iconFieldStyle}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                    </span>
+                                    <input id="cfg-brand" className="field-input" style={inputStyle} placeholder="Usabit people" value={brandName} onChange={e => { const v = e.target.value.slice(0, 20); setBrandName(v); updateProfile({ brandName: v }); }} maxLength={20} />
+                                </div>
+                            </div>
+                            <div style={{ flex: isMobile ? '1 1 auto' : '1 1 280px' }}>
+                                <label htmlFor="cfg-brand-font" style={labelStyle}>Fonte</label>
+                                <FontSelect
+                                    value={brandFont}
+                                    onChange={v => { setBrandFont(v); updateProfile({ brandFont: v }); }}
+                                />
+                            </div>
+                        </div>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '12px', marginTop: 12, marginBottom: 0 }}>As alterações são salvas automaticamente.</p>
+                    </div>
+
+                    </>
+                    );
+                })()}
+                </>
             )}
 
             {/* ABA 2: SEGURANÇA (Senha) */}
@@ -864,10 +908,12 @@ export const Configuracoes = () => {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', flex: 1 }}>
                             <div>
-                                <label style={labelStyle}>Nova Senha</label>
+                                <label htmlFor="cfg-new-password" style={labelStyle}>Nova Senha</label>
                                 <div style={fieldWrapStyle}>
                                     <Lock style={iconFieldStyle} />
                                     <input
+                                        id="cfg-new-password"
+                                        name="new-password"
                                         className="field-input"
                                         type="password"
                                         style={inputStyle}
@@ -879,10 +925,12 @@ export const Configuracoes = () => {
                                 </div>
                             </div>
                             <div>
-                                <label style={labelStyle}>Confirmar</label>
+                                <label htmlFor="cfg-confirm-password" style={labelStyle}>Confirmar</label>
                                 <div style={fieldWrapStyle}>
                                     <ShieldCheck style={iconFieldStyle} />
                                     <input
+                                        id="cfg-confirm-password"
+                                        name="confirm-password"
                                         className="field-input"
                                         type="password"
                                         style={inputStyle}
@@ -912,7 +960,7 @@ export const Configuracoes = () => {
 
             {/* ABA APARÊNCIA: Tema e Notificações */}
             {activeTab === 'aparencia' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     {/* Aparência */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                         <style>{themeBtnCss}</style>
@@ -959,7 +1007,7 @@ export const Configuracoes = () => {
                             <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '4px 0 0' }}>Escolha o estilo visual do seu painel</p>
                         </div>
 
-                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: '44px' }}>
+                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: isMobile ? '48px' : '44px' }}>
                             <div className="theme-switch-slider" style={{
                                 width: 'calc(33.33% - 8px)',
                                 transform: bgTheme === 'simple' ? 'translateX(0)' : bgTheme === 'planets' ? 'translateX(calc(100% + 4px))' : 'translateX(calc(200% + 8px))',
@@ -973,7 +1021,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'simple' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('simple')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Layout size={15} />
                                 Simples
@@ -982,7 +1030,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'planets' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('planets')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Star size={15} />
                                 Planetário
@@ -991,7 +1039,7 @@ export const Configuracoes = () => {
                             <button
                                 className={`theme-switch-option ${bgTheme === 'spatial' ? 'active' : ''}`}
                                 onClick={() => setBgTheme('spatial')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap' }}
+                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
                             >
                                 <Sparkles size={15} />
                                 Espacial
@@ -1019,6 +1067,7 @@ export const Configuracoes = () => {
                                         onClick={() => {
                                             setCustomPrimaryColor(null);
                                             setCustomTextColor(null);
+                                            setBrandColor('');
                                             toast.success('Cores resetadas para o padrão');
                                         }}
                                         style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600 }}
@@ -1040,12 +1089,14 @@ export const Configuracoes = () => {
                                                 <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Botões, abas, destaques e bordas</p>
                                             </div>
                                         </div>
-                                        <input 
-                                            type="color" 
-                                            value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')} 
+                                        <input
+                                            id="cfg-primary-color"
+                                            name="primary-color"
+                                            type="color"
+                                            value={customPrimaryColor || (theme === 'dark' ? '#3b82f6' : '#2563eb')}
                                             onChange={handlePrimary}
                                             onInput={handlePrimary}
-                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                         />
                                     </div>
 
@@ -1060,12 +1111,36 @@ export const Configuracoes = () => {
                                                 <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Títulos, legendas, textos de apoio — afeta toda a tipografia</p>
                                             </div>
                                         </div>
-                                        <input 
-                                            type="color" 
-                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')} 
+                                        <input
+                                            id="cfg-text-color"
+                                            name="text-color"
+                                            type="color"
+                                            value={customTextColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')}
                                             onChange={handleText}
                                             onInput={handleText}
-                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                        />
+                                    </div>
+
+                                    {/* Cor da Marca (sidebar) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--bg-card-alt)', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-light-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v8"/><path d="M6 12h12"/></svg>
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '14px', color: 'var(--text-main)', fontWeight: 500, margin: 0 }}>Cor da Marca</p>
+                                                <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>Nome da marca no menu lateral</p>
+                                            </div>
+                                        </div>
+                                        <input
+                                            id="cfg-brand-color"
+                                            name="brand-color"
+                                            type="color"
+                                            value={brandColor || (theme === 'dark' ? '#dce8f8' : '#0c1c30')}
+                                            onChange={e => { const v = e.target.value; setBrandColor(v); updateProfile({ brandColor: v }); }}
+                                            onInput={e => { const v = (e.target as HTMLInputElement).value; setBrandColor(v); updateProfile({ brandColor: v }); }}
+                                            style={{ width: '36px', height: '36px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                         />
                                     </div>
                                 </div>
@@ -1169,491 +1244,9 @@ export const Configuracoes = () => {
                 </div>
             )}
 
-            {/* ABA 3: PERFIS */}
-            {activeTab === 'perfis' && (
-                <>
-                    {/* Card do perfil atual do usuário */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', marginBottom: '24px' }}>
-                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '15px', margin: '0 0 20px' }}>Seu Perfil Atual</p>
-                        
-                        {(() => {
-                            const currentUserRole = roleDefinitions.find(r => r.key === profile.user_role) || roleDefinitions[1];
-                            const RoleIcon = currentUserRole.icon;
-                            return (
-                                <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    {/* Info do perfil */}
-                                    <div style={{ flex: 1, minWidth: '280px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${currentUserRole.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <RoleIcon style={{ width: 24, height: 24, color: currentUserRole.color }} />
-                                            </div>
-                                            <div>
-                                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: '18px', margin: 0 }}>{currentUserRole.label}</p>
-                                                <p style={{ color: currentUserRole.color, fontSize: '12px', fontWeight: 600, margin: 0 }}>Perfil ativo</p>
-                                            </div>
-                                        </div>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px' }}>
-                                            {currentUserRole.description}
-                                        </p>
-                                    </div>
+            {/* ABA 3: API (Integrações) — Perfis removido */}
 
-                                    {/* Permissões */}
-                                    <div style={{ flex: 1, minWidth: '280px' }}>
-                                        <p style={{ color: 'var(--text-dim)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
-                                            Suas Atribuições
-                                        </p>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {currentUserRole.permissions.map(permission => (
-                                                <div key={permission} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Check style={{ width: 14, height: 14, color: currentUserRole.color, flexShrink: 0 }} />
-                                                    <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{permission}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                    </div>
-
-                    {/* Seção de gestão (Owner, Admin e Gestor) */}
-                    {(profile.user_role === 'owner' || profile.user_role === 'gestor') && (
-                        <>
-                            {/* Header de gestão */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                <div>
-                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>
-                                        {profile.user_role === 'owner' ? 'Gestão de Organizações' : 'Minha Equipe'}
-                                    </p>
-                                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>
-                                        {profile.user_role === 'owner' ? 'Gerencie as empresas e seus respectivos gestores' : 'Gerenciar RH e Convidados'}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setCreatingUser(false);
-                                        setNewUser({
-                                            name: '',
-                                            email: '',
-                                            password: '',
-                                            user_role: profile.user_role === 'owner' ? 'gestor' : 'rh',
-                                            organization_name: ''
-                                        });
-                                        setShowCreateModal(true);
-                                    }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        padding: '10px 20px',
-                                        background: 'var(--primary)',
-                                        color: '#fff',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        fontSize: '14px',
-                                        fontWeight: 600,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    <Plus size={18} />
-                                    {profile.user_role === 'owner' ? 'Nova Organização' : 'Novo Membro'}
-                                </button>
-                            </div>
-
-                            {/* Tabela de usuários/organizações */}
-                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead style={{ background: 'var(--bg-main)' }}>
-                                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                            <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
-                                                {profile.user_role === 'owner' ? 'Organização / Empresa' : 'Usuário'}
-                                            </th>
-                                            <th style={{ padding: '14px 16px', textAlign: 'left', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
-                                                {profile.user_role === 'owner' ? 'Gestor Principal' : 'Cargo'}
-                                            </th>
-                                            {profile.user_role === 'owner' && (
-                                                <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>
-                                                    Membros
-                                                </th>
-                                            )}
-                                            <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</th>
-                                            <th style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(() => {
-                                            // Se for Owner, mostramos Organizações agrupadas
-                                            if (profile.user_role === 'owner') {
-                                                const orgsMap = new Map();
-                                                
-                                                allUsers.forEach(u => {
-                                                    // Ignorar o próprio Owner da lista de organizações cliente
-                                                    if (u.user_role === 'owner') return;
-
-                                                    const orgId = u.organization_id || 'sem-org';
-                                                    if (!orgsMap.has(orgId)) {
-                                                        orgsMap.set(orgId, {
-                                                            id: orgId,
-                                                            name: u.organization_name || 'Empresa s/ Nome',
-                                                            gestor: null,
-                                                            members: [],
-                                                            status: u.status
-                                                        });
-                                                    }
-                                                    
-                                                    const org = orgsMap.get(orgId);
-                                                    org.members.push(u);
-                                                    // Define o gestor como o contato principal
-                                                    if (u.user_role === 'gestor') {
-                                                        org.gestor = u;
-                                                        org.name = u.organization_name || org.name;
-                                                    }
-                                                });
-
-                                                const displayOrgs = Array.from(orgsMap.values());
-
-                                                return displayOrgs.map(org => {
-                                                    const gestor = org.gestor || org.members[0];
-
-                                                    return (
-                                                        <tr key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                            <td style={{ padding: '14px 16px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                    <div style={{
-                                                                        width: '36px',
-                                                                        height: '36px',
-                                                                        borderRadius: '8px',
-                                                                        background: 'var(--primary-bg)',
-                                                                        color: 'var(--primary)',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        fontSize: '12px',
-                                                                        fontWeight: 700
-                                                                    }}>
-                                                                        <Building2 size={18} />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
-                                                                            {org.name}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px' }}>
-                                                                <div>
-                                                                    <p style={{ color: 'var(--text-main)', fontSize: '13px', margin: 0, fontWeight: 500 }}>{gestor?.name || 'Incompleto'}</p>
-                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: 0 }}>{gestor?.email}</p>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <span style={{ padding: '4px 10px', borderRadius: '6px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 600 }}>
-                                                                    {org.members.length}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: org.status === 'active' ? 'var(--success)' : 'var(--text-dim)' }} />
-                                                                    <span style={{ fontSize: '12px', color: 'var(--text-main)', textTransform: 'capitalize' }}>{org.status === 'active' ? 'Ativa' : 'Inativa'}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '14px 16px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                                                    <button 
-                                                                        onClick={() => handleToggleOrgStatus(org.id, org.status)}
-                                                                        style={{ 
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '6px',
-                                                                            padding: '8px 16px', 
-                                                                            borderRadius: '8px', 
-                                                                            border: '1px solid var(--border)', 
-                                                                            background: org.status === 'active' ? 'transparent' : 'var(--success-bg)', 
-                                                                            color: org.status === 'active' ? '#f43f5e' : 'var(--success)', 
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '11px',
-                                                                            fontWeight: 600,
-                                                                            transition: 'all 0.2s'
-                                                                        }} 
-                                                                        title={org.status === 'active' ? "Bloquear Acesso da Empresa" : "Liberar Acesso da Empresa"}
-                                                                    >
-                                                                        <AlertCircle size={14} />
-                                                                        {org.status === 'active' ? 'SUSPENDER' : 'REATIVAR'}
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                });
-                                            }
-
-                                            // Comportamento normal para Gestores (ver equipe)
-                                            const displayUsers = allUsers.filter(u => u.user_role !== 'owner' && u.user_role !== 'gestor');
-
-                                            return displayUsers.map(user => {
-                                                const userRole = roleDefinitions.find(r => r.key === user.user_role) || roleDefinitions[1];
-                                                const memberCount = 0;
-
-                                                return (
-                                                    <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                        <td style={{ padding: '14px 16px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                <div style={{
-                                                                    width: '36px',
-                                                                    height: '36px',
-                                                                    borderRadius: '8px',
-                                                                    background: `${userRole.color}20`,
-                                                                    color: userRole.color,
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontSize: '12px',
-                                                                    fontWeight: 700
-                                                                }}>
-                                                                    {(user.organization_name || user.name || user.email)[0].toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>
-                                                                        {profile.user_role === 'owner' ? (user.organization_name || 'Empresa s/ Nome') : user.name}
-                                                                    </p>
-                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '2px 0 0' }}>
-                                                                        {profile.user_role === 'owner' ? (user.organization_id?.slice(0, 8) || 'ID Pendente') : user.email}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td style={{ padding: '14px 16px' }}>
-                                                            {profile.user_role === 'owner' ? (
-                                                                <div>
-                                                                    <p style={{ color: 'var(--text-main)', fontSize: '13px', margin: 0 }}>{user.name}</p>
-                                                                    <p style={{ color: 'var(--text-dim)', fontSize: '11px', margin: 0 }}>{user.email}</p>
-                                                                </div>
-                                                            ) : (
-                                                                <span style={{
-                                                                    padding: '4px 10px',
-                                                                    borderRadius: '20px',
-                                                                    background: `${userRole.color}15`,
-                                                                    color: userRole.color,
-                                                                    fontSize: '11px',
-                                                                    fontWeight: 600,
-                                                                    border: `1px solid ${userRole.color}30`
-                                                                }}>
-                                                                    {userRole.label}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        {profile.user_role === 'owner' && (
-                                                            <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                                <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 600 }}>{memberCount}</span>
-                                                                <span style={{ color: 'var(--text-dim)', fontSize: '12px' }}> membros</span>
-                                                            </td>
-                                                        )}
-                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                                                <span style={{ fontSize: '12px', color: user.status === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                                    {user.status === 'active' ? 'Ativo' : 'Inativo'}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                                            <button
-                                                                onClick={() => handleUpdateUserRole(user.id, user.status === 'active' ? 'inactive' : 'active')}
-                                                                style={{
-                                                                    padding: '6px 14px',
-                                                                    borderRadius: '8px',
-                                                                    border: '1px solid var(--border)',
-                                                                    background: 'var(--bg-main)',
-                                                                    color: user.status === 'active' ? '#ef4444' : '#10b981',
-                                                                    fontSize: '12px',
-                                                                    fontWeight: 600,
-                                                                    cursor: 'pointer',
-                                                                    transition: 'all 0.2s'
-                                                                }}
-                                                            >
-                                                                {user.status === 'active' ? 'Desativar' : 'Ativar'}
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            });
-                                        })()}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </>
-                    )}
-
-                    {/* Mensagem para roles sem acesso ao painel */}
-                    {profile.user_role !== 'owner' && profile.user_role !== 'gestor' && (
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '40px 28px', textAlign: 'center' }}>
-                            <Lock size={48} style={{ color: 'var(--text-dim)', marginBottom: '16px' }} />
-                            <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: '0 0 8px' }}>Acesso Restrito</p>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', margin: 0 }}>
-                                Apenas o Gestor da organização pode gerenciar usuários e perfis.
-                            </p>
-                        </div>
-                    )}
-                </>
-            )}
-
-            {showCreateModal && (profile.user_role === 'owner' || profile.user_role === 'gestor') && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 9999
-                }} onClick={() => setShowCreateModal(false)}>
-                    <div style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '16px',
-                        padding: '28px',
-                        width: '100%',
-                        maxWidth: '480px',
-                        maxHeight: '90vh',
-                        overflow: 'auto'
-                    }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                            <div>
-                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '18px', margin: 0 }}>Criar Novo Usuário</p>
-                                <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>
-                                    {profile.user_role === 'owner' ? 'Criar novo Gestor'
-                                    : 'Criar RH ou Convidado'}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {/* Nome */}
-                            <div>
-                                <label style={labelStyle}>Nome completo</label>
-                                <div style={fieldWrapStyle}>
-                                    <User style={iconFieldStyle} />
-                                    <input
-                                        className="field-input"
-                                        style={inputStyle}
-                                        placeholder="Nome do usuário"
-                                        value={newUser.name}
-                                        onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Email */}
-                            <div>
-                                <label style={labelStyle}>E-mail</label>
-                                <div style={fieldWrapStyle}>
-                                    <Mail style={iconFieldStyle} />
-                                    <input
-                                        className="field-input"
-                                        style={inputStyle}
-                                        placeholder="email@empresa.com"
-                                        value={newUser.email}
-                                        onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Senha */}
-                            <div>
-                                <label style={labelStyle}>Senha temporária</label>
-                                <div style={fieldWrapStyle}>
-                                    <Lock style={iconFieldStyle} />
-                                    <input
-                                        className="field-input"
-                                        type="password"
-                                        style={inputStyle}
-                                        placeholder="Senha inicial (min. 6 caracteres)"
-                                        value={newUser.password}
-                                        onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Perfil - filtrado por hierarquia */}
-                            <div>
-                                <label style={labelStyle}>Perfil de Acesso</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    {roleDefinitions
-                                        .filter(role => {
-                                            // Owner só pode criar Gestor
-                                            if (profile.user_role === 'owner') return role.key === 'gestor';
-                                            // Gestor só pode criar RH e Convidado
-                                            if (profile.user_role === 'gestor') return ['rh', 'convidado'].includes(role.key);
-                                            return false;
-                                        })
-                                        .map(role => {
-                                            const RoleIcon = role.icon;
-                                            const isSelected = newUser.user_role === role.key;
-                                            return (
-                                                <button
-                                                    key={role.key}
-                                                    onClick={() => setNewUser(prev => ({ ...prev, user_role: role.key }))}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '10px',
-                                                        padding: '12px',
-                                                        borderRadius: '10px',
-                                                        border: `2px solid ${isSelected ? role.color : 'var(--border)'}`,
-                                                        background: isSelected ? `${role.color}10` : 'var(--bg-input)',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                >
-                                                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${role.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <RoleIcon style={{ width: 16, height: 16, color: role.color }} />
-                                                    </div>
-                                                    <div style={{ textAlign: 'left' }}>
-                                                        <p style={{ color: isSelected ? role.color : 'var(--text-main)', fontWeight: 600, fontSize: '13px', margin: 0 }}>{role.label}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                </div>
-                            </div>
-
-                            {/* Botão criar */}
-                            <button
-                                onClick={handleCreateUser}
-                                disabled={creatingUser}
-                                style={{
-                                    marginTop: '8px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    padding: '12px',
-                                    borderRadius: '10px',
-                                    border: 'none',
-                                    background: creatingUser ? 'var(--text-dim)' : 'var(--primary)',
-                                    color: '#fff',
-                                    fontSize: '14px',
-                                    fontWeight: 600,
-                                    cursor: creatingUser ? 'not-allowed' : 'pointer',
-                                    transition: 'background 0.2s'
-                                }}
-                            >
-                                {creatingUser && <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />}
-                                {creatingUser ? 'Criando...' : 'Criar Usuário'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ABA 4: API (Integrações) */}
+            {/* ABA 3: API (Integrações) */}
             {activeTab === 'api' && (
                 <>
                     {/* Visão Owner: todos os admins */}
@@ -1664,6 +1257,7 @@ export const Configuracoes = () => {
                             fieldWrapStyle={fieldWrapStyle}
                             iconFieldStyle={iconFieldStyle}
                             inputStyle={inputStyle}
+                            isMobile={isMobile}
                         />
                     )}
 
@@ -1695,31 +1289,31 @@ export const Configuracoes = () => {
 
                             {showEvoConfig && (
                                 <div style={{ padding: '0 28px 24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '16px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1.5fr 1fr', gap: '16px' }}>
                                         <div>
-                                            <label style={labelStyle}>Server URL</label>
+                                            <label htmlFor="cfg-evo-url" style={labelStyle}>Server URL</label>
                                             <div style={fieldWrapStyle}>
                                                 <ShieldCheck style={iconFieldStyle} />
-                                                <input className="field-input" style={inputStyle} placeholder="https://evolution.seuservidor.com" value={evoUrl} onChange={e => setEvoUrl(e.target.value)} />
+                                                <input id="cfg-evo-url" name="evo-url" autoComplete="url" className="field-input" style={inputStyle} placeholder="https://evolution.seuservidor.com" value={evoUrl} onChange={e => setEvoUrl(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>API Key</label>
+                                            <label htmlFor="cfg-evo-key" style={labelStyle}>API Key</label>
                                             <div style={fieldWrapStyle}>
                                                 <Lock style={iconFieldStyle} />
-                                                <input className="field-input" type="password" style={inputStyle} placeholder="Sua Global API Key" value={evoKey} onChange={e => setEvoKey(e.target.value)} />
+                                                <input id="cfg-evo-key" name="evo-key" type="password" autoComplete="off" className="field-input" style={inputStyle} placeholder="Sua Global API Key" value={evoKey} onChange={e => setEvoKey(e.target.value)} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label style={labelStyle}>Nome da Instância</label>
+                                            <label htmlFor="cfg-evo-instance" style={labelStyle}>Nome da Instância</label>
                                             <div style={fieldWrapStyle}>
                                                 <Zap style={iconFieldStyle} />
-                                                <input className="field-input" style={inputStyle} placeholder="agente-rh" value={evoInstance} onChange={e => setEvoInstance(e.target.value)} />
+                                                <input id="cfg-evo-instance" name="evo-instance" autoComplete="off" className="field-input" style={inputStyle} placeholder="agente-rh" value={evoInstance} onChange={e => setEvoInstance(e.target.value)} />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <div className="cfg-save-row" style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
                                         <button className="save-btn" onClick={handleSave} disabled={saving}
                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background 0.15s' }}>
                                             {saving && <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />}
@@ -1777,12 +1371,12 @@ export const Configuracoes = () => {
                 </>
             )}
 
-            {/* ABA 5: PLANO (Pagamento) */}
+            {/* ABA 4: PLANO (Pagamento) */}
             {activeTab === 'plano' && (
                 <>
                     {/* Visão Owner: todos os admins e seus planos */}
                     {profile.user_role === 'owner' && (
-                        <OwnerAdminPlanPanel allUsers={allUsers} plans={plans} />
+                        <OwnerAdminPlanPanel allUsers={allUsers} plans={plans} isMobile={isMobile} />
                     )}
 
                     {/* Visão Admin: seu próprio plano */}
@@ -1793,7 +1387,7 @@ export const Configuracoes = () => {
                                 <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '4px 0 0' }}>Gerencie sua assinatura e faça upgrade quando quiser</p>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
                                 {plans.map(plan => {
                                     const PlanIcon = plan.icon;
                                     const isActive = currentPlan === plan.key;
@@ -1828,6 +1422,6 @@ export const Configuracoes = () => {
                     )}
                 </>
             )}
-        </>
+        </div>
     );
 };

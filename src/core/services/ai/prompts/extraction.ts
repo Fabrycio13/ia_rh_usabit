@@ -67,6 +67,15 @@ ${getTextGuardrails()}
 - Inferir pelo nome quando inequívoco
 - Opções: "Masculino", "Feminino", "Não identificado"
 
+### LINKEDIN:
+- Extraia a URL completa do perfil do LinkedIn
+- Formato: https://linkedin.com/in/... ou similar
+- Se não encontrar: retorne null
+
+### PORTFOLIO:
+- Extraia a URL do portfólio, site pessoal ou GitHub
+- Se não encontrar: retorne null
+
 ### SKILLS (HABILIDADES) - PROCURE EM TODO O CURRÍCULO:
 - Procure em TODAS as seções do currículo
 - Extraia tecnologias, frameworks, bancos, ferramentas, metodologias
@@ -99,6 +108,8 @@ Retorne APENAS este JSON, sem texto adicional:
   "location": "Cidade-UF ou null",
   "age": "idade (número como string) ou null",
   "gender": "Masculino / Feminino / Não identificado",
+  "linkedin": "URL do LinkedIn ou null",
+  "portfolio": "URL do portfólio ou null",
   "skills": ["Skill1", "Skill2"],
   "experience": "X anos e Y meses ou Não informado",
   "education": "Formação1 | Formação2 ou Não informado"

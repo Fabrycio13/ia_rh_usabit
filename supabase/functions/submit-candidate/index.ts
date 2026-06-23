@@ -25,9 +25,32 @@ interface CandidatePayload {
   complement?: string | null
   vaga_id?: string | null
   status?: string
+  source?: string | null
   skills?: string | null
   experience?: string | null
   analysis?: Record<string, unknown> | null
+}
+
+const RATE_LIMIT_MAX = 10
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+async function checkRateLimit(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  key: string,
+  endpoint: string,
+  maxRequests: number,
+  windowMs: number,
+): Promise<boolean> {
+  const windowStart = new Date(Date.now() - windowMs).toISOString()
+  const { count } = await supabaseAdmin
+    .from('rate_limits')
+    .select('id', { count: 'exact', head: true })
+    .eq('key', key)
+    .eq('endpoint', endpoint)
+    .gte('window_start', windowStart)
+  if ((count ?? 0) >= maxRequests) return false
+  await supabaseAdmin.from('rate_limits').insert({ key, endpoint })
+  return true
 }
 
 serve(async (req) => {
@@ -41,6 +64,10 @@ serve(async (req) => {
       status: 405,
     })
   }
+
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+    || req.headers.get('cf-connecting-ip')
+    || 'unknown'
 
   try {
     const body: CandidatePayload = await req.json()
@@ -61,6 +88,22 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
+    // 1. Rate limit por IP
+    const allowed = await checkRateLimit(
+      supabaseAdmin,
+      `ip:${clientIp}`,
+      'submit-candidate',
+      RATE_LIMIT_MAX,
+      RATE_LIMIT_WINDOW_MS,
+    )
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429,
+      })
+    }
+
+    // 2. Upsert do candidato
     const { data, error } = await supabaseAdmin
       .from('candidates')
       .upsert({
@@ -81,6 +124,7 @@ serve(async (req) => {
         complement: body.complement || null,
         vaga_id: body.vaga_id || null,
         status: body.status || 'pending',
+        source: body.source || null,
         skills: body.skills || null,
         experience: body.experience || null,
         analysis: body.analysis || null,
@@ -102,8 +146,8 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Erro na função submit-candidate:', error.message)
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Erro na função submit-candidate:', (error as Error).message)
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

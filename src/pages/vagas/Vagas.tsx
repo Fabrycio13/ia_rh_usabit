@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLang } from '../../core/contexts/LangContext';
 import { supabase } from '../../core/services/supabase';
-import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Mail } from 'lucide-react';
+import { Briefcase, Plus, Search, Filter, Edit, Trash2, Eye, ExternalLink, ChevronDown, Users, AlertTriangle, X, Mail, RefreshCw } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
@@ -61,6 +61,7 @@ interface Vaga {
     show_company_name: boolean;
     job_code?: string;
     pipeline_id?: string | null;
+    user_id?: string;
 }
 
 export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
@@ -88,7 +89,21 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [closeEmailVaga, setCloseEmailVaga] = useState<{ id: string; title: string } | null>(null);
     const [closeEmailVagaCount, setCloseEmailVagaCount] = useState<number | null>(null);
     const [sendingCloseEmails, setSendingCloseEmails] = useState(false);
+    const [pendingPipelineDeleteFor, setPendingPipelineDeleteFor] = useState<string | null>(null);
     const [userOrgId, setUserOrgId] = useState<string>('');
+    const [closeEmailBreakdown, setCloseEmailBreakdown] = useState<{
+        approved: { name: string; email: string }[];
+        rejected: { name: string; email: string }[];
+        others: { name: string; email: string }[];
+    } | null>(null);
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+    const [closeEmailVagaType, setCloseEmailVagaType] = useState<'fechada' | 'cancelada' | null>(null);
+
+    const [showReopenEmailModal, setShowReopenEmailModal] = useState(false);
+    const [reopenEmailVagaId, setReopenEmailVagaId] = useState<string | null>(null);
+    const [reopenEmailVagaTitle, setReopenEmailVagaTitle] = useState('');
+    const [reopenCandidates, setReopenCandidates] = useState<{name: string; email: string}[]>([]);
     
     // Filtros Avançados
     const [userRole, setUserRole] = useState<string>('');
@@ -119,11 +134,15 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         invisivel: { bg: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', label: 'Invisível' }
     };
 
+     
     useEffect(() => {
+        let currentUserId = '';
+
         const fetchInitialData = async () => {
             try {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
+                currentUserId = user.id;
 
                 // 1. Buscar Perfil/Role
                 const { data: profile } = await supabase
@@ -169,8 +188,20 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .order('created_at', { ascending: false });
 
                 // ISOLAMENTO: Todos os usuários veem apenas vagas da sua organização
-                if (userOrgId && userOrgId !== 'null') {
-                    query = query.or(`organization_id.eq.${userOrgId},user_id.eq.${user.id}`);
+                if (role === 'convidado') {
+                    const { data: acesso } = await supabase
+                        .from('convidado_vaga_access')
+                        .select('vaga_id')
+                        .eq('convidado_user_id', user.id);
+                    const vagaIds = (acesso || []).map(a => a.vaga_id);
+                    if (vagaIds.length === 0) {
+                        setVagas([]);
+                        setLoading(false);
+                        return;
+                    }
+                    query = query.in('id', vagaIds);
+                } else if (fetchedOrgId && fetchedOrgId !== 'null') {
+                    query = query.or(`organization_id.eq.${fetchedOrgId},user_id.eq.${user.id}`);
                 } else {
                     query = query.eq('user_id', user.id);
                 }
@@ -203,6 +234,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 (payload) => {
                     if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
                         const updatedVaga = payload.new as Vaga;
+                        // RH não pode ver vagas de outros usuários via Realtime
+                        if (userRole === 'rh' && updatedVaga.user_id !== currentUserId) {
+                            if (payload.eventType === 'INSERT') return;
+                            // Para UPDATE, remove se não for do RH (vaza por engano)
+                            setVagas(prev => prev.filter(v => v.id !== updatedVaga.id));
+                            return;
+                        }
                         setVagas(prev => {
                             // Se for update, atualiza o item. Se for insert e não estiver na lista, adiciona.
                             const exists = prev.some(v => v.id === updatedVaga.id);
@@ -223,6 +261,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return () => {
             supabase.removeChannel(channel);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fechar selects ao clicar fora
@@ -248,30 +287,29 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         try {
             const vaga = vagas.find(v => v.id === vagaToDelete);
 
+            await supabase.from('vagas_candidaturas').delete().eq('vaga_id', vagaToDelete);
+
+            if (vaga?.pipeline_id) {
+                await supabase.from('pipelines').delete().eq('id', vaga.pipeline_id);
+            }
+
             const { error } = await supabase
                 .from('vagas_white_label')
-                .update({ is_active: false })
+                .delete()
                 .eq('id', vagaToDelete);
 
             if (error) throw error;
 
-            if (vaga?.pipeline_id) {
-                await supabase
-                    .from('pipelines')
-                    .update({ is_active: false })
-                    .eq('id', vaga.pipeline_id);
-            }
-
             setVagas(prev => prev.filter(v => v.id !== vagaToDelete));
-            toast.success('Vaga desativada com sucesso');
+            toast.success('Vaga excluída permanentemente');
 
             const { data: { user } } = await supabase.auth.getUser();
             if (user && vaga) {
-                logActivity(user.id, `Desativou a vaga: "${vaga.title}"`).catch(console.error);
+                logActivity(user.id, `Excluiu a vaga: "${vaga.title}"`).catch(console.error);
             }
         } catch (err) {
-            console.error('Erro ao desativar vaga:', err);
-            toast.error('Erro ao desativar vaga');
+            console.error('Erro ao excluir vaga:', err);
+            toast.error('Erro ao excluir vaga');
         } finally {
             setDeleting(false);
             setDeleteModalOpen(false);
@@ -316,11 +354,29 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     .eq('vaga_id', id);
             }
 
-            // Se cancelada ou fechada, perguntar se quer deletar o pipeline associado
+            const vagaAtual = vagas.find(v => v.id === id);
+
+            // Reabertura de vaga cancelada
+            if (status === 'aberta' && vagaAtual?.status === 'cancelada') {
+                const breakdown = await computeCloseEmailBreakdown(id);
+                const allCandidates = breakdown
+                    ? [...breakdown.approved, ...breakdown.rejected, ...breakdown.others].filter(c => c.email && c.email.includes('@'))
+                    : [];
+
+                if (allCandidates.length > 0) {
+                    setReopenCandidates(allCandidates);
+                    setReopenEmailVagaId(id);
+                    setReopenEmailVagaTitle(vagaAtual?.title || '');
+                    setShowReopenEmailModal(true);
+                } else {
+                    setVagas(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+                    toast.success(`Status alterado para "Aberta"`);
+                }
+                return;
+            }
+
+            // Se cancelada ou fechada, primeiro perguntar sobre e-mails, depois sobre pipeline
             if (status === 'cancelada' || status === 'fechada') {
-                setVagaForPipelineDelete(id);
-                setPipelineDeleteModalOpen(true);
-                
                 // Buscar organization_id se ainda não tiver
                 if (!userOrgId) {
                     const { data: { user } } = await supabase.auth.getUser();
@@ -334,6 +390,26 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             setUserOrgId(profile.organization_id);
                         }
                     }
+                }
+
+                // Buscar breakdown de candidatos
+                const breakdown = await computeCloseEmailBreakdown(id);
+
+                // Primeiro: modal de e-mail se houver candidatos
+                if (breakdown && breakdown.approved.length + breakdown.rejected.length + breakdown.others.length > 0) {
+                    const total = breakdown.approved.length + breakdown.rejected.length + breakdown.others.length;
+                    setCloseEmailVagaType(status === 'cancelada' ? 'cancelada' : 'fechada');
+                    setCloseEmailVagaCount(total);
+                    setCloseEmailBreakdown(breakdown);
+                    setCloseEmailVaga({ id, title: vagaAtual?.title || '' });
+                    // Guarda para mostrar modal de pipeline depois
+                    if (vagaAtual?.pipeline_id) {
+                        setPendingPipelineDeleteFor(id);
+                    }
+                } else if (vagaAtual?.pipeline_id) {
+                    // Sem candidatos: vai direto para pipeline
+                    setVagaForPipelineDelete(id);
+                    setPipelineDeleteModalOpen(true);
                 }
             }
 
@@ -382,34 +458,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         } finally {
             setDeletingPipeline(false);
             setPipelineDeleteModalOpen(false);
-            const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
-            if (vaga) {
-                const { count } = await supabase
-                    .from('vagas_candidaturas')
-                    .select('id', { count: 'exact' })
-                    .eq('vaga_id', vagaForPipelineDelete!)
-                    .eq('organization_id', userOrgId || '')
-                    .neq('status', 'talent_bank');
-                setCloseEmailVagaCount(count || 0);
-                setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
-            }
             setVagaForPipelineDelete(null);
         }
     };
 
     const cancelPipelineDelete = async () => {
         setPipelineDeleteModalOpen(false);
-        const vaga = vagas.find(v => v.id === vagaForPipelineDelete);
-        if (vaga) {
-            const { count } = await supabase
-                .from('vagas_candidaturas')
-                .select('id', { count: 'exact' })
-                .eq('vaga_id', vagaForPipelineDelete!)
-                .eq('organization_id', userOrgId || '')
-                .neq('status', 'talent_bank');
-            setCloseEmailVagaCount(count || 0);
-            setCloseEmailVaga({ id: vagaForPipelineDelete!, title: vaga.title });
-        }
         setVagaForPipelineDelete(null);
     };
 
@@ -444,34 +498,173 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         toast.success('Link copiado!');
     };
 
-    async function sendCloseEmails(vagaId: string, vagaTitle: string, organizationId: string) {
+    async function computeCloseEmailBreakdown(vagaId: string) {
+        // Busca sem filtro de organization_id para incluir candidaturas legadas (sem org_id)
+        // e candidaturas criadas antes da migration 049
+        const { data: allCandidaturas } = await supabase
+            .from('vagas_candidaturas')
+            .select('candidate_name, candidate_email, status')
+            .eq('vaga_id', vagaId);
+
+        if (!allCandidaturas?.length) return null;
+
+        // Candidatos que foram ao banco de talentos — precisam verificar coluna do kanban
+        const talentBank = allCandidaturas.filter(c => c.status === 'talent_bank');
+        const approvedEmails = new Set<string>();
+        // Candidatos fora do banco de talentos já são reprovados diretamente
+        const notInBankEmails = new Set<string>(
+            allCandidaturas
+                .filter(c => c.status !== 'talent_bank')
+                .map(c => c.candidate_email)
+        );
+
+        if (talentBank.length > 0) {
+            // Busca o pipeline ativo vinculado à vaga (prioriza is_active=true)
+            const { data: activePipeline } = await supabase
+                .from('pipelines')
+                .select('id')
+                .eq('vaga_id', vagaId)
+                .eq('is_active', true)
+                .maybeSingle();
+
+            // Fallback: se não houver pipeline ativo, tenta qualquer pipeline da vaga
+            const { data: anyPipeline } = !activePipeline
+                ? await supabase
+                    .from('pipelines')
+                    .select('id')
+                    .eq('vaga_id', vagaId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+                : { data: null };
+
+            const pipeline = activePipeline ?? anyPipeline;
+
+            if (pipeline) {
+                const tbEmails = talentBank.map(c => c.candidate_email);
+                const { data: candidatesTable } = await supabase
+                    .from('candidates')
+                    .select('id, email')
+                    .in('email', tbEmails);
+
+                if (candidatesTable?.length) {
+                    const candidateIds = candidatesTable.map(c => c.id);
+                    const emailById: Record<string, string> = {};
+                    candidatesTable.forEach(c => { emailById[c.id] = c.email; });
+
+                    const { data: pipelineCards } = await supabase
+                        .from('pipeline_cards')
+                        .select('candidate_id, column_id')
+                        .eq('pipeline_id', pipeline.id)
+                        .in('candidate_id', candidateIds);
+
+                    if (pipelineCards?.length) {
+                        const colIds = [...new Set(pipelineCards.map(pc => pc.column_id))];
+                        const { data: columns } = await supabase
+                            .from('pipeline_columns')
+                            .select('id, name')
+                            .in('id', colIds);
+
+                        const colNamesById: Record<string, string> = {};
+                        columns?.forEach(col => { colNamesById[col.id] = col.name; });
+
+                        pipelineCards.forEach(pc => {
+                            const email = emailById[pc.candidate_id];
+                            if (!email) return;
+                            const colName = colNamesById[pc.column_id] || '';
+                            if (colName === 'Aprovado') {
+                                approvedEmails.add(email);
+                            }
+                            // Qualquer outra coluna no kanban = reprovado (já tratado abaixo)
+                        });
+                    }
+                }
+            }
+        }
+
+        const approved: { name: string; email: string }[] = [];
+        const rejected: { name: string; email: string }[] = [];
+        const others: { name: string; email: string }[] = [];
+
+        allCandidaturas.forEach(c => {
+            const entry = { name: c.candidate_name || 'Sem nome', email: c.candidate_email };
+            if (approvedEmails.has(c.candidate_email)) {
+                // Foi pro banco e está na coluna "Aprovado" do kanban
+                approved.push(entry);
+            } else if (notInBankEmails.has(c.candidate_email)) {
+                // Não foi pro banco de talentos = reprovado direto
+                rejected.push(entry);
+            } else {
+                // Foi pro banco mas não está no kanban ou está em coluna diferente de "Aprovado"
+                others.push(entry);
+            }
+        });
+
+        return { approved, rejected, others };
+    }
+
+    async function sendCloseEmails(vagaId: string, vagaTitle: string, tipo: 'fechada' | 'cancelada' = 'fechada') {
         if (sendingCloseEmails) return;
         setSendingCloseEmails(true);
         try {
-            const { data: candidates } = await supabase
-                .from('vagas_candidaturas')
-                .select('candidate_name, candidate_email')
-                .eq('vaga_id', vagaId)
-                .eq('organization_id', organizationId)
-                .neq('status', 'talent_bank');
-
-            if (!candidates?.length) {
-                toast.success('Nenhum candidato pendente para enviar e-mail');
+            const breakdown = closeEmailBreakdown ?? await computeCloseEmailBreakdown(vagaId);
+            if (!breakdown) {
+                toast.success('Nenhum candidato para notificar');
                 setCloseEmailVaga(null);
                 setCloseEmailVagaCount(null);
+                setCloseEmailBreakdown(null);
+                setCloseEmailVagaType(null);
                 return;
             }
 
+            const allCandidaturas = [
+                ...breakdown.approved,
+                ...breakdown.rejected,
+                ...breakdown.others,
+            ].filter(c => c.email && c.email.includes('@'));
+
+            if (allCandidaturas.length === 0) {
+                toast.success('Nenhum candidato para notificar');
+                setCloseEmailVaga(null);
+                setCloseEmailVagaCount(null);
+                setCloseEmailBreakdown(null);
+                setCloseEmailVagaType(null);
+                return;
+            }
+
+            const approvedEmails = new Set(breakdown.approved.map(c => c.email));
+
             const results = await Promise.allSettled(
-                candidates.map(c =>
-                    supabase.functions.invoke('send-candidate-thankyou-email', {
+                allCandidaturas.map(async c => {
+                    if (tipo === 'cancelada') {
+                        return supabase.functions.invoke('send-candidate-vaga-canceled-email', {
+                            body: {
+                                candidateName: c.name,
+                                candidateEmail: c.email,
+                                jobTitle: vagaTitle,
+                            }
+                        });
+                    }
+
+                    const isApproved = approvedEmails.has(c.email);
+
+                    if (isApproved) {
+                        return supabase.functions.invoke('send-candidate-congratulations-email', {
+                            body: {
+                                candidateName: c.name,
+                                candidateEmail: c.email,
+                                jobTitle: vagaTitle,
+                            }
+                        });
+                    }
+                    return supabase.functions.invoke('send-candidate-thankyou-email', {
                         body: {
-                            candidateName: c.candidate_name,
-                            candidateEmail: c.candidate_email,
+                            candidateName: c.name,
+                            candidateEmail: c.email,
                             jobTitle: vagaTitle,
                         }
-                    })
-                )
+                    });
+                })
             );
 
             const sent = results.filter(r => r.status === 'fulfilled').length;
@@ -480,15 +673,70 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             if (failed > 0) {
                 toast.success(`${sent} e-mails enviados, ${failed} falhas`);
             } else {
-                toast.success(`${sent} e-mail${sent !== 1 ? 's' : ''} de agradecimento enviado${sent !== 1 ? 's' : ''}`);
+                toast.success(`${sent} e-mail${sent !== 1 ? 's' : ''} enviado${sent !== 1 ? 's' : ''}`);
             }
         } catch (err) {
             console.error('Erro ao enviar e-mails:', err);
             toast.error('Erro ao enviar e-mails');
         } finally {
             setSendingCloseEmails(false);
+            const pendingId = pendingPipelineDeleteFor;
             setCloseEmailVaga(null);
             setCloseEmailVagaCount(null);
+            setCloseEmailBreakdown(null);
+            setCloseEmailVagaType(null);
+            setPendingPipelineDeleteFor(null);
+            if (pendingId) {
+                setVagaForPipelineDelete(pendingId);
+                setPipelineDeleteModalOpen(true);
+            }
+        }
+    }
+
+    async function sendReopenedEmails() {
+        if (sendingCloseEmails || !reopenEmailVagaId) return;
+        setSendingCloseEmails(true);
+        try {
+            const validCandidates = reopenCandidates.filter(c => c.email && c.email.includes('@'));
+            if (validCandidates.length === 0) {
+                toast.success('Nenhum candidato para notificar');
+                setShowReopenEmailModal(false);
+                setReopenCandidates([]);
+                setReopenEmailVagaId(null);
+                setReopenEmailVagaTitle('');
+                return;
+            }
+
+            const results = await Promise.allSettled(
+                validCandidates.map(c =>
+                    supabase.functions.invoke('send-candidate-vaga-reopened-email', {
+                        body: { candidateName: c.name, candidateEmail: c.email, jobTitle: reopenEmailVagaTitle }
+                    })
+                )
+            );
+
+            const sent = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            if (failed > 0) {
+                toast.success(`${sent} notificações enviadas, ${failed} falhas`);
+            } else {
+                toast.success(`${sent} candidat${sent !== 1 ? 'os' : 'a'} notificado${sent !== 1 ? 's' : ''} sobre a reabertura`);
+            }
+        } catch (err) {
+            console.error('Erro ao enviar notificações:', err);
+            toast.error('Erro ao enviar notificações');
+        } finally {
+            setSendingCloseEmails(false);
+            setOpenStatusId(null);
+            if (reopenEmailVagaId) {
+                setVagas(prev => prev.map(v =>
+                    v.id === reopenEmailVagaId ? { ...v, status: 'aberta' as const, is_accepting_applications: true } : v
+                ));
+            }
+            setShowReopenEmailModal(false);
+            setReopenCandidates([]);
+            setReopenEmailVagaId(null);
+            setReopenEmailVagaTitle('');
         }
     }
 
@@ -771,6 +1019,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 </div>
 
                 {/* Create New Vaga */}
+                {userRole !== 'convidado' && (
                 <button
                     onClick={() => navigate('/vagas/nova')}
                     style={{
@@ -793,6 +1042,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     <Plus size={16} />
                     Nova Vaga
                 </button>
+                )}
             </div>
 
             {/* Vagas List */}
@@ -868,6 +1118,22 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
                                     {/* Status Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                                        {userRole === 'convidado' ? (
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                padding: '4px 10px',
+                                                background: statusConfig.bg,
+                                                border: `1px solid ${statusConfig.color}33`,
+                                                borderRadius: '12px',
+                                                color: statusConfig.color,
+                                                fontSize: '12px',
+                                                fontWeight: 600
+                                            }}>
+                                                {statusConfig.label}
+                                            </span>
+                                        ) : (
                                         <button
                                             ref={(el) => { statusBtnRefs.current[vaga.id] = el; }}
                                             onClick={() => {
@@ -912,6 +1178,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                             {statusConfig.label}
                                             <ChevronDown size={12} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
                                         </button>
+                                        )}
                                     </div>
 
                                     <div 
@@ -1076,6 +1343,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         >
                                             <Users size={14} />
                                         </button>
+                                        {userRole !== 'convidado' && (<>
                                         <button
                                             onClick={() => navigate(`/vagas/editar/${vaga.id}`)}
                                             title="Editar"
@@ -1110,6 +1378,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         >
                                             <Trash2 size={14} />
                                         </button>
+                                        </>)}
                                     </div>
                                 </div>
                             );
@@ -1349,7 +1618,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             lineHeight: 1.6,
                             margin: '0 0 24px'
                         }}>
-                            A vaga será desativada e não aparecerá mais publicamente. Os dados e candidaturas serão mantidos no sistema.
+                            Tem certeza? Esta ação <strong>não pode ser desfeita</strong>. A vaga, candidaturas e pipeline associado serão excluídos permanentemente.
                         </p>
 
                         {/* Buttons */}
@@ -1387,10 +1656,14 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     fontSize: '14px',
                                     fontWeight: 600,
                                     transition: 'all 0.2s',
-                                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                                    opacity: deleting ? 0.5 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6
                                 }}
                             >
-                                {deleting ? 'Desativando...' : 'Sim, Desativar'}
+                                {deleting ? 'Excluindo...' : 'Sim, Excluir'}
                             </button>
                         </div>
                     </div>
@@ -1513,19 +1786,111 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             {/* Thank You Email Modal */}
             {closeEmailVaga && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'fadeIn 0.2s ease-out' }}>
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', textAlign: 'center', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
-                        <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
-                            <Mail size={40} color="var(--primary)" />
-                        </div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Enviar e-mails de agradecimento?</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
-                            Deseja enviar e-mails de agradecimento para os candidatos que não foram selecionados para o Banco de Talentos?
-                        </p>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                        {closeEmailVagaType === 'cancelada' ? (
+                            <>
+                                <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                    <AlertTriangle size={40} color="#f59e0b" />
+                                </div>
+                                <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12, textAlign: 'center' }}>Notificar candidatos?</h2>
+                                <p style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>
+                                    Esta vaga foi cancelada. Os candidatos serão notificados por e-mail.
+                                </p>
+                                {closeEmailBreakdown && (
+                                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 24 }}>
+                                        {[...closeEmailBreakdown.approved, ...closeEmailBreakdown.rejected, ...closeEmailBreakdown.others].map(c => (
+                                            <div key={c.email} style={{ padding: '8px 14px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                                                {c.name} <span style={{ color: 'var(--text-dim)' }}>{c.email}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                    <Mail size={40} color="var(--primary)" />
+                                </div>
+                                <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12, textAlign: 'center' }}>Enviar e-mails para os candidatos?</h2>
+
+                        {closeEmailBreakdown && (
+                            <div style={{ marginBottom: 24 }}>
+                                {/* Aprovados */}
+                                {closeEmailBreakdown.approved.length > 0 && (
+                                    <div style={{ marginBottom: 8, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                        <div onClick={() => setOpenSections(s => ({ ...s, approved: !s.approved }))}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', userSelect: 'none', background: 'var(--bg-main)' }}>
+                                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: openSections.approved ? 'rotate(0deg)' : 'rotate(-90deg)', color: 'var(--text-dim)', flexShrink: 0 }} />
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e', flex: 1 }}>
+                                                Aprovados: ({closeEmailBreakdown.approved.length}) receberão <strong>parabéns</strong>
+                                            </span>
+                                        </div>
+                                        {openSections.approved && (
+                                            <div style={{ maxHeight: 150, overflowY: 'auto', borderTop: '1px solid var(--border)', padding: '6px 0' }}>
+                                                {closeEmailBreakdown.approved.map(c => (
+                                                    <div key={c.email} style={{ padding: '6px 14px', fontSize: 13, color: 'var(--text-main)' }}>
+                                                        {c.name} <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{c.email}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Rejeitados */}
+                                {closeEmailBreakdown.rejected.length > 0 && (
+                                    <div style={{ marginBottom: 8, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                        <div onClick={() => setOpenSections(s => ({ ...s, rejected: !s.rejected }))}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', userSelect: 'none', background: 'var(--bg-main)' }}>
+                                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: openSections.rejected ? 'rotate(0deg)' : 'rotate(-90deg)', color: 'var(--text-dim)', flexShrink: 0 }} />
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', flex: 1 }}>
+                                                Reprovados ({closeEmailBreakdown.rejected.length}) — não foram ao banco de talentos
+                                            </span>
+                                        </div>
+                                        {openSections.rejected && (
+                                            <div style={{ maxHeight: 150, overflowY: 'auto', borderTop: '1px solid var(--border)', padding: '6px 0' }}>
+                                                {closeEmailBreakdown.rejected.map(c => (
+                                                    <div key={c.email} style={{ padding: '6px 14px', fontSize: 13, color: 'var(--text-main)' }}>
+                                                        {c.name} <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{c.email}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Outros (fora do banco de talentos) */}
+                                {closeEmailBreakdown.others.length > 0 && (
+                                    <div style={{ marginBottom: 8, border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                                        <div onClick={() => setOpenSections(s => ({ ...s, others: !s.others }))}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', userSelect: 'none', background: 'var(--bg-main)' }}>
+                                            <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: openSections.others ? 'rotate(0deg)' : 'rotate(-90deg)', color: 'var(--text-dim)', flexShrink: 0 }} />
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: '#f59e0b', flex: 1 }}>
+                                                No banco de talentos ({closeEmailBreakdown.others.length}) — receberão <strong>agradecimento</strong>
+                                            </span>
+                                        </div>
+                                        {openSections.others && (
+                                            <div style={{ maxHeight: 150, overflowY: 'auto', borderTop: '1px solid var(--border)', padding: '6px 0' }}>
+                                                {closeEmailBreakdown.others.map(c => (
+                                                    <div key={c.email} style={{ padding: '6px 14px', fontSize: 13, color: 'var(--text-main)' }}>
+                                                        {c.name} <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{c.email}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        </>)}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <button
                                 onClick={() => {
                                     if (sendingCloseEmails) return;
-                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, userOrgId);
+                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, closeEmailVagaType ?? 'fechada');
                                 }}
                                 disabled={sendingCloseEmails}
                                 style={{
@@ -1541,13 +1906,76 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 {sendingCloseEmails ? 'Enviando...' : `Sim, enviar para ${closeEmailVagaCount ?? '...'} candidato${closeEmailVagaCount !== 1 ? 's' : ''}`}
                             </button>
                             <button
-                                onClick={() => { setCloseEmailVaga(null); setCloseEmailVagaCount(null); }}
+                                onClick={() => { const pendingId = pendingPipelineDeleteFor; setCloseEmailVaga(null); setCloseEmailVagaCount(null); setCloseEmailBreakdown(null); setCloseEmailVagaType(null); setPendingPipelineDeleteFor(null); if (pendingId) { setVagaForPipelineDelete(pendingId); setPipelineDeleteModalOpen(true); } }}
                                 disabled={sendingCloseEmails}
                                 style={{
                                     width: '100%', padding: 16,
                                     background: 'transparent', border: '1px solid var(--border)', borderRadius: 12,
                                     color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, fontWeight: 600,
                                     opacity: sendingCloseEmails ? 0.5 : 1
+                                }}
+                            >
+                                Não
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showReopenEmailModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                            <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                <RefreshCw size={40} color="#22c55e" />
+                            </div>
+                            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Notificar candidatos?</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+                                A vaga foi reaberta. Deseja notificar os candidatos?
+                            </p>
+                        </div>
+
+                        <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 24 }}>
+                            {reopenCandidates.map(c => (
+                                <div key={c.email} style={{ padding: '8px 14px', fontSize: 13, borderBottom: '1px solid var(--border)' }}>
+                                    {c.name} <span style={{ color: 'var(--text-dim)' }}>{c.email}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <button
+                                onClick={() => sendReopenedEmails()}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: 'var(--primary)', border: 'none', borderRadius: 12,
+                                    color: '#fff', cursor: sendingCloseEmails ? 'not-allowed' : 'pointer',
+                                    fontSize: 16, fontWeight: 700,
+                                    opacity: sendingCloseEmails ? 0.7 : 1
+                                }}
+                            >
+                                {sendingCloseEmails ? 'Enviando...' : `Sim, notificar ${reopenCandidates.length} candidato${reopenCandidates.length !== 1 ? 's' : ''}`}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (reopenEmailVagaId) {
+                                        setVagas(prev => prev.map(v =>
+                                            v.id === reopenEmailVagaId ? { ...v, status: 'aberta' as const, is_accepting_applications: true } : v
+                                        ));
+                                        toast.success('Status alterado para "Aberta"');
+                                    }
+                                    setOpenStatusId(null);
+                                    setShowReopenEmailModal(false);
+                                    setReopenCandidates([]);
+                                    setReopenEmailVagaId(null);
+                                    setReopenEmailVagaTitle('');
+                                }}
+                                disabled={sendingCloseEmails}
+                                style={{
+                                    width: '100%', padding: 16,
+                                    background: 'transparent', border: '1px solid var(--border)', borderRadius: 12,
+                                    color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, fontWeight: 600
                                 }}
                             >
                                 Não

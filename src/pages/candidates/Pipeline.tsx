@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, Eye } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -102,10 +102,16 @@ interface HistoryItem {
     habilidades?: string;
     experience?: string;
     experiencia?: string;
+    summary?: string;
+    strengths?: string;
+    positivePoints?: string;
+    pontos_positivos?: string;
+    positive_points?: string;
     education?: string;
     formacao?: string;
     redFlags?: string;
     attention_points?: string;
+    gaps?: string;
     analysis?: Record<string, unknown>;
 }
 
@@ -236,11 +242,12 @@ const css = `
 `;
 
 // ─── Column Header Edit Inline ─────────────────────────────────────────────────
-function ColHeader({ col, onUpdate, onDelete, colHeaderRef }: {
+function ColHeader({ col, onUpdate, onDelete, colHeaderRef, isColHeaderConvidado }: {
     col: PipelineColumn;
     onUpdate: (id: string, name: string, color: string) => void;
     onDelete: (id: string) => void;
     colHeaderRef?: React.RefObject<Map<string, HTMLElement>>;
+    isColHeaderConvidado?: boolean;
 }) {
     const [editing, setEditing] = useState(false);
     const [name, setName] = useState(col.name);
@@ -276,7 +283,7 @@ function ColHeader({ col, onUpdate, onDelete, colHeaderRef }: {
         >
             <div className="pipe-col-header-dot" style={{ background: col.color }} />
             <span style={{ flex: 1, color: 'var(--text-main)', fontWeight: 700, fontSize: 13 }}>{col.name}</span>
-            <button className="pipe-btn" onClick={() => setEditing(true)} title="Editar coluna"><Edit2 size={13} /></button>
+            {!isColHeaderConvidado && <button className="pipe-btn" onClick={() => setEditing(true)} title="Editar coluna"><Edit2 size={13} /></button>}
         </div>
     );
 }
@@ -317,8 +324,8 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
                     {filtered.map(c => (
                         <div
                             key={c.id}
-                            className={`candidate-option${c.already_in_pipeline ? ' disabled' : ''}`}
-                            onClick={() => !c.already_in_pipeline && onAdd(columnId, c)}
+                            className={`candidate-option${c.already_in_pipeline || c.is_blacklisted ? ' disabled' : ''}`}
+                            onClick={() => !c.already_in_pipeline && !c.is_blacklisted && onAdd(columnId, c)}
                         >
                             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                                 {initials(c.name)}
@@ -334,6 +341,7 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
                             </div>
                             {c.score != null && <span style={{ background: scoreColor(c.score), color: '#fff', borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{c.score}%</span>}
                             {c.already_in_pipeline && <span style={{ color: 'var(--text-dim)', fontSize: 10, flexShrink: 0 }}>já no pipeline</span>}
+                            {!c.already_in_pipeline && c.is_blacklisted && <span style={{ color: '#ef4444', fontSize: 10, flexShrink: 0 }}>restringido (blacklist)</span>}
                         </div>
                     ))}
                 </div>
@@ -360,6 +368,10 @@ export const Pipeline = () => {
     
     const [showCreatePipeline, setShowCreatePipeline] = useState(false);
     const [newPipeName, setNewPipeName] = useState('');
+    const [selectedVagaId, setSelectedVagaId] = useState<string>('');
+    const [vagasWithoutPipeline, setVagasWithoutPipeline] = useState<{ id: string; title: string; job_code?: string }[]>([]);
+    const [showVagaSelectCreate, setShowVagaSelectCreate] = useState(false);
+    const [vagaSearchCreate, setVagaSearchCreate] = useState('');
     const [addColModal, setAddColModal] = useState(false);
     const [newColName, setNewColName] = useState('');
     const [newColColor, setNewColColor] = useState(COLUMN_COLORS[0]);
@@ -369,6 +381,7 @@ export const Pipeline = () => {
     const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
     const [showSelect, setShowSelect] = useState(false);
+    const [linkVagaSelectOpen, setLinkVagaSelectOpen] = useState(false);
     const selectRef = useRef<HTMLDivElement>(null);
 
     const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -379,16 +392,24 @@ export const Pipeline = () => {
     
     const [vagaSearch, setVagaSearch] = useState('');
 
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
+
+    const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
+
     // Filtro de Status para os pipelines
-    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string }>>([]);
+    const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string; pipeline_id?: string | null; is_active?: boolean }>>([]);
+    const isConvidado = profile.user_role === 'convidado';
     const [pipelineStatusFilter, setPipelineStatusFilter] = useState<string>(''); // '' = Todas
+    const [linkVagaPipeline, setLinkVagaPipeline] = useState<Pipeline | null>(null);
+    const [linkVagaVagaId, setLinkVagaVagaId] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [approvalEmailTarget, setApprovalEmailTarget] = useState<{
-      candidateName: string;
-      candidateEmail: string;
-      jobTitle: string;
-    } | null>(null);
-    const [approvalEmailSending, setApprovalEmailSending] = useState(false);
     
     const [showStatusSelect, setShowStatusSelect] = useState(false);
     const statusSelectRef = useRef<HTMLDivElement>(null);
@@ -396,9 +417,18 @@ export const Pipeline = () => {
     const [cardSubmenu, setCardSubmenu] = useState<string | null>(null);
     const [cardMenuPos, setCardMenuPos] = useState<{ top: number; left: number } | null>(null);
 
+    const [mobileSheet, setMobileSheet] = useState<{ type: 'card'; card: PipelineCard; col: PipelineColumn } | { type: 'col'; col: PipelineColumn } | null>(null);
+
+    const initRef = useRef<(userId: string) => Promise<void> | null>(null);
+
     useEffect(() => {
         if (!profile.loaded || !profile.userId) return;
-        init(profile.userId);
+        initRef.current = init;
+        initRef.current?.(profile.userId)?.catch(err => {
+            console.error('[Pipeline] init error:', err);
+            setFetchingPipelines(false);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile.userId, profile.loaded]);
 
     const cardMenuRef = useRef<HTMLDivElement>(null);
@@ -427,17 +457,24 @@ export const Pipeline = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [cardMenuOpen]);
 
+    const loadPipelineDataRef = useRef<((userId: string, pipelineId: string) => Promise<void>) | null>(null);
+
     useEffect(() => {
+        setCards([]);
+        setColumns([]);
         if (selectedPipelineId && profile.userId) {
-            loadPipelineData(profile.userId, selectedPipelineId);
-        } else {
-            setColumns([]);
-            setCards([]);
+            loadPipelineDataRef.current = loadPipelineData;
+            loadPipelineDataRef.current?.(profile.userId, selectedPipelineId)?.catch(err => {
+                console.error('[Pipeline] loadPipelineData error:', err);
+                setLoading(false);
+            });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPipelineId, profile.userId]);
 
     // ─── Drag-and-Drop with @atlaskit ─────────────────────────────────────────
     useEffect(() => {
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         cards.forEach(card => {
@@ -518,12 +555,11 @@ export const Pipeline = () => {
                                     supabase.from('pipeline_cards').update({ position: i }).eq('id', targetColOtherCards[i].id);
                                 }
                             }
-                            checkApprovalEmail({ ...card, column_id: targetColumnId }, targetCol?.name || '');
                         });
                         if (profile.userId) {
                             const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
                             const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
-                            logScreening(profile.userId, card.candidate_id, 'move', `${sourceCol?.name || ''}${pipeSuffix}`, `${targetCol?.name || ''}${pipeSuffix}`, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name });
+                            logScreening(profile.userId, card.candidate_id, 'move', `${sourceCol?.name || ''}${pipeSuffix}`, `${targetCol?.name || ''}${pipeSuffix}`, { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name, pipeline_id: pipe?.id, pipeline_name: pipe?.name });
                             logActivity(profile.userId, `Moveu "${card.candidate_name}" para "${targetCol?.name || 'Etapa'}" no processo "${pipe?.name || 'Pipeline'}"`);
                         }
                     }
@@ -534,9 +570,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [cards, columns, profile, pipelines, selectedPipelineId]);
+    }, [cards, columns, isConvidado, isMobile, profile, pipelines, selectedPipelineId]);
 
     useEffect(() => {
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(column => {
@@ -553,9 +590,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns]);
+    }, [columns, isConvidado, isMobile]);
 
     useEffect(() => {
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(col => {
@@ -606,7 +644,7 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns]);
+    }, [columns, isConvidado, isMobile]);
     
     // Helper function para status da vaga
     const getVagaStatusBadge = (vagaId?: string | null) => {
@@ -646,11 +684,33 @@ export const Pipeline = () => {
     async function init(userId: string) {
         setFetchingPipelines(true);
         try {
-            const { data: pipes } = await supabase.from('pipelines')
+            let query = supabase.from('pipelines')
                 .select('*')
                 .eq('is_active', true)
-                .or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`)
                 .order('name');
+
+            if (isConvidado) {
+                const { data: acesso } = await supabase
+                    .from('convidado_vaga_access')
+                    .select('vaga_id')
+                    .eq('convidado_user_id', userId);
+                const vagaIds = (acesso || []).map(a => a.vaga_id);
+                if (vagaIds.length === 0) {
+                    setPipelines([]);
+                    setFetchingPipelines(false);
+                    return;
+                }
+                query = query.in('vaga_id', vagaIds);
+            } else if (profile.organization_id) {
+                if (profile.user_role === 'rh') {
+                    query = query.eq('user_id', userId);
+                } else {
+                    query = query.or(`organization_id.eq.${profile.organization_id},user_id.eq.${userId}`);
+                }
+            } else {
+                query = query.eq('user_id', userId);
+            }
+            const { data: pipes } = await query;
 
             // Buscar vagas disponíveis para filtro PRIMEIRO
             await loadAvailableVagas();
@@ -686,17 +746,36 @@ export const Pipeline = () => {
     
     async function loadAvailableVagas() {
         try {
-            const { data: vagas } = await supabase
+            let vagaQuery = supabase
                 .from('vagas_white_label')
-                .select('id, title, status, is_accepting_applications, job_code')
+                .select('id, title, status, is_accepting_applications, job_code, pipeline_id, is_active')
                 .order('job_code', { ascending: true, nullsFirst: false });
+
+            if (isConvidado) {
+                const { data: acesso } = await supabase
+                    .from('convidado_vaga_access')
+                    .select('vaga_id')
+                    .eq('convidado_user_id', profile.userId);
+                const vagaIds = (acesso || []).map(a => a.vaga_id);
+                if (vagaIds.length === 0) {
+                    setAvailableVagas([]);
+                    return;
+                }
+                vagaQuery = vagaQuery.in('id', vagaIds);
+            } else if (profile.user_role === 'rh') {
+                vagaQuery = vagaQuery.eq('organization_id', profile.organization_id);
+            }
+
+            const { data: vagas } = await vagaQuery;
             
             if (vagas) {
                 setAvailableVagas(vagas.map(v => ({
                     id: v.id,
                     title: v.title,
                     status: v.status,
-                    job_code: v.job_code
+                    job_code: v.job_code,
+                    pipeline_id: v.pipeline_id,
+                    is_active: v.is_active,
                 })));
             }
         } catch (err) {
@@ -704,38 +783,161 @@ export const Pipeline = () => {
         }
     }
 
+    async function openCreatePipelineModal() {
+        setNewPipeName('');
+        setSelectedVagaId('');
+        try {
+            const { data: vagas } = await supabase
+                .from('vagas_white_label')
+                .select('id, title, job_code')
+                .is('pipeline_id', null)
+                .in('status', ['aberta', 'invisivel'])
+                .order('title');
+            setVagasWithoutPipeline(vagas || []);
+        } catch {
+            setVagasWithoutPipeline([]);
+        }
+        setShowCreatePipeline(true);
+    }
+
     async function createPipeline() {
         if (!newPipeName.trim() || !profile.userId || loading) return;
         setLoading(true);
         try {
+            if (selectedVagaId) {
+                const { data: vaga } = await supabase
+                    .from('vagas_white_label')
+                    .select('pipeline_id')
+                    .eq('id', selectedVagaId)
+                    .single();
+                if (vaga?.pipeline_id) {
+                    toast.error('Esta vaga já está vinculada a outro pipeline');
+                    setLoading(false);
+                    return;
+                }
+            }
+            const insertData: {
+                name: string;
+                user_id: string;
+                organization_id?: string;
+                vaga_id?: string;
+            } = { 
+                name: newPipeName.trim(), 
+                user_id: profile.userId,
+                organization_id: profile.organization_id || undefined
+            };
+
+            if (selectedVagaId) {
+                insertData.vaga_id = selectedVagaId;
+            }
+
             const { data: pipe, error } = await supabase.from('pipelines')
-                .insert({ 
-                    name: newPipeName.trim(), 
-                    user_id: profile.userId,
-                    organization_id: profile.organization_id
-                })
+                .insert(insertData)
                 .select().single();
-            
+
             if (error) throw error;
 
             if (pipe) {
-                const toInsert = DEFAULT_COLUMNS.map(c => ({ 
-                    ...c, 
-                    user_id: profile.userId, 
+                if (selectedVagaId) {
+                    await supabase
+                        .from('vagas_white_label')
+                        .update({ pipeline_id: pipe.id })
+                        .eq('id', selectedVagaId);
+                }
+
+                const toInsert = DEFAULT_COLUMNS.map(c => ({
+                    ...c,
+                    user_id: profile.userId,
                     pipeline_id: pipe.id,
                     organization_id: profile.organization_id
                 }));
                 await supabase.from('pipeline_columns').insert(toInsert);
-                
+
+                await loadAvailableVagas();
+
                 setPipelines(prev => [...prev, pipe].sort((a, b) => a.name.localeCompare(b.name)));
                 setSelectedPipelineId(pipe.id);
                 setNewPipeName('');
+                setSelectedVagaId('');
                 setShowCreatePipeline(false);
                 logActivity(profile.userId, `Criou o processo "${pipe.name}"`);
             }
         } catch (err: unknown) {
             console.error('Create pipeline error:', err);
             alert('Erro ao criar pipeline: ' + (err as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleLinkVaga() {
+        if (!linkVagaPipeline || !linkVagaVagaId) return;
+        setLoading(true);
+        try {
+            const { data: vagaCheck } = await supabase
+                .from('vagas_white_label')
+                .select('pipeline_id, title')
+                .eq('id', linkVagaVagaId)
+                .single();
+            if (!vagaCheck) { setLoading(false); return; }
+            if (vagaCheck.pipeline_id) {
+                toast.error(`"${vagaCheck.title}" já está vinculada a outro pipeline`);
+                setLoading(false);
+                return;
+            }
+
+            await supabase.from('pipelines')
+                .update({ vaga_id: linkVagaVagaId })
+                .eq('id', linkVagaPipeline.id);
+
+            await supabase.from('vagas_white_label')
+                .update({ pipeline_id: linkVagaPipeline.id })
+                .eq('id', linkVagaVagaId);
+
+            await loadAvailableVagas();
+
+            setPipelines(prev => prev.map(p =>
+                p.id === linkVagaPipeline.id
+                    ? { ...p, vaga_id: linkVagaVagaId }
+                    : p
+            ));
+
+            toast.success('Pipeline vinculado à vaga');
+        } catch (err) {
+            console.error('Error linking pipeline:', err);
+            toast.error('Erro ao vincular pipeline');
+        } finally {
+            setLoading(false);
+            setLinkVagaPipeline(null);
+            setLinkVagaVagaId('');
+        }
+    }
+
+    async function handleUnlinkVaga(pipeId: string) {
+        const pipe = pipelines.find(p => p.id === pipeId);
+        if (!pipe || !pipe.vaga_id) return;
+        setLoading(true);
+        try {
+            await supabase.from('pipelines')
+                .update({ vaga_id: null })
+                .eq('id', pipeId);
+
+            await supabase.from('vagas_white_label')
+                .update({ pipeline_id: null })
+                .eq('id', pipe.vaga_id);
+
+            await loadAvailableVagas();
+
+            setPipelines(prev => prev.map(p =>
+                p.id === pipeId
+                    ? { ...p, vaga_id: null }
+                    : p
+            ));
+
+            toast.success('Pipeline desvinculado da vaga');
+        } catch (err) {
+            console.error('Error unlinking pipeline:', err);
+            toast.error('Erro ao desvincular pipeline');
         } finally {
             setLoading(false);
         }
@@ -785,7 +987,9 @@ export const Pipeline = () => {
                 };
             });
             setCards(mapped);
-            await loadEligibles(userId, mapped);
+            if (!isConvidado) {
+                await loadEligibles(userId, mapped);
+            }
         } finally {
             setLoading(false);
         }
@@ -814,7 +1018,7 @@ export const Pipeline = () => {
     }
 
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
-    async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
+    async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
             supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
@@ -848,29 +1052,73 @@ export const Pipeline = () => {
             return { id: pc.id, jobId, jobName, score, pipelineName: pc.pipelines?.[0]?.name };
         });
 
+        const mappedHistory = validHistory.map((h) => ({
+            jobId: h.job_id,
+            jobName: h.job_name,
+            score: h.score,
+            appliedAt: h.analyzed_at,
+            skills: toStr(h.skills ?? h.habilidades),
+            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+            education: toStr(h.education ?? h.formacao),
+            redFlags: toStr(h.gaps ?? h.redFlags ?? h.attention_points),
+        })) as unknown as Application[];
+
+        if (firstJob && firstJob.jobId) {
+            const existingIndex = mappedHistory.findIndex(a => a.jobId === firstJob.jobId);
+            if (existingIndex >= 0) {
+                if (!mappedHistory[existingIndex].jobName && firstJob.jobName) {
+                    mappedHistory[existingIndex] = { ...mappedHistory[existingIndex], jobName: firstJob.jobName };
+                }
+                if (!mappedHistory[existingIndex].score && firstJob.score) {
+                    mappedHistory[existingIndex] = { ...mappedHistory[existingIndex], score: firstJob.score };
+                }
+            } else {
+                mappedHistory.unshift({
+                    jobId: firstJob.jobId,
+                    jobName: firstJob.jobName || candidateVagas?.[0] || 'Vaga',
+                    score: firstJob.score ?? 0,
+                    appliedAt: '',
+                    skills: null,
+                    experience: null,
+                    education: null,
+                    redFlags: null,
+                });
+            }
+        } else if (firstJob && !firstJob.jobId && firstJob.jobName) {
+            mappedHistory.unshift({
+                jobId: '',
+                jobName: firstJob.jobName || candidateVagas?.[0] || 'Vaga',
+                score: firstJob.score ?? 0,
+                appliedAt: '',
+                skills: null,
+                experience: null,
+                education: null,
+                redFlags: null,
+            });
+        }
+
         return {
             email: toStr(cand.email) || '',
+            phone: toStr(cand.phone) || null,
             location: toStr(cand.location) || null,
             address: toStr(cand.address) || null,
+            linkedin: cand.linkedin || null,
             age: toStr(cand.age) || null,
             gender: toStr(cand.gender) || null,
-            phone: toStr(cand.phone) || null,
+            portfolio: cand.portfolio || null,
+            cep: cand.cep || null,
+            address_number: cand.address_number || null,
+            complement: cand.complement || null,
             skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
             experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
             education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
             redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
             notes: cand.notes || null,
             is_blacklisted: cand.is_blacklisted ?? false,
-            applications: validHistory.map((h) => ({
-                jobId: h.job_id,
-                jobName: h.job_name,
-                score: h.score,
-                appliedAt: h.analyzed_at,
-                skills: toStr(h.skills ?? h.habilidades),
-                experience: toStr(h.experience ?? h.experiencia),
-                education: toStr(h.education ?? h.formacao),
-                redFlags: toStr(h.redFlags ?? h.attention_points),
-            })) as unknown as Application[],
+            analysis: cand.analysis ?? {},
+            status: cand.status || null,
+            applications: mappedHistory,
             pipelineCards,
             resume_url: cand.resume_url,
             enriched: true,
@@ -879,6 +1127,10 @@ export const Pipeline = () => {
     }
 
     async function openCandidate(card: PipelineCard) {
+        if (isConvidado) return;
+        const displayJobName = card.display_job_name || card.candidate_vagas[0] || '';
+        const displayJobId = card.job_id || '';
+        const displayScore = card.display_job_score ?? card.candidate_score ?? null;
         const base = {
             id: card.candidate_id,
             name: card.candidate_name,
@@ -890,7 +1142,11 @@ export const Pipeline = () => {
         } as unknown as CandidateDetail;
         setSelectedCandidate(base);
         try {
-            const extra = await enrichCandidate(card.candidate_id);
+            const extra = await enrichCandidate(
+                card.candidate_id,
+                displayJobId ? { jobId: displayJobId, jobName: displayJobName, score: displayScore } : displayJobName ? { jobId: '', jobName: displayJobName, score: displayScore } : undefined,
+                card.candidate_vagas
+            );
             setSelectedCandidate(prev => prev && prev.id === card.candidate_id ? { ...prev, ...extra } : prev);
         } catch (err) {
             console.error('Error enriching candidate:', err);
@@ -985,7 +1241,6 @@ export const Pipeline = () => {
                 display_job_score: jobInfo?.score
             };
             setCards(prev => [...prev, newCard]);
-            checkApprovalEmail(newCard, targetCol?.name || '');
             setEligibles(prev => prev.map(e => e.id === cand.id ? { ...e, already_in_pipeline: true } : e));
             setAddCandModal(null);
             return newCard;
@@ -1027,37 +1282,14 @@ export const Pipeline = () => {
 
 
     function handleFieldChange(id: string, field: string, val: unknown) {
-        if (field === 'name') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_name: val as string } : c));
-        if (field === 'conversations') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_conversations: val as unknown[] } : c));
-        if (field === 'phone') setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, candidate_phone: val as string } : c));
-        if (selectedCandidate?.id === id) setSelectedCandidate(prev => prev ? { ...prev, [field]: val } : null);
-    }
-
-    async function checkApprovalEmail(card: PipelineCard, colName: string) {
-      if (!colName.toLowerCase().includes('aprovado')) return;
-
-      const { data } = await supabase
-        .from('candidates')
-        .select('email')
-        .eq('id', card.candidate_id)
-        .single();
-
-      if (!data?.email) {
-        toast.error('Candidato não possui e-mail cadastrado');
-        return;
-      }
-
-      let jobTitle = '';
-      try {
-        const notes = JSON.parse(card.notes || '{}');
-        jobTitle = notes.selected_job_name || '';
-      } catch { /* ignore parse errors */ }
-
-      setApprovalEmailTarget({
-        candidateName: card.candidate_name,
-        candidateEmail: data.email,
-        jobTitle,
-      });
+        const cardFieldMap: Record<string, string> = {
+            name: 'candidate_name',
+            phone: 'candidate_phone',
+            conversations: 'candidate_conversations',
+        };
+        const cardField = cardFieldMap[field] || field;
+        setCards(prev => prev.map(c => c.candidate_id === id ? { ...c, [cardField]: val } : c));
+        setSelectedCandidate(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
     }
 
     async function deletePipeline(id: string) {
@@ -1094,8 +1326,6 @@ export const Pipeline = () => {
         await supabase.from('pipeline_cards').update({ column_id: targetColId, position: pos }).eq('id', card.id);
         setCards(prev => prev.map(c => c.id === card.id ? { ...c, column_id: targetColId, position: pos } : c));
 
-        checkApprovalEmail({ ...card, column_id: targetColId }, targetCol?.name || '');
-
         if (profile.userId) {
             const pipe = pipelines.find(p => p.id === (card.pipeline_id || selectedPipelineId));
             const pipeSuffix = pipe ? ` - ${pipe.name}` : '';
@@ -1105,7 +1335,7 @@ export const Pipeline = () => {
                 'move',
                 `${sourceCol?.name || ''}${pipeSuffix}`,
                 `${targetCol?.name || ''}${pipeSuffix}`,
-                { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name }
+                { card_id: card.id, job_id: card.job_id, job_name: card.display_job_name, pipeline_id: pipe?.id, pipeline_name: pipe?.name }
             );
         }
     }
@@ -1177,34 +1407,48 @@ export const Pipeline = () => {
         <>
             <style>{css}</style>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
-                {/* Left side: Title and Count */}
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Kanban size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+            <div style={{ marginBottom: isMobile ? 12 : 32 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: isMobile ? 10 : 16 }}>
+                    <Kanban size={isMobile ? 24 : 32} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h1 style={{ fontSize: isMobile ? '20px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             Pipeline de Recrutamento
                         </h1>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '2px 0 0' }}>
+                            {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
+                        </p>
                     </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
-                        {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
-                    </p>
+                    {/* Primary Button: Add Pipeline */}
+                    {!isConvidado && (
+                    <button 
+                        onClick={openCreatePipelineModal}
+                        style={{ 
+                            display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, 
+                            background: 'var(--primary)', border: 'none', 
+                            borderRadius: isMobile ? 8 : 10, padding: isMobile ? '6px 10px' : '10px 18px', color: '#fff', 
+                            fontSize: isMobile ? 11 : 13, fontWeight: 600, cursor: 'pointer',
+                            whiteSpace: 'nowrap', flexShrink: 0
+                        }}
+                    >
+                        <Plus style={{ width: isMobile ? 14 : 16, height: isMobile ? 14 : 16 }} />{isMobile ? '' : ' Novo Processo'}
+                    </button>)}
                 </div>
 
-                {/* Right side: Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {/* Controls row: dropdowns */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexWrap: 'wrap' }}>
                     {/* Dropdown 1: Filtro de Status das Vagas */}
-                    <div style={{ position: 'relative', zIndex: 100 }} ref={statusSelectRef}>
-                        <div 
-                            onClick={() => setShowStatusSelect(!showStatusSelect)}
-                            style={{ 
-                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
-                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13, 
-                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', 
-                                minWidth: 200, justifyContent: 'space-between'
-                            }}
-                        >
-                            <span style={{ fontWeight: 600 }}>
+                    <div style={{ position: 'relative', zIndex: 100, flex: isMobile ? '1 1 0' : undefined, minWidth: 0 }} ref={statusSelectRef}>
+                                <div 
+                                    onClick={() => setShowStatusSelect(!showStatusSelect)}
+                                    style={{ 
+                                        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
+                                        padding: '8px 14px', color: 'var(--text-main)', fontSize: 13, 
+                                        display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', 
+                                        minWidth: 0, justifyContent: 'space-between', whiteSpace: 'nowrap',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                                 {pipelineStatusFilter === '' && 'Vagas: Todas'}
                                 {pipelineStatusFilter === 'aberta' && 'Vagas: Abertas'}
                                 {pipelineStatusFilter === 'pausada' && 'Vagas: Pausadas'}
@@ -1254,17 +1498,18 @@ export const Pipeline = () => {
                     </div>
 
                     {/* Dropdown 2: Select Pipeline Dropdown */}
-                    <div style={{ position: 'relative', zIndex: 99, minWidth: 400 }} ref={selectRef}>
+                    <div style={{ position: 'relative', zIndex: 99, flex: isMobile ? '1 1 0' : undefined, minWidth: isMobile ? 0 : 400 }} ref={selectRef}>
                         <div
                             onClick={() => setShowSelect(!showSelect)}
                             style={{
                                 background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
-                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
-                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                                justifyContent: 'space-between'
+                                padding: '8px 14px', color: 'var(--text-main)', fontSize: 13,
+                                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                                justifyContent: 'space-between', whiteSpace: 'nowrap',
+                                overflow: 'hidden', minWidth: 0
                             }}
                         >
-                            <span style={{ fontWeight: 600 }}>
+                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                                 {(() => {
                                     const p = pipelines.find(p => p.id === selectedPipelineId);
                                     if (!p) return 'Selecionar Processo';
@@ -1278,7 +1523,7 @@ export const Pipeline = () => {
                         </div>
 
                         {showSelect && (
-                            <div className="pipeline_dropdown">
+                            <div className="pipeline_dropdown" style={isMobile ? { width: 'auto', minWidth: 280, maxWidth: '90vw', right: 0, left: 'auto' } : undefined}>
                                 <div style={{ padding: '8px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
                                     <input
                                         autoFocus
@@ -1324,6 +1569,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                             {p.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{p.job_code}</span>}
                                             {p.vaga_title && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>| {p.vaga_title}</span>}
                                         </div>
+                                        {!isConvidado && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id); }}
                                             style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer', padding: 4, position: 'absolute', right: 8, top: 8 }}
@@ -1331,7 +1577,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                             onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
                                         >
                                             <Trash2 size={14} />
-                                        </button>
+                                        </button>)}
                                     </div>
                                 ))}
                                 {pipelines
@@ -1352,42 +1598,63 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             </div>
                         )}
                     </div>
-
-                    {/* Primary Button: Add Pipeline */}
-                    <button 
-                        onClick={() => setShowCreatePipeline(true)}
-                        style={{ 
-                            display: 'flex', alignItems: 'center', gap: 6, 
-                            background: 'var(--primary)', border: 'none', 
-                            borderRadius: 10, padding: '10px 18px', color: '#fff', 
-                            fontSize: 13, fontWeight: 600, cursor: 'pointer' 
-                        }}
-                    >
-                        <Plus style={{ width: 16, height: 16 }} /> Novo Processo
-                    </button>
                 </div>
             </div>
 
             {/* Tabs and Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'nowrap', gap: isMobile ? 6 : 16 }}>
                 {/* Tabs à esquerda */}
-                <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4 }}>
-                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')}>
-                        <LayoutDashboard size={14} /> Board
+                <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4, flexShrink: 0 }}>
+                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <LayoutDashboard size={14} />{isMobile ? '' : ' Board'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')}>
-                        <List size={14} /> Lista
+                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <List size={14} />{isMobile ? '' : ' Lista'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')}>
-                        <BarChart2 size={14} /> Métricas
+                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <BarChart2 size={14} />{isMobile ? '' : ' Métricas'}
                     </button>
                 </div>
 
-                {/* Ações da Aba (Nova Coluna e Filtros) à direita */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {activeTab === 'board' && selectedPipelineId && (
+                {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
+                {/* Actions row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
+                    {!isConvidado && selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
+                        <button
+                            onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
+                            title="Vincular a vaga"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: '8px 14px', color: '#2C58FD',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(44,88,253,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Vincular a vaga
+                        </button>
+                    )}
+                    {!isConvidado && selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
+                        <button
+                            onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) handleUnlinkVaga(p.id); }}
+                            title="Desvincular vaga"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: '8px 14px', color: '#ef4444',
+                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            Desvincular vaga
+                        </button>
+                    )}
+                    {!isConvidado && activeTab === 'board' && selectedPipelineId && (
                         <button 
                             onClick={() => setAddColModal(true)} 
+                            title="Nova Coluna"
                             style={{ 
                                 display: 'flex', alignItems: 'center', gap: 6, 
                                 background: 'transparent', border: '1px solid var(--border)', 
@@ -1405,18 +1672,62 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Board */}
             {activeTab === 'board' && (
-                <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: isMobile ? 0 : 14, overflowX: isMobile ? 'visible' : 'auto', paddingBottom: 16, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
                 {columns.map(col => {
-                    // Filtrar cards por coluna e por pipeline
                     let colCards = cards.filter(c => c.column_id === col.id);
                     colCards = colCards.sort((a, b) => a.position - b.position);
-                    return (
+                    const isOpen = expandedCols.has(col.id);
+                    return isMobile ? (
+                        <div key={col.id} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 8, overflow: 'hidden' }}>
+                            <div onClick={() => { const next = new Set(expandedCols); if (isOpen) next.delete(col.id); else next.add(col.id); setExpandedCols(next); }}
+                                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 14px', cursor: 'pointer', borderLeft: `3px solid ${col.color}` }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
+                                <span style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 15, flex: 1 }}>{col.name}</span>
+                                <span style={{ background: col.color + '22', color: col.color, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px' }}>{colCards.length}</span>
+                                {!isConvidado && (
+                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); setMobileSheet({ type: 'col', col }); }}
+                                        style={{ color: 'var(--text-dim)' }}>
+                                        <MoreVertical size={14} />
+                                    </button>
+                                )}
+                                <span style={{ color: 'var(--text-dim)', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>
+                                    <ChevronDown size={16} />
+                                </span>
+                            </div>
+                            {isOpen && (
+                                <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)' }}>
+                                    {colCards.length === 0 && (
+                                        <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Nenhum candidato</div>
+                                    )}
+                                    {colCards.map(card => (
+                                        <div key={card.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: `linear-gradient(135deg, ${col.color}, ${col.color}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                                    {initials(card.candidate_name)}
+                                                </div>
+                                                <span style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openCandidate(card)}>{card.candidate_name}</span>
+                                                <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); openCandidate(card); }} title="Ver detalhes" style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+                                                    <Eye size={13} />
+                                                </button>
+                                                {!isConvidado && (
+                                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); setMobileSheet({ type: 'card', card, col }); }}
+                                                        style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+                                                        <MoreVertical size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
                         <div
                             key={col.id}
                             ref={el => { if (el) columnRefs.current.set(col.id, el); }}
                             className={`pipe-col${dragOverColumnId === col.id ? ' drag-over' : ''}`}
                         >
-                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} colHeaderRef={colHeaderRefs} />
+                            <ColHeader col={col} onUpdate={updateColumn} onDelete={deleteColumn} colHeaderRef={colHeaderRefs} isColHeaderConvidado={profile.user_role === 'convidado'} />
 
                             <div style={{ padding: '0 14px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ background: col.color + '22', color: col.color, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px' }}>{colCards.length} candidato{colCards.length !== 1 ? 's' : ''}</span>
@@ -1452,17 +1763,23 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                             <Phone size={13} color="#22c55e" fill="#22c55e22" />
                                                         </div>
                                                     )}
+                                                    {!isConvidado && (
                                                     <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); openCandidate(card); }} title="Ver card completo" style={{ color: 'var(--text-dim)' }}>
                                                         <Eye size={13} />
                                                     </button>
+                                                    )}
+                                                    {!isConvidado && (
                                                     <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setCardMenuPos({ top: rect.bottom + 4, left: rect.right - 180 }); setCardMenuOpen(cardMenuOpen === card.id ? null : card.id); }} title="Opções" style={{ color: 'var(--text-dim)' }}>
                                                         <MoreHorizontal size={13} />
                                                     </button>
-                                                    {cardMenuOpen === card.id && cardMenuPos && (
+                                                    )}
+                                                    {!isConvidado && cardMenuOpen === card.id && cardMenuPos && (
                                                         <div ref={cardMenuRef} style={{ position: 'fixed', top: cardMenuPos.top, left: cardMenuPos.left, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 4, zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 180 }}>
                                                             <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: 'var(--text-main)', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); openCandidate(card); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
                                                                 <Eye size={13} /> Ver card completo
                                                             </button>
+                                                            {!isConvidado && (
+                                                            <>
                                                             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                                                             <div style={{ position: 'relative' }}>
                                                                 <button
@@ -1516,6 +1833,8 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                             <button style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 12, color: '#ef4444', borderRadius: 6 }} onClick={(e) => { e.stopPropagation(); removeCard(card.id, card.candidate_id); setCardMenuOpen(null); }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
                                                                 <X size={13} /> Remover
                                                             </button>
+                                                            </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1597,7 +1916,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             </p>
                         </div>
                         <button 
-                            onClick={() => setShowCreatePipeline(true)}
+                            onClick={openCreatePipelineModal}
                             style={{ 
                                 background: 'var(--primary)', border: 'none', borderRadius: 16, 
                                 padding: '16px 36px', color: '#fff', fontSize: 16, fontWeight: 700, 
@@ -1624,10 +1943,10 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {activeTab === 'lista' && (
                 <div style={{ paddingBottom: 20 }}>
                     <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Candidato</div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Compatibilidade</div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status do Pipeline</div>
+                        <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : '3fr 1fr 1fr', padding: isMobile ? '10px 14px' : '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)', justifyContent: 'space-between', gap: isMobile ? 4 : 0 }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Candidato</div>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Score</div>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estágio</div>
                         </div>
                         {columns.length === 0 && (
                             <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
@@ -1643,37 +1962,44 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                 let importedFrom = '';
                                 try { const n = JSON.parse(card.notes || '{}'); importedFrom = n.imported_from || ''; } catch { /* ignore */ }
                                 return (
-                                    <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                                                <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)' }}>
+                                    <div key={card.id} style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : '3fr 1fr 1fr', padding: isMobile ? '12px 14px' : '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center', justifyContent: 'space-between', gap: isMobile ? 6 : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
+                                        <div style={{ flex: isMobile ? '1 1 auto' : undefined }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, marginBottom: isMobile ? 0 : 4 }}>
+                                                <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 800, padding: isMobile ? '2px 6px' : '4px 10px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                                     {(card.display_job_name ?? card.candidate_vagas[0] ?? 'CANDIDATO').toUpperCase()}
                                                 </span>
-                                                <span style={{ color: isBlacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 15 }}>
+                                                <span style={{ color: isBlacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: isMobile ? 13 : 15 }}>
                                                     {card.candidate_name}
                                                 </span>
-                                                {isBlacklisted && <Ban size={14} color="#ef4444" />}
-                                                {importedFrom && (
+                                                {isBlacklisted && <Ban size={isMobile ? 12 : 14} color="#ef4444" />}
+                                                {importedFrom && !isMobile && (
                                                     <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: 6, marginLeft: 4 }}>
                                                         ← {importedFrom}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div style={{ color: 'var(--text-dim)', fontSize: 13, paddingLeft: 2 }}>
-                                                Clique para ver detalhes do perfil
-                                            </div>
-                                        </div>
-                                        <div>
-                                            {score != null ? (
-                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: scoreCol + '1a', color: scoreCol, fontSize: 12, fontWeight: 700 }}>
-                                                    <Flag size={12} /> {score}% match
+                                            {isMobile && importedFrom && (
+                                                <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 2, paddingLeft: 4 }}>
+                                                    ← {importedFrom}
                                                 </div>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>-</span>
+                                            )}
+                                            {!isMobile && (
+                                                <div style={{ color: 'var(--text-dim)', fontSize: 13, paddingLeft: 2 }}>
+                                                    Clique para ver detalhes do perfil
+                                                </div>
                                             )}
                                         </div>
-                                        <div>
-                                            <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 20, border: `1px solid ${col.color}40`, background: col.color + '1a', color: col.color, fontSize: 12, fontWeight: 700 }}>
+                                        <div style={{ flexShrink: 0 }}>
+                                            {score != null ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: isMobile ? 4 : 6, padding: isMobile ? '2px 8px' : '4px 12px', borderRadius: 20, background: scoreCol + '1a', color: scoreCol, fontSize: isMobile ? 10 : 12, fontWeight: 700 }}>
+                                                    <Flag size={isMobile ? 10 : 12} /> {score}%
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13 }}>-</span>
+                                            )}
+                                        </div>
+                                        <div style={{ flexShrink: 0 }}>
+                                            <span style={{ display: 'inline-block', padding: isMobile ? '2px 8px' : '4px 12px', borderRadius: 20, border: `1px solid ${col.color}40`, background: col.color + '1a', color: col.color, fontSize: isMobile ? 10 : 12, fontWeight: 700 }}>
                                                 {col.name}
                                             </span>
                                         </div>
@@ -1688,7 +2014,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Metrics Tab */}
             {activeTab === 'metricas' && (
                 <div style={{ paddingBottom: 20 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 16 }}>
                         {/* Card 1: Total */}
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
                             <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Total de Candidatos</div>
@@ -1785,9 +2111,9 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Modal: Create Pipeline */}
             {showCreatePipeline && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div onClick={() => !loading && setShowCreatePipeline(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 12 : 0 }}>
+                    <div onClick={() => { if (!loading) { setShowCreatePipeline(false); setSelectedVagaId(''); } }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 16 : 20, padding: isMobile ? 20 : 32, width: isMobile ? '100%' : 440, maxWidth: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', boxSizing: 'border-box' }}>
                         <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 20px', fontWeight: 700 }}>Novo Processo Seletivo</h3>
                         <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>Dê um nome para este pipeline (ex: Design, Front-end, etc.)</p>
                         <input 
@@ -1799,12 +2125,94 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{ 
                                 width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)', 
                                 borderRadius: 12, padding: '12px 16px', color: 'var(--text-main)', 
-                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 24
+                                fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 16
                             }}
                         />
+
+                        {/* Vaga selector */}
+                        <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 8px' }}>Vincular a uma vaga (opcional)</p>
+                        <div style={{ position: 'relative', marginBottom: 24 }}>
+                            <div
+                                onClick={() => setShowVagaSelectCreate(!showVagaSelectCreate)}
+                                style={{
+                                    background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12,
+                                    padding: '12px 16px', color: 'var(--text-main)', fontSize: 14,
+                                    display: 'flex', alignItems: 'center', cursor: 'pointer',
+                                    justifyContent: 'space-between'
+                                }}
+                            >
+                                <span>
+                                    {selectedVagaId
+                                        ? (() => {
+                                            const v = vagasWithoutPipeline.find(x => x.id === selectedVagaId);
+                                            return v ? `${v.title}${v.job_code ? ` [${v.job_code}]` : ''}` : 'Selecionar vaga';
+                                        })()
+                                        : '— Nenhuma, criar pipeline avulso —'
+                                    }
+                                </span>
+                                <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: showVagaSelectCreate ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                            </div>
+
+                            {showVagaSelectCreate && (
+                                <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: 4 }}>
+                                    <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                                        <input
+                                            autoFocus
+                                            placeholder="Pesquisar vaga..."
+                                            value={vagaSearchCreate}
+                                            onChange={e => setVagaSearchCreate(e.target.value)}
+                                            style={{
+                                                width: '100%', background: 'var(--bg-main)', border: '1px solid var(--border)',
+                                                borderRadius: 6, padding: '10px 14px', color: 'var(--text-main)', fontSize: 14,
+                                                outline: 'none', boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+                                    <div
+                                        className={`pipeline_option${selectedVagaId === '' ? ' active' : ''}`}
+                                        onClick={() => { setSelectedVagaId(''); setShowVagaSelectCreate(false); setVagaSearchCreate(''); setNewPipeName(''); }}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Nenhuma, criar pipeline avulso —</span>
+                                    </div>
+                                    {vagasWithoutPipeline
+                                        .filter(v =>
+                                            !vagaSearchCreate ||
+                                            v.title.toLowerCase().includes(vagaSearchCreate.toLowerCase()) ||
+                                            (v.job_code || '').toLowerCase().includes(vagaSearchCreate.toLowerCase())
+                                        )
+                                        .map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${selectedVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => {
+                                                    setSelectedVagaId(v.id);
+                                                    setShowVagaSelectCreate(false);
+                                                    setVagaSearchCreate('');
+                                                    setNewPipeName(v.title);
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                    {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{v.job_code}</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {vagasWithoutPipeline.filter(v =>
+                                        !vagaSearchCreate ||
+                                        v.title.toLowerCase().includes(vagaSearchCreate.toLowerCase()) ||
+                                        (v.job_code || '').toLowerCase().includes(vagaSearchCreate.toLowerCase())
+                                    ).length === 0 && (
+                                        <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma vaga disponível.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <div style={{ display: 'flex', gap: 12 }}>
                             <button 
-                                onClick={() => setShowCreatePipeline(false)}
+                                onClick={() => { setShowCreatePipeline(false); setSelectedVagaId(''); }}
                                 style={{ 
                                     flex: 1, background: 'transparent', border: '1px solid var(--border)', 
                                     borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
@@ -1836,6 +2244,87 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     </div>
                 </div>
             )}
+
+            {/* Modal: Link Pipeline to Vaga */}
+            {linkVagaPipeline && (() => {
+                const unlinkedVagas = availableVagas.filter(v => !v.pipeline_id && v.is_active !== false && (v.status === 'aberta' || v.status === 'invisivel'));
+                return (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div onClick={() => { setLinkVagaPipeline(null); setLinkVagaVagaId(''); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                        <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                            <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Vincular Pipeline a Vaga</h3>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 20px' }}>
+                                Pipeline: <strong style={{ color: 'var(--text-main)' }}>{linkVagaPipeline.name}</strong>
+                            </p>
+                            <div style={{ position: 'relative', marginBottom: 24, zIndex: 50 }}>
+                                <div
+                                    onClick={() => setLinkVagaSelectOpen(!linkVagaSelectOpen)}
+                                    style={{
+                                        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
+                                        padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
+                                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                        justifyContent: 'space-between'
+                                    }}
+                                >
+                                    <span style={{ fontWeight: 500, color: linkVagaVagaId ? 'var(--text-main)' : 'var(--text-dim)' }}>
+                                        {linkVagaVagaId
+                                            ? (() => { const v = availableVagas.find(x => x.id === linkVagaVagaId); return v ? `${v.job_code ? `[${v.job_code}] ` : ''}${v.title}` : 'Selecione uma vaga...'; })()
+                                            : 'Selecione uma vaga...'}
+                                    </span>
+                                    <ChevronDown size={14} style={{ transition: 'transform 0.3s', transform: linkVagaSelectOpen ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)' }} />
+                                </div>
+
+                                {linkVagaSelectOpen && (
+                                    <div className="pipeline_dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                                        {unlinkedVagas.length === 0 && (
+                                            <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma vaga disponível.</div>
+                                        )}
+                                        {unlinkedVagas.map(v => (
+                                            <div
+                                                key={v.id}
+                                                className={`pipeline_option${linkVagaVagaId === v.id ? ' active' : ''}`}
+                                                onClick={() => { setLinkVagaVagaId(v.id); setLinkVagaSelectOpen(false); }}
+                                                style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <span style={{ fontWeight: 600 }}>{v.title}</span>
+                                                </div>
+                                                {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, paddingLeft: 20 }}>{v.job_code}</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                <button
+                                    onClick={() => { setLinkVagaPipeline(null); setLinkVagaVagaId(''); }}
+                                    style={{
+                                        flex: 1, background: 'transparent', border: '1px solid var(--border)',
+                                        borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)',
+                                        fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleLinkVaga}
+                                    disabled={!linkVagaVagaId || loading}
+                                    style={{
+                                        flex: 2, background: 'var(--primary)', border: 'none',
+                                        borderRadius: 12, padding: '12px 0', color: '#fff',
+                                        fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                                        opacity: (linkVagaVagaId && !loading) ? 1 : 0.5,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                    }}
+                                >
+                                    {loading ? 'Vinculando...' : 'Vincular'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal: Delete Pipeline Confirmation */}
             {deleteConfirmId && (() => {
@@ -1872,66 +2361,6 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                 );
             })()}
 
-            {/* Modal: Approval Email Confirmation */}
-            {approvalEmailTarget && (() => {
-                return (
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div onClick={() => { setApprovalEmailTarget(null); setApprovalEmailSending(false); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                        <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-                            <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 12px', fontWeight: 700 }}>Enviar e-mail de aprovação?</h3>
-                            <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>
-                                Deseja enviar um e-mail para <strong>"{approvalEmailTarget.candidateName}"</strong> informando que foi aprovado(a){approvalEmailTarget.jobTitle ? ` para a vaga ${approvalEmailTarget.jobTitle}` : ''}?
-                            </p>
-                            <div style={{ display: 'flex', gap: 12 }}>
-                                <button 
-                                    onClick={() => { setApprovalEmailTarget(null); setApprovalEmailSending(false); }}
-                                    disabled={approvalEmailSending}
-                                    style={{ 
-                                        flex: 1, background: 'transparent', border: '1px solid var(--border)', 
-                                        borderRadius: 12, padding: '12px 0', color: 'var(--text-dim)', 
-                                        fontSize: 14, fontWeight: 700, cursor: approvalEmailSending ? 'wait' : 'pointer',
-                                        opacity: approvalEmailSending ? 0.5 : 1
-                                    }}
-                                >
-                                    Não
-                                </button>
-                                <button 
-                                    onClick={async () => {
-                                        if (approvalEmailSending) return;
-                                        setApprovalEmailSending(true);
-                                        try {
-                                            const { error } = await supabase.functions.invoke('send-approval-email', {
-                                                body: {
-                                                    candidateName: approvalEmailTarget.candidateName,
-                                                    candidateEmail: approvalEmailTarget.candidateEmail,
-                                                    jobTitle: approvalEmailTarget.jobTitle
-                                                }
-                                            });
-                                            if (error) throw error;
-                                            toast.success('E-mail de aprovação enviado com sucesso!');
-                                        } catch (err) {
-                                            console.error('Error sending approval email:', err);
-                                            toast.error('Falha ao enviar e-mail de aprovação');
-                                        }
-                                        setApprovalEmailTarget(null);
-                                        setApprovalEmailSending(false);
-                                    }}
-                                    disabled={approvalEmailSending}
-                                    style={{ 
-                                        flex: 1, background: approvalEmailSending ? '#16a34a' : '#22c55e', 
-                                        border: 'none', borderRadius: 12, padding: '12px 0', color: '#fff', 
-                                        fontSize: 14, fontWeight: 700, cursor: approvalEmailSending ? 'wait' : 'pointer',
-                                        opacity: approvalEmailSending ? 0.7 : 1
-                                    }}
-                                >
-                                    {approvalEmailSending ? 'Enviando...' : 'Sim, enviar'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })()}
-
             {/* Add Candidate Modal */}
             {addCandModal && (
                 <AddCandidateModal
@@ -1945,7 +2374,6 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Candidate Detail Panel */}
             {selectedCandidate && (
                 <CandidatePanel
-                    key={selectedCandidate.id + (selectedCandidate.enriched ? '-full' : '-base')}
                     c={selectedCandidate}
                     onClose={() => setSelectedCandidate(null)}
                     navigate={navigate}
@@ -1957,10 +2385,73 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                         }
                     }}
                     onBlacklistChange={(id: string, val: boolean) => {
-                        setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
+                        if (val) {
+                            setCards(prev => prev.filter(c => c.candidate_id !== id));
+                        } else {
+                            setCards(prev => prev.map(c => (c.candidate_id === id ? { ...c, is_blacklisted: val } : c)));
+                        }
                         setSelectedCandidate(prev => (prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev));
                     }}
+                    onCardRemoved={(cardId: string) => {
+                        setCards(prev => prev.filter(c => c.id !== cardId));
+                    }}
+                    hideFeedbackDaIA={true}
                 />
+            )}
+
+            {/* Bottom Sheet (mobile) */}
+            {isMobile && mobileSheet && (
+                <div onClick={() => setMobileSheet(null)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+                    <div onClick={(e) => e.stopPropagation()}
+                        style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420, background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', padding: '16px 20px 32px', boxShadow: '0 -8px 32px rgba(0,0,0,0.3)' }}>
+                        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
+                        {mobileSheet.type === 'card' && (
+                            <>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14, margin: '0 0 4px 0' }}>{mobileSheet.card.candidate_name}</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 14px 0' }}>{mobileSheet.col.name} · {mobileSheet.card.display_job_name ?? 'Candidato'}</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {columns.filter(c => c.id !== mobileSheet.card.column_id).map(targetCol => (
+                                        <button key={targetCol.id}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', borderRadius: 12, textAlign: 'left' }}
+                                            onClick={() => { moveCard(mobileSheet.card, targetCol.id); setMobileSheet(null); }}>
+                                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: targetCol.color, flexShrink: 0 }} />
+                                            Mover para {targetCol.name}
+                                        </button>
+                                    ))}
+                                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { removeCard(mobileSheet.card.id); setMobileSheet(null); }}>
+                                        <Trash2 size={14} />
+                                        Remover deste pipeline
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                        {mobileSheet.type === 'col' && (
+                            <>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14, margin: '0 0 14px 0' }}>Opções da coluna</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { setMobileSheet(null); /* Could prompt inline edit here */ }}>
+                                        <Edit2 size={14} />
+                                        Editar nome da coluna
+                                    </button>
+                                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { deleteColumn(mobileSheet.col.id); setMobileSheet(null); }}>
+                                        <Trash2 size={14} />
+                                        Excluir coluna
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             )}
         </>
     );

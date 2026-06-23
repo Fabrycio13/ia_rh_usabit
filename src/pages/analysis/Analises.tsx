@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, UserRound, Star, ClipboardList, Search, ChevronLeft, ChevronRight, X, Ban, Phone, Activity } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
@@ -260,7 +260,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       }
     }
     load();
-  }, [jobId]);
+  }, [jobId, profile.organization_id, profile.userId]);
 
   async function enrichCandidate(id: string): Promise<Partial<CandidateDetail>> {
     const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
@@ -650,11 +650,12 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const safetyTimer = setTimeout(() => setLoading(false), 8000);
-    fetchAnalises(profile.userId).finally(() => clearTimeout(safetyTimer));
+    fetchAnalisesRef.current(profile.userId).finally(() => clearTimeout(safetyTimer));
     return () => clearTimeout(safetyTimer);
   }, [profile.userId, profile.loaded]);
 
-  async function fetchAnalises(userId: string) {
+  const fetchAnalisesRef = useRef<(userId: string) => Promise<void>>(() => Promise.resolve());
+  fetchAnalisesRef.current = async function fetchAnalises(userId: string) {
     try {
       setLoading(true);
       setError(null);
@@ -776,7 +777,7 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center max-w-md">
           <p className="text-red-400 font-semibold mb-2">Erro ao carregar</p>
           <p className="text-slate-400 text-sm mb-4">{error}</p>
-          <button onClick={() => fetchAnalises(profile.userId)} className="bg-[#6366f1] text-white px-4 py-2 rounded-lg text-sm font-semibold">
+          <button onClick={() => fetchAnalisesRef.current(profile.userId)} className="bg-[#6366f1] text-white px-4 py-2 rounded-lg text-sm font-semibold">
             Tentar novamente
           </button>
         </div>

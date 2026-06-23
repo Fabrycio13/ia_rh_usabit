@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/docs/banner.png" alt="Space Talent Banner" width="100%">
+  <img src="public/docs/banner.png" alt="Usabit people Banner" width="100%">
 </p>
 
-<h1 align="center">🚀 Space Talent AI</h1>
+<h1 align="center">🚀 Usabit people</h1>
 
 <p align="center">
   <strong>O Futuro do Potencial Humano com Inteligência Artificial.</strong><br>
@@ -21,7 +21,7 @@
 
 ## 📖 Visão
 
-O **Space Talent AI** é um ecossistema premium projetado para revolucionar o ciclo de vida do recrutamento. Ao integrar Inteligência Artificial avançada com uma arquitetura cloud de alta performance, capacitamos as equipes de RH a descobrir, analisar e contratar talentos de alto nível com velocidade e precisão sem precedentes.
+O **Usabit people** é um ecossistema premium projetado para revolucionar o ciclo de vida do recrutamento. Ao integrar Inteligência Artificial avançada com uma arquitetura cloud de alta performance, capacitamos as equipes de RH a descobrir, analisar e contratar talentos de alto nível com velocidade e precisão sem precedentes.
 
 Nossa missão é eliminar a carga administrativa e fornecer insights comportamentais e técnicos profundos, permitindo que os recrutadores foquem no que realmente importa: **a conexão humana**.
 

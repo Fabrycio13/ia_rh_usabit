@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     tailwindcss(),
   ],
+  server: {
+    host: '0.0.0.0',
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -31,6 +31,7 @@ interface ScreeningLogGroup {
 }
 
 // ─── Candidate Panel Component ────────────────────────────────────────────────
+void Zap; // reserved for future feature
 export function CandidatePanel({
     c,
     onClose,
@@ -43,7 +44,9 @@ export function CandidatePanel({
     onDeleteFromBank,
     hidePipelineAndBlacklist,
     showAnalyzeWithVagas,
-    onAnalyzeWithVagas
+    onAnalyzeWithVagas,
+    onCardRemoved,
+    hideFeedbackDaIA
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -57,10 +60,12 @@ export function CandidatePanel({
     hidePipelineAndBlacklist?: boolean;
     showAnalyzeWithVagas?: boolean;
     onAnalyzeWithVagas?: (id: string) => void;
+    onCardRemoved?: (cardId: string) => void;
+    hideFeedbackDaIA?: boolean;
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
-    void onDeleteFromBank; void showAnalyzeWithVagas; void onAnalyzeWithVagas;
+    void onDeleteFromBank;
 
     const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
     const [newText, setNewText] = useState('');
@@ -83,6 +88,7 @@ export function CandidatePanel({
     const [editFieldVal, setEditFieldVal] = useState('');
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
+    const isConvidado = profile.user_role === 'convidado';
     const [localC, setLocalC] = useState({ 
         email: c.email, 
         phone: c.phone, 
@@ -96,11 +102,22 @@ export function CandidatePanel({
         address_number: c.address_number,
         complement: c.complement
     });
+    const prevIdRef = useRef(c.id);
+    useEffect(() => {
+        setLocalC({
+            email: c.email, phone: c.phone, location: c.location,
+            address: c.address, linkedin: c.linkedin, age: c.age,
+            gender: c.gender, portfolio: c.portfolio, cep: c.cep,
+            address_number: c.address_number, complement: c.complement
+        });
+        prevIdRef.current = c.id;
+    }, [c.id, c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
     const [transferringToBank, setTransferringToBank] = useState(false);
     const [togglingBlacklist, setTogglingBlacklist] = useState(false);
 
     async function toggleBlacklist() {
         if (togglingBlacklist) return;
+        if (isConvidado) return;
         setTogglingBlacklist(true);
         const newVal = !c.is_blacklisted;
         try {
@@ -112,66 +129,111 @@ export function CandidatePanel({
         } finally { setTogglingBlacklist(false); }
     }
 
-    useEffect(() => {
-        setLocalC({ 
-            email: c.email, 
-            phone: c.phone, 
-            location: c.location, 
-            address: c.address, 
-            linkedin: c.linkedin, 
-            age: c.age, 
-            gender: c.gender,
-            portfolio: c.portfolio,
-            cep: c.cep,
-            address_number: c.address_number,
-            complement: c.complement
-        });
-    }, [c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
-
-
     async function handleFieldSave(field: string) {
         if (savingField) return;
+        if (isConvidado) return;
         setSavingField(true);
         try {
             const val = editFieldVal.trim() || null;
-            const { error } = await supabase.from('candidates').update({ [field]: val }).eq('id', c.id);
-            if (!error) {
+
+            if (c.isVagaView) {
+                const directFields: Record<string, string> = {
+                    email: 'candidate_email',
+                    phone: 'candidate_phone',
+                    linkedin: 'candidate_linkedin',
+                    location: 'candidate_location',
+                    gender: 'candidate_gender',
+                    age: 'candidate_age',
+                };
+                const answersFields = new Set(['portfolio', 'cep', 'address', 'address_number', 'complement']);
+
+                if (directFields[field]) {
+                    const { error } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ [directFields[field]]: val })
+                        .eq('id', c.id);
+                    if (error) {
+                        console.warn('[handleFieldSave] error:', error);
+                        return;
+                    }
+                } else if (answersFields.has(field)) {
+                    const { data: row, error: fetchErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .select('answers')
+                        .eq('id', c.id)
+                        .single();
+                    if (fetchErr) {
+                        console.warn('[handleFieldSave] fetch error:', fetchErr);
+                        return;
+                    }
+                    const answers = (row?.answers && typeof row.answers === 'object')
+                        ? { ...(row.answers as Record<string, unknown>) }
+                        : {};
+                    if (val === null) {
+                        delete answers[field];
+                    } else {
+                        answers[field] = val;
+                    }
+                    const { error: updateErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ answers })
+                        .eq('id', c.id);
+                    if (updateErr) {
+                        console.warn('[handleFieldSave] update error:', updateErr);
+                        return;
+                    }
+                }
+
                 setLocalC(prev => ({ ...prev, [field]: val }));
                 setEditField(null);
                 onFieldChange(c.id, field, val);
                 logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+            } else {
+                const { error } = await supabase.from('candidates').update({ [field]: val }).eq('id', c.id);
+                if (!error) {
+                    setLocalC(prev => ({ ...prev, [field]: val }));
+                    setEditField(null);
+                    onFieldChange(c.id, field, val);
+                    logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+                } else {
+                    console.warn('[handleFieldSave] error:', error);
+                }
             }
         } finally { setSavingField(false); }
     }
 
     const [expandedJob, setExpandedJob] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
+    const hasAutoSwitched = useRef(false);
     useEffect(() => {
-      if (!c.isVagaView && c.applications?.length && activeTab === 'triagem') {
+      if (!c.isVagaView && c.applications?.length && !hasAutoSwitched.current) {
+        hasAutoSwitched.current = true;
         setActiveTab('vagas');
       }
-    }, [c.applications]);
+    }, [c.applications, c.isVagaView]);
     const [vagasOpen, setVagasOpen] = useState(true);
 
     const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [expandedLogJob, setExpandedLogJob] = useState<string | null>(null);
-
-    async function fetchScreeningLogs() {
-        if (!c.id) return;
-        setLoadingLogs(true);
-        try {
-            const { data, error } = await supabase
-                .from('candidate_screening_logs')
-                .select('*')
-                .eq('candidate_id', c.id)
-                .order('created_at', { ascending: false });
-            if (!error) setScreeningLogs(data || []);
-        } finally { setLoadingLogs(false); }
-    }
+    const fetchedLogsFor = useRef<string | null>(null);
 
     useEffect(() => {
-        if (activeTab === 'triagem') fetchScreeningLogs();
+        if (activeTab !== 'triagem' || !c.id) return;
+        if (fetchedLogsFor.current === c.id) return;
+        fetchedLogsFor.current = c.id;
+        const candidateId = c.id;
+        setLoadingLogs(true);
+        supabase
+            .from('candidate_screening_logs')
+            .select('*')
+            .eq('candidate_id', candidateId)
+            .order('created_at', { ascending: true })
+            .then(({ data, error }) => {
+                if (c.id !== candidateId) return;
+                if (!error) setScreeningLogs(data || []);
+                setLoadingLogs(false);
+            });
     }, [activeTab, c.id]);
 
     useEffect(() => {
@@ -314,7 +376,7 @@ export function CandidatePanel({
             <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
             <div style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0,
-                zIndex: 301, width: 'clamp(400px, 35vw, 95vw)',
+                zIndex: 301, width: 'clamp(320px, 50vw, 100vw)',
                 background: 'var(--bg-card)', borderLeft: '1px solid var(--border)',
                 display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif',
                 boxShadow: '-20px 0 60px rgba(0,0,0,0.5)', animation: 'slideInRight 0.28s cubic-bezier(0.16,1,0.3,1)',
@@ -539,13 +601,13 @@ export function CandidatePanel({
                             </>
                         )}
 
-                        {c.isVagaView && hasAnalysis && (
+                        {!hideFeedbackDaIA && (c.isVagaView || showAnalyzeWithVagas) && hasAnalysis && (
                             <>
-                                <section style={{ 
-                                    border: '1px solid rgba(99, 102, 241, 0.2)', 
-                                    borderRadius: 20, 
-                                    padding: 24, 
-                                    background: 'rgba(99, 102, 241, 0.03)', 
+                                <section style={{
+                                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                                    borderRadius: 20,
+                                    padding: 24,
+                                    background: 'rgba(99, 102, 241, 0.03)',
                                     boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -556,12 +618,12 @@ export function CandidatePanel({
                                             <Zap size={16} fill="var(--primary)" /> Feedback da IA
                                         </p>
                                         {c.score !== null && c.score !== undefined && (
-                                            <div style={{ 
-                                                background: scoreColor(c.score), 
-                                                color: '#fff', 
-                                                padding: '4px 12px', 
-                                                borderRadius: '12px', 
-                                                fontSize: '14px', 
+                                            <div style={{
+                                                background: scoreColor(c.score),
+                                                color: '#fff',
+                                                padding: '4px 12px',
+                                                borderRadius: '12px',
+                                                fontSize: '14px',
                                                 fontWeight: 800,
                                                 boxShadow: `0 4px 12px ${scoreColor(c.score)}44`,
                                                 display: 'flex',
@@ -573,12 +635,24 @@ export function CandidatePanel({
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     {[c.analysis?.match_rationale, c.analysis?.score_justification, c.analysis?.summary, c.analysis?.general_analysis, c.analysis?.reasoning, c.analysis?.feedback, c.analysis?.analysis, c.analysis?.experience].some(Boolean) && (
                                         <div>
                                             <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Análise da Nota</p>
                                             <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                                 {String(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience || '')}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {[c.analysis?.education, c.analysis?.Education, c.analysis?.formacao, c.analysis?.Formacao].some(Boolean) && (
+                                        <div style={{ borderTop: '1px solid rgba(99,102,241,0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>Formação</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {(() => {
+                                                    const val = c.analysis?.education || c.analysis?.Education || c.analysis?.formacao || c.analysis?.Formacao;
+                                                    return Array.isArray(val) ? val.join(' | ') : String(val ?? '');
+                                                })()}
                                             </div>
                                         </div>
                                     )}
@@ -610,7 +684,7 @@ export function CandidatePanel({
                             </>
                         )}
 
-                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} />}
+                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} isBlacklisted={c.is_blacklisted} onCardRemoved={onCardRemoved} />}
 
                         {!c.isVagaView && !hidePipelineAndBlacklist && (
                             <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
@@ -753,16 +827,16 @@ export function CandidatePanel({
                                                                         <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.experience || c.experience}</p>
                                                                     </div>
                                                                 )}
-                                                                {(app.positivePoints) && (
-                                                                    <div>
-                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Pontos Positivos</p>
-                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
-                                                                    </div>
-                                                                )}
                                                                 {(app.education || c.education) && (
                                                                     <div>
                                                                         <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Formação</p>
                                                                         <p style={{ fontSize: 13, color: 'var(--text-main)', margin: 0 }}>{app.education || c.education}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.positivePoints) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>Pontos Positivos</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
                                                                     </div>
                                                                 )}
                                                                 {(app.redFlags || c.redFlags) && (
@@ -1041,7 +1115,7 @@ export function CandidatePanel({
                     </div>
                 )}
 
-                {!c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
+                {!showAnalyzeWithVagas && !c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
                     <div style={{ padding: '0 24px 32px' }}>
                         <button
                             onClick={() => setTransferringToBank(true)}
@@ -1072,6 +1146,38 @@ export function CandidatePanel({
                         </button>
                     </div>
                 ) : null
+                )}
+
+                {showAnalyzeWithVagas && c.resume_url && (
+                    <div style={{ padding: '0 24px 32px' }}>
+                        <button
+                            onClick={() => onAnalyzeWithVagas?.(c.id)}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                background: 'var(--primary)',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                color: '#fff',
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.3)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.2)';
+                            }}
+                        >
+                            <FileText size={18} />
+                            Analisar para uma Vaga
+                        </button>
+                    </div>
                 )}
             </div>
 

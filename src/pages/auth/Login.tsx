@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
+import { Eye, EyeOff } from 'lucide-react';
 
 const loadFont = () => {
     if (document.querySelector('#poppins-font')) return;
@@ -15,6 +17,7 @@ export const Login = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -25,7 +28,10 @@ export const Login = () => {
         setLoading(true);
         setMessage(null);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) setMessage({ type: 'error', text: 'Credenciais inválidas. Verifique seu e-mail e senha.' });
+        if (error) {
+            console.error('Auth error:', error);
+            setMessage({ type: 'error', text: `Erro: ${error.message}` });
+        }
         setLoading(false);
     };
 
@@ -48,139 +54,145 @@ export const Login = () => {
     };
 
     return (
-        <div className="flex h-screen overflow-hidden font-['Inter',system-ui,sans-serif] bg-[#0B1020] relative">
-            {/* Botão voltar */}
-            <button
-                onClick={() => navigate('/')}
-                className="absolute top-5 left-6 z-50 flex items-center gap-1.5 bg-[rgba(255,255,255,0.07)] border border-[rgba(255,255,255,0.12)] rounded-[10px] text-[rgba(255,255,255,0.7)] text-[13px] font-medium font-['Inter',system-ui,sans-serif] px-3.5 py-1.5 cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.13)] hover:text-white"
-            >
-                ← Voltar
-            </button>
-
-            {/* PAINEL ESQUERDO */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-[#0B1020] relative overflow-hidden min-w-0">
-                <div className="relative z-1 text-center max-w-[850px] w-full px-12 flex flex-col items-center mt-[-100px]">
-                    <div className="relative top-[50px] w-full z-2">
-                        <h2 className="text-white text-[36px] font-extrabold leading-[1.1] mb-2 mt-0 w-full">
-                            Analise currículos com{' '}
-                            <br />
-                            <span className="text-blue-500">inteligência artificial</span>
-                        </h2>
-                        <p className="text-[#94a3b8] text-[18px] leading-[1.4] mb-4 mt-0 w-full">
-                            Encontre os melhores talentos em segundos. Deixe a IA do RH trabalhar por você.
-                        </p>
-                    </div>
-
-                    <div className="relative w-full max-w-[850px] leading-0">
-                        <img
-                            src={`${import.meta.env.BASE_URL}illustrations/hr-illustration.png`}
-                            alt="RH com IA"
-                            className="w-full block mx-auto"
-                        />
-                        <div className="absolute top-0 left-0 right-0 bottom-0 bg-[radial-gradient(circle,transparent_30%,#0B1020_95%)] pointer-events-none" />
-                    </div>
-
-                    <div className="flex gap-10 justify-center mt-2.5">
-                        {[
-                            { value: '200+', label: 'Análises/dia' },
-                            { value: '95%', label: 'Precisão' },
-                            { value: '10x', label: 'Velocidade' },
-                        ].map((stat, i) => (
-                            <div key={i} className="text-center">
-                                <p className="text-blue-500 text-[18px] font-bold m-0">{stat.value}</p>
-                                <p className="text-[#64748b] text-[10px] mt-0.5 uppercase tracking-[0.5px]">{stat.label}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+        <div className="min-h-screen w-screen bg-[#07080a] flex items-center justify-center p-0 md:p-6 relative overflow-hidden font-['Inter',sans-serif] select-none">
+            {/* Imagem de Fundo Borrada sob o card */}
+            <div className="absolute inset-0 z-0 pointer-events-none select-none">
+                <img
+                    src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                    alt="Background Blur"
+                    className="w-full h-full object-cover blur-[40px] opacity-30 scale-105"
+                />
             </div>
 
-            {/* PAINEL DIREITO */}
-            <div className="flex-1 bg-[#1a2a5e] flex flex-col items-center justify-center p-12 relative">
-                {/* Card de login */}
-                <div className="w-full max-w-[520px] bg-white rounded-3xl px-11 py-13 shadow-[0_30px_80px_rgba(0,0,0,0.4)]">
-                    <div className="text-center mb-0 mt-[-20px] overflow-hidden">
-                        <img
-                            src={`${import.meta.env.BASE_URL}logos/usabit-logo.png`}
-                            alt="usabit"
-                            className="w-full max-w-[200px] h-auto object-contain inline-block mix-blend-multiply contrast-125 brightness-110 mx-auto translate-x-[10px]"
-                        />
+            {/* Container do Card Principal */}
+            <div className="w-full h-full md:h-[calc(100vh-32px)] md:max-h-[860px] md:w-[98%] xl:w-[96%] md:max-w-[1800px] bg-[#121316] md:rounded-[24px] shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex overflow-hidden md:border border-[#2d2f36]/40 z-10 relative">
+                {/* PAINEL ESQUERDO: Formulário */}
+                <div className="w-full md:w-[380px] lg:w-[400px] xl:w-[420px] flex-shrink-0 h-full flex flex-col justify-between p-8 md:p-10 bg-[#121316] z-10 overflow-y-auto">
+                    {/* Header Logo Centralizado e Maior */}
+                    <div className="flex justify-center mt-6 mb-8 md:mt-2 md:mb-0 cursor-pointer" onClick={() => navigate('/')}>
+                        <UsabitPeopleLogo height={44} />
                     </div>
 
-                    <p className="text-center text-[#64748b] text-[12px] mb-7 mt-0">
-                        Analista de Currículos · Powered by IA
-                    </p>
+                    {/* Form Content */}
+                    <div className="my-auto w-full max-w-[320px] mx-auto flex flex-col justify-center">
+                        <h1 className="text-white text-[26px] font-bold mb-2 text-center">
+                            Entre na sua conta
+                        </h1>
+                        <p className="text-[#8e929e] text-[15px] mb-16 text-center">
+                            Seja bem-vindo de volta! Insira suas credenciais.
+                        </p>
 
-                    <h1 className="text-center text-[#0f172a] text-[20px] font-bold mb-7 mt-0">
-                        Entre na sua conta
-                    </h1>
+                        <form onSubmit={handleLogin} className="flex flex-col gap-5.5">
+                            {/* Email */}
+                            <div>
+                                <label htmlFor="login-email" className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
+                                    E-mail
+                                </label>
+                                <input
+                                    id="login-email"
+                                    type="email"
+                                    placeholder="exemplo@usabit.com.br"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    required
+                                    className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                        {/* Email */}
-                        <div>
-                            <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
-                                Email
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="email@exemplo.com"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                required
-                                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
-                            />
-                        </div>
+                            {/* Senha */}
+                            <div>
+                                <label htmlFor="login-password" className="block text-[#8e929e] text-[13px] font-medium mb-1.5">
+                                    Senha
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="login-password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Insira sua senha"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                        className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 pr-11 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e929e] hover:text-white bg-transparent border-none cursor-pointer p-0"
+                                    >
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
 
-                        {/* Senha */}
-                        <div>
-                            <label className="block text-[#374151] text-[13px] font-medium mb-1.5">
-                                Senha
-                            </label>
-                            <input
-                                type="password"
-                                placeholder="Insira sua senha"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                required
-                                className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-lg px-3.5 py-[11px] text-[#0f172a] text-[14px] outline-none transition-colors focus:border-blue-500 font-['Inter',system-ui,sans-serif] box-border"
-                            />
-                        </div>
+                            {message && (
+                                <p className={`text-[12px] text-center m-0 p-3 rounded-xl ${message.type === 'success' ? 'bg-green-950/40 text-green-400 border border-green-800/30' : 'bg-red-950/40 text-red-400 border border-red-800/30'}`}>
+                                    {message.text}
+                                </p>
+                            )}
 
-                        {message && (
-                            <p className={`text-[12px] text-center m-0 p-2 rounded-md ${message.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                                {message.text}
+                            {/* Checkbox + Esqueceu */}
+                            <div className="flex items-center justify-between mt-1">
+                                <label htmlFor="login-remember" className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input id="login-remember" type="checkbox" className="w-4 h-4 rounded bg-[#1c1d22] border-[#2d2f36] accent-blue-500 text-blue-500" />
+                                    <span className="text-[#8e929e] text-[13px]">Manter conectado</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleForgotPassword}
+                                    className="text-blue-400 hover:text-blue-300 text-[13px] bg-none border-none cursor-pointer underline transition-colors"
+                                >
+                                    Recuperar senha
+                                </button>
+                            </div>
+
+                            {/* Botão */}
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-none rounded-xl text-[14px] font-semibold cursor-pointer tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-blue-900/20 mt-2"
+                            >
+                                {loading ? 'Entrando...' : 'ENTRAR'}
+                            </button>
+
+                            {/* Link para Registro */}
+                            <p className="text-center text-[13px] text-[#8e929e] mt-1.5 mb-1">
+                                Não tem uma conta?{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/registro')}
+                                    className="text-blue-400 hover:text-blue-300 font-semibold bg-transparent border-none cursor-pointer underline transition-colors outline-none inline-block p-0"
+                                >
+                                    Crie sua conta
+                                </button>
                             </p>
-                        )}
 
-                        {/* Checkbox + Esqueceu */}
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-1.5 cursor-pointer">
-                                <input type="checkbox" className="w-3.5 h-3.5 accent-blue-500" />
-                                <span className="text-[#64748b] text-[13px]">Manter conectado</span>
-                            </label>
+                            {/* Voltar */}
                             <button
                                 type="button"
-                                onClick={handleForgotPassword}
-                                className="text-blue-500 text-[13px] bg-none border-none cursor-pointer underline font-['Inter',system-ui,sans-serif]"
+                                onClick={() => navigate('/')}
+                                className="mt-2 text-center text-[13px] text-[#6b6e79] hover:text-white bg-transparent border-none cursor-pointer transition-colors flex items-center justify-center gap-1 mx-auto outline-none"
                             >
-                                Recuperar senha
+                                ← Voltar para a página inicial
                             </button>
-                        </div>
+                        </form>
+                    </div>
 
-                        {/* Botão */}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full py-[13px] bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none rounded-lg text-[15px] font-semibold cursor-pointer font-['Inter',system-ui,sans-serif] tracking-wide transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            {loading ? 'Entrando...' : 'ENTRAR'}
-                        </button>
-                    </form>
+                    {/* Footer Copyright */}
+                    <div className="text-center text-[#6b6e79] text-[12px] mt-8 md:mt-0">
+                        © 2026 usabit · Todos os direitos reservados
+                    </div>
                 </div>
 
-                <p className="text-[#94a3b8] text-[12px] mt-6 text-center">
-                    © 2026 usabit · Todos os direitos reservados
-                </p>
+                {/* PAINEL DIREITO: Imagem de Fundo (Recrutador) */}
+                <div className="flex-1 h-full relative hidden md:block select-none overflow-hidden">
+                    <img
+                        src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                        alt="Usabit people Recrutamento"
+                        className="w-full h-full object-cover object-[55%_center]"
+                    />
+                    {/* Degradê de fusão suave entre a imagem e o formulário */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#121316] via-transparent to-transparent opacity-80" />
+                </div>
             </div>
         </div>
     );

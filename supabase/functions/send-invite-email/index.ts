@@ -1,180 +1,234 @@
-// Edge Function: send-invite-email
-// Envia email de convite HTML bonito para novos usuários criados pelo admin
+﻿import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
-
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const APP_URL = Deno.env.get('APP_URL') || 'http://localhost:5173';
+const APP_URL = Deno.env.get('APP_URL') || 'https://usabit.github.io/rh-ia-v2';
 
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const LOGO_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAPAAAAAoCAYAAADAOHfQAAAACXBIWXMAAAsTAAALEwEAmpwYAAAQg0lEQVR4nO2de1RU173Hp+kjSW+aNInyZniDIA8VhMEk9fb23tWu1aY3yW2a3tubpE1Wk3WT5jZJ28SkbfAqKBhfyKDhoSgIksNjYGYAgSAiPlDBgIkBBXzhC0UE5uzHaHDftQeGDDP7nDkzDCp6vmvt5R+cvffvHM/n7Mfv99ujUMiSJUuWLFmyZMmSJUuWLFmy7hkBcH3hCMbh09kHzxvnA4A/AwCN8BD38RCtJYT803T2KUvWPSEe4vcAxIQHeI8BoX92dfsGg8EdQHyF9mFVclzdlyxZ9yzA5sJDxA0PDz/uqvYNEP43A17CA2QghNznqn5kybonxUP8Vxu4IO4jhNzvmvbhSwIAI0LId1h1IIS+ruhblqx7bgQ2F0LIQ65oH0Ko5AHibT8SqFLEphYe4gMQGn9DCPmWK+yQJeuu1HQDTAUAfhpAfHGifYAbeJ73FLGp5ZuRGu8ZwXiOq2yRJeuu0q0AmIoQ8m2McajBYHCTYNMEwGPAoxEA8DOutEeWrLt2DUzLFUJ+cBttmgywqaCO22WPLFl3rGSAZVlq/tpzTy9Y2/eaqay+YCpxpnJ5vuJe17Vr5IcAgAQDQv8KIVw8gnGE0E6sVNGACLpGhBA+Nd5uIkIoSKqLRgjgAUIett6MAgD/CgD0Gt1cghAuIoR8dyq2i9gkj8C3SQvW9jUtWNdHFqw9R2LXnCexay6QuNUXSdzqSx8q7jTxAPfaFIg32K0HcSajbjPrWvqSA4D+CCBq5wG6yXCnAB7g3QCgt0ZGRmZLsZsQ8n0A8J8AwLt4gK4LuGn4segn/I7YupOH+C9iABsMxkhTO4xrAERXeYgzhobIY+LPGWGbAvHGib/z6A8A4iyL0s/qy+qaLB5itZTnJesuBVjgxS+2V4+HqNS2Hj5j0z4AXgCiz9kvPxs6HuJ/2AuM4CE+L7XN8XaN9KPD+kCIAQwh/BH9wEjo47JYFJdAnYlILPrMHbkfS1+yvf8rWY5JBnhchJDvAYi+cPjFBLiR9WCpPxQAlOrMi24xig3xCL0qBWAaIw0AGnbk4wMhfIJluwzwzNECeQQeEwDodacgA2g168HyEC+ZGrwWsEH4sj2A6ZLA8RERn2QlKcgAzxwtkAEeE4ComjFK3aAg0uwfhFCAaYoK8RIe4P3mayA0/qf1QwUAqGhdgZEPAIC30ZEVAPwchRMAtBxA1CYyyr9tdwT+pv2vAcB5AOBnqb0GaPwvGkUl8gFaamO/nSk0AGglgKjVXJiRWwBBy2vGrsP7p/Fdvie1QAZ4TACgrxjgbBV6cDxvjAEQ19BgB+u/AYh3CkyJjyKEAoXbxD+fCsAUGgNC/8JsG6FXmZtyEJ+33lm3B/Ct3oV+vK7Ia1ZtYeysWi52lt6i6EpDzNe4acsT3Ss173loy1M9KzXve2m1iQoJYZ3+pQ1+Sq7uRSVX/3dlcX2ysrjhLX9u12JFUpIkr0BEzv7HgvMPPh+c1/J2cN7BFaF5hz4KzTv86pzcNsH+I7gvvzcn52gsLVEbOycV+jfTNepTHjHq469Hq3uSYzJ6l0Zv6H4hLK3zB64AOGHFQEJCyrU/qFKuLVOtGEpSpYy8mrBsZFpTVE2azk0s9giIqh2N7TUYjHMFABjged5DrO7QEHl0SiMwQG+IPgeAilj1rKG/4wCuKVw6q2YHmV1TTGZXf0rcaKniiHsVV++p5ZRu2rImD1058dBqiCctlRXEs7KSeGm0e700GmaihXfZzhjfktoaZUndqJKrI0qunvh9+hnxK24g/sW7iF/RrrN+Oxp/J2STf35zTPC2fTVB+fuvh2xrISFbD5KQrYdIaN5hEprXSsK2tJLQzW1nwnKPfBib1TrJfReee8wvIusLEpH1JZn7yTEy95OvSOSmThK5qYuEq4/5RWUeXxqpPnE9Wt1NotU9JCaj11Si03sHYtJP/tpZgOPSrr6QkDrwRULqIElYeY2oVtAyRBJThkliyghJTDa0PLkMxCpmJMAAFzDbh6hsGOMwqTYaIP6zAITv2KsrBWCh9nmAT9nzUVOfM/se8d9mJMB67oi7ruS4u66MMAGu0BLPcl334xUVk0Yur5Lql31Ld0LfklqiLKHw2gLsv6OR+O/YTfyLdmdY2xOU3/xBYMG+68H5+0lw/gEiBHDY5jYyZ/MREpZz5Eh4bpufFICjNnYWR2UeJ1GZJ4g1wDEbTpJ56SdHo9PPPO0IwM9z5NvxaVey49MGSELqVSICMElcbsCLksF/KGYawAaEfiIyNR01bRIB9Ka92GAeIi2j/k0pPuOpAAwA+lhKfPPY2tTGvk9nJMBVJcRdX0rEAPbS6IhXuT7V3JZvefWTPqU1X/uW7iRSAA4o2k0CCpt+a64fVLD3raCCfSSogMIrDeA5uZ/T0hGh/vIh+wB3EXGAT5F560/1mUd1KQAvTOtfGp92hUgBeFEyTxYtB8NPJgkv9e5IgMeuw5sEp6ff9HeDTq15Hv2MbaOtH5kHuEfS/Zn80M4CLC15AADUyaj72d0MsLdGd1nR2Pgduq71Lqvu9SmtIZYA+3K1yIerf8O/uO6nfjsa2qwB9i9s6qHrWWVBk2fQ9mbgHMDtZE5O+yqXAJx+msSsO/uMFIDjP74QEZfW/7UtwIO9iSsGf6FKHnxJlTw8aAUweeL/+InAnTsB4HIpANNwRh7iJKFoKcaLX2u9rqXJ9Yy+mFFf1qKhms4CLDWFj/mBgejQTAXYTV+6xb2szI1uaLlrNXvZAOuJj6YqyktT/ROfsmpiDbCSq11p7suvuFFlMwIXNdFROD6gYM/fgrbvJbYAHxgNzWt5MzCr9ZE52w6Ghm453MQEOLv9amxW6/fFAI7M7DoVmdEZF7XxzKNR6u4PhQCet/70GikAL1x1adXCVZeJNcDxKdd+bL5nVcrQR7YAgwFFkotPYGGBRY+UsVcPAFwnBWCz6E4xDdEUOBvKup1eyyNtaLuMa/ZIuT8A8L87C7C9DTIx+wDA9TMRYDc91+/XmPeA+brZurIYIYC9y/XPeZVXbWADXPdHJVcbq+R2xfoXN/yIBXBgQdPLgdub9SyAg7cd0FvaG5Z7KIwFcHhOBwnP7nhKDODojZ2T1p/R6p42JsDrzugkAtxlDXB86tUbCSuGExJWDsXSokoZec8G4GWAPJUsnAPulJiRRgDX2avHA3TcEYAnx0XjpwFAhSxfp4UNm8Wn0OiExPtLdhbgwUHyiL326YeG5Uqi9zdDATa9xBNKSrrPQ6sxsgD2Kq9+xbusqkIAYPE1MB2Btzd9EFjQfJQNcMtH1jaHbjlsYAE8J7v9JTGA56WfmLRXEp3Rk80G+HSzFIDj0vohawS2swY2AezyHWke4nOMF6VVrM7IyMgsU3CDEwDbvPxjozJrGg9owsKYjaiC8fdRe5tY46GXX00nwDQzScoOuRMAH2D8vxxVTL8bqcD6Wo9KDWICXKb7jVdZVYvTABc2LQ0s2HOaOYXe2vIXaztCNx8eZAKcc/Q1MYCtXU5R6u5NLIDnrztdaw/g2NTBRxau6ifOApy4HC5SuFLscEE0JOY+AQD/r8DU1yGALdrLY7VH168mGyF+n9kfxH+10+4zIiP8BMAQ4nedAZgQ8iCd7jNt440xUwGYxoMznm+3YvrdSJM23x6vqPASnEKX6n/sVa5vmArAAdub29hr4Jb1lnYEF7Q8LDiFzj36jBjAEVlfKi3bisroqRWYQufbBTiLfHdh2qWbdwzAAOAtAi/4cyK7upekAkxdSTxCr4jl5gKAlglAYEqg5nnjPLaNaNhgMEYJrbmF7JQKMIRwws9oLULIAzxEGvaHBR20uUeHR2DbUE265HBV/rHIFBrP1nMTa38PbXmSAMCjfpzew7usKpcFsC9Xv0RZqH9UWdgsWHy4/Q8GbG/eIjCFPhed3z4RUx6a1/qmEMBR2R0+orvQ6q6J2dDc9BNBUeqeG+wR+Mz7ktbAaf1nWQCrUofin1w59KhYWZw0tdx3G/EQvijwcvXTBHnreGQAUJcQFNYA0ykugPjC+KjewSP0O5rQzwifvMCaIlMf7sR1AO9j94uG6Eg8nsB/Pz2OdTz3+KogvBIBHk9tzOB59FOazE9tRwj5j8daHxNp+5fWz9nxERitZtWhqZSKad+FLul015V+4KErz/HQakaZfmCN3vSR8i7XPy+wC23w4ep+TyE19xlcXX2/snjXEwGFuz82h0QGFjQ/KzACk+C8gx0hWw99ELrl0IaQvNbrbIDbTcs9UYAzu4yRmcfXRqpPJEVnnDgruAudfjpC4ho4l7kLveLaV6qUwcWW4Z50yq1KBs8uWg7eUkyHxjdhsAiUJyk89F9RIKwANq0/IdIJ+Hw/H9vFRh3MDSBGSiHNtaVQ27OB0R9w2g/sRKGhlazn7CjAEBpfEGj/a5PPHKJ1NGGD5jjfnkAO3Su0Hbq+9C6r6hacQhfX3/Arbjjvt6PhsuUUeuIlTyL3BW3f2+60Hzi7/Reu8QOfmnBL2h2BUy/OZfuBx6bQCSlDUJUyfDoxeYQ3T6ETlwHT+npaRH+nx6EX1bRzbRvnbAkwPV1jChCMsvJqhUYlcVvxO/YApu4i1prTib4ahX7vyFGAaTtSc5FvNcCeGt1+y8QErxL9Iu/SGujIGthylArZdiA8KH/foKMAh+W0rzO3MRWAY9afuj5/fW+0uS1JkVir+pc4sgaeVoDpZg0dDSXChalv1V4kFp12MiOU7Ld/EwD0Pyw76ajOQ7TegQ9NqpRQSnPb4yd99DnzweEh/oQeYCD0jB0F2FQHoDduOcD6kqNuupJTggBrKts8uGqb3X8frnqxT0nNeWcApgrM3xcZmL/vmBSAwzYfuUETGhQWQRGigRwbu7RCAEdv6IXR6b0TcdCOJDMsTL38bnzaFeNtB3hiFIJIb+dluUA3paSGUtINF7pe5AHeKw0G1CHlx8VMKYKia3HTWVgmQKUCbGHzA6afQgG4TmxpMd4PpBFpdJPNns3OADz2nGmuNDLeuhGYq39Mx3m768qK3LXlyAywR2VFn2dFxZLZHCd4VnZwQfXDvtzOt325ur2+n9bhSQDvaLjpX9R4zn/H7qKAot2m6be16HQ8OH//b4O3HagJ2XZgaDLAh0dDt7R+Eba5dU1odnuAdd1wEYBjNnX6R2Z2vRulPn7WDHB0Rg+MyegtilF3z7Vua/66vpwFa/taaYldc641ds2F1rjVF1vjPr74e+tr41ZeCoxfObAmIXXwWMKKwZuTAR42qpYbOhcl8+onlhtc/qN5TNGpKwAojeblAoiO0PUqzR6i/k7Lg86pi4a6dyyL0MhJNb758yI9hI36dSnU9CA7+iHgIf6InvDoiJ1jPt7rsTzEH5oO2IOIAxBnUzsto7joxpbJV2tVhHavrfp4aPx5vE6zi0zH+QC0lI6MBoT+jbqRpNpLR3frQk/nlFKX7obTcFTTrzkAfGb8UDw0FtXmXHCHGMCWm06eWq3yserqSadzShGFMbCs1k1ZWh8YzO2ZLSWPmJUXHLL5UGBYbpuXX17jRHQYS+EiAM/N7B5LfyTkW6ac4E3HvZ2xx55Ua84+qEoe8I5ffi0gPmnA4WcmS5ZLAZ5JCpcCsCxZd4tkgGXJmsGSAZYlawZLBlhxV+j/ATQDQF+WyDirAAAAAElFTkSuQmCC';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
+
+function gotrueHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_SERVICE_ROLE_KEY!,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY!}`,
+  };
+}
+
+function baseUrl() {
+  return SUPABASE_URL!.replace(/\/+$/, '');
+}
 
 serve(async (req) => {
-  try {
-    const { userId, email, name, role, createdBy } = await req.json();
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-    if (!userId || !email || !name || !role) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+  try {
+    // 1. Validar JWT do caller
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token || !SUPABASE_ANON_KEY) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // Gerar link de confirmação mágico
-    const { data: { session } } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      options: {
-        redirectTo: `${APP_URL}/login`,
-      },
+    const supabaseAuth = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY);
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Token inválido' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+
+    // 2. Verificar role do caller e impedir escalação de privilégio
+    const { data: callerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_role, organization_id')
+      .eq('id', user.id)
+      .single();
+
+    const hierarchy: Record<string, number> = { owner: 5, administrador: 4, supervisor: 3, rh: 2, convidado: 1 };
+    const callerLevel = hierarchy[callerProfile?.user_role as keyof typeof hierarchy] || 0;
+    if (callerLevel === 0) {
+      return new Response(JSON.stringify({ error: 'Permissão insuficiente' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const body = await req.json();
+    const email = body.email;
+    const name = body.name;
+    const role = body.role || body.user_role;
+    const organizationId = body.organizationId || body.organization_id;
+    const organizationName = body.organizationName || body.organization_name;
+
+    const targetLevel = hierarchy[role as keyof typeof hierarchy] || 0;
+    if (targetLevel >= callerLevel && callerProfile?.user_role !== 'owner') {
+      return new Response(JSON.stringify({ error: 'Permissão insuficiente para atribuir esta role' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!email || !name || !role) {
+      return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!SUPABASE_URL) return new Response(JSON.stringify({ error: 'SUPABASE_URL not set' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!SUPABASE_SERVICE_ROLE_KEY) return new Response(JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY not set' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    const candidateFirstName = name.split(' ')[0];
+    const redirectTo = APP_URL;
+    const headers = gotrueHeaders();
+
+    // Generate invite link via GoTrue admin API
+    let linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role, organization_id: organizationId, organization_name: organizationName }, redirect_to: redirectTo }),
     });
+    let linkJson = await linkRes.json();
 
-    const confirmLink = session?.url || `${APP_URL}/login`;
+    // If user already exists, fall back to recovery link
+    if (!linkRes.ok && linkJson?.error_code === 'email_exists') {
+      linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type: 'recovery', email, redirect_to: redirectTo }),
+      });
+      linkJson = await linkRes.json();
+    }
 
-    // Mapear perfis para labels bonitas
-    const roleLabels: Record<string, string> = {
-      admin: 'Administrador',
-      rh: 'RH',
-      gestor: 'Gestor',
-      convidado: 'Convidado',
-    };
+    if (!linkRes.ok) {
+      return new Response(JSON.stringify({ error: 'Generate link error', code: linkJson?.error_code || linkRes.status, body: linkJson }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
-    const roleLabel = roleLabels[role] || role;
+    const actionLink = linkJson?.action_link || '';
+    const userId = linkJson?.id;
 
-    // HTML do email bonito
-    const html = `
+    if (!actionLink) {
+      return new Response(JSON.stringify({ error: 'No action_link in response', keys: Object.keys(linkJson) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'No userId' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Send email via Resend
+    if (RESEND_API_KEY) {
+      const html = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Convite - Space Talent</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convite de Acesso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;background:#0f111a;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f111a;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#1a1c27;border-radius:16px;overflow:hidden;border:1px solid #1f2332;max-width:600px;width:100%;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="padding:40px 40px 30px;text-align:center;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);">
-              <div style="font-size:48px;margin-bottom:10px;">🚀</div>
-              <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;">Bem-vindo ao Space Talent!</h1>
-              <p style="margin:10px 0 0;font-size:16px;color:rgba(255,255,255,0.8);">Recrutamento inteligente com IA</p>
-            </td>
-          </tr>
+<body style="margin: 0; padding: 0; background-color: #04070c; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+    <div style="background-color: #04070c; background-image: radial-gradient(circle at top right, #1a3597 0%, #04070c 100%); padding: 32px 16px; text-align: center; min-height: 100%;">
+        <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #0b111a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 40px 24px; text-align: left; box-sizing: border-box;">
 
-          <!-- Content -->
-          <tr>
-            <td style="padding:40px;">
-              <p style="margin:0 0 20px;font-size:16px;color:#e2e8f0;">Olá <strong style="color:#ffffff;">${name}</strong>!</p>
-              
-              <p style="margin:0 0 24px;font-size:15px;color:#94a3b8;line-height:1.6;">
-                Você foi convidado(a) a fazer parte do <strong style="color:#e2e8f0;">Space Talent</strong>, nossa plataforma de recrutamento com Inteligência Artificial.
-              </p>
+            <div style="text-align: center; margin-bottom: 32px;">
+                <img src="cid:logo" alt="Usabit people" style="height: 32px; width: auto; display: block; margin: 0 auto;" />
+            </div>
 
-              <!-- Role Card -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#22c55e10;border:1px solid #22c55e40;border-radius:12px;margin-bottom:28px;">
-                <tr>
-                  <td style="padding:20px;">
-                    <p style="margin:0 0 8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#22c55e;">SEU PERFIL DE ACESSO</p>
-                    <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;">${roleLabel}</p>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:0 0 16px;font-size:15px;color:#94a3b8;line-height:1.6;">
-                Para começar a usar a plataforma, basta clicar no botão abaixo e definir sua senha:
-              </p>
-
-              <!-- CTA Button -->
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:32px 0;">
-                <tr>
-                  <td align="center" style="border-radius:12px;background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);">
-                    <a href="${confirmLink}" target="_blank" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:12px;">
-                      Ativar Minha Conta →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Warning -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f59e0b10;border:1px solid #f59e0b40;border-radius:10px;margin:28px 0;">
-                <tr>
-                  <td style="padding:16px;">
-                    <p style="margin:0;font-size:13px;color:#fbbf24;line-height:1.5;">
-                      ⚠️ Este link expira em <strong>3 dias</strong>. Após esse prazo, sua conta será desativada automaticamente.
+            <div style="background: linear-gradient(135deg, rgba(44, 88, 253, 0.15) 0%, transparent 100%); border-radius: 20px; padding: 2px; margin-bottom: 32px;">
+                <div style="background: #0b111a; border-radius: 18px; padding: 32px;">
+                    <h2 style="color: #2C58FD; font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.02em;">Olá, ${candidateFirstName}!</h2>
+                    <p style="font-size: 17px; line-height: 1.6; color: #ffffff; margin: 0; font-weight: 500;">
+                        Você foi convidado para a plataforma de RH da <strong>Usabit people</strong>.
                     </p>
-                  </td>
-                </tr>
-              </table>
+                </div>
+            </div>
 
-              <p style="margin:0;font-size:14px;color:#64748b;">
-                Se você não esperava este convite, pode ignorar este email com segurança.
-              </p>
-            </td>
-          </tr>
+            <div style="color: #94a3b8; font-size: 16px; line-height: 1.7; margin-bottom: 40px;">
+                <p style="margin: 0 0 20px;">
+                    Clique no botão abaixo para criar sua senha e acessar o sistema.
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                    <a href="${actionLink}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #2C58FD, #1a3fa0); color: #ffffff; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.02em;">ACEITAR CONVITE</a>
+                </div>
+            </div>
 
-          <!-- Footer -->
-          <tr>
-            <td style="padding:24px 40px;background:#141520;text-align:center;border-top:1px solid #1f2332;">
-              <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#e2e8f0;">Space Talent</p>
-              <p style="margin:0;font-size:12px;color:#64748b;">IA Recruitment Platform · Powered by usabit</p>
-              <p style="margin:12px 0 0;font-size:11px;color:#475569;">Este email foi enviado para ${email} a pedido de ${createdBy || 'um administrador'}.</p>
-            </td>
-          </tr>
+            <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
+                <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
+                    Equipe de Talentos${organizationName ? ` - ${organizationName}` : ''}
+                </p>
+            </div>
+        </div>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+        <!-- Footer (Landing Page style) -->
+        <div style="max-width: 600px; width: 100%; margin: 48px auto 0; padding: 0 24px 24px; box-sizing: border-box;">
+            <img src="cid:logo" alt="Usabit people" style="height: 28px; width: auto; display: block; margin: 0 auto 16px;" />
+            <p style="font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.5; margin: 0 0 28px; text-align: center;">
+                Conectando talentos com inteligência — a junção entre humano e máquina
+            </p>
+            <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent); margin: 0 0 24px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <p style="font-size: 12px; color: rgba(255,255,255,0.3); margin: 0;">&copy; 2026 Usabit. Todos os direitos reservados.</p>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.2); margin: 0;">Powered by <strong style="color: rgba(255,255,255,0.45); font-weight: 700;">Usabit people</strong></p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
-    `;
+      `;
 
-    // Enviar email via Resend (ou outro serviço)
-    if (RESEND_API_KEY) {
-      const res = await fetch('https://api.resend.com/emails', {
+      const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
         body: JSON.stringify({
-          from: 'Space Talent <convite@seudominio.com>',
+          from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
           to: [email],
-          subject: '🚀 Você foi convidado(a) para o Space Talent!',
+          subject: `Convite de Acesso - ${name}`,
           html,
+          attachments: [{
+            filename: 'usabit-people-logo.png',
+            content: LOGO_BASE64,
+            type: 'image/png',
+            content_id: 'logo',
+          }],
         }),
       });
 
-      if (!res.ok) {
-        const error = await res.json();
-        console.error('Resend error:', error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to send email', details: error }),
-          { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+      if (!emailRes.ok) {
+        const err = await emailRes.json();
+        console.error('[send-invite-email] Resend error:', err);
       }
-    } else {
-      // Sem Resend configurado - log apenas para debug
-      console.log('[send-invite-email] Email não enviado (RESEND_API_KEY não configurada)');
-      console.log('[send-invite-email] Link de confirmação:', confirmLink);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'Invite email sent' }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    // Upsert profile via service_role (bypass RLS)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: userId,
+        email,
+        name,
+        user_role: role,
+        status: 'active',
+        account_type: 'active',
+        organization_id: organizationId || null,
+        organization_name: organizationName || null,
+        onboarding_completed: false,
+      }, { onConflict: 'id' });
 
-  } catch (error) {
-    console.error('[send-invite-email] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    if (profileError) {
+      return new Response(JSON.stringify({ error: 'Profile creation failed', details: profileError, userId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({ success: true, userId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  } catch (error: unknown) {
+    return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+

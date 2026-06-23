@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Star, Search, ChevronLeft, ChevronRight,
+  Star, Search, ChevronLeft, ChevronRight,
   X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
-import { AddCandidateModal } from '../../common/components/AddCandidateModal';
 import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
+import { ReanalyzeCandidateModal } from '../../features/candidates/components/ReanalyzeCandidateModal';
 
 const PAGE_SIZE = 10;
 
@@ -24,7 +24,20 @@ function toStr(v: unknown): string | null {
   return String(v);
 }
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+function vagaColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return VAGA_PALETTE[Math.abs(h) % VAGA_PALETTE.length];
+}
+
+function extractVagaName(field: unknown): string | undefined {
+  if (Array.isArray(field)) return (field[0] as { title?: string; name?: string } | undefined)?.title ?? (field[0] as { title?: string; name?: string } | undefined)?.name;
+  if (field && typeof field === 'object') return (field as { title?: string; name?: string }).title ?? (field as { title?: string; name?: string }).name;
+  return undefined;
+}
+
+// â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface JCDataRow { job_id?: string; vaga_id?: string }
 interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
 interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
@@ -54,13 +67,13 @@ interface Candidate {
 type SortKey = 'name' | 'location' | 'age' | null;
 type SortDir = 'asc' | 'desc';
 
-// ─── Sort indicator ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sort indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
   if (sortKey !== col) return <span style={{ opacity: 0.25, display: 'inline-flex', flexDirection: 'column' }}><ChevronUp size={10} /><ChevronDown size={10} /></span>;
   return sortDir === 'asc' ? <ChevronUp size={12} style={{ color: 'var(--primary)' }} /> : <ChevronDown size={12} style={{ color: 'var(--primary)' }} />;
 }
 
-// ─── SelectFilter ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ SelectFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SelectFilter({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -126,7 +139,7 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const CandidateBank = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
@@ -136,13 +149,13 @@ export const CandidateBank = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [reanalysingCandId, setReanalysingCandId] = useState<string | null>(null);
 
-  // ─ Sorting
+  // â”€ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  // ─ Filters
+  // â”€ Filters
   const [filterGender, setFilterGender] = useState('');
   const [filterVaga, setFilterVaga] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -163,22 +176,15 @@ export const CandidateBank = () => {
     return next;
   });
 
-  useEffect(() => {
-    if (!profile.loaded) return;
-    if (!profile.userId) { setLoading(false); return; }
-    const safetyTimer = setTimeout(() => setLoading(false), 8000);
-    fetchCandidates(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
-    return () => clearTimeout(safetyTimer);
-  }, [profile.userId, profile.loaded, profile.user_role]);
-
-  async function fetchCandidates(userId: string, userRole?: string) {
+  const fetchCandidatesRef = useRef<(userId: string, userRole?: string) => Promise<void>>(() => Promise.resolve());
+  fetchCandidatesRef.current = async function fetchCandidates(userId: string, userRole?: string) {
     const isGlobalViewer = userRole === 'owner';
-    const isOrgMember = userRole === 'gestor' || userRole === 'rh';
+    const isOrgMember = userRole === 'administrador' || userRole === 'supervisor' || userRole === 'rh';
     try {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
@@ -194,7 +200,7 @@ export const CandidateBank = () => {
       if (error) {
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id)')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -204,15 +210,33 @@ export const CandidateBank = () => {
           }
         }
         const { data: fallback } = await fallbackQuery;
-        setCandidates((fallback ?? []) as unknown as Candidate[]);
+        setCandidates(((fallback ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
+          ...c,
+          vagas: [...new Set(
+            (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+          )]
+        }))) as unknown as Candidate[]);
         return;
       }
 
-      setCandidates((data ?? []) as unknown as Candidate[]);
+      setCandidates(((data ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
+        ...c,
+        vagas: [...new Set(
+          (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+        )]
+      }))) as unknown as Candidate[]);
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    if (!profile.loaded) return;
+    if (!profile.userId) { setLoading(false); return; }
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
+    fetchCandidatesRef.current(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
+    return () => clearTimeout(safetyTimer);
+  }, [profile.userId, profile.loaded, profile.user_role]);
 
   async function handleToggleBlacklistRow(candidate: Candidate) {
     const newVal = !candidate.is_blacklisted;
@@ -336,19 +360,30 @@ export const CandidateBank = () => {
           redFlags: toStr(analysis?.gaps ?? analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
           notes: cd?.notes ?? null,
           is_blacklisted: cd?.is_blacklisted ?? prev.is_blacklisted,
-          applications: validHistory.map((h: HistoryEntry) => ({
-            jobId: h.job_id,
-            jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
-            jobCode: h.job_code || h.code || '',
-            score: h.score ?? h.match_score ?? 0,
-            appliedAt: h.analyzed_at || h.date || h.created_at,
-            skills: toStr(h.skills ?? h.habilidades),
-            experience: toStr(h.summary ?? h.experience ?? h.experiencia),
-            positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
-            education: toStr(h.education ?? h.formacao),
-            redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
-            resume_url: h.resume_url
-          })),
+          applications: (() => {
+            const mapped = validHistory.map((h: HistoryEntry) => ({
+              jobId: h.job_id,
+              jobName: h.job_name || h.job_title || 'Vaga Desconhecida',
+              jobCode: h.job_code || h.code || '',
+              score: h.score ?? h.match_score ?? 0,
+              appliedAt: h.analyzed_at || h.date || h.created_at,
+              skills: toStr(h.skills ?? h.habilidades),
+              experience: toStr(h.summary ?? h.experience ?? h.experiencia),
+              positivePoints: toStr(h.strengths ?? h.positivePoints ?? h.pontos_positivos ?? h.positive_points),
+              education: toStr(h.education ?? h.formacao),
+              redFlags: toStr(h.gaps ?? h.redFlags ?? h.pontos_atencao ?? h.attention_points),
+              resume_url: h.resume_url
+            }));
+            // Deduplicate by jobId - keep entry with more content
+            const seen = new Map<string, typeof mapped[0]>();
+            for (const app of mapped) {
+              const existing = seen.get(app.jobId);
+              if (!existing || (app.experience && app.experience.length > (existing.experience?.length ?? 0))) {
+                seen.set(app.jobId, app);
+              }
+            }
+            return Array.from(seen.values());
+          })(),
           pipelineCards,
           enriched: true,
           conversations: convData || []
@@ -358,6 +393,12 @@ export const CandidateBank = () => {
       setSelected(prev => prev ? { ...prev, enriched: true } : prev);
     }
   }
+
+  const handleReanalyzeSuccess = async () => {
+    setReanalysingCandId(null);
+    if (selected) await enrichCandidate(selected.id);
+    if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
+  };
 
   const activeFilters = [filterGender, filterVaga, onlyFavorites ? 'fav' : '', activeTab !== 'todos' ? 'tab' : ''].filter(Boolean).length;
 
@@ -384,7 +425,7 @@ export const CandidateBank = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
             {processed.length} candidato{processed.length !== 1 ? 's' : ''}
             {activeTab === 'blacklist' ? ' na blacklist' : activeTab === 'candidatos' ? ' ativos' : ' encontrado'}{processed.length !== 1 && activeTab === 'todos' ? 's' : ''}
-            {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
+            {search && <> Â· <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -394,12 +435,6 @@ export const CandidateBank = () => {
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
             />
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >
-            <Plus style={{ width: 16, height: 16 }} /> Adicionar
-          </button>
         </div>
       </div>
 
@@ -564,13 +599,16 @@ export const CandidateBank = () => {
                 <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
                 <td style={{ padding: '16px' }}>
                   {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
-                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 3, overflow: 'hidden' }}>
-                      {(c.vagas || []).slice(0, 2).map(v => (
-                        <span key={v} style={{ background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)', color: 'var(--primary-text-light)', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
-                          {v}
-                        </span>
-                      ))}
-                      {c.vagas.length > 2 && <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap' }}>+{c.vagas.length - 2}</span>}
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                      {(c.vagas || []).slice(0, 3).map(v => {
+                        const color = vagaColor(v);
+                        return (
+                          <span key={v} style={{ background: `${color}18`, border: `1px solid ${color}44`, color, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                            {v.toUpperCase()}
+                          </span>
+                        );
+                      })}
+                      {c.vagas.length > 3 && <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap' }}>+{c.vagas.length - 3}</span>}
                     </div>
                   )}
                 </td>
@@ -687,35 +725,42 @@ export const CandidateBank = () => {
             setSelected(prev => prev && prev.id === id ? { ...prev, [field]: val } : prev);
           }}
           onTransferSuccess={() => {
-            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+            if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}
           onBlacklistChange={(id, val) => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
+          showAnalyzeWithVagas={true}
+          hideFeedbackDaIA={true}
+          onAnalyzeWithVagas={(cid) => setReanalysingCandId(cid)}
           onDeleteFromBank={async (id) => {
+            const cand = candidates.find(c => c.id === id);
             await Promise.all([
               supabase.from('candidates').delete().eq('id', id),
-              supabase.from('job_candidates').delete().eq('candidate_id', id)
+              supabase.from('job_candidates').delete().eq('candidate_id', id),
+              cand?.email
+                ? supabase.from('vagas_candidaturas')
+                    .update({ status: 'pending' })
+                    .eq('candidate_email', cand.email)
+                    .eq('status', 'talent_bank')
+                : Promise.resolve(),
             ]);
             setSelected(null);
-            if (profile.userId) fetchCandidates(profile.userId, profile.user_role);
+            if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}
         />
       )}
 
-      <AddCandidateModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={() => {
-          if (profile.userId) fetchCandidates(profile.userId);
-        }}
-        onViewCandidate={async (candidateId) => {
-          setShowAddModal(false);
-          // Abre o painel do candidato existente com dados já carregados
-          openCandidate(candidates.find(c => c.id === candidateId)!);
-        }}
-      />
+      {reanalysingCandId && selected && (
+        <ReanalyzeCandidateModal
+          candidate={selected}
+          organizationId={profile.organization_id || ''}
+          userId={profile.userId}
+          onClose={() => setReanalysingCandId(null)}
+          onSuccess={handleReanalyzeSuccess}
+        />
+      )}
     </div>
   );
 };

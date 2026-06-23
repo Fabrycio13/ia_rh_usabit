@@ -44,8 +44,11 @@ export function Chat() {
         profile.evolution_instance!
     ) : null;
 
+    const loadConversationsRef = useRef<() => Promise<void> | null>(null);
+    loadConversationsRef.current = loadConversations;
+
     useEffect(() => {
-        if (profile?.userId) loadConversations();
+        if (profile?.userId) loadConversationsRef.current?.();
     }, [profile?.userId]);
 
     useEffect(() => {

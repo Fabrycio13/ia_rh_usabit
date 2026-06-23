@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react';
 
 import { NavbarPortal } from './portal/NavbarPortal';
 import { HeroSection } from './portal/HeroSection';
-import { AreasSection } from './portal/AreasSection';
 import { VagasSection } from './portal/VagasSection';
 import { FormSection } from './portal/FormSection';
 import { FooterPortal } from './portal/FooterPortal';
@@ -76,7 +75,7 @@ export const OrganizationCareerPage = () => {
       document.title = `Oportunidades | ${orgInfo.name}`;
     }
     return () => {
-      document.title = 'Space Talent';
+      document.title = 'Usabit people';
     };
   }, [orgInfo]);
 
@@ -273,7 +272,16 @@ export const OrganizationCareerPage = () => {
         onNavigate={(path) => navigate(path)}
       />
 
-      <AreasSection isMobile={isMobile} />
+      {/* <AreasSection
+        isMobile={isMobile}
+        onAreaClick={(areaTitle) => {
+          const category = areaTitle === 'Relacionamento e Performance' ? 'Todos' : areaTitle;
+          setActiveCategory(category);
+          setTimeout(() => {
+            document.getElementById('vagas')?.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }}
+      /> */}
 
       <VagasSection
         vagas={vagas}

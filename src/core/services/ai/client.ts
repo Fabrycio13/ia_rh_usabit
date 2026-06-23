@@ -28,8 +28,8 @@ export async function callOpenAI(
 ) {
   const model = options?.model ?? 'gpt-4o';
   const maxTokens = options?.maxTokens ?? 8192;
-  const timeout = options?.timeout ?? 30000;
-  const maxRetries = options?.retries ?? 3;
+  const timeout = options?.timeout ?? 60000;
+  const maxRetries = options?.retries ?? 5;
 
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -39,7 +39,7 @@ export async function callOpenAI(
     const startTime = Date.now();
     try {
       if (attempt > 0) {
-        const backoff = attempt === 1 ? 1000 : 4000;
+        const backoff = attempt === 1 ? 8000 : 15000;
         await new Promise(r => setTimeout(r, backoff));
       }
 

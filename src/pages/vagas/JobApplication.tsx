@@ -132,6 +132,8 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; }
     box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
 }
 .wizard-input::placeholder { color: #475569; }
+.wizard-input.error { border-color: #ef4444; background: rgba(239,68,68,0.06); }
+.wizard-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
 
 .wizard-btn-primary {
     display: inline-flex; align-items: center; gap: 10px;
@@ -469,7 +471,7 @@ const AutoResizeEffect = ({ step, contentVisible, customAnswers, containerRef }:
         }, 100);
         
         return () => clearTimeout(timer);
-    }, [step, contentVisible, customAnswers]);
+    }, [step, contentVisible, customAnswers, containerRef]);
     
     return null;
 };
@@ -500,6 +502,7 @@ export const JobApplication = () => {
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showLGPD, setShowLGPD] = useState(false);
+    const [honeypot, setHoneypot] = useState('');
     
 
     const [genderOpen, setGenderOpen] = useState(false);
@@ -656,6 +659,7 @@ export const JobApplication = () => {
         if (!formData.phone && selectedCountry.code) {
             setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCountry]);
 
     const genderOptions = [
@@ -743,7 +747,7 @@ export const JobApplication = () => {
         if (!loading && job) {
             triggerStepReveal(200);
         }
-    }, [loading, job]);
+    }, [loading, job, triggerStepReveal]);
 
     const goToNextStep = useCallback(() => {
         setStep(s => s + 1);
@@ -783,6 +787,7 @@ export const JobApplication = () => {
 
     const handleSubmit = async () => {
         if (!resumeFile) { toast.error('Envie seu currículo em PDF.'); return; }
+        if (honeypot) { toast.error('Erro de validação. Recarregue a página.'); return; }
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
@@ -847,97 +852,48 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 aiKeys: finalAnswers._ai_analysis ? Object.keys(finalAnswers._ai_analysis as object) : 'n/a'
             });
 
-            const { error: err } = await supabase.from('vagas_candidaturas').insert({
-                vaga_id: job!.id,
-                organization_id: job!.organization_id, // Adicionado vínculo direto com a org
-                candidate_name: formData.name,
-                candidate_email: formData.email,
-                candidate_phone: formData.phone || null,
-                candidate_location: formData.location || null,
-                candidate_linkedin: formData.linkedin || null,
-                candidate_gender: formData.gender || null,
-                candidate_age: formData.age || null,
-                resume_url: resumeUrl,
-                resume_file_name: resumeFile.name,
-                status: aiResult ? 'reviewed' : 'pending',
-                match_score: aiResult ? aiResult.score : 0,
-                source: 'public_link',
-                answers: finalAnswers
-            });
-            
-            if (err) throw err;
-
-            // 2. UPSERT automático no Banco de Talentos via Edge Function (bypassa RLS)
-            if (job!.organization_id) {
-                const candidatePayload = {
-                    email: formData.email,
+            const submitRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-application`, {
+                method: 'POST',
+                headers: {
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    vaga_id: job!.id,
                     organization_id: job!.organization_id,
-                    name: formData.name,
-                    phone: formData.phone || null,
-                    location: formData.location || null,
-                    linkedin: formData.linkedin || null,
+                    candidate_name: formData.name,
+                    candidate_email: formData.email,
+                    candidate_phone: formData.phone || null,
+                    candidate_location: formData.location || null,
+                    candidate_linkedin: formData.linkedin || null,
+                    candidate_gender: formData.gender || null,
+                    candidate_age: formData.age || null,
                     resume_url: resumeUrl,
                     resume_file_name: resumeFile.name,
-                    gender: formData.gender || null,
-                    age: formData.age || null,
-                    address: formData.address || null,
-                    portfolio: formData.portfolio || null,
-                    cep: formData.cep || null,
-                    address_number: formData.addressNumber || null,
-                    complement: formData.complement || null,
-                    vaga_id: job!.id,
-                    status: 'active',
-                    skills: aiResult?.skills?.join(', ') || null,
-                    experience: aiResult?.experience || null,
-                    analysis: aiResult ? {
-                        skills: aiResult.skills?.join(', '),
-                        experience: aiResult.experience,
-                        education: aiResult.education,
-                        summary: aiResult.summary,
-                        classification: aiResult.classification,
-                        strengths: aiResult.strengths,
-                        gaps: aiResult.gaps,
-                        history: [{
-                            job_id: job!.id,
-                            job_title: job!.title,
-                            score: aiResult.score,
-                            date: new Date().toISOString(),
-                            classification: aiResult.classification,
-                            summary: aiResult.summary,
-                            skills: aiResult.skills?.join(', '),
-                            experience: aiResult.experience,
-                            education: aiResult.education,
-                            strengths: aiResult.strengths,
-                            gaps: aiResult.gaps
-                        }]
-                    } : null
-                };
+                    status: aiResult ? 'reviewed' : 'pending',
+                    match_score: aiResult ? aiResult.score : 0,
+                    source: 'public_link',
+                    answers: finalAnswers,
+                })
+            });
 
-                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(candidatePayload)
-                });
-
-                if (!res.ok) {
-                    const errBody = await res.text();
-                    console.error('submit-candidate error:', res.status, errBody);
-                    throw new Error('Erro ao salvar candidato no banco de talentos');
-                }
+            if (!submitRes.ok) {
+                const errBody = await submitRes.text();
+                console.error('submit-application error:', submitRes.status, errBody);
+                throw new Error('Erro ao enviar candidatura');
             }
+
+            const submitData = await submitRes.json();
+            const applicationId = submitData.id;
+
             setSubmitted(true);
 
             // Enviar e-mail de confirmação via Supabase Edge Function
             try {
                 await supabase.functions.invoke('send-application-email', {
                     body: {
-                        candidateName: formData.name,
-                        candidateEmail: formData.email,
-                        jobTitle: job!.title
+                        applicationId: applicationId,
                     }
                 });
             } catch (emailErr) {
@@ -1064,8 +1020,10 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
     const msg = stepMessages[step];
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 = 
-        formData.email.trim() && 
+        isValidEmail &&
         formData.phone.trim().length >= 14 && 
         formData.cep.trim().length === 9 && 
         formData.address.trim() && 
@@ -1240,7 +1198,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                 <div style={{ position: 'relative' }}>
                                     <Mail size={17} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
-                                    <input autoFocus className="wizard-input" style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
+                                    <input autoFocus className={`wizard-input${isEmailInvalid ? ' error' : ''}`} style={{ paddingLeft: 46 }} type="email" placeholder="seu@email.com *" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
                                 </div>
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <div style={{ position: 'relative' }} ref={countryRef}>
@@ -1621,6 +1579,18 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                                         Li e aceito os <button type="button" onClick={(e) => { e.preventDefault(); setShowLGPD(true); }} style={{ background: 'none', border: 'none', color: '#6366f1', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Termos de Privacidade e LGPD</button>. Entendo que meus dados e currículo serão armazenados no banco de talentos para contato sobre processos seletivos.
                                     </label>
                                 </div>
+
+                                {/* Honeypot - invisível para humanos, bots preenchem */}
+                                <input
+                                    type="text"
+                                    name="website"
+                                    tabIndex={-1}
+                                    autoComplete="off"
+                                    aria-hidden="true"
+                                    style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, pointerEvents: 'none' }}
+                                    value={honeypot}
+                                    onChange={e => setHoneypot(e.target.value)}
+                                />
 
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(hasQuestions ? 2 : 1); triggerStepReveal(); }}>

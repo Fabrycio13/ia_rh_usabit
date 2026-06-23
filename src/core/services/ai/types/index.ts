@@ -45,6 +45,8 @@ export interface CandidateExtraction {
   location: string | null;
   age: string | null;
   gender: string | null;
+  linkedin: string | null;
+  portfolio: string | null;
   skills: string[];
   experience: string;
   education: string;

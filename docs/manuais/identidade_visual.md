@@ -1,4 +1,4 @@
-# 🎨 Manual de Identidade Visual — Space Talent
+# 🎨 Manual de Identidade Visual — Usabit people
 
 > **Objetivo:** Este documento define os padrões de cores, tipografia e variáveis CSS do projeto.
 > Sempre que criar novas páginas, abas ou colunas, consulte este guia para manter a consistência visual.

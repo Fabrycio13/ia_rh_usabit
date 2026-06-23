@@ -402,6 +402,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     } else {
       setDuplicateCandidate(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, phone, profile.userId]);
 
   /**

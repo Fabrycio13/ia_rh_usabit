@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { UserPlus, FileText, Search, X, Loader } from 'lucide-react';
+import { FileText, Target, Search, X, Loader, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
-import { TalentTransferModal } from '../../features/candidates/components/TalentTransferModal';
+import { PoolAddCandidate } from '../../features/candidates/components/PoolAddCandidate';
 import DatePicker from '../../common/components/ui/DatePicker';
 import { analyzeJobApplication } from '../../core/services/jobAnalyzer';
 
@@ -74,7 +74,7 @@ export const PoolTalentos = () => {
     const [candidatos, setCandidatos] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCandDetail, setSelectedCandDetail] = useState<CandidateDetail | null>(null);
-    const [transferringCand, setTransferringCand] = useState<Candidate | null>(null);
+    const [showAddModal, setShowAddModal] = useState(false);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [analyzingCandidate, setAnalyzingCandidate] = useState<Candidate | null>(null);
@@ -83,6 +83,8 @@ export const PoolTalentos = () => {
     const [selectedVagaId, setSelectedVagaId] = useState<string | null>(null);
     const [analyzing, setAnalyzing] = useState(false);
     const [vagaSearch, setVagaSearch] = useState('');
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [confirmCandidate, setConfirmCandidate] = useState<Candidate | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -91,7 +93,7 @@ export const PoolTalentos = () => {
                 const { data, error } = await supabase
                     .from('candidates')
                     .select('*')
-                    .filter('analysis->>source', 'eq', 'spontaneous')
+                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
 
@@ -141,6 +143,53 @@ export const PoolTalentos = () => {
 
             const aiRaw = (c.analysis || {}) as unknown as Record<string, unknown>;
 
+            const { data: jcData } = await supabase
+                .from('job_candidates')
+                .select('job_id, vaga_id')
+                .eq('candidate_id', c.id);
+
+            const validJobIds = new Set<string>();
+            (jcData ?? []).forEach((jc: { job_id?: string; vaga_id?: string }) => {
+                if (jc.job_id) validJobIds.add(jc.job_id);
+                if (jc.vaga_id) validJobIds.add(jc.vaga_id);
+            });
+
+            const rawHistory = (aiRaw['history'] || []) as unknown as Record<string, unknown>[];
+            const validHistory = rawHistory.filter(h => {
+                const entry = h as Record<string, unknown>;
+                const jobId = entry['job_id'] as string | undefined;
+                const vagaId = entry['vaga_id'] as string | undefined;
+                return (jobId || vagaId) && validJobIds.has(jobId || vagaId || '');
+            });
+
+            const vagaTitles = new Map<string, string>();
+            const ids = Array.from(validJobIds);
+            if (ids.length > 0) {
+                const { data: vagas } = await supabase
+                    .from('vagas_white_label')
+                    .select('id, title')
+                    .in('id', ids);
+                (vagas ?? []).forEach(v => vagaTitles.set(v.id, v.title));
+            }
+
+            const applications = validHistory.map(h => {
+                const entry = h as Record<string, unknown>;
+                const jobId = (entry['job_id'] || entry['vaga_id'] || '') as string;
+                return {
+                    jobId,
+                    jobName: (entry['job_name'] || entry['job_title'] || vagaTitles.get(jobId) || 'Vaga Desconhecida') as string,
+                    jobCode: (entry['job_code'] || entry['code'] || '') as string,
+                    score: (entry['score'] ?? entry['match_score'] ?? 0) as number,
+                    appliedAt: (entry['analyzed_at'] || entry['date'] || entry['created_at'] || '') as string,
+                    skills: optStr(entry['skills'] ?? entry['habilidades']),
+                    experience: optStr(entry['summary'] ?? entry['experience'] ?? entry['experiencia']),
+                    positivePoints: optStr(entry['strengths'] ?? entry['positivePoints'] ?? entry['pontos_positivos'] ?? entry['positive_points']),
+                    education: optStr(entry['education'] ?? entry['formacao']),
+                    redFlags: optStr(entry['gaps'] ?? entry['redFlags'] ?? entry['pontos_atencao'] ?? entry['attention_points']),
+                    resume_url: (entry['resume_url'] as string | undefined) ?? null
+                };
+            });
+
             const detail: CandidateDetail = {
                 id: c.id,
                 name: c.name,
@@ -156,14 +205,14 @@ export const PoolTalentos = () => {
                 cep: c.cep,
                 address_number: c.address_number,
                 complement: c.complement,
-                vagas: [],
+                vagas: Array.from(vagaTitles.values()),
                 interview_eligible: false,
                 is_blacklisted: false,
                 skills: optStr(aiRaw['skills'] || c.skills),
                 experience: optStr(aiRaw['experience'] || c.experience),
                 education: optStr(aiRaw['education'] || c.education),
                 redFlags: optStr(aiRaw['gaps'] || aiRaw['redFlags'] || aiRaw['attention_points']),
-                applications: [],
+                applications,
                 pipelineCards: [],
                 notes: null,
                 resume_url: c.resume_url,
@@ -184,21 +233,6 @@ export const PoolTalentos = () => {
         }
     };
 
-    const handleTransferSuccess = () => {
-        setTransferringCand(null);
-        if (profile.organization_id) {
-            supabase
-                .from('candidates')
-                .select('*')
-                .filter('analysis->>source', 'eq', 'spontaneous')
-                .eq('organization_id', profile.organization_id)
-                .order('created_at', { ascending: false })
-                .then(({ data }) => {
-                    if (data) setCandidatos(data);
-                });
-        }
-    };
-
     const fetchVagas = async () => {
         if (!profile.organization_id) return;
         setLoadingVagas(true);
@@ -216,11 +250,23 @@ export const PoolTalentos = () => {
         }
     };
 
-    const openAnalyzeModal = async (candidate: Candidate) => {
-        setAnalyzingCandidate(candidate);
+    const openConfirmModal = (candidate: Candidate) => {
+        setConfirmCandidate(candidate);
+        setShowConfirm(true);
+    };
+
+    const closeConfirmModal = () => {
+        setShowConfirm(false);
+        setConfirmCandidate(null);
+    };
+
+    const openAnalyzeModal = () => {
+        if (!confirmCandidate) return;
+        setAnalyzingCandidate(confirmCandidate);
         setSelectedVagaId(null);
         setVagaSearch('');
-        await fetchVagas();
+        setShowConfirm(false);
+        fetchVagas();
     };
 
     const closeAnalyzeModal = () => {
@@ -228,6 +274,8 @@ export const PoolTalentos = () => {
         setSelectedVagaId(null);
         setAnalyzing(false);
         setVagaSearch('');
+        setShowConfirm(false);
+        setConfirmCandidate(null);
     };
 
     const downloadResume = async (url: string, fileName: string): Promise<File> => {
@@ -261,6 +309,20 @@ export const PoolTalentos = () => {
         if (!vaga) { toast.error('Vaga não encontrada'); setAnalyzing(false); return; }
 
         try {
+            const { data: vagaFull } = await supabase
+                .from('vagas_white_label')
+                .select('description, custom_questions')
+                .eq('id', selectedVagaId)
+                .single();
+
+            const jobDesc = vagaFull?.description || '';
+            const customQuestions = (vagaFull?.custom_questions || []) as { id: string; label: string }[];
+
+            const formAnswers: Record<string, string> = {};
+            customQuestions.forEach(q => {
+                formAnswers[q.id] = `[${q.label}] não respondido (candidato do pool, reanálise sem formulário)`;
+            });
+
             let result: Awaited<ReturnType<typeof analyzeJobApplication>> | null = null;
 
             if (analyzingCandidate.resume_url) {
@@ -268,7 +330,7 @@ export const PoolTalentos = () => {
                     analyzingCandidate.resume_url,
                     analyzingCandidate.resume_file_name || 'curriculo.pdf'
                 );
-                result = await analyzeJobApplication(resumeFile, vaga.title, '', {});
+                result = await analyzeJobApplication(resumeFile, vaga.title, jobDesc, formAnswers);
             }
 
             if (!result) {
@@ -305,56 +367,23 @@ export const PoolTalentos = () => {
                 status: 'reviewed'
             }, { onConflict: 'candidate_id,vaga_id' });
 
-            const oldAnalysis = (analyzingCandidate.analysis || {}) as unknown as Record<string, unknown>;
-            const oldHistory = (oldAnalysis.history || []) as unknown as Record<string, unknown>[];
-            const newHistory = oldHistory.length > 0 ? oldHistory : [{
-                type: 'spontaneous',
-                date: analyzingCandidate.created_at,
-                summary: oldAnalysis.summary,
-                skills: oldAnalysis.skills,
-                experience: oldAnalysis.experience,
-                education: oldAnalysis.education,
-                strengths: oldAnalysis.strengths,
-                gaps: oldAnalysis.gaps
-            }];
-
-            newHistory.push({
-                type: 'reanalysis',
-                vaga_id: vaga.id,
-                vaga_title: vaga.title,
-                date: new Date().toISOString(),
-                score: (aiData as unknown as Record<string, unknown>)?.score ?? null,
-                match_rationale: (aiData as unknown as Record<string, unknown>)?.match_rationale || (aiData as unknown as Record<string, unknown>)?.summary || null,
-                skills: (aiData as unknown as Record<string, unknown>)?.skills,
-                experience: (aiData as unknown as Record<string, unknown>)?.experience,
-                strengths: (aiData as unknown as Record<string, unknown>)?.strengths,
-                gaps: (aiData as unknown as Record<string, unknown>)?.gaps
-            });
-
+            const oldAnalysis = (analyzingCandidate.analysis || {}) as Record<string, unknown>;
             await supabase.from('candidates').update({
+                source: null,
                 analysis: {
                     ...oldAnalysis,
-                    source: 'transferred',
-                    vaga_id: vaga.id,
-                    vaga_title: vaga.title,
-                    score: (aiData as unknown as Record<string, unknown>)?.score ?? null,
-                    match_rationale: (aiData as unknown as Record<string, unknown>)?.match_rationale || (aiData as unknown as Record<string, unknown>)?.summary || null,
-                    skills: (aiData as unknown as Record<string, unknown>)?.skills || oldAnalysis.skills,
-                    experience: (aiData as unknown as Record<string, unknown>)?.experience || oldAnalysis.experience,
-                    strengths: (aiData as unknown as Record<string, unknown>)?.strengths || oldAnalysis.strengths,
-                    gaps: (aiData as unknown as Record<string, unknown>)?.gaps || oldAnalysis.gaps,
-                    history: newHistory
+                    source: 'transferred'
                 }
             }).eq('id', analyzingCandidate.id);
 
-            toast.success(`Candidato reanalisado e vinculado à vaga "${vaga.title}"`);
+            toast.success(`Candidato analisado para a vaga "${vaga.title}"`);
             closeAnalyzeModal();
             setSelectedCandDetail(null);
             if (profile.organization_id) {
                 const { data } = await supabase
                     .from('candidates')
                     .select('*')
-                    .filter('analysis->>source', 'eq', 'spontaneous')
+                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                     .eq('organization_id', profile.organization_id)
                     .order('created_at', { ascending: false });
                 if (data) setCandidatos(data);
@@ -410,6 +439,13 @@ export const PoolTalentos = () => {
                         Limpar filtros
                     </button>
                 )}
+                <div style={{ flex: 1 }} />
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                    <Plus style={{ width: 16, height: 16 }} /> Adicionar
+                </button>
             </div>
 
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
@@ -556,26 +592,26 @@ export const PoolTalentos = () => {
                                                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
                                             )}
                                             <button
-                                                title="Mover para Banco de Talentos"
+                                                title="Analisar para uma Vaga"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setTransferringCand(candidato);
+                                                    openConfirmModal(candidato);
                                                 }}
                                                 style={{
                                                     width: 34, height: 34,
                                                     padding: '0',
-                                                    background: 'rgba(16, 185, 129, 0.1)',
-                                                    border: '1px solid #10b981',
+                                                    background: 'rgba(99,102,241,0.1)',
+                                                    border: '1px solid var(--primary)',
                                                     borderRadius: '8px',
-                                                    color: '#10b981',
+                                                    color: 'var(--primary)',
                                                     cursor: 'pointer',
                                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                     transition: 'all 0.2s'
                                                 }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = '#10b981'; e.currentTarget.style.color = '#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'; e.currentTarget.style.color = '#10b981'; }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
                                             >
-                                                <UserPlus size={15} />
+                                                <Target size={15} />
                                             </button>
                                         </div>
                                     </div>
@@ -593,13 +629,24 @@ export const PoolTalentos = () => {
                     navigate={navigate}
                     onTransferSuccess={() => {
                         setSelectedCandDetail(null);
-                        handleTransferSuccess();
+                        if (profile.organization_id) {
+                            supabase
+                                .from('candidates')
+                                .select('*')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .eq('organization_id', profile.organization_id)
+                                .order('created_at', { ascending: false })
+                                .then(({ data }) => {
+                                    if (data) setCandidatos(data);
+                                });
+                        }
                     }}
                     onNotesChange={(cid, notes) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
                     }}
                     onFieldChange={(cid: string, field: string, val: unknown) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
+                        setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, [field]: val } : cand));
                     }}
                     onBlacklistChange={(cid: string, val: boolean) => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
@@ -614,7 +661,7 @@ export const PoolTalentos = () => {
                             const { data } = await supabase
                                 .from('candidates')
                                 .select('*')
-                                .filter('analysis->>source', 'eq', 'spontaneous')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
                                 .eq('organization_id', profile.organization_id)
                                 .order('created_at', { ascending: false });
                             if (data) setCandidatos(data);
@@ -624,7 +671,7 @@ export const PoolTalentos = () => {
                     showAnalyzeWithVagas={true}
                     onAnalyzeWithVagas={(cid) => {
                         const cand = candidatos.find(c => c.id === cid);
-                        if (cand) openAnalyzeModal(cand);
+                        if (cand) openConfirmModal(cand);
                     }}
                 />
             )}
@@ -751,36 +798,86 @@ export const PoolTalentos = () => {
                 </>
             )}
 
-            {transferringCand && (
-                <TalentTransferModal
-                    candidate={{
-                        id: transferringCand.id,
-                        name: transferringCand.name,
-                        email: transferringCand.email,
-                        phone: transferringCand.phone,
-                        location: transferringCand.location,
-                        linkedin: transferringCand.linkedin,
-                        resume_url: transferringCand.resume_url,
-                        age: transferringCand.age,
-                        gender: transferringCand.gender,
-                        address: transferringCand.address,
-                        portfolio: transferringCand.portfolio,
-                        cep: transferringCand.cep,
-                        address_number: transferringCand.address_number,
-                        complement: transferringCand.complement,
-                        match_score: 0,
-                        answers: {}
+            {showConfirm && confirmCandidate && (
+                <>
+                    <div onClick={closeConfirmModal} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{
+                        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        zIndex: 401, width: 'clamp(380px, 35vw, 500px)',
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 20, fontFamily: 'Inter, sans-serif',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        display: 'flex', flexDirection: 'column'
+                    }}>
+                        <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>
+                                Confirmar análise
+                            </h2>
+                        </div>
+                        <div style={{ padding: '20px 24px' }}>
+                            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-main)', lineHeight: '1.6' }}>
+                                Deseja analisar <strong>{confirmCandidate.name}</strong> para uma vaga?
+                            </p>
+                            <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--text-dim)', lineHeight: '1.5' }}>
+                                Isso vai consumir uma análise via IA e remover o candidato do Pool de Talentos.
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={closeConfirmModal}
+                                style={{
+                                    padding: '10px 20px', background: 'transparent',
+                                    border: '1px solid var(--border)', borderRadius: 12,
+                                    color: 'var(--text-dim)', fontSize: 13, fontWeight: 600,
+                                    cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={openAnalyzeModal}
+                                style={{
+                                    padding: '10px 24px',
+                                    background: 'var(--primary)',
+                                    border: 'none', borderRadius: 12,
+                                    color: '#fff', fontSize: 13, fontWeight: 700,
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                            >
+                                Sim, analisar
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {showAddModal && (
+                <PoolAddCandidate
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={() => {
+                        setShowAddModal(false);
+                        if (profile.organization_id) {
+                            supabase
+                                .from('candidates')
+                                .select('*')
+                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .eq('organization_id', profile.organization_id)
+                                .order('created_at', { ascending: false })
+                                .then(({ data }) => {
+                                    if (data) setCandidatos(data);
+                                });
+                        }
                     }}
-                    job={{
-                        id: '',
-                        title: 'Pool de Talentos',
-                        job_code: null,
-                        organization_id: profile.organization_id
-                    }}
-                    onClose={() => setTransferringCand(null)}
-                    onSuccess={handleTransferSuccess}
                 />
             )}
+
+
         </div>
     );
 };

@@ -3,7 +3,7 @@ import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
 import toast from 'react-hot-toast';
 import { logScreening } from '../../../core/services/logger';
-import { GitBranch, Loader, Trash2, ChevronDown } from 'lucide-react';
+import { GitBranch, Loader, Trash2, ChevronDown, Ban } from 'lucide-react';
 
 const css = `
 .pls-container { position: relative; flex: 1; }
@@ -46,11 +46,15 @@ interface LinkedPipeline {
 export function PipelineLinkSection({
     candidateId,
     candidateName,
-    currentJobContext
+    currentJobContext,
+    isBlacklisted,
+    onCardRemoved
 }: {
     candidateId: string;
     candidateName: string;
     currentJobContext?: { id: string; title: string };
+    isBlacklisted?: boolean;
+    onCardRemoved?: (cardId: string) => void;
 }) {
     const { profile } = useUser();
     const [pipelines, setPipelines] = useState<Array<{ id: string; name: string }>>([]);
@@ -187,6 +191,7 @@ export function PipelineLinkSection({
             if (error) throw error;
             setLinkedPipelines(prev => prev.filter(p => p.cardId !== cardId));
             setLastRemovedPipeline(pipelineName);
+            onCardRemoved?.(cardId);
             await logScreening(profile.userId, candidateId, 'removal', pipelineName, null, {
                 pipeline_id: pipelineId,
                 pipeline_name: pipelineName,
@@ -201,8 +206,51 @@ export function PipelineLinkSection({
         }
     }
 
+    useEffect(() => {
+        if (isBlacklisted) {
+            setLinkedPipelines([]);
+        }
+    }, [isBlacklisted]);
+
     const availablePipelines = pipelines.filter(p => !linkedPipelines.some(lp => lp.pipelineId === p.id));
     const selectedPipeline = pipelines.find(p => p.id === selectedId);
+
+    if (isBlacklisted) {
+        return (
+            <section style={{
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: 20,
+                padding: 24,
+                background: 'rgba(239, 68, 68, 0.03)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16
+            }}>
+                <p style={{
+                    fontSize: 13, fontWeight: 700, color: '#ef4444', margin: 0,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    textTransform: 'uppercase', letterSpacing: '0.05em'
+                }}>
+                    <GitBranch size={16} /> Vinculado a Pipelines
+                </p>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    fontSize: 13,
+                    lineHeight: 1.5
+                }}>
+                    <Ban size={16} style={{ flexShrink: 0 }} />
+                    <span>Candidato está na lista de restrição (blacklist) e não pode ser vinculado a processos seletivos.</span>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section style={{

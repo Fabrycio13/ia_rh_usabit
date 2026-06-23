@@ -25,7 +25,7 @@ END $$;
 -- 4. Atualizar seu perfil para OWNER
 -- (Troque pelo seu email real)
 UPDATE profiles 
-SET user_role = 'owner', organization_name = 'Space Talent'
+SET user_role = 'owner', organization_name = 'Usabit people'
 WHERE email = 'fabrycio.bermude@usabit.com.br';
 
 -- ============================================
