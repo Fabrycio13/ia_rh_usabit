@@ -147,9 +147,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         // Subscription realtime para detectar mudanças no perfil
-        let profileSubscription: { unsubscribe: () => void } | null = null;
-        if (profile.userId) {
-            profileSubscription = supabase
+        const profileSubscription = profile.userId
+            ? supabase
                 .channel('profile-changes')
                 .on(
                     'postgres_changes',
@@ -163,8 +162,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         loadProfile();
                     }
                 )
-                .subscribe();
-        }
+                .subscribe()
+            : null;
 
         return () => {
             subscription.unsubscribe();
