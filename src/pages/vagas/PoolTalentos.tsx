@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
-import { FileText, Target, Search, X, Loader, Plus } from 'lucide-react';
+import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
@@ -85,6 +85,18 @@ export const PoolTalentos = () => {
     const [vagaSearch, setVagaSearch] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
     const [confirmCandidate, setConfirmCandidate] = useState<Candidate | null>(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
+    useEffect(() => { setPage(1); }, [startDate, endDate]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -117,6 +129,10 @@ export const PoolTalentos = () => {
         const endMs = endDate ? new Date(endDate + 'T23:59:59.999').getTime() : Infinity;
         return createdMs >= startMs && createdMs <= endMs;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredCandidatos.length / PAGE_SIZE));
+    const paginated = filteredCandidatos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const goTo = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '-';
@@ -409,119 +425,128 @@ export const PoolTalentos = () => {
     return (
         <div style={{ fontFamily: 'Inter, sans-serif' }}>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                    <DatePicker value={startDate} onChange={setStartDate} />
+            <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 24, flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                        <DatePicker value={startDate} onChange={(v) => { setStartDate(v); setPage(1); }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                        <DatePicker value={endDate} onChange={(v) => { setEndDate(v); setPage(1); }} />
+                    </div>
+                    {(startDate || endDate) && (
+                        <button onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
+                            style={{ padding: isMobile ? '10px 16px' : '10px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <X size={14} /> Limpar
+                        </button>
+                    )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                    <DatePicker value={endDate} onChange={setEndDate} />
-                </div>
-                {(startDate || endDate) && (
-                    <button
-                        onClick={() => { setStartDate(''); setEndDate(''); }}
-                        style={{
-                            padding: '10px 16px',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444',
-                            border: '1px solid #ef4444',
-                            borderRadius: '8px',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6
-                        }}
-                    >
-                        Limpar filtros
-                    </button>
-                )}
-                <div style={{ flex: 1 }} />
-                <button
-                    onClick={() => setShowAddModal(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                    <Plus style={{ width: 16, height: 16 }} /> Adicionar
+                <button onClick={() => setShowAddModal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--primary)', border: 'none', borderRadius: 10, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
+                    <Plus size={16} /> Adicionar
                 </button>
             </div>
 
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: gridColumns, padding: '12px 24px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-                    {['Rank', 'Candidato', 'Localização', 'Data de Entrada', 'Gênero', 'Status', 'Ações'].map((h, i) => (
-                        <div key={h} style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: 'var(--text-dim)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.06em',
-                            textAlign: [0, 3, 4, 5, 6].includes(i) ? 'center' : 'left'
-                        }}>
-                            {h}
-                        </div>
-                    ))}
+            {paginated.length === 0 ? (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Nenhum candidato no pool de talentos.
                 </div>
-
-                {filteredCandidatos.length === 0 ? (
-                    <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Nenhum candidato no pool de talentos.
+            ) : isMobile ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {paginated.map((candidato) => {
+                        const statusColors = getStatusColor(candidato.status);
+                        return (
+                            <div key={candidato.id} onClick={() => fetchCandidateDetail(candidato)}
+                                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
+                                        {candidato.name?.charAt(0) || '?'}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />}
+                                            <span style={{ color: 'var(--text-main)', fontWeight: candidato.viewed_at ? 500 : 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidato.name}</span>
+                                        </div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{candidato.email}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                        {(candidato.resume_url || candidato.resume_file_name) ? (
+                                            <button onClick={(e) => { e.stopPropagation(); handleViewResume(candidato.resume_url!); }}
+                                                style={{ width: 44, height: 44, padding: 0, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 8, color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <FileText size={18} />
+                                            </button>
+                                        ) : null}
+                                        <button onClick={(e) => { e.stopPropagation(); openConfirmModal(candidato); }}
+                                            style={{ width: 44, height: 44, padding: 0, background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Target size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                                    {candidato.location && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>📍 {candidato.location}</span>}
+                                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>· {formatDate(candidato.created_at)}</span>
+                                    <div style={{ marginLeft: 'auto' }}>
+                                        <span style={{ display: 'inline-block', padding: '4px 10px', background: statusColors.bg, color: statusColors.color, borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                                            {getStatusLabel(candidato.status)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {totalPages > 1 && (
+                        <div style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: '#64748b' }}>{page} de {totalPages}</span>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                                    <ChevronLeft size={15} /> Anterior
+                                </button>
+                                <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                                    Próximo <ChevronRight size={15} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: gridColumns, padding: '12px 24px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+                        {['Rank', 'Candidato', 'Localização', 'Data de Entrada', 'Gênero', 'Status', 'Ações'].map((h, i) => (
+                            <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: [0, 3, 4, 5, 6].includes(i) ? 'center' : 'left' }}>
+                                {h}
+                            </div>
+                        ))}
                     </div>
-                ) : (
                     <div>
-                        {filteredCandidatos.map((candidato, index) => {
+                        {paginated.map((candidato, index) => {
                             const statusColors = getStatusColor(candidato.status);
-
                             return (
                                 <div key={candidato.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <div
-                                        onClick={() => fetchCandidateDetail(candidato)}
-                                        style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: gridColumns,
-                                            padding: '14px 24px',
-                                            background: 'var(--bg-card)',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            alignItems: 'center'
-                                        }}
+                                    <div onClick={() => fetchCandidateDetail(candidato)}
+                                        style={{ display: 'grid', gridTemplateColumns: gridColumns, padding: '14px 24px', background: 'var(--bg-card)', cursor: 'pointer', transition: 'all 0.2s', alignItems: 'center' }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'var(--row-hover)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
-                                    >
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <div style={{
-                                                width: 26, height: 26, borderRadius: '50%',
-                                                background: index < 3 ? 'var(--primary)' : 'var(--bg-main)',
-                                                border: '1px solid var(--border)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                fontSize: 11, fontWeight: 700,
-                                                color: index < 3 ? '#fff' : 'var(--text-dim)'
-                                            }}>
+                                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: index < 3 ? 'var(--primary)' : 'var(--bg-main)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: index < 3 ? '#fff' : 'var(--text-dim)' }}>
                                                 {index + 1}
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <div style={{
-                                                width: 32, height: 32, borderRadius: '8px',
-                                                background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0
-                                            }}>
+                                            <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                                                 {candidato.name?.charAt(0) || '?'}
                                             </div>
                                             <div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    {!candidato.viewed_at && (
-                                                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />
-                                                    )}
+                                                    {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />}
                                                     <div style={{ color: 'var(--text-main)', fontWeight: candidato.viewed_at ? 500 : 700, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {candidato.name}
                                                     </div>
                                                 </div>
-                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                                                    {candidato.email}
-                                                </div>
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{candidato.email}</div>
                                             </div>
                                         </div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -532,32 +557,10 @@ export const PoolTalentos = () => {
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             {candidato.gender ? (
-                                                <span style={{
-                                                    display: 'inline-block', padding: '2px 10px',
-                                                    background: candidato.gender?.toLowerCase().includes('fem')
-                                                        ? 'rgba(236,72,153,0.15)'
-                                                        : candidato.gender?.toLowerCase().includes('masc')
-                                                            ? 'rgba(59,130,246,0.15)'
-                                                            : 'rgba(100,116,139,0.1)',
-                                                    color: candidato.gender?.toLowerCase().includes('fem')
-                                                        ? '#ec4899'
-                                                        : candidato.gender?.toLowerCase().includes('masc')
-                                                            ? '#3b82f6'
-                                                            : '#64748b',
-                                                    borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                                                    border: `1px solid ${
-                                                        candidato.gender?.toLowerCase().includes('fem')
-                                                            ? '#ec489933'
-                                                            : candidato.gender?.toLowerCase().includes('masc')
-                                                                ? '#3b82f633'
-                                                                : '#64748b33'
-                                                    }`
-                                                }}>
+                                                <span style={{ display: 'inline-block', padding: '2px 10px', background: candidato.gender?.toLowerCase().includes('fem') ? 'rgba(236,72,153,0.15)' : candidato.gender?.toLowerCase().includes('masc') ? 'rgba(59,130,246,0.15)' : 'rgba(100,116,139,0.1)', color: candidato.gender?.toLowerCase().includes('fem') ? '#ec4899' : candidato.gender?.toLowerCase().includes('masc') ? '#3b82f6' : '#64748b', borderRadius: '6px', fontSize: '11px', fontWeight: 600, border: `1px solid ${candidato.gender?.toLowerCase().includes('fem') ? '#ec489933' : candidato.gender?.toLowerCase().includes('masc') ? '#3b82f633' : '#64748b33'}` }}>
                                                     {candidato.gender}
                                                 </span>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
-                                            )}
+                                            ) : (<span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>)}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <span style={{ display: 'inline-block', padding: '4px 10px', background: statusColors.bg, color: statusColors.color, borderRadius: '8px', fontSize: '11px', fontWeight: 600 }}>
@@ -566,51 +569,17 @@ export const PoolTalentos = () => {
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                                             {(candidato.resume_url || candidato.resume_file_name) ? (
-                                                <button
-                                                    title={candidato.resume_file_name || 'Ver currículo'}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleViewResume(candidato.resume_url!);
-                                                    }}
-                                                    style={{
-                                                        width: 34, height: 34,
-                                                        padding: '0',
-                                                        background: 'rgba(99,102,241,0.08)',
-                                                        border: '1px solid rgba(99,102,241,0.3)',
-                                                        borderRadius: '8px',
-                                                        color: 'var(--primary)',
-                                                        cursor: 'pointer',
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        transition: 'all 0.2s'
-                                                    }}
+                                                <button title={candidato.resume_file_name || 'Ver currículo'} onClick={(e) => { e.stopPropagation(); handleViewResume(candidato.resume_url!); }}
+                                                    style={{ width: 34, height: 34, padding: '0', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '8px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
-                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                                >
+                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; e.currentTarget.style.color = 'var(--primary)'; }}>
                                                     <FileText size={15} />
                                                 </button>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>
-                                            )}
-                                            <button
-                                                title="Analisar para uma Vaga"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openConfirmModal(candidato);
-                                                }}
-                                                style={{
-                                                    width: 34, height: 34,
-                                                    padding: '0',
-                                                    background: 'rgba(99,102,241,0.1)',
-                                                    border: '1px solid var(--primary)',
-                                                    borderRadius: '8px',
-                                                    color: 'var(--primary)',
-                                                    cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    transition: 'all 0.2s'
-                                                }}
+                                            ) : (<span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>)}
+                                            <button title="Analisar para uma Vaga" onClick={(e) => { e.stopPropagation(); openConfirmModal(candidato); }}
+                                                style={{ width: 34, height: 34, padding: '0', background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}
-                                            >
+                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.color = 'var(--primary)'; }}>
                                                 <Target size={15} />
                                             </button>
                                         </div>
@@ -619,8 +588,23 @@ export const PoolTalentos = () => {
                             );
                         })}
                     </div>
-                )}
-            </div>
+                    {totalPages > 1 && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+                            <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {filteredCandidatos.length} candidatos</span>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                                    <ChevronLeft size={15} /> Anterior
+                                </button>
+                                <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                                    Próximo <ChevronRight size={15} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {selectedCandDetail && (
                 <CandidatePanel
