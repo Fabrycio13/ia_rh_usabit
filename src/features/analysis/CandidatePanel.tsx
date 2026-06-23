@@ -376,7 +376,7 @@ export function CandidatePanel({
             <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
             <div style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0,
-                zIndex: 301, width: 'clamp(400px, 35vw, 95vw)',
+                zIndex: 301, width: 'clamp(320px, 50vw, 100vw)',
                 background: 'var(--bg-card)', borderLeft: '1px solid var(--border)',
                 display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif',
                 boxShadow: '-20px 0 60px rgba(0,0,0,0.5)', animation: 'slideInRight 0.28s cubic-bezier(0.16,1,0.3,1)',

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, Eye } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -392,6 +392,17 @@ export const Pipeline = () => {
     
     const [vagaSearch, setVagaSearch] = useState('');
 
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
+
+    const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
+
     // Filtro de Status para os pipelines
     const [availableVagas, setAvailableVagas] = useState<Array<{ id: string; title: string; status: string; job_code?: string; pipeline_id?: string | null; is_active?: boolean }>>([]);
     const isConvidado = profile.user_role === 'convidado';
@@ -405,6 +416,8 @@ export const Pipeline = () => {
     const [cardMenuOpen, setCardMenuOpen] = useState<string | null>(null);
     const [cardSubmenu, setCardSubmenu] = useState<string | null>(null);
     const [cardMenuPos, setCardMenuPos] = useState<{ top: number; left: number } | null>(null);
+
+    const [mobileSheet, setMobileSheet] = useState<{ type: 'card'; card: PipelineCard; col: PipelineColumn } | { type: 'col'; col: PipelineColumn } | null>(null);
 
     const initRef = useRef<(userId: string) => Promise<void> | null>(null);
 
@@ -461,7 +474,7 @@ export const Pipeline = () => {
 
     // ─── Drag-and-Drop with @atlaskit ─────────────────────────────────────────
     useEffect(() => {
-        if (isConvidado) return;
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         cards.forEach(card => {
@@ -557,10 +570,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [cards, columns, isConvidado, profile, pipelines, selectedPipelineId]);
+    }, [cards, columns, isConvidado, isMobile, profile, pipelines, selectedPipelineId]);
 
     useEffect(() => {
-        if (isConvidado) return;
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(column => {
@@ -577,10 +590,10 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns, isConvidado]);
+    }, [columns, isConvidado, isMobile]);
 
     useEffect(() => {
-        if (isConvidado) return;
+        if (isConvidado || isMobile) return;
         const cleanupFunctions: Array<() => void> = [];
 
         columns.forEach(col => {
@@ -631,7 +644,7 @@ export const Pipeline = () => {
         });
 
         return () => cleanupFunctions.forEach(fn => fn());
-    }, [columns, isConvidado]);
+    }, [columns, isConvidado, isMobile]);
     
     // Helper function para status da vaga
     const getVagaStatusBadge = (vagaId?: string | null) => {
@@ -1394,34 +1407,48 @@ export const Pipeline = () => {
         <>
             <style>{css}</style>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
-                {/* Left side: Title and Count */}
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Kanban size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+            <div style={{ marginBottom: isMobile ? 12 : 32 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: isMobile ? 10 : 16 }}>
+                    <Kanban size={isMobile ? 24 : 32} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h1 style={{ fontSize: isMobile ? '20px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             Pipeline de Recrutamento
                         </h1>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: '2px 0 0' }}>
+                            {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
+                        </p>
                     </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
-                        {pipelines.length} processo{pipelines.length !== 1 ? 's' : ''} cadastrado{pipelines.length !== 1 ? 's' : ''}
-                    </p>
+                    {/* Primary Button: Add Pipeline */}
+                    {!isConvidado && (
+                    <button 
+                        onClick={openCreatePipelineModal}
+                        style={{ 
+                            display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, 
+                            background: 'var(--primary)', border: 'none', 
+                            borderRadius: isMobile ? 8 : 10, padding: isMobile ? '6px 10px' : '10px 18px', color: '#fff', 
+                            fontSize: isMobile ? 11 : 13, fontWeight: 600, cursor: 'pointer',
+                            whiteSpace: 'nowrap', flexShrink: 0
+                        }}
+                    >
+                        <Plus style={{ width: isMobile ? 14 : 16, height: isMobile ? 14 : 16 }} />{isMobile ? '' : ' Novo Processo'}
+                    </button>)}
                 </div>
 
-                {/* Right side: Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {/* Controls row: dropdowns */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexWrap: 'wrap' }}>
                     {/* Dropdown 1: Filtro de Status das Vagas */}
-                    <div style={{ position: 'relative', zIndex: 100 }} ref={statusSelectRef}>
-                        <div 
-                            onClick={() => setShowStatusSelect(!showStatusSelect)}
-                            style={{ 
-                                background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
-                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13, 
-                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', 
-                                minWidth: 200, justifyContent: 'space-between'
-                            }}
-                        >
-                            <span style={{ fontWeight: 600 }}>
+                    <div style={{ position: 'relative', zIndex: 100, flex: isMobile ? '1 1 0' : undefined, minWidth: 0 }} ref={statusSelectRef}>
+                                <div 
+                                    onClick={() => setShowStatusSelect(!showStatusSelect)}
+                                    style={{ 
+                                        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, 
+                                        padding: '8px 14px', color: 'var(--text-main)', fontSize: 13, 
+                                        display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', 
+                                        minWidth: 0, justifyContent: 'space-between', whiteSpace: 'nowrap',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                                 {pipelineStatusFilter === '' && 'Vagas: Todas'}
                                 {pipelineStatusFilter === 'aberta' && 'Vagas: Abertas'}
                                 {pipelineStatusFilter === 'pausada' && 'Vagas: Pausadas'}
@@ -1471,17 +1498,18 @@ export const Pipeline = () => {
                     </div>
 
                     {/* Dropdown 2: Select Pipeline Dropdown */}
-                    <div style={{ position: 'relative', zIndex: 99, minWidth: 400 }} ref={selectRef}>
+                    <div style={{ position: 'relative', zIndex: 99, flex: isMobile ? '1 1 0' : undefined, minWidth: isMobile ? 0 : 400 }} ref={selectRef}>
                         <div
                             onClick={() => setShowSelect(!showSelect)}
                             style={{
                                 background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10,
-                                padding: '10px 14px', color: 'var(--text-main)', fontSize: 13,
-                                display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                                justifyContent: 'space-between'
+                                padding: '8px 14px', color: 'var(--text-main)', fontSize: 13,
+                                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                                justifyContent: 'space-between', whiteSpace: 'nowrap',
+                                overflow: 'hidden', minWidth: 0
                             }}
                         >
-                            <span style={{ fontWeight: 600 }}>
+                            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                                 {(() => {
                                     const p = pipelines.find(p => p.id === selectedPipelineId);
                                     if (!p) return 'Selecionar Processo';
@@ -1495,7 +1523,7 @@ export const Pipeline = () => {
                         </div>
 
                         {showSelect && (
-                            <div className="pipeline_dropdown">
+                            <div className="pipeline_dropdown" style={isMobile ? { width: 'auto', minWidth: 280, maxWidth: '90vw', right: 0, left: 'auto' } : undefined}>
                                 <div style={{ padding: '8px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
                                     <input
                                         autoFocus
@@ -1570,43 +1598,31 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             </div>
                         )}
                     </div>
-
-                    {/* Primary Button: Add Pipeline */}
-                    {!isConvidado && (
-                    <button 
-                        onClick={openCreatePipelineModal}
-                        style={{ 
-                            display: 'flex', alignItems: 'center', gap: 6, 
-                            background: 'var(--primary)', border: 'none', 
-                            borderRadius: 10, padding: '10px 18px', color: '#fff', 
-                            fontSize: 13, fontWeight: 600, cursor: 'pointer' 
-                        }}
-                    >
-                        <Plus style={{ width: 16, height: 16 }} /> Novo Processo
-                    </button>)}
                 </div>
             </div>
 
             {/* Tabs and Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'nowrap', gap: isMobile ? 6 : 16 }}>
                 {/* Tabs à esquerda */}
-                <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4 }}>
-                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')}>
-                        <LayoutDashboard size={14} /> Board
+                <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4, flexShrink: 0 }}>
+                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <LayoutDashboard size={14} />{isMobile ? '' : ' Board'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')}>
-                        <List size={14} /> Lista
+                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <List size={14} />{isMobile ? '' : ' Lista'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')}>
-                        <BarChart2 size={14} /> Métricas
+                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                        <BarChart2 size={14} />{isMobile ? '' : ' Métricas'}
                     </button>
                 </div>
 
                 {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Actions row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
                     {!isConvidado && selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
+                            title="Vincular a vaga"
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
@@ -1622,6 +1638,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     {!isConvidado && selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) handleUnlinkVaga(p.id); }}
+                            title="Desvincular vaga"
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
@@ -1637,6 +1654,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     {!isConvidado && activeTab === 'board' && selectedPipelineId && (
                         <button 
                             onClick={() => setAddColModal(true)} 
+                            title="Nova Coluna"
                             style={{ 
                                 display: 'flex', alignItems: 'center', gap: 6, 
                                 background: 'transparent', border: '1px solid var(--border)', 
@@ -1654,12 +1672,56 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Board */}
             {activeTab === 'board' && (
-                <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', gap: isMobile ? 0 : 14, overflowX: isMobile ? 'visible' : 'auto', paddingBottom: 16, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
                 {columns.map(col => {
-                    // Filtrar cards por coluna e por pipeline
                     let colCards = cards.filter(c => c.column_id === col.id);
                     colCards = colCards.sort((a, b) => a.position - b.position);
-                    return (
+                    const isOpen = expandedCols.has(col.id);
+                    return isMobile ? (
+                        <div key={col.id} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 8, overflow: 'hidden' }}>
+                            <div onClick={() => { const next = new Set(expandedCols); if (isOpen) next.delete(col.id); else next.add(col.id); setExpandedCols(next); }}
+                                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 14px', cursor: 'pointer', borderLeft: `3px solid ${col.color}` }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
+                                <span style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 15, flex: 1 }}>{col.name}</span>
+                                <span style={{ background: col.color + '22', color: col.color, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '2px 9px' }}>{colCards.length}</span>
+                                {!isConvidado && (
+                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); setMobileSheet({ type: 'col', col }); }}
+                                        style={{ color: 'var(--text-dim)' }}>
+                                        <MoreVertical size={14} />
+                                    </button>
+                                )}
+                                <span style={{ color: 'var(--text-dim)', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>
+                                    <ChevronDown size={16} />
+                                </span>
+                            </div>
+                            {isOpen && (
+                                <div style={{ padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)' }}>
+                                    {colCards.length === 0 && (
+                                        <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>Nenhum candidato</div>
+                                    )}
+                                    {colCards.map(card => (
+                                        <div key={card.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: `linear-gradient(135deg, ${col.color}, ${col.color}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                                    {initials(card.candidate_name)}
+                                                </div>
+                                                <span style={{ color: card.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} onClick={() => openCandidate(card)}>{card.candidate_name}</span>
+                                                <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); openCandidate(card); }} title="Ver detalhes" style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+                                                    <Eye size={13} />
+                                                </button>
+                                                {!isConvidado && (
+                                                    <button className="pipe-btn" onClick={(e) => { e.stopPropagation(); setMobileSheet({ type: 'card', card, col }); }}
+                                                        style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+                                                        <MoreVertical size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
                         <div
                             key={col.id}
                             ref={el => { if (el) columnRefs.current.set(col.id, el); }}
@@ -1881,10 +1943,10 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {activeTab === 'lista' && (
                 <div style={{ paddingBottom: 20 }}>
                     <div style={{ width: '100%', background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Candidato</div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Compatibilidade</div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status do Pipeline</div>
+                        <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : '3fr 1fr 1fr', padding: isMobile ? '10px 14px' : '14px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)', justifyContent: 'space-between', gap: isMobile ? 4 : 0 }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Candidato</div>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Score</div>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estágio</div>
                         </div>
                         {columns.length === 0 && (
                             <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
@@ -1900,37 +1962,44 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                 let importedFrom = '';
                                 try { const n = JSON.parse(card.notes || '{}'); importedFrom = n.imported_from || ''; } catch { /* ignore */ }
                                 return (
-                                    <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', padding: '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                                                <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)' }}>
+                                    <div key={card.id} style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : '3fr 1fr 1fr', padding: isMobile ? '12px 14px' : '16px 24px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'center', justifyContent: 'space-between', gap: isMobile ? 6 : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }} onClick={() => openCandidate(card)}>
+                                        <div style={{ flex: isMobile ? '1 1 auto' : undefined }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, marginBottom: isMobile ? 0 : 4 }}>
+                                                <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 800, padding: isMobile ? '2px 6px' : '4px 10px', borderRadius: 12, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                                     {(card.display_job_name ?? card.candidate_vagas[0] ?? 'CANDIDATO').toUpperCase()}
                                                 </span>
-                                                <span style={{ color: isBlacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: 15 }}>
+                                                <span style={{ color: isBlacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 700, fontSize: isMobile ? 13 : 15 }}>
                                                     {card.candidate_name}
                                                 </span>
-                                                {isBlacklisted && <Ban size={14} color="#ef4444" />}
-                                                {importedFrom && (
+                                                {isBlacklisted && <Ban size={isMobile ? 12 : 14} color="#ef4444" />}
+                                                {importedFrom && !isMobile && (
                                                     <span style={{ fontSize: 11, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: 6, marginLeft: 4 }}>
                                                         ← {importedFrom}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div style={{ color: 'var(--text-dim)', fontSize: 13, paddingLeft: 2 }}>
-                                                Clique para ver detalhes do perfil
-                                            </div>
-                                        </div>
-                                        <div>
-                                            {score != null ? (
-                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: scoreCol + '1a', color: scoreCol, fontSize: 12, fontWeight: 700 }}>
-                                                    <Flag size={12} /> {score}% match
+                                            {isMobile && importedFrom && (
+                                                <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 2, paddingLeft: 4 }}>
+                                                    ← {importedFrom}
                                                 </div>
-                                            ) : (
-                                                <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>-</span>
+                                            )}
+                                            {!isMobile && (
+                                                <div style={{ color: 'var(--text-dim)', fontSize: 13, paddingLeft: 2 }}>
+                                                    Clique para ver detalhes do perfil
+                                                </div>
                                             )}
                                         </div>
-                                        <div>
-                                            <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 20, border: `1px solid ${col.color}40`, background: col.color + '1a', color: col.color, fontSize: 12, fontWeight: 700 }}>
+                                        <div style={{ flexShrink: 0 }}>
+                                            {score != null ? (
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: isMobile ? 4 : 6, padding: isMobile ? '2px 8px' : '4px 12px', borderRadius: 20, background: scoreCol + '1a', color: scoreCol, fontSize: isMobile ? 10 : 12, fontWeight: 700 }}>
+                                                    <Flag size={isMobile ? 10 : 12} /> {score}%
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13 }}>-</span>
+                                            )}
+                                        </div>
+                                        <div style={{ flexShrink: 0 }}>
+                                            <span style={{ display: 'inline-block', padding: isMobile ? '2px 8px' : '4px 12px', borderRadius: 20, border: `1px solid ${col.color}40`, background: col.color + '1a', color: col.color, fontSize: isMobile ? 10 : 12, fontWeight: 700 }}>
                                                 {col.name}
                                             </span>
                                         </div>
@@ -1945,7 +2014,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             {/* Metrics Tab */}
             {activeTab === 'metricas' && (
                 <div style={{ paddingBottom: 20 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 16 }}>
                         {/* Card 1: Total */}
                         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
                             <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Total de Candidatos</div>
@@ -2042,9 +2111,9 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Modal: Create Pipeline */}
             {showCreatePipeline && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 12 : 0 }}>
                     <div onClick={() => { if (!loading) { setShowCreatePipeline(false); setSelectedVagaId(''); } }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, width: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 16 : 20, padding: isMobile ? 20 : 32, width: isMobile ? '100%' : 440, maxWidth: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.5)', boxSizing: 'border-box' }}>
                         <h3 style={{ fontSize: 20, color: 'var(--text-main)', margin: '0 0 20px', fontWeight: 700 }}>Novo Processo Seletivo</h3>
                         <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 24px' }}>Dê um nome para este pipeline (ex: Design, Front-end, etc.)</p>
                         <input 
@@ -2328,6 +2397,61 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                     }}
                     hideFeedbackDaIA={true}
                 />
+            )}
+
+            {/* Bottom Sheet (mobile) */}
+            {isMobile && mobileSheet && (
+                <div onClick={() => setMobileSheet(null)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+                    <div onClick={(e) => e.stopPropagation()}
+                        style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420, background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', padding: '16px 20px 32px', boxShadow: '0 -8px 32px rgba(0,0,0,0.3)' }}>
+                        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 16px' }} />
+                        {mobileSheet.type === 'card' && (
+                            <>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14, margin: '0 0 4px 0' }}>{mobileSheet.card.candidate_name}</p>
+                                <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 14px 0' }}>{mobileSheet.col.name} · {mobileSheet.card.display_job_name ?? 'Candidato'}</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {columns.filter(c => c.id !== mobileSheet.card.column_id).map(targetCol => (
+                                        <button key={targetCol.id}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', borderRadius: 12, textAlign: 'left' }}
+                                            onClick={() => { moveCard(mobileSheet.card, targetCol.id); setMobileSheet(null); }}>
+                                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: targetCol.color, flexShrink: 0 }} />
+                                            Mover para {targetCol.name}
+                                        </button>
+                                    ))}
+                                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { removeCard(mobileSheet.card.id); setMobileSheet(null); }}>
+                                        <Trash2 size={14} />
+                                        Remover deste pipeline
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                        {mobileSheet.type === 'col' && (
+                            <>
+                                <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 14, margin: '0 0 14px 0' }}>Opções da coluna</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: 'var(--text-main)', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { setMobileSheet(null); /* Could prompt inline edit here */ }}>
+                                        <Edit2 size={14} />
+                                        Editar nome da coluna
+                                    </button>
+                                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                                    <button
+                                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
+                                        onClick={() => { deleteColumn(mobileSheet.col.id); setMobileSheet(null); }}>
+                                        <Trash2 size={14} />
+                                        Excluir coluna
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             )}
         </>
     );
