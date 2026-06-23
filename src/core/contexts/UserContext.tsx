@@ -18,6 +18,9 @@ interface UserProfile {
     trial_ends_at: string | null;
     organization_id: string | null;
     organization_name: string | null;
+    brandName: string;
+    brandColor: string;
+    brandFont: string;
     onboarding_completed: boolean;
     loaded: boolean; // true once the first load completed
     isPremium: boolean;
@@ -30,13 +33,14 @@ const defaultProfile: UserProfile = {
     userId: '', userName: '', firstName: '', avatarUrl: '',
     plan: 'trial', email: '', initials: '', notificationsEnabled: false,
     user_role: 'owner', status: 'active', account_type: 'trial', trial_ends_at: null,
-    organization_id: null, organization_name: null, onboarding_completed: false, loaded: false,
+    organization_id: null, organization_name: null, brandName: '', brandColor: '', brandFont: '', onboarding_completed: false, loaded: false,
     isPremium: false,
 };
 
-const UserContext = createContext<{ profile: UserProfile; refetch: () => void }>({
+const UserContext = createContext<{ profile: UserProfile; refetch: () => void; updateProfile: (partial: Partial<UserProfile>) => void }>({
     profile: defaultProfile,
     refetch: () => { },
+    updateProfile: () => { },
 });
 
 export const useUser = () => useContext(UserContext);
@@ -68,17 +72,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             ...prev,
             userId: user.id,
             email: user.email || '',
-            userName: name,
-            firstName: name.split(' ')[0],
-            initials,
             isPremium: isPremiumOptimistic,
+            ...(prev.loaded ? {} : {
+                userName: name,
+                firstName: name.split(' ')[0],
+                initials,
+            }),
             loaded: prev.loaded, // Preserve loaded state during refetch
         }));
 
         // Then enrich with Supabase profile data (avatarUrl, role etc.)
         const { data } = await supabase
             .from('profiles')
-            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at, organization_id, organization_name, onboarding_completed, evolution_api_url, evolution_api_key, evolution_instance')
+            .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at, organization_id, organization_name, brand_name, brand_color, brand_font, onboarding_completed, evolution_api_url, evolution_api_key, evolution_instance')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -103,6 +109,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 trial_ends_at: data.trial_ends_at || null,
                 organization_id: (data.organization_id && data.organization_id !== 'null') ? data.organization_id : null,
                 organization_name: (data.organization_name && data.organization_name !== 'null') ? data.organization_name : null,
+                brandName: data.brand_name || '',
+                brandColor: data.brand_color || '',
+                brandFont: data.brand_font || '',
                 onboarding_completed: data.onboarding_completed ?? false,
                 isPremium: data.account_type === 'lifetime' ||
                            data.user_role?.toLowerCase() === 'owner' ||
@@ -138,34 +147,38 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         // Subscription realtime para detectar mudanças no perfil
-        const profileSubscription = supabase
-            .channel('profile-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'profiles',
-                },
-                (payload) => {
-                    // Se o perfil atualizado for o do usuário logado, recarrega
-                    if (payload.new.id === profile.userId) {
-                        console.log('[UserContext] Perfil atualizado em realtime:', payload.new);
+        let profileSubscription: { unsubscribe: () => void } | null = null;
+        if (profile.userId) {
+            profileSubscription = supabase
+                .channel('profile-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'profiles',
+                        filter: `id=eq.${profile.userId}`,
+                    },
+                    () => {
                         loadProfile();
                     }
-                }
-            )
-            .subscribe();
+                )
+                .subscribe();
+        }
 
         return () => {
             subscription.unsubscribe();
-            supabase.removeChannel(profileSubscription);
+            if (profileSubscription) supabase.removeChannel(profileSubscription);
         };
          
     }, [profile.userId]);
 
+    const updateProfile = (partial: Partial<UserProfile>) => {
+        setProfile(prev => ({ ...prev, ...partial }));
+    };
+
     return (
-        <UserContext.Provider value={{ profile, refetch: loadProfile }}>
+        <UserContext.Provider value={{ profile, refetch: loadProfile, updateProfile }}>
             {children}
         </UserContext.Provider>
     );
