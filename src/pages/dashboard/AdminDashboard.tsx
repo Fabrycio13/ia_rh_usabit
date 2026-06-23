@@ -103,6 +103,15 @@ interface UserProfile {
     created_at: string;
 }
 
+interface UserDetail extends UserProfile {
+    avatar_url?: string;
+    account_type?: string;
+    trial_ends_at?: string | null;
+    brand_name?: string;
+    onboarding_completed?: boolean;
+    notifications_enabled?: boolean;
+}
+
 interface ChartData {
     name: string;
     value: number;
@@ -141,6 +150,7 @@ export const AdminDashboard = () => {
     const [vagasList, setVagasList] = useState<Array<{ id: string; title: string; job_code?: string | null }>>([]);
     const [userVagaIds, setUserVagaIds] = useState<Set<string>>(new Set());
     const [vagaLoading, setVagaLoading] = useState(false);
+    const [detailUserId, setDetailUserId] = useState<string | null>(null);
 
     // Calendar state
     const today = new Date();
@@ -874,9 +884,8 @@ export const AdminDashboard = () => {
                                                             <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.04)', flexWrap: 'wrap', gap: '6px' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <div style={{ width: 26, height: 26, borderRadius: '50%', background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initials(u.name)}</div>
-                                                                    <div>
+                                                                    <div style={{ cursor: 'pointer' }} onClick={() => setDetailUserId(u.id)}>
                                                                         <p style={{ color: 'var(--text-main)', fontSize: 13, fontWeight: 500, margin: 0 }}>{u.name || u.email.split('@')[0]}</p>
-                                                                        <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0 }}>{u.email}</p>
                                                                     </div>
                                                                 </div>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -957,7 +966,7 @@ export const AdminDashboard = () => {
                                                 {initials(user.name)}
                                             </div>
                                             )}
-                                            <div style={{ minWidth: 0, position: 'relative' }}>
+                                            <div style={{ minWidth: 0, position: 'relative', cursor: 'pointer' }} onClick={() => setDetailUserId(user.id)}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {(() => { const n = user.name || user.email.split('@')[0] || 'Usuário'; const m = isMobile ? 12 : 999; return n.length > m ? n.substring(0, m) + '…' : n; })()}
@@ -966,9 +975,6 @@ export const AdminDashboard = () => {
                                                         <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444', flexShrink: 0 }} />
                                                     )}
                                                 </div>
-                                                <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {user.email}
-                                                </p>
                                             </div>
                                         </div>
                                     </td>
@@ -1002,7 +1008,7 @@ export const AdminDashboard = () => {
                                     <td style={{ padding: isMobile ? '10px 8px' : '10px 8px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? '6px' : '6px' }}>
                                             <button
-                                                onClick={() => toggleStatus(user.id, user.status)}
+                                                onClick={(e) => { e.stopPropagation(); toggleStatus(user.id, user.status); }}
                                                 disabled={updatingId === user.id}
                                                 title={user.status === 'active' ? 'Desativar' : 'Ativar'}
                                                 style={{
@@ -1027,7 +1033,7 @@ export const AdminDashboard = () => {
                                                 {isMobile ? '' : (user.status === 'active' ? 'Desativar' : 'Ativar')}
                                             </button>
                                             <button
-                                                onClick={() => handleResendInvite({ id: user.id, name: user.name, email: user.email })}
+                                                onClick={(e) => { e.stopPropagation(); handleResendInvite({ id: user.id, name: user.name, email: user.email }); }}
                                                 title="Reenviar convite"
                                                 style={{
                                                     padding: isMobile ? '6px' : '6px 10px',
@@ -1053,7 +1059,7 @@ export const AdminDashboard = () => {
                                                 {isMobile ? '' : 'Reenviar'}
                                             </button>
                                             <button
-                                                onClick={() => { setVagaModalUserId(user.id); loadVagas(); loadUserVagaAccess(user.id); }}
+                                                onClick={(e) => { e.stopPropagation(); setVagaModalUserId(user.id); loadVagas(); loadUserVagaAccess(user.id); }}
                                                 title="Vagas"
                                                 style={{
                                                     padding: isMobile ? '6px' : '6px 10px',
@@ -1257,6 +1263,117 @@ export const AdminDashboard = () => {
                     </div>
                 </div>
             )}
+
+            {/* User Detail Board */}
+            {detailUserId && (() => {
+                const du = users.find(u => u.id === detailUserId) as UserDetail | undefined;
+                if (!du) return null;
+                const detailIsOwner = du.user_role === 'owner';
+                return (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}
+                         onClick={(e) => { if (e.target === e.currentTarget) setDetailUserId(null); }}>
+                        <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: isMobile ? '20px' : '28px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                <h2 style={{ color: 'var(--text-main)', fontSize: '18px', fontWeight: 700, margin: 0 }}>Dados do Usuário</h2>
+                                <button onClick={() => setDetailUserId(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '4px' }}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Avatar + Nome */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: detailIsOwner ? '#ef4444' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
+                                    {initials(du.name)}
+                                </div>
+                                <div>
+                                    <p style={{ color: 'var(--text-main)', fontSize: '16px', fontWeight: 600, margin: 0 }}>{du.name}</p>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '13px', margin: '2px 0 0' }}>{du.email}</p>
+                                </div>
+                            </div>
+
+                            {/* Dados */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Cargo</span>
+                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : du.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : du.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : du.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: detailIsOwner ? '#ef4444' : du.user_role === 'administrador' ? '#f59e0b' : du.user_role === 'supervisor' ? '#8b5cf6' : du.user_role === 'rh' ? '#6366f1' : '#10b981', textTransform: 'uppercase' }}>
+                                        {du.user_role?.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: du.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                        <span style={{ fontSize: '13px', fontWeight: 500, color: du.status === 'active' ? '#10b981' : '#ef4444' }}>
+                                            {du.status === 'active' ? 'Ativo' : 'Inativo'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Organização</span>
+                                    <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 500 }}>{du.organization_name || 'Sem Organização'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Cadastro</span>
+                                    <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 500 }}>
+                                        {du.created_at ? new Date(du.created_at).toLocaleDateString('pt-BR') : '-'}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Tipo de Conta</span>
+                                    <span style={{ color: 'var(--text-main)', fontSize: '13px', fontWeight: 500, textTransform: 'capitalize' }}>
+                                        {du.account_type || 'active'}
+                                        {du.trial_ends_at ? ` (expira ${new Date(du.trial_ends_at).toLocaleDateString('pt-BR')})` : ''}
+                                    </span>
+                                </div>
+                                {du.notifications_enabled !== undefined && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                        <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Notificações</span>
+                                        <span style={{ color: du.notifications_enabled ? '#10b981' : '#ef4444', fontSize: '13px', fontWeight: 500 }}>
+                                            {du.notifications_enabled ? 'Ativadas' : 'Desativadas'}
+                                        </span>
+                                    </div>
+                                )}
+                                {du.onboarding_completed !== undefined && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
+                                        <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Onboarding</span>
+                                        <span style={{ color: du.onboarding_completed ? '#10b981' : '#f59e0b', fontSize: '13px', fontWeight: 500 }}>
+                                            {du.onboarding_completed ? 'Concluído' : 'Pendente'}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Ações */}
+                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => { toggleStatus(du.id, du.status); setDetailUserId(null); }}
+                                    disabled={updatingId === du.id}
+                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: du.status === 'active' ? '#ef4444' : '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+                                >
+                                    {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
+                                    {du.status === 'active' ? 'Desativar' : 'Ativar'}
+                                </button>
+                                <button
+                                    onClick={() => { handleResendInvite({ id: du.id, name: du.name, email: du.email }); setDetailUserId(null); }}
+                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: du.user_role === 'owner' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', visibility: du.user_role === 'owner' ? 'hidden' : 'visible', pointerEvents: du.user_role === 'owner' ? 'none' : 'auto' }}
+                                >
+                                    <Mail size={14} />
+                                    Reenviar
+                                </button>
+                                {du.user_role === 'convidado' && (
+                                    <button
+                                        onClick={() => { setDetailUserId(null); setVagaModalUserId(du.id); loadVagas(); loadUserVagaAccess(du.id); }}
+                                        style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+                                    >
+                                        <Briefcase size={14} />
+                                        Gerenciar Vagas
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
