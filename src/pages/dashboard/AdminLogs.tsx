@@ -411,7 +411,7 @@ export const AdminLogs = () => {
                     <>
                         {paginatedLogs.map(log => (
                             <div key={log.id} onClick={() => setSelectedLog(log)}
-                                style={{ cursor: 'pointer', padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)', transition: 'background 0.15s', ':active': { background: 'var(--row-hover)' } }}>
+                                style={{ cursor: 'pointer', padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)', transition: 'background 0.15s' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                                     <span style={{ fontSize: 11, color: 'var(--text-dim)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                                         {formatRelativeTime(log.created_at)}

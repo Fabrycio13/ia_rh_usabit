@@ -2423,7 +2423,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                     <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                                     <button
                                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
-                                        onClick={() => { removeCard(mobileSheet.card.id); setMobileSheet(null); }}>
+                                        onClick={() => { removeCard(mobileSheet.card.id, mobileSheet.card.candidate_id); setMobileSheet(null); }}>
                                         <Trash2 size={14} />
                                         Remover deste pipeline
                                     </button>
