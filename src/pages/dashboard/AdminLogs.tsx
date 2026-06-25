@@ -640,13 +640,13 @@ export const AdminLogs = () => {
                                 ) : typeof selectedLog.details === 'object' ? (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                         {Object.entries(selectedLog.details).map(([k, v]) => (
-                                            <span key={k} style={{ padding: '4px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, whiteSpace: 'nowrap' }}>
+                                            <span key={k} style={{ padding: '4px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', wordBreak: 'break-all' }}>
                                                 <strong style={{ opacity: 0.7 }}>{k}:</strong> {String(v)}
                                             </span>
                                         ))}
                                     </div>
                                 ) : (
-                                    <span style={{ color: 'var(--text-main)', fontSize: 13 }}>{String(selectedLog.details)}</span>
+                                    <span style={{ color: 'var(--text-main)', fontSize: 13, wordBreak: 'break-all' }}>{String(selectedLog.details)}</span>
                                 )}
                             </div>
                         </div>
