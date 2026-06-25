@@ -488,13 +488,13 @@ export const CandidateBank = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: isMobile ? '4px' : '8px',
-                padding: isMobile ? '8px 10px' : '10px 20px',
+                padding: isMobile ? '8px 9px' : '10px 20px',
                 background: isActive ? 'var(--bg-card)' : 'transparent',
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                 borderRadius: '8px 8px 0 0',
                 color: isActive ? statusColor : 'var(--text-muted)',
-                fontSize: '13px',
+                fontSize: isMobile ? '13px' : '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
@@ -516,21 +516,21 @@ export const CandidateBank = () => {
                 }
               }}
             >
-              <Icon size={16} />
+              <Icon size={isMobile ? 14 : 16} />
               {tab.label}
               <span style={{ 
                   fontSize: '10px', 
                   background: isActive ? `${statusColor}25` : `${statusColor}15`,
                   color: statusColor,
-                  padding: '1px 7px',
+                  padding: '1px 6px',
                   borderRadius: '20px',
                   fontWeight: 700,
-                    marginLeft: isMobile ? '4px' : '8px',
+                    marginLeft: isMobile ? '2px' : '8px',
                   border: `1px solid ${statusColor}30`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: '20px',
+                  minWidth: '18px',
                   transition: 'all 0.2s'
               }}>
                   {count}

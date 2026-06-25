@@ -425,13 +425,13 @@ export const Dashboard = () => {
           <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
             Dashboard
           </h1>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-            <button 
+          <div style={{ marginLeft: isMobile ? 'auto' : 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0, marginRight: isMobile ? '100px' : '0' }}>
+            <button
               onClick={() => setIsCustomizing(!isCustomizing)}
-              style={{ 
-                display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, 
-                background: 'var(--primary)', 
-                border: 'none', 
+              style={{
+                display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8,
+                background: 'var(--primary)',
+                border: 'none',
                 borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 12px' : '8px 16px',
                 color: '#fff',
                 fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
@@ -442,7 +442,7 @@ export const Dashboard = () => {
               {isCustomizing ? <Check style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} /> : <Settings2 style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} />}
               {isCustomizing ? 'Concluir' : 'Customizar'}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 10px' : '8px 14px', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 8px' : '8px 14px', whiteSpace: 'nowrap' }}>
               <div className="live-dot" style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8 }} />
               <span style={{ color: '#22c55e', fontSize: isMobile ? 11 : 12, fontWeight: 600 }}>Tempo real</span>
             </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye, Link as LinkIcon, Unlink } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
@@ -1602,23 +1602,23 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             </div>
 
             {/* Tabs and Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'nowrap', gap: isMobile ? 6 : 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 10 : 16 }}>
                 {/* Tabs à esquerda */}
                 <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4, flexShrink: 0 }}>
-                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <LayoutDashboard size={14} />{isMobile ? '' : ' Board'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <List size={14} />{isMobile ? '' : ' Lista'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <BarChart2 size={14} />{isMobile ? '' : ' Métricas'}
                     </button>
                 </div>
 
                 {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
                 {/* Actions row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, flexShrink: 0, flexWrap: isMobile ? 'nowrap' : 'nowrap', justifyContent: isMobile ? 'flex-end' : 'flex-end', minWidth: 0 }}>
                     {!isConvidado && selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
@@ -1626,13 +1626,13 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
-                                borderRadius: 10, padding: '8px 14px', color: '#2C58FD',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: '#2C58FD',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(44,88,253,0.08)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            Vincular a vaga
+                            {isMobile ? <><LinkIcon size={14} /> Vincular</> : 'Vincular a vaga'}
                         </button>
                     )}
                     {!isConvidado && selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
@@ -1642,29 +1642,29 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
-                                borderRadius: 10, padding: '8px 14px', color: '#ef4444',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: '#ef4444',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            Desvincular vaga
+                            {isMobile ? <><Unlink size={14} /> Desvincular</> : 'Desvincular vaga'}
                         </button>
                     )}
                     {!isConvidado && activeTab === 'board' && selectedPipelineId && (
-                        <button 
-                            onClick={() => setAddColModal(true)} 
+                        <button
+                            onClick={() => setAddColModal(true)}
                             title="Nova Coluna"
-                            style={{ 
-                                display: 'flex', alignItems: 'center', gap: 6, 
-                                background: 'transparent', border: '1px solid var(--border)', 
-                                borderRadius: 10, padding: '8px 14px', color: 'var(--text-main)', 
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' 
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: 'var(--text-main)',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            <Plus size={14} /> Nova Coluna
+                            <Plus size={isMobile ? 14 : 14} /> {isMobile ? 'Coluna' : 'Nova Coluna'}
                         </button>
                     )}
                 </div>
@@ -2077,9 +2077,9 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Add Column Modal */}
             {addColModal && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 12 : 0 }}>
                     <div onClick={() => setAddColModal(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 16 : 20, padding: isMobile ? 20 : 28, width: isMobile ? '100%' : 340, maxWidth: 340, boxSizing: 'border-box', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                             <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 16 }}>Nova Coluna</p>
                             <button className="pipe-btn" onClick={() => setAddColModal(false)}><X size={16} /></button>
