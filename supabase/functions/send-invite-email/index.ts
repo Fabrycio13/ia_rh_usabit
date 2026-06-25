@@ -207,19 +207,19 @@ serve(async (req) => {
     }
 
     // Upsert profile via service_role (bypass RLS)
+    // Only set fields that were actually passed (resend may omit role/org)
+    const profilePayload: Record<string, unknown> = {
+      id: userId,
+      email,
+      name,
+      organization_id: organizationId || null,
+      organization_name: organizationName || null,
+      onboarding_completed: false,
+    };
+    if (role) profilePayload.user_role = role;
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .upsert({
-        id: userId,
-        email,
-        name,
-        user_role: role,
-        status: 'active',
-        account_type: 'active',
-        organization_id: organizationId || null,
-        organization_name: organizationName || null,
-        onboarding_completed: false,
-      }, { onConflict: 'id' });
+      .upsert(profilePayload, { onConflict: 'id' });
 
     if (profileError) {
       return new Response(JSON.stringify({ error: 'Profile creation failed', details: profileError, userId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -202,7 +202,7 @@ export const AdminDashboard = () => {
             
             // Extrair organizações únicas para o filtro (Apenas usuários ativos)
             const orgs = userData
-                .filter(u => u.organization_id && u.status === 'active')
+                .filter(u => u.organization_id && u.status !== 'inactive')
                 .reduce((acc: {id: string, name: string}[], u) => {
                     if (!acc.find(o => o.id === u.organization_id)) {
                         acc.push({ 
@@ -399,6 +399,7 @@ export const AdminDashboard = () => {
             logActivity(profile.userId, 'Criou novo usuário', { tipo: newUser.user_role, email: newUser.email });
             setShowCreateModal(false);
             setNewUser({ name: '', email: '', user_role: 'rh' });
+            fetchDashboardData();
         } catch (err) {
             toast.error(`Ocorreu um erro inesperado: ${(err as Error).message}`);
         }
@@ -745,7 +746,7 @@ export const AdminDashboard = () => {
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Status:</span>
                         <div className="cs-container" ref={statusRef} style={{ width: isMobile ? '100%' : '160px' }}>
                             <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
-                                <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : 'Inativo'}</span>
+                                <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : statusFilter === 'pending' ? 'Pendente' : 'Inativo'}</span>
                                 <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'none' }} />
                             </div>
                             {isStatusOpen && (
@@ -753,6 +754,9 @@ export const AdminDashboard = () => {
                                     <div className={`cs-item ${statusFilter === '' ? 'active' : ''}`} onClick={() => { setStatusFilter(''); setIsStatusOpen(false); }}>Todos</div>
                                     <div className={`cs-item ${statusFilter === 'active' ? 'active' : ''}`} onClick={() => { setStatusFilter('active'); setIsStatusOpen(false); }}>
                                         <div className="cs-dot" style={{ background: '#10b981' }} /> Ativo
+                                    </div>
+                                    <div className={`cs-item ${statusFilter === 'pending' ? 'active' : ''}`} onClick={() => { setStatusFilter('pending'); setIsStatusOpen(false); }}>
+                                        <div className="cs-dot" style={{ background: '#f59e0b' }} /> Pendente
                                     </div>
                                     <div className={`cs-item ${statusFilter === 'inactive' ? 'active' : ''}`} onClick={() => { setStatusFilter('inactive'); setIsStatusOpen(false); }}>
                                         <div className="cs-dot" style={{ background: '#ef4444' }} /> Inativo
@@ -836,7 +840,7 @@ export const AdminDashboard = () => {
                                     {orgEntries.map(org => {
                                         const adminUser = org.users.find(u => u.user_role === 'administrador');
                                         const totalMembros = org.users.length;
-                                        const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : 'inactive';
+                                        const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : org.users.some(u => u.status === 'pending') ? 'pending' : 'inactive';
                                         const isOpen = expandedOrgs.has(org.id);
                                         return (
                                             <div key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -852,8 +856,8 @@ export const AdminDashboard = () => {
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                                                         {isOpen ? <ChevronDown size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} /> : <ChevronRight size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />}
-                                                        <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                            <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : '#ef4444'} />
+                                                        <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : orgStatus === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444'} />
                                                         </div>
                                                         <div style={{ minWidth: 0 }}>
                                                             <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>{org.name}</p>
@@ -863,14 +867,14 @@ export const AdminDashboard = () => {
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : '#ef4444' }} />
-                                                        <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                            {orgStatus === 'active' ? 'Ativa' : 'Inativa'}
+                                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444' }} />
+                                                        <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                                                            {orgStatus === 'active' ? 'Ativa' : orgStatus === 'pending' ? 'Pendente' : 'Inativa'}
                                                         </span>
                                                         {org.id !== 'sem-org' && (
                                                             <button
                                                                 onClick={() => handleToggleOrgStatus(org.id, orgStatus)}
-                                                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : orgStatus === 'pending' ? '#f59e0b' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                                             >
                                                                 {orgStatus === 'active' ? <UserX size={12} /> : <UserCheck size={12} />}
                                                                 {orgStatus === 'active' ? 'Desativar' : 'Ativar'}
@@ -902,7 +906,7 @@ export const AdminDashboard = () => {
                                                                     <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981' }}>
                                                                         {u.user_role?.toUpperCase()}
                                                                     </span>
-                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : u.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -972,7 +976,7 @@ export const AdminDashboard = () => {
                                                         {(() => { const n = user.name || user.email.split('@')[0] || 'Usuário'; const m = isMobile ? 12 : 999; return n.length > m ? n.substring(0, m) + '…' : n; })()}
                                                     </p>
                                                     {isMobile && (
-                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444', flexShrink: 0 }} />
+                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444', flexShrink: 0 }} />
                                                     )}
                                                 </div>
                                             </div>
@@ -999,9 +1003,9 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: isMobile ? '10px 8px' : '16px', display: isMobile ? 'none' : 'table-cell' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                            <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : '#ef4444' }}>
-                                                {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
+                                            <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444' }}>
+                                                {user.status === 'active' ? 'Ativo' : user.status === 'pending' ? 'Pendente' : 'Inativo'}
                                             </span>
                                         </div>
                                     </td>
@@ -1016,7 +1020,7 @@ export const AdminDashboard = () => {
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
-                                                    color: user.status === 'active' ? '#ef4444' : '#10b981',
+                                                    color: user.status === 'active' ? '#ef4444' : user.status === 'pending' ? '#f59e0b' : '#10b981',
                                                     fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: 'pointer',
@@ -1030,7 +1034,7 @@ export const AdminDashboard = () => {
                                                 }}
                                             >
                                                 {updatingId === user.id ? <Loader2 className="animate-spin" size={12} /> : (user.status === 'active' ? <UserX size={12} /> : <UserCheck size={12} />)}
-                                                {isMobile ? '' : (user.status === 'active' ? 'Desativar' : 'Ativar')}
+                                                {isMobile ? '' : (user.status === 'active' ? 'Desativar' : user.status === 'pending' ? 'Ativar' : 'Ativar')}
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleResendInvite({ id: user.id, name: user.name, email: user.email }); }}
@@ -1302,9 +1306,9 @@ export const AdminDashboard = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
                                     <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: du.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                        <span style={{ fontSize: '13px', fontWeight: 500, color: du.status === 'active' ? '#10b981' : '#ef4444' }}>
-                                            {du.status === 'active' ? 'Ativo' : 'Inativo'}
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: du.status === 'active' ? '#10b981' : du.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
+                                        <span style={{ fontSize: '13px', fontWeight: 500, color: du.status === 'active' ? '#10b981' : du.status === 'pending' ? '#f59e0b' : '#ef4444' }}>
+                                            {du.status === 'active' ? 'Ativo' : du.status === 'pending' ? 'Pendente' : 'Inativo'}
                                         </span>
                                     </div>
                                 </div>
@@ -1348,10 +1352,10 @@ export const AdminDashboard = () => {
                                 <button
                                     onClick={() => { toggleStatus(du.id, du.status); setDetailUserId(null); }}
                                     disabled={updatingId === du.id}
-                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: du.status === 'active' ? '#ef4444' : '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
-                                >
-                                    {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
-                                    {du.status === 'active' ? 'Desativar' : 'Ativar'}
+style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: du.status === 'active' ? '#ef4444' : du.status === 'pending' ? '#f59e0b' : '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+                                                                >
+                                                                    {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
+                                                                    {du.status === 'active' ? 'Desativar' : du.status === 'pending' ? 'Ativar' : 'Ativar'}
                                 </button>
                                 <button
                                     onClick={() => { handleResendInvite({ id: du.id, name: du.name, email: du.email }); setDetailUserId(null); }}

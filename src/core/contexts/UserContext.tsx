@@ -13,7 +13,7 @@ interface UserProfile {
     initials: string;
     notificationsEnabled: boolean;
     user_role: 'owner' | 'administrador' | 'supervisor' | 'rh' | 'convidado';
-    status: 'active' | 'inactive';
+    status: 'active' | 'inactive' | 'pending';
     account_type: 'trial' | 'active' | 'lifetime';
     trial_ends_at: string | null;
     organization_id: string | null;

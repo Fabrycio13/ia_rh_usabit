@@ -1,6 +1,6 @@
 -- ============================================
--- 026: GATILHO DE USUÁRIO ROBUSTO
--- Proteção contra erros de conversão e metadados inválidos
+-- 067: STATUS PENDENTE PARA USUÁRIOS CONVIDADOS
+-- profiles.status = 'pending' até criar senha
 -- ============================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -17,14 +17,13 @@ BEGIN
     -- 2. Extrair ID da organização com segurança
     raw_org_id := new.raw_user_meta_data->>'organization_id';
     
-    -- Se for string vazia ou literal 'null', trata como NULL real
     IF raw_org_id IS NULL OR raw_org_id = '' OR raw_org_id = 'null' THEN
         target_org_id := NULL;
     ELSE
         BEGIN
             target_org_id := raw_org_id::uuid;
         EXCEPTION WHEN OTHERS THEN
-            target_org_id := NULL; -- Falha na conversão não quebra o Trigger
+            target_org_id := NULL;
         END;
     END IF;
 
@@ -60,8 +59,6 @@ BEGIN
     RETURN new;
 
 EXCEPTION WHEN OTHERS THEN
-    -- Fallback final: Log mínimo para não impedir o login/signup do usuário
-    -- Mas evita gerar organização aleatória se possível
     INSERT INTO public.profiles (id, email, name, user_role, status)
     VALUES (new.id, new.email, '', COALESCE(target_role, 'owner'), 'pending');
     RETURN new;
