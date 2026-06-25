@@ -95,7 +95,7 @@ serve(async (req) => {
                 Conectando talentos com inteligência — a junção entre humano e máquina
             </p>
             <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent); margin: 0 0 24px;"></div>
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; text-align: center;">
                 <p style="font-size: 12px; color: rgba(255,255,255,0.3); margin: 0;">&copy; 2026 Usabit. Todos os direitos reservados.</p>
                 <p style="font-size: 12px; color: rgba(255,255,255,0.2); margin: 0;">Powered by <strong style="color: rgba(255,255,255,0.45); font-weight: 700;">Usabit people</strong></p>
             </div>
@@ -149,4 +149,5 @@ serve(async (req) => {
     );
   }
 });
+
 
