@@ -173,7 +173,7 @@ serve(async (req) => {
             <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
                 <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
                 <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
-                    Equipe de Talentos<br/>
+                    Usabit people<br/>
                     <span style="color: #2C58FD;">${displayName}</span>
                 </p>
             </div>
@@ -186,10 +186,7 @@ serve(async (req) => {
                 Conectando talentos com inteligência — a junção entre humano e máquina
             </p>
             <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent); margin: 0 0 24px;"></div>
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
-                <p style="font-size: 12px; color: rgba(255,255,255,0.3); margin: 0;">&copy; 2026 Usabit. Todos os direitos reservados.</p>
-                <p style="font-size: 12px; color: rgba(255,255,255,0.2); margin: 0;">Powered by <strong style="color: rgba(255,255,255,0.45); font-weight: 700;">Usabit people</strong></p>
-            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.3); text-align: center; line-height: 1.8;">&copy; 2026 Usabit. Todos os direitos reservados.<span style="color: rgba(255,255,255,0.2); margin: 0 8px;">&middot;</span>Powered by <strong style="color: rgba(255,255,255,0.45); font-weight: 700;">Usabit people</strong></div>
         </div>
     </div>
 </body>
@@ -202,7 +199,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
+        from: 'Usabit people <noreply@space.pro.br>',
         to: [candidateEmail],
         subject: `Cadastro realizado com sucesso - ${displayName}`,
         html,
@@ -239,4 +236,8 @@ serve(async (req) => {
     );
   }
 });
+
+
+
+
 
