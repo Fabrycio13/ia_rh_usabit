@@ -173,7 +173,7 @@ serve(async (req) => {
             <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
                 <p style="font-size: 14px; color: #64748b; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.05em;">Atenciosamente,</p>
                 <p style="font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; font-family: 'Space Grotesk', sans-serif;">
-                    Equipe de Talentos<br/>
+                    Usabit people<br/>
                     <span style="color: #2C58FD;">${displayName}</span>
                 </p>
             </div>
@@ -202,7 +202,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Equipe de Talentos Usabit <noreply@space.pro.br>',
+        from: 'Usabit people <noreply@space.pro.br>',
         to: [candidateEmail],
         subject: `Cadastro realizado com sucesso - ${displayName}`,
         html,
@@ -239,4 +239,6 @@ serve(async (req) => {
     );
   }
 });
+
+
 
