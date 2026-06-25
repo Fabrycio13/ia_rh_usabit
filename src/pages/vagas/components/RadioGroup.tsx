@@ -13,11 +13,14 @@ interface RadioGroupProps {
     value: string;
     onChange: (value: string) => void;
     columns?: 2 | 3 | 4;
+    mobileColumns?: 1 | 2;
 }
 
-export const RadioGroup = ({ label, options, value, onChange, columns = 3 }: RadioGroupProps) => {
+export const RadioGroup = ({ label, options, value, onChange, columns = 3, mobileColumns }: RadioGroupProps) => {
     const getGridColumns = () => {
-        switch (columns) {
+        const cols = mobileColumns ?? columns;
+        switch (cols) {
+            case 1: return '1fr';
             case 2: return '1fr 1fr';
             case 3: return '1fr 1fr 1fr';
             case 4: return '1fr 1fr 1fr 1fr';

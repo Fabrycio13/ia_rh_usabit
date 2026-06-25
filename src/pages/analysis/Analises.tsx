@@ -630,6 +630,15 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    check(mq);
+    mq.addEventListener('change', check);
+    return () => mq.removeEventListener('change', check);
+  }, []);
 
   const { analyzing } = useAnalysis();
 
@@ -803,22 +812,22 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
             </p>
           </div>
         )}
-        <div className="flex items-center gap-4" style={{ marginLeft: hideHeader ? 'auto' : undefined }}>
-          <div style={{ position: 'relative' }}>
+        <div className="flex items-center gap-4" style={{ marginLeft: hideHeader ? 'auto' : undefined, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ position: 'relative', width: isMobile ? '100%' : 'auto' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
             <input
               type="text"
               placeholder="Buscar análises…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: isMobile ? '100%' : 240 }}
               onFocus={e => (e.target.style.borderColor = 'var(--primary)')}
               onBlur={e => (e.target.style.borderColor = 'var(--border)')}
             />
           </div>
           <button
             onClick={() => navigate('/analise/nova?new=true')}
-            style={{ background: 'var(--primary)', color: '#fff' }}
+            style={{ background: 'var(--primary)', color: '#fff', width: isMobile ? '100%' : 'auto', minHeight: isMobile ? 44 : 'auto', justifyContent: 'center' }}
             className="flex items-center gap-2 hover:opacity-90 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
           >
             <Plus className="w-4 h-4" /> Nova Análise
@@ -943,21 +952,25 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
       )}
 
       {/* Filter Bar — Positioned below Recent */}
-      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar período:</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-          <DatePicker 
-            value={startDate} 
-            onChange={val => { setStartDate(val); setPage(1); }} 
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-          <DatePicker 
-            value={endDate} 
-            onChange={val => { setEndDate(val); setPage(1); }} 
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: isMobile ? 1 : 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+            <DatePicker
+              compact
+              value={startDate}
+              onChange={val => { setStartDate(val); setPage(1); }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+            <DatePicker
+              compact
+              value={endDate}
+              onChange={val => { setEndDate(val); setPage(1); }}
+            />
+          </div>
         </div>
         {(startDate || endDate || (search && !paginated.length)) && (
           <button
@@ -985,6 +998,42 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
           >
             <Plus className="w-4 h-4" /> Nova Análise
           </button>
+        </div>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {paginated.map(j => (
+            <div key={j.id} onClick={() => navigate(`/analise/${j.id}`)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-main)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.name}</div>
+                <button onClick={(e) => handleDeleteJob(e, j.id, j.name)} className="text-slate-500 hover:text-red-500 transition-colors" title="Excluir" style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--text-dim)' }}>
+                <div><span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Avaliados:</span> <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{j.totalCandidates}</span></div>
+                <div><span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Top:</span> <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{j.topCandidates}</span></div>
+                <div><span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Idade:</span> {j.filters?.age || '—'}</div>
+                <div><span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Gênero:</span> {j.filters?.gender || '—'}</div>
+                <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-dim)', opacity: 0.7 }}>Local:</span> {j.filters?.location || '—'}</div>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-dim)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>{formatDate(j.created_at)}</div>
+            </div>
+          ))}
+          {totalPages > 1 && (
+            <div style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexDirection: 'column', gap: 10 }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>Página {page} de {totalPages} · {filtered.length} análises</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13, minHeight: 44 }}>
+                  <ChevronLeft style={{ width: 15, height: 15 }} /> Anterior
+                </button>
+                <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13, minHeight: 44 }}>
+                  Próximo <ChevronRight style={{ width: 15, height: 15 }} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-2xl">

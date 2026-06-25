@@ -38,6 +38,7 @@ const css = `
 .cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 768px) { .cs-container { width: 100% !important; } .cs-dropdown { right: 0; max-width: calc(100vw - 32px); } }
 `;
 
 type VagaStatus = 'aberta' | 'fechada' | 'pausada' | 'cancelada' | 'invisivel';
@@ -119,6 +120,15 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
     const [isOrgSelectOpen, setIsOrgSelectOpen] = useState(false);
     const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false);
     const [isRoleSelectOpen, setIsRoleSelectOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
     
     const orgRef = useRef<HTMLDivElement>(null);
     const statusRef = useRef<HTMLDivElement>(null);
@@ -795,8 +805,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             {!hideHeader && (
                 <div style={{ marginBottom: '32px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-                        <Briefcase size={32} style={{ color: 'var(--primary)' }} />
-                        <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        <Briefcase size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+                        <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                             {t('vagas')}
                         </h1>
                     </div>
@@ -815,8 +825,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             }}>
                 {/* Search */}
                 <div style={{
-                    flex: '1',
-                    minWidth: '250px',
+                    flex: isMobile ? '1 1 100%' : '1',
+                    minWidth: isMobile ? 'auto' : '250px',
+                    order: isMobile ? 3 : 0,
                     position: 'relative'
                 }}>
                     <Search size={18} style={{
@@ -971,51 +982,46 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 </div>
                 
                 {/* Period Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: 12, marginLeft: isMobile ? 0 : 'auto', flexDirection: isMobile ? 'column' : 'row', width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 0 }}>
                     <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                        <DatePicker 
-                            value={startDate} 
-                            onChange={val => setStartDate(val)} 
-                        />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', flex: isMobile ? 1 : 'none', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
+                            <DatePicker compact value={startDate} onChange={val => setStartDate(val)} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
+                            <DatePicker compact value={endDate} onChange={val => setEndDate(val)} />
+                        </div>
+                        {/* Clear Filters */}
+                        {(searchTerm || selectedOrgId || selectedStatusFilter || selectedRoleFilter || startDate || endDate) && (
+                            <button
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setSelectedOrgId('');
+                                    setSelectedStatusFilter('');
+                                    setSelectedRoleFilter('');
+                                    setStartDate('');
+                                    setEndDate('');
+                                }}
+                                style={{ 
+                                    background: 'transparent', 
+                                    border: '1px solid var(--error-border)', 
+                                    borderRadius: '8px', 
+                                    padding: '8px 14px', 
+                                    color: 'var(--text-error)', 
+                                    fontSize: '12px', 
+                                    fontWeight: 600, 
+                                    cursor: 'pointer', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '6px' 
+                                }}
+                            >
+                                <X size={14} /> Limpar
+                            </button>
+                        )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                        <DatePicker 
-                            value={endDate} 
-                            onChange={val => setEndDate(val)} 
-                        />
-                    </div>
-
-                    {/* Clear Filters */}
-                    {(searchTerm || selectedOrgId || selectedStatusFilter || selectedRoleFilter || startDate || endDate) && (
-                        <button
-                            onClick={() => {
-                                setSearchTerm('');
-                                setSelectedOrgId('');
-                                setSelectedStatusFilter('');
-                                setSelectedRoleFilter('');
-                                setStartDate('');
-                                setEndDate('');
-                            }}
-                            style={{ 
-                                background: 'transparent', 
-                                border: '1px solid var(--error-border)', 
-                                borderRadius: '8px', 
-                                padding: '8px 14px', 
-                                color: 'var(--text-error)', 
-                                fontSize: '12px', 
-                                fontWeight: 600, 
-                                cursor: 'pointer', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '6px' 
-                            }}
-                        >
-                            <X size={14} /> Limpar
-                        </button>
-                    )}
                 </div>
 
                 {/* Create New Vaga */}
@@ -1031,10 +1037,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: '8px',
                         fontSize: '14px',
                         fontWeight: 600,
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        width: isMobile ? '100%' : 'auto',
+                        order: isMobile ? -1 : 0,
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
@@ -1066,8 +1075,140 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         <p style={{ fontSize: '16px', marginBottom: '8px' }}>Nenhuma vaga encontrada</p>
                         <p style={{ fontSize: '14px' }}>Crie uma nova vaga para começar</p>
                     </div>
+                ) : isMobile ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px' }}>
+                        {paginatedVagas.map((vaga) => {
+                            const currentStatus = getStatusFromVaga(vaga);
+                            const statusConfig = getStatusConfig(currentStatus);
+                            const isStatusOpen = openStatusId === vaga.id;
+
+                            return (
+                                <div key={vaga.id} style={{
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '12px',
+                                    padding: '14px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '13px' }}>
+                                            {vaga.job_code || '-'}
+                                        </span>
+                                        <div style={{ position: 'relative' }}>
+                                            {userRole === 'convidado' ? (
+                                                <span style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                    padding: '4px 10px', background: statusConfig.bg,
+                                                    border: `1px solid ${statusConfig.color}33`,
+                                                    borderRadius: '12px', color: statusConfig.color,
+                                                    fontSize: '12px', fontWeight: 600
+                                                }}>
+                                                    {statusConfig.label}
+                                                </span>
+                                            ) : (
+                                                <button ref={(el) => { statusBtnRefs.current[vaga.id] = el; }}
+                                                    onClick={() => {
+                                                        if (isStatusOpen) { setOpenStatusId(null); setDropdownPos(null); }
+                                                        else {
+                                                            const btn = statusBtnRefs.current[vaga.id];
+                                                            if (btn) {
+                                                                const rect = btn.getBoundingClientRect();
+                                                                const STATUS_ITEMS = 5, ITEM_HEIGHT = 42, DROPDOWN_PAD = 12;
+                                                                const estimatedHeight = DROPDOWN_PAD + STATUS_ITEMS * ITEM_HEIGHT;
+                                                                const spaceBelow = window.innerHeight - rect.bottom;
+                                                                const spaceAbove = rect.top;
+                                                                const openUpward = spaceBelow < estimatedHeight + 20 && spaceAbove >= estimatedHeight;
+                                                                setDropdownPos({ top: openUpward ? rect.top - 8 : rect.bottom + 8, left: rect.left + rect.width / 2, openUpward });
+                                                            }
+                                                            setOpenStatusId(vaga.id);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                        padding: '6px 12px', background: statusConfig.bg,
+                                                        border: `1px solid ${statusConfig.color}33`,
+                                                        borderRadius: '12px', color: statusConfig.color,
+                                                        cursor: 'pointer', fontSize: '12px', fontWeight: 600, minHeight: '36px',
+                                                    }}
+                                                >
+                                                    {statusConfig.label}
+                                                    <ChevronDown size={12} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div onClick={() => navigate(`/pipeline?vagaId=${vaga.id}`)} style={{ cursor: 'pointer' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-main)' }}>
+                                            {vaga.title}
+                                        </span>
+                                        {(vaga.is_third_party || !vaga.show_company_name || (vaga.is_pcd && vaga.is_pcd !== 'no')) && (
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginTop: '4px' }}>
+                                                {vaga.is_third_party && (
+                                                    <span style={{ fontSize: '9px', color: 'var(--primary)', background: 'rgba(59, 130, 246, 0.1)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                                        RPO: {vaga.company_name || 'Não definido'}
+                                                    </span>
+                                                )}
+                                                {!vaga.show_company_name && (
+                                                    <span style={{ fontSize: '9px', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                        <Eye size={10} /> Confidencial
+                                                    </span>
+                                                )}
+                                                {vaga.is_pcd && vaga.is_pcd !== 'no' && (
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', background: vaga.is_pcd === 'exclusive' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(59, 130, 246, 0.15)', borderRadius: '10px', color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6', fontSize: '10px', fontWeight: 700 }}>
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="10" cy="4" r="2.5" />
+                                                            <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+                                                            <path d="M10 8 L13 10" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                            <circle cx="12" cy="14" r="5" stroke="currentColor" strokeWidth="2" fill="none" />
+                                                            <path d="M8 11 L14 11" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                                                        </svg>
+                                                        {vaga.is_pcd === 'exclusive' ? 'Exclusiva' : 'Inclusiva'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                                        <span>📍 {vaga.location || '-'}</span>
+                                        <span>•</span>
+                                        <span>{getContractTypeLabel(vaga.contract_type)}</span>
+                                        <span>•</span>
+                                        <span>{new Date(vaga.created_at).toLocaleDateString('pt-BR')}</span>
+                                        <span>•</span>
+                                        <span style={{ color: 'var(--primary)', fontWeight: 600, cursor: 'pointer' }} onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)}>
+                                            {vaga.application_count} candidaturas
+                                        </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+                                        <button onClick={() => copyPublicLink(vaga.public_hash)} title="Copiar link" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <ExternalLink size={16} />
+                                        </button>
+                                        <button onClick={() => window.open(getPublicJobUrl(vaga.public_hash, true), '_blank')} title="Visualizar" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Eye size={16} />
+                                        </button>
+                                        <button onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)} title="Candidatos" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Users size={16} />
+                                        </button>
+                                        {userRole !== 'convidado' && (<>
+                                            <button onClick={() => navigate(`/vagas/editar/${vaga.id}`)} title="Editar" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => openDeleteModal(vaga.id)} title="Excluir" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </>)}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 ) : (
-                    <div>
+                    <>
                         {/* Table Header */}
                         <div style={{
                             display: 'grid',
@@ -1116,20 +1257,14 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         {vaga.job_code || '-'}
                                     </div>
 
-                                    {/* Status Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                                         {userRole === 'convidado' ? (
                                             <span style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                padding: '4px 10px',
-                                                background: statusConfig.bg,
+                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                padding: '4px 10px', background: statusConfig.bg,
                                                 border: `1px solid ${statusConfig.color}33`,
-                                                borderRadius: '12px',
-                                                color: statusConfig.color,
-                                                fontSize: '12px',
-                                                fontWeight: 600
+                                                borderRadius: '12px', color: statusConfig.color,
+                                                fontSize: '12px', fontWeight: 600
                                             }}>
                                                 {statusConfig.label}
                                             </span>
@@ -1137,42 +1272,27 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         <button
                                             ref={(el) => { statusBtnRefs.current[vaga.id] = el; }}
                                             onClick={() => {
-                                                if (isStatusOpen) {
-                                                    setOpenStatusId(null);
-                                                    setDropdownPos(null);
-                                                } else {
+                                                if (isStatusOpen) { setOpenStatusId(null); setDropdownPos(null); }
+                                                else {
                                                     const btn = statusBtnRefs.current[vaga.id];
                                                     if (btn) {
                                                         const rect = btn.getBoundingClientRect();
-                                                        const STATUS_ITEMS = 5;
-                                                        const ITEM_HEIGHT = 42;
-                                                        const DROPDOWN_PAD = 12;
+                                                        const STATUS_ITEMS = 5, ITEM_HEIGHT = 42, DROPDOWN_PAD = 12;
                                                         const estimatedHeight = DROPDOWN_PAD + STATUS_ITEMS * ITEM_HEIGHT;
                                                         const spaceBelow = window.innerHeight - rect.bottom;
                                                         const spaceAbove = rect.top;
-                                                        const openUpward = spaceBelow < estimatedHeight && spaceAbove >= estimatedHeight;
-                                                        setDropdownPos({
-                                                            top: openUpward ? rect.top - 8 : rect.bottom + 8,
-                                                            left: rect.left + rect.width / 2,
-                                                            openUpward,
-                                                        });
+                                                        const openUpward = spaceBelow < estimatedHeight + 20 && spaceAbove >= estimatedHeight;
+                                                        setDropdownPos({ top: openUpward ? rect.top - 8 : rect.bottom + 8, left: rect.left + rect.width / 2, openUpward });
                                                     }
                                                     setOpenStatusId(vaga.id);
                                                 }
                                             }}
                                             style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                padding: '4px 10px',
-                                                background: statusConfig.bg,
+                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                padding: '6px 12px', background: statusConfig.bg,
                                                 border: `1px solid ${statusConfig.color}33`,
-                                                borderRadius: '12px',
-                                                color: statusConfig.color,
-                                                cursor: 'pointer',
-                                                fontSize: '12px',
-                                                fontWeight: 600,
-                                                transition: 'all 0.2s'
+                                                borderRadius: '12px', color: statusConfig.color,
+                                                cursor: 'pointer', fontSize: '12px', fontWeight: 600
                                             }}
                                         >
                                             {statusConfig.label}
@@ -1181,80 +1301,34 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         )}
                                     </div>
 
-                                    <div 
+                                    <div
                                         onClick={() => navigate(`/pipeline?vagaId=${vaga.id}`)}
-                                        style={{ 
-                                            display: 'flex', 
-                                            flexDirection: 'column',
-                                            justifyContent: 'center',
-                                            gap: '4px',
-                                            cursor: 'pointer',
-                                            minWidth: 0,
-                                            height: '100%'
-                                        }}
+                                        style={{ cursor: 'pointer', minWidth: 0 }}
                                     >
-                                        <span style={{ 
-                                            fontWeight: 700, 
-                                            fontSize: '15px', 
-                                            color: 'var(--text-main)',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
+                                        <span style={{
+                                            fontWeight: 700, fontSize: '15px', color: 'var(--text-main)',
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                             transition: 'color 0.2s'
                                         }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-main)')}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-main)'}
                                         >
                                             {vaga.title}
                                         </span>
-
                                         {(vaga.is_third_party || !vaga.show_company_name || (vaga.is_pcd && vaga.is_pcd !== 'no')) && (
                                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                 {vaga.is_third_party && (
-                                                    <span style={{ 
-                                                        fontSize: '9px', 
-                                                        color: 'var(--primary)', 
-                                                        background: 'rgba(59, 130, 246, 0.1)', 
-                                                        padding: '1px 6px', 
-                                                        borderRadius: '4px',
-                                                        fontWeight: 700,
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.02em'
-                                                    }}>
+                                                    <span style={{ fontSize: '9px', color: 'var(--primary)', background: 'rgba(59, 130, 246, 0.1)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                                                         RPO: {vaga.company_name || 'Não definido'}
                                                     </span>
                                                 )}
-                                                
                                                 {!vaga.show_company_name && (
-                                                    <span style={{ 
-                                                        fontSize: '9px', 
-                                                        color: '#f59e0b', 
-                                                        background: 'rgba(245, 158, 11, 0.1)', 
-                                                        padding: '1px 6px', 
-                                                        borderRadius: '4px',
-                                                        fontWeight: 700,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px'
-                                                    }}>
+                                                    <span style={{ fontSize: '9px', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                         <Eye size={10} /> Confidencial
                                                     </span>
                                                 )}
-
                                                 {vaga.is_pcd && vaga.is_pcd !== 'no' && (
-                                                    <span style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px',
-                                                        padding: '1px 6px',
-                                                        background: vaga.is_pcd === 'exclusive' 
-                                                            ? 'rgba(236, 72, 153, 0.15)' 
-                                                            : 'rgba(59, 130, 246, 0.15)',
-                                                        borderRadius: '10px',
-                                                        color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6',
-                                                        fontSize: '10px',
-                                                        fontWeight: 700
-                                                    }}>
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', background: vaga.is_pcd === 'exclusive' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(59, 130, 246, 0.15)', borderRadius: '10px', color: vaga.is_pcd === 'exclusive' ? '#ec4899' : '#3b82f6', fontSize: '10px', fontWeight: 700 }}>
                                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                                                             <circle cx="10" cy="4" r="2.5" />
                                                             <path d="M10 6.5 L10 11 L13 11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -1270,112 +1344,41 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                             </div>
                                         )}
                                     </div>
+
                                     <div style={{ color: 'var(--text-muted)', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {vaga.location || '-'}
                                     </div>
+
                                     <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center' }}>
                                         {new Date(vaga.created_at).toLocaleDateString('pt-BR')}
                                     </div>
+
                                     <div style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center' }}>
                                         {getContractTypeLabel(vaga.contract_type)}
                                     </div>
-                                    <div
-                                        onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)}
-                                        style={{ color: 'var(--primary)', fontSize: '14px', textAlign: 'center', cursor: 'pointer', fontWeight: 600 }}
-                                    >
+
+                                    <div onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)} style={{ color: 'var(--primary)', fontSize: '14px', textAlign: 'center', cursor: 'pointer', fontWeight: 600 }}>
                                         {vaga.application_count}
                                     </div>
 
-                                    {/* Link Button */}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <button
-                                            onClick={() => copyPublicLink(vaga.public_hash)}
-                                            title="Copiar link público"
-                                            style={{
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid var(--border)',
-                                                borderRadius: '6px',
-                                                color: 'var(--primary)',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
+                                        <button onClick={() => copyPublicLink(vaga.public_hash)} title="Copiar link público" style={{ padding: '6px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <ExternalLink size={14} />
                                         </button>
                                     </div>
 
-                                    {/* Actions */}
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
-                                        <button
-                                            onClick={() => window.open(getPublicJobUrl(vaga.public_hash, true), '_blank')}
-                                            title="Visualizar vaga"
-                                            style={{
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                borderRadius: '6px',
-                                                color: '#3b82f6',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
+                                        <button onClick={() => window.open(getPublicJobUrl(vaga.public_hash, true), '_blank')} title="Visualizar vaga" style={{ padding: '6px', background: 'transparent', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Eye size={14} />
                                         </button>
-                                        <button
-                                            onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)}
-                                            title="Ver candidatos"
-                                            style={{
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                                borderRadius: '6px',
-                                                color: '#10b981',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
+                                        <button onClick={() => navigate(`/vagas/${vaga.id}/candidatos`)} title="Ver candidatos" style={{ padding: '6px', background: 'transparent', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Users size={14} />
                                         </button>
                                         {userRole !== 'convidado' && (<>
-                                        <button
-                                            onClick={() => navigate(`/vagas/editar/${vaga.id}`)}
-                                            title="Editar"
-                                            style={{
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                                borderRadius: '6px',
-                                                color: '#f59e0b',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
+                                        <button onClick={() => navigate(`/vagas/editar/${vaga.id}`)} title="Editar" style={{ padding: '6px', background: 'transparent', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', color: '#f59e0b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Edit size={14} />
                                         </button>
-                                        <button
-                                            onClick={() => openDeleteModal(vaga.id)}
-                                            title="Excluir"
-                                            style={{
-                                                padding: '6px',
-                                                background: 'transparent',
-                                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                borderRadius: '6px',
-                                                color: '#ef4444',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                        >
+                                        <button onClick={() => openDeleteModal(vaga.id)} title="Excluir" style={{ padding: '6px', background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Trash2 size={14} />
                                         </button>
                                         </>)}
@@ -1383,32 +1386,34 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 </div>
                             );
                         })}
-                    </div>
+                    </>
                 )}
 
                 {/* Paginação UI */}
                 {!loading && filteredVagas.length > 0 && (
                     <div style={{
                         display: 'flex',
-                        alignItems: 'center',
+                        alignItems: isMobile ? 'stretch' : 'center',
                         justifyContent: 'space-between',
-                        padding: '16px 24px',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        gap: isMobile ? '12px' : '0',
+                        padding: isMobile ? '16px' : '16px 24px',
                         borderTop: '1px solid var(--border)',
                         background: 'rgba(0,0,0,0.02)',
                         color: 'var(--text-muted)',
                         fontSize: '13px'
                     }}>
-                        <div>
+                        <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
                             Mostrando <strong>{Math.min(filteredVagas.length, (currentPage - 1) * itemsPerPage + 1)}</strong>-
                             <strong>{Math.min(filteredVagas.length, currentPage * itemsPerPage)}</strong> de <strong>{filteredVagas.length}</strong> vagas
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
                                 style={{
-                                    padding: '6px 12px',
+                                    padding: isMobile ? '10px 16px' : '6px 12px',
                                     borderRadius: '6px',
                                     border: '1px solid var(--border)',
                                     background: 'var(--bg-card)',
@@ -1417,6 +1422,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     fontSize: '12px',
                                     fontWeight: 600,
                                     opacity: currentPage === 1 ? 0.5 : 1,
+                                    minHeight: isMobile ? '44px' : 'auto',
                                     transition: 'all 0.2s'
                                 }}
                             >
@@ -1425,7 +1431,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
                             {[...Array(totalPages)].map((_, i) => {
                                 const page = i + 1;
-                                // Mostrar apenas algumas páginas se houver muitas
                                 if (totalPages > 7) {
                                     if (page !== 1 && page !== totalPages && (page < currentPage - 1 || page > currentPage + 1)) {
                                         if (page === currentPage - 2 || page === currentPage + 2) return <span key={page}>...</span>;
@@ -1438,8 +1443,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         key={page}
                                         onClick={() => setCurrentPage(page)}
                                         style={{
-                                            width: '32px',
-                                            height: '32px',
+                                            width: isMobile ? '36px' : '32px',
+                                            height: isMobile ? '36px' : '32px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -1463,7 +1468,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
                                 style={{
-                                    padding: '6px 12px',
+                                    padding: isMobile ? '10px 16px' : '6px 12px',
                                     borderRadius: '6px',
                                     border: '1px solid var(--border)',
                                     background: 'var(--bg-card)',
@@ -1472,6 +1477,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     fontSize: '12px',
                                     fontWeight: 600,
                                     opacity: currentPage === totalPages ? 0.5 : 1,
+                                    minHeight: isMobile ? '44px' : 'auto',
                                     transition: 'all 0.2s'
                                 }}
                             >
@@ -1559,9 +1565,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
                         borderRadius: '16px',
-                        padding: '32px',
+                        padding: isMobile ? '20px' : '32px',
                         maxWidth: '420px',
-                        width: '90%',
+                        width: isMobile ? '92%' : '90%',
                         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
                         animation: 'slideUp 0.3s ease-out'
                     }}>
@@ -1570,8 +1576,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             onClick={cancelDelete}
                             style={{
                                 position: 'absolute',
-                                top: '16px',
-                                right: '16px',
+                                top: '12px',
+                                right: '12px',
                                 background: 'transparent',
                                 border: 'none',
                                 color: 'var(--text-muted)',
@@ -1697,9 +1703,9 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         background: 'var(--bg-card)',
                         border: '1px solid var(--border)',
                         borderRadius: '24px',
-                        padding: '40px',
+                        padding: isMobile ? '24px' : '40px',
                         maxWidth: '480px',
-                        width: '90%',
+                        width: isMobile ? '92%' : '90%',
                         textAlign: 'center',
                         boxShadow: '0 24px 48px rgba(0, 0, 0, 0.5)',
                         position: 'relative',
@@ -1786,7 +1792,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             {/* Thank You Email Modal */}
             {closeEmailVaga && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, animation: 'fadeIn 0.2s ease-out' }}>
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: isMobile ? 24 : 40, maxWidth: 480, width: isMobile ? '95%' : '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
                         {closeEmailVagaType === 'cancelada' ? (
                             <>
                                 <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(245,158,11,0.2)' }}>
@@ -1924,12 +1930,12 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
             {showReopenEmailModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: 40, maxWidth: 480, width: '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 24, padding: isMobile ? 24 : 40, maxWidth: 480, width: isMobile ? '95%' : '90%', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
                         <div style={{ textAlign: 'center', marginBottom: 24 }}>
                             <div style={{ width: 80, height: 80, borderRadius: 24, background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid rgba(34,197,94,0.2)' }}>
                                 <RefreshCw size={40} color="#22c55e" />
                             </div>
-                            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Notificar candidatos?</h2>
+                            <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: 'var(--text-main)', marginBottom: 12 }}>Notificar candidatos?</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
                                 A vaga foi reaberta. Deseja notificar os candidatos?
                             </p>

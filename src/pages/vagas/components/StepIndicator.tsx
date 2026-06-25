@@ -10,9 +10,96 @@ interface StepIndicatorProps {
     steps: Step[];
     currentStep: number;
     onStepClick?: (step: number) => void;
+    vertical?: boolean;
 }
 
-export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicatorProps) => {
+export const StepIndicator = ({ steps, currentStep, onStepClick, vertical }: StepIndicatorProps) => {
+    if (vertical) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px', width: '100%', animation: 'fadeIn 0.3s ease-out' }}>
+                <style>{`
+                    @keyframes stepPulse {
+                        0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+                        70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+                    }
+                    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+                `}</style>
+                {steps.map((step, index) => {
+                    const isCompleted = index + 1 < currentStep;
+                    const isCurrent = index + 1 === currentStep;
+                    return (
+                        <div
+                            key={step.number}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '10px 12px',
+                                borderRadius: '10px',
+                                background: isCurrent ? 'rgba(99, 102, 241, 0.06)' : 'transparent',
+                                transition: 'all 0.2s',
+                                opacity: (!isCompleted && !isCurrent) ? 0.5 : 1,
+                                width: '100%',
+                                boxSizing: 'border-box',
+                            }}
+                        >
+                            <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                background: (isCompleted || isCurrent) ? 'var(--primary)' : 'var(--bg-main)',
+                                border: isCurrent ? '2px solid var(--primary)' : '2px solid var(--border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                animation: isCurrent ? 'stepPulse 2s infinite' : 'none',
+                            }}>
+                                {isCompleted ? (
+                                    <Check size={18} strokeWidth={3} style={{ color: '#fff' }} />
+                                ) : (
+                                    <span style={{
+                                        color: isCurrent ? '#fff' : 'var(--text-muted)',
+                                        fontSize: '14px',
+                                        fontWeight: 800,
+                                        lineHeight: 1,
+                                    }}>
+                                        {step.number}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <p style={{
+                                    color: isCurrent ? 'var(--text-main)' : 'var(--text-muted)',
+                                    fontSize: '14px',
+                                    fontWeight: isCurrent ? 700 : 500,
+                                    margin: 0,
+                                }}>
+                                    {step.title}
+                                </p>
+                            </div>
+                            {isCurrent && (
+                                <span style={{
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    color: 'var(--primary)',
+                                    background: 'rgba(99, 102, 241, 0.1)',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                }}>
+                                    Atual
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }
+
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', position: 'relative', width: '100%' }}>
             <style>{`
@@ -58,7 +145,7 @@ export const StepIndicator = ({ steps, currentStep, onStepClick }: StepIndicator
                             alignItems: 'center',
                             zIndex: 1,
                             cursor: isClickable && index + 1 < currentStep ? 'pointer' : 'default',
-                            width: '80px', // Fixed width for each step container
+                            width: '80px',
                             position: 'relative'
                         }}
                     >

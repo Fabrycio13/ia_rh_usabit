@@ -530,7 +530,7 @@ export function CandidatePanel({
 
                         <section>
                             <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Contato</p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                                 {([
                                     { key: 'email', label: 'Email', icon: <Mail size={14} />, value: localC.email },
                                     { key: 'phone', label: 'Telefone', icon: <Phone size={14} />, value: localC.phone },
@@ -561,7 +561,6 @@ export function CandidatePanel({
                                         minHeight: 64,
                                         justifyContent: 'center',
                                         boxSizing: 'border-box',
-                                        gridColumn: editField === key && isMobile ? '1 / -1' : 'auto'
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{icon}{label}</span>
@@ -604,38 +603,66 @@ export function CandidatePanel({
                                 ))}
                             </div>
                         </section>
-                        
+
+                        {skillsList.length > 0 && (
+                            <section>
+                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                                    {[...skillsList].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((s, i) => (
+                                        <span key={i} style={{
+                                            background: 'rgba(99, 102, 241, 0.15)',
+                                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                                            borderRadius: 8,
+                                            padding: '8px 12px',
+                                            fontSize: 12,
+                                            color: 'var(--text-main)',
+                                            fontWeight: 600,
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                            textAlign: 'center',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }} title={s}>{s}</span>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
                         {c.isVagaView && (
                             <>
-                                {skillsList.length > 0 && (
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') &&
+                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                ).length > 0 && (
                                     <section>
-                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
-                                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
-                                            {[...skillsList].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((s, i) => (
-                                                <span key={i} style={{
-                                                    background: 'rgba(99, 102, 241, 0.15)',
-                                                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                                                    borderRadius: 8,
-                                                    padding: '8px 12px',
-                                                    fontSize: 12,
-                                                    color: 'var(--text-main)',
-                                                    fontWeight: 600,
-                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                    textAlign: 'center',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }} title={s}>{s}</span>
-                                            ))}
+                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Respostas Personalizadas</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            {Object.entries(c.answers).filter(([key]) =>
+                                                !key.startsWith('_') &&
+                                                !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                            ).map(([key, value]) => {
+                                                const label = c.questionLabels?.[key] || key;
+                                                const display = typeof value === 'string' ? value : JSON.stringify(value);
+                                                return (
+                                                    <div key={key} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>{label}</p>
+                                                        <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{display}</p>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </section>
                                 )}
+                            </>
+                        )}
 
-                                {c.answers && Object.entries(c.answers).filter(([key]) => 
-                                    !key.startsWith('_') && 
+                        {c.isVagaView && (
+                            <>
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') &&
                                     !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
                                 ).length > 0 && (
-                                    <section style={{ 
+                                    <section style={{
                                         border: '1px solid var(--border)', 
                                         borderRadius: 20, 
                                         padding: 24, 
@@ -805,23 +832,7 @@ export function CandidatePanel({
 
 
                         {!c.isVagaView && skillsList.length > 0 && (
-                            <section>
-                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {skillsList.map((s, i) => (
-                                        <span key={i} style={{
-                                            background: 'rgba(99, 102, 241, 0.15)',
-                                            border: '1px solid rgba(99, 102, 241, 0.25)',
-                                            borderRadius: 8,
-                                            padding: '5px 14px',
-                                            fontSize: 12,
-                                            color: 'var(--text-main)',
-                                            fontWeight: 600,
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                        }}>{s}</span>
-                                    ))}
-                                </div>
-                            </section>
+                            <></>
                         )}
 
                         <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>

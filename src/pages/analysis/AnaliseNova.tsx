@@ -651,6 +651,15 @@ export const AnaliseNova = () => {
     const [jobName, setJobName] = useState('');
     const [jobDesc, setJobDesc] = useState('');
     const [uploadMode, setUploadMode] = useState<'pdf' | 'excel'>('pdf');
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
     const [files, setFiles] = useState<File[]>([]);
     const [dragOver, setDragOver] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
@@ -854,7 +863,7 @@ export const AnaliseNova = () => {
                         </div>
                     )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 32, alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: isMobile ? 16 : 32, alignItems: 'stretch' }}>
 
                     {/* Left Panel — Form Card */}
                     <div style={{
