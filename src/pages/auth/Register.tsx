@@ -54,7 +54,7 @@ export const Register = () => {
         setLoading(true);
         setMessage(null);
 
-        const { error } = await supabase.auth.signUp({
+        const { error, data: signUpData } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -70,6 +70,10 @@ export const Register = () => {
         if (error) {
             setMessage({ type: 'error', text: `Erro: ${error.message}` });
         } else {
+            // Se já veio sessão (confirm email OFF), ativar imediatamente
+            if (signUpData?.session?.user?.id) {
+                await supabase.from('profiles').update({ status: 'active' }).eq('id', signUpData.session.user.id);
+            }
             setMessage({ 
                 type: 'success', 
                 text: 'Cadastro realizado! Verifique seu e-mail para confirmar a conta e liberar o acesso.' 

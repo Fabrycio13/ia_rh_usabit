@@ -56,6 +56,12 @@ export const SetPassword = () => {
             return;
         }
 
+        // Marcar perfil como ativo após criar/redefinir senha
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+            await supabase.from('profiles').update({ status: 'active' }).eq('id', session.user.id);
+        }
+
         toast.success('Senha definida com sucesso!');
         supabase.auth.signOut().catch(() => {});
         navigate('/login', { replace: true });
