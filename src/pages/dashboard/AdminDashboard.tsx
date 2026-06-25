@@ -399,6 +399,7 @@ export const AdminDashboard = () => {
             logActivity(profile.userId, 'Criou novo usuário', { tipo: newUser.user_role, email: newUser.email });
             setShowCreateModal(false);
             setNewUser({ name: '', email: '', user_role: 'rh' });
+            fetchDashboardData();
         } catch (err) {
             toast.error(`Ocorreu um erro inesperado: ${(err as Error).message}`);
         }
