@@ -85,15 +85,16 @@ export const PoolTalentos = () => {
     const [vagaSearch, setVagaSearch] = useState('');
     const [showConfirm, setShowConfirm] = useState(false);
     const [confirmCandidate, setConfirmCandidate] = useState<Candidate | null>(null);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isMobile, setIsMobile] = useState(false);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 10;
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 768px)');
-        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-        mq.addEventListener('change', handler);
-        return () => mq.removeEventListener('change', handler);
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
     }, []);
 
     useEffect(() => { setPage(1); }, [startDate, endDate]);
@@ -430,11 +431,11 @@ export const PoolTalentos = () => {
                     <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600 }}>Período:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                        <DatePicker value={startDate} onChange={(v) => { setStartDate(v); setPage(1); }} />
+                        <DatePicker compact value={startDate} onChange={(v) => { setStartDate(v); setPage(1); }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                        <DatePicker value={endDate} onChange={(v) => { setEndDate(v); setPage(1); }} />
+                        <DatePicker compact value={endDate} onChange={(v) => { setEndDate(v); setPage(1); }} />
                     </div>
                     {(startDate || endDate) && (
                         <button onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
@@ -607,6 +608,61 @@ export const PoolTalentos = () => {
             )}
 
             {selectedCandDetail && (
+                isMobile ? (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'var(--bg-main)', overflow: 'auto', padding: '16px' }}>
+                        <CandidatePanel
+                            c={selectedCandDetail}
+                            onClose={() => setSelectedCandDetail(null)}
+                            navigate={navigate}
+                            onTransferSuccess={() => {
+                                setSelectedCandDetail(null);
+                                if (profile.organization_id) {
+                                    supabase
+                                        .from('candidates')
+                                        .select('*')
+                                        .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                        .eq('organization_id', profile.organization_id)
+                                        .order('created_at', { ascending: false })
+                                        .then(({ data }) => {
+                                            if (data) setCandidatos(data);
+                                        });
+                                }
+                            }}
+                            onNotesChange={(cid, notes) => {
+                                setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, notes } : prev);
+                            }}
+                            onFieldChange={(cid: string, field: string, val: unknown) => {
+                                setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, [field]: val } : prev);
+                                setCandidatos(prev => prev.map(cand => cand.id === cid ? { ...cand, [field]: val } : cand));
+                            }}
+                            onBlacklistChange={(cid: string, val: boolean) => {
+                                setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
+                            }}
+                            onDeleteFromBank={async (id) => {
+                                await Promise.all([
+                                    supabase.from('candidates').delete().eq('id', id),
+                                    supabase.from('job_candidates').delete().eq('candidate_id', id)
+                                ]);
+                                setSelectedCandDetail(null);
+                                if (profile.organization_id) {
+                                    const { data } = await supabase
+                                        .from('candidates')
+                                        .select('*')
+                                        .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                        .eq('organization_id', profile.organization_id)
+                                        .order('created_at', { ascending: false });
+                                    if (data) setCandidatos(data);
+                                }
+                            }}
+                            hidePipelineAndBlacklist={true}
+                            showAnalyzeWithVagas={true}
+                            onAnalyzeWithVagas={(cid) => {
+                                const cand = candidatos.find(c => c.id === cid);
+                                if (cand) openConfirmModal(cand);
+                            }}
+                        />
+                    </div>
+                ) : (
                 <CandidatePanel
                     c={selectedCandDetail}
                     onClose={() => setSelectedCandDetail(null)}
@@ -658,21 +714,21 @@ export const PoolTalentos = () => {
                         if (cand) openConfirmModal(cand);
                     }}
                 />
-            )}
+            ))}
 
             {analyzingCandidate && (
                 <>
                     <div onClick={closeAnalyzeModal} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
                     <div style={{
                         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                        zIndex: 401, width: 'clamp(400px, 40vw, 600px)',
+                        zIndex: 401, width: isMobile ? '95%' : 'clamp(400px, 40vw, 600px)',
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
                         borderRadius: 20, fontFamily: 'Inter, sans-serif',
                         boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-                        display: 'flex', flexDirection: 'column', maxHeight: '80vh'
+                        display: 'flex', flexDirection: 'column', maxHeight: isMobile ? '90vh' : '80vh'
                     }}>
-                        <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>
+                        <div style={{ padding: isMobile ? '16px 16px 12px' : '24px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-main)' }}>
                                 Selecionar vaga para reanálise
                             </h2>
                             <button onClick={closeAnalyzeModal} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}>
@@ -787,18 +843,18 @@ export const PoolTalentos = () => {
                     <div onClick={closeConfirmModal} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
                     <div style={{
                         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                        zIndex: 401, width: 'clamp(380px, 35vw, 500px)',
+                        zIndex: 401, width: isMobile ? '95%' : 'clamp(380px, 35vw, 500px)',
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
                         borderRadius: 20, fontFamily: 'Inter, sans-serif',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
                         display: 'flex', flexDirection: 'column'
                     }}>
-                        <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
-                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>
+                        <div style={{ padding: isMobile ? '16px 16px 12px' : '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-main)' }}>
                                 Confirmar análise
                             </h2>
                         </div>
-                        <div style={{ padding: '20px 24px' }}>
+                        <div style={{ padding: isMobile ? '16px' : '20px 24px' }}>
                             <p style={{ margin: 0, fontSize: 14, color: 'var(--text-main)', lineHeight: '1.6' }}>
                                 Deseja analisar <strong>{confirmCandidate.name}</strong> para uma vaga?
                             </p>

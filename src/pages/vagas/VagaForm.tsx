@@ -202,6 +202,15 @@ export const VagaForm = () => {
     const [showPipelineModal, setShowPipelineModal] = useState(false);
     const [createdVagaId, setCreatedVagaId] = useState<string | null>(null);
     const [creatingPipeline, setCreatingPipeline] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
 
     // Carregar dados da vaga se estiver editando
     useEffect(() => {
@@ -632,14 +641,31 @@ export const VagaForm = () => {
         fontFamily: 'inherit',
     };
 
-    const sectionStyle: React.CSSProperties = {
+    const sectionStyle = (isMobile: boolean): React.CSSProperties => ({
         background: 'var(--bg-card)',
-        borderRadius: '32px',
+        borderRadius: isMobile ? '20px' : '32px',
         border: '1px solid var(--border)',
-        padding: '32px',
+        padding: isMobile ? '20px' : '32px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
         backdropFilter: 'blur(10px)',
+    });
+    const navBtnStyle: React.CSSProperties = {
+        padding: '14px 32px', background: 'transparent', border: '1px solid var(--border)',
+        borderRadius: '10px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px',
+        fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
     };
+    const navBtnPrimaryStyle: React.CSSProperties = {
+        padding: '14px 32px', background: 'var(--primary)', border: 'none',
+        borderRadius: '10px', color: '#fff', cursor: 'pointer', fontSize: '15px',
+        fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
+    };
+    const navContainerStyle = (isMobile: boolean): React.CSSProperties => ({
+        display: 'flex',
+        flexDirection: isMobile ? 'column-reverse' : 'row',
+        justifyContent: 'space-between',
+        gap: isMobile ? '12px' : '0',
+        paddingTop: '8px',
+    });
 
     const steps = [
         { number: 1, title: 'Informações Básicas' },
@@ -669,8 +695,8 @@ export const VagaForm = () => {
                 border: bgTheme === 'spatial'
                     ? '1px solid rgba(44, 88, 253, 0.2)'
                     : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '32px',
-                padding: '80px 40px',
+                borderRadius: isMobile ? '20px' : '32px',
+                padding: isMobile ? '32px 20px' : '80px 40px',
                 marginTop: '0px',
                 marginBottom: '40px',
                 position: 'relative',
@@ -681,7 +707,7 @@ export const VagaForm = () => {
                 overflow: 'hidden'
             }}>
                 {/* Theme-based backgrounds */}
-                {bgTheme === 'spatial' && (
+                {!isMobile && bgTheme === 'spatial' && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: -1 }}>
                         <svg 
                             width="100%" 
@@ -706,7 +732,7 @@ export const VagaForm = () => {
                     </div>
                 )}
 
-                {bgTheme === 'planets' && (
+                {!isMobile && bgTheme === 'planets' && (
                     <div style={{ position: 'absolute', inset: 0, zIndex: -1, overflow: 'hidden' }}>
                         <div style={{ position: 'absolute', width: '160px', height: '160px', borderRadius: '50%', background: '#6366f1', right: '-30px', top: '-30px', opacity: 0.25, filter: 'blur(40px)' }} />
                         {/* Animated Stars */}
@@ -756,11 +782,11 @@ export const VagaForm = () => {
 
                 <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <h1 style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>
+                        <h1 style={{ fontSize: isMobile ? '24px' : '36px', fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>
                             {isEditMode ? 'Editar Vaga' : 'Criar Nova Vaga'}
-                            {jobCode && <span style={{ marginLeft: 12, background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: 10, fontSize: 18, verticalAlign: 'middle' }}>{jobCode}</span>}
+                            {jobCode && <span style={{ marginLeft: 12, background: 'rgba(255,255,255,0.15)', padding: '4px 12px', borderRadius: 10, fontSize: isMobile ? 14 : 18, verticalAlign: 'middle' }}>{jobCode}</span>}
                         </h1>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '15px', margin: 0, maxWidth: '600px' }}>
+                        <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '13px' : '15px', margin: 0, maxWidth: '600px' }}>
                             {isEditMode ? 'Atualize as informações da vaga' : 'Preencha as informações para publicar uma nova oportunidade'}
                         </p>
                     </div>
@@ -768,16 +794,16 @@ export const VagaForm = () => {
             </div>
 
             {/* Form Content */}
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px 80px', position: 'relative', zIndex: 1 }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '0 12px 60px' : '0 40px 80px', position: 'relative', zIndex: 1 }}>
                 {/* Step Indicator */}
-                <StepIndicator steps={steps} currentStep={currentStep} />
+                <StepIndicator steps={steps} currentStep={currentStep} vertical={isMobile} />
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
                     {/* Step 1: Basic Information */}
                     {currentStep === 1 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
                                     <div style={{
                                         width: '40px',
@@ -882,7 +908,7 @@ export const VagaForm = () => {
                                         <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>
                                             Status inicial da vaga *
                                         </label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px' }}>
                                             {([
                                                 { value: 'aberta', label: '🟢 Publicada (Visível no site)', desc: 'Aparece no painel / API e já recebe candidaturas', color: '#22c55e' },
                                                 { value: 'invisivel', label: '🟣 Invisível (Apenas link)', desc: 'Não aparece no portal, mas pode ser acessada e receber candidaturas via link direto', color: '#6366f1' },
@@ -945,6 +971,7 @@ export const VagaForm = () => {
                                     description="Ative se estiver recrutando para outra empresa (Mileto, etc)"
                                     value={formData.isThirdParty}
                                     onChange={(value) => updateField('isThirdParty', value)}
+                                    isMobile={isMobile}
                                 />
 
                                 {formData.isThirdParty && (
@@ -967,30 +994,18 @@ export const VagaForm = () => {
                                             description="Se desativado, a vaga aparecerá como confidencial"
                                             value={formData.showCompanyName}
                                             onChange={(value) => updateField('showCompanyName', value)}
+                                            isMobile={isMobile}
                                         />
                                     </div>
                                 )}
                             </div>
 
                             {/* Navigation Buttons */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+                            <div style={{ ...navContainerStyle(isMobile), alignItems: isMobile ? 'stretch' : 'center' }}>
                                 <button
                                     type="button"
                                     onClick={() => navigate('/vagas')}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'transparent',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '10px',
-                                        color: 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.background = 'var(--bg-card)';
                                         e.currentTarget.style.color = 'var(--text-main)';
@@ -1007,20 +1022,7 @@ export const VagaForm = () => {
                                 <button
                                     type="button"
                                     onClick={handleNext}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'var(--primary)',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        color: '#fff',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnPrimaryStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
                                 >
@@ -1037,7 +1039,7 @@ export const VagaForm = () => {
                     {currentStep === 2 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
                             {/* Salary Range */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1065,6 +1067,7 @@ export const VagaForm = () => {
                                     description="Ative para informar o intervalo de salário"
                                     value={formData.hasSalaryRange}
                                     onChange={(value) => updateField('hasSalaryRange', value)}
+                                    isMobile={isMobile}
                                 />
 
                                 {/* Botão de pretensão salarial quando faixa não definida */}
@@ -1148,7 +1151,7 @@ export const VagaForm = () => {
                                 )}
 
                                 {formData.hasSalaryRange && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '20px', animation: 'slideDown 0.3s ease-out' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', marginTop: '20px', animation: 'slideDown 0.3s ease-out' }}>
                                         <div>
                                             <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
                                                 Salário Mínimo
@@ -1194,7 +1197,7 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Contract Type */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1228,11 +1231,12 @@ export const VagaForm = () => {
                                     value={formData.contractType}
                                     onChange={(value) => updateField('contractType', value)}
                                     columns={4}
+                                    mobileColumns={isMobile ? 2 : undefined}
                                 />
                             </div>
 
                             {/* Work Regime */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1265,11 +1269,12 @@ export const VagaForm = () => {
                                     value={formData.workRegime}
                                     onChange={(value) => updateField('workRegime', value)}
                                     columns={3}
+                                    mobileColumns={isMobile ? 1 : undefined}
                                 />
                             </div>
 
                             {/* PcD - Pessoa com Deficiência */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1310,11 +1315,12 @@ export const VagaForm = () => {
                                     value={formData.isPcd}
                                     onChange={(value) => updateField('isPcd', value)}
                                     columns={3}
+                                    mobileColumns={isMobile ? 1 : undefined}
                                 />
                             </div>
 
                             {/* Location */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                                     <div style={{
                                         width: '40px', height: '40px', borderRadius: '10px',
@@ -1352,6 +1358,7 @@ export const VagaForm = () => {
                                         }
                                     }}
                                     columns={3}
+                                    mobileColumns={isMobile ? 1 : undefined}
                                 />
 
                                 {/* Campo de cidade — só aparece para Híbrido ou Presencial */}
@@ -1388,24 +1395,11 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Navigation Buttons */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                            <div style={{ ...navContainerStyle(isMobile) }}>
                                 <button
                                     type="button"
                                     onClick={handlePrevious}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'transparent',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '10px',
-                                        color: 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.background = 'var(--bg-card)';
                                         e.currentTarget.style.color = 'var(--text-main)';
@@ -1423,20 +1417,7 @@ export const VagaForm = () => {
                                 <button
                                     type="button"
                                     onClick={handleNext}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'var(--primary)',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        color: '#fff',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnPrimaryStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
                                 >
@@ -1453,7 +1434,7 @@ export const VagaForm = () => {
                     {currentStep === 3 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
                             {/* Responsibilities */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1493,7 +1474,7 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Requirements */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1533,7 +1514,7 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Differentials */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1573,7 +1554,7 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Additional Info */}
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                                     <div style={{
                                         width: '40px',
@@ -1613,24 +1594,11 @@ export const VagaForm = () => {
                             </div>
 
                             {/* Navigation Buttons */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                            <div style={{ ...navContainerStyle(isMobile) }}>
                                 <button
                                     type="button"
                                     onClick={handlePrevious}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'transparent',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '10px',
-                                        color: 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.background = 'var(--bg-card)';
                                         e.currentTarget.style.color = 'var(--text-main)';
@@ -1648,20 +1616,7 @@ export const VagaForm = () => {
                                  <button
                                     type="button"
                                     onClick={handleNext}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'var(--primary)',
-                                        border: 'none',
-                                        borderRadius: '10px',
-                                        color: '#fff',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnPrimaryStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
                                     onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
                                 >
@@ -1677,7 +1632,7 @@ export const VagaForm = () => {
                     {/* Step 4: Candidate Journey */}
                     {currentStep === 4 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease-out' }}>
-                            <div style={sectionStyle}>
+                            <div style={sectionStyle(isMobile)}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <div style={{
@@ -2026,24 +1981,11 @@ export const VagaForm = () => {
 
 
                             {/* Navigation Buttons for Step 4 */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                            <div style={{ ...navContainerStyle(isMobile) }}>
                                 <button
                                     type="button"
                                     onClick={handlePrevious}
-                                    style={{
-                                        padding: '14px 32px',
-                                        background: 'transparent',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '10px',
-                                        color: 'var(--text-muted)',
-                                        cursor: 'pointer',
-                                        fontSize: '15px',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
+                                    style={{ ...navBtnStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                     onMouseEnter={(e) => {
                                         e.currentTarget.style.background = 'var(--bg-card)';
                                         e.currentTarget.style.color = 'var(--text-main)';
@@ -2058,24 +2000,11 @@ export const VagaForm = () => {
                                     </svg>
                                     Anterior
                                 </button>
-                                <div style={{ display: 'flex', gap: '12px' }}>
+                                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', width: isMobile ? '100%' : 'auto' }}>
                                     <button
                                         type="button"
                                         onClick={() => navigate('/vagas')}
-                                        style={{
-                                            padding: '14px 32px',
-                                            background: 'transparent',
-                                            border: '1px solid var(--border)',
-                                            borderRadius: '10px',
-                                            color: 'var(--text-muted)',
-                                            cursor: 'pointer',
-                                            fontSize: '15px',
-                                            fontWeight: 600,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            transition: 'all 0.2s'
-                                        }}
+                                        style={{ ...navBtnStyle, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.background = 'var(--bg-card)';
                                             e.currentTarget.style.color = 'var(--text-main)';
@@ -2102,9 +2031,11 @@ export const VagaForm = () => {
                                             fontWeight: 600,
                                             display: 'flex',
                                             alignItems: 'center',
+                                            justifyContent: 'center',
                                             gap: '8px',
                                             opacity: saving ? 0.6 : 1,
-                                            boxShadow: '0 4px 20px rgba(99, 102, 241, 0.3)'
+                                            boxShadow: '0 4px 20px rgba(99, 102, 241, 0.3)',
+                                            width: isMobile ? '100%' : 'auto',
                                         }}
                                     >
                                         <Save size={16} />
@@ -2141,19 +2072,23 @@ export const VagaForm = () => {
                     overflow: hidden;
                     background: linear-gradient(135deg, var(--primary), #7c3aed, var(--primary));
                     background-size: 200% 200%;
-                    animation: gradientShift 3.5s ease infinite;
                     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     border: 1px solid rgba(255, 255, 255, 0.1);
                 }
-                .btn-publish::after {
-                    content: '';
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 60%;
-                    height: 100%;
-                    background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
-                    animation: shine 2.5s infinite;
+                @media (min-width: 769px) {
+                    .btn-publish {
+                        animation: gradientShift 3.5s ease infinite;
+                    }
+                    .btn-publish::after {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 60%;
+                        height: 100%;
+                        background: linear-gradient(to right, transparent, rgba(255,255,255,0.4), transparent);
+                        animation: shine 2.5s infinite;
+                    }
                 }
                 .btn-publish:hover {
                     transform: translateY(-5px) scale(1.04);
@@ -2184,9 +2119,9 @@ export const VagaForm = () => {
                         background: 'var(--bg-card)',
                         borderRadius: '20px',
                         border: '1px solid var(--border)',
-                        padding: '40px',
+                        padding: isMobile ? '24px' : '40px',
                         maxWidth: '520px',
-                        width: '90%',
+                        width: isMobile ? 'calc(100% - 32px)' : '90%',
                         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
                         animation: 'fadeIn 0.3s ease-out'
                     }}>

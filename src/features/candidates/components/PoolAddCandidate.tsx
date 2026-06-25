@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
 import { extractTextFromPDF, pdfToImages } from '../../../core/services/pdfExtractor';
@@ -46,6 +46,15 @@ const INITIAL_FORM: FormData = {
 
 export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidateProps) => {
   const { profile } = useUser();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    check(mq);
+    mq.addEventListener('change', check);
+    return () => mq.removeEventListener('change', check);
+  }, []);
   const [step, setStep] = useState<Step>('upload');
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'extracting' | 'success' | 'error'>('idle');
   const [analyzing, setAnalyzing] = useState(false);
@@ -292,25 +301,30 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
 
   return (
     <>
-      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+      <div onClick={handleClose} style={{ position: 'fixed', top: isMobile ? '64px' : 0, left: 0, right: 0, bottom: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
       <div style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        zIndex: 401, width: 'clamp(450px, 50vw, 700px)', maxHeight: '90vh', overflowY: 'auto',
+        position: 'fixed',
+        top: isMobile ? '64px' : '50%', left: isMobile ? 0 : '50%', transform: isMobile ? 'none' : 'translate(-50%, -50%)',
+        zIndex: 401,
+        width: isMobile ? '100%' : 'clamp(450px, 50vw, 700px)',
+        height: isMobile ? 'calc(100dvh - 64px)' : 'auto',
+        maxHeight: isMobile ? 'calc(100dvh - 64px)' : '90vh',
+        overflowY: 'auto',
         background: 'var(--bg-card)', border: '1px solid var(--border)',
-        borderRadius: 20, fontFamily: 'Inter, sans-serif',
+        borderRadius: isMobile ? 0 : 20, fontFamily: 'Inter, sans-serif',
         boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
       }}>
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', zIndex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Upload size={18} style={{ color: 'var(--primary)' }} />
+        <div style={{ padding: isMobile ? '16px' : '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--bg-card)', borderRadius: isMobile ? 0 : '20px 20px 0 0', zIndex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Upload size={isMobile ? 16 : 18} style={{ color: 'var(--primary)' }} />
             Adicionar Candidato ao Pool
           </h2>
-          <button onClick={handleClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}>
+          <button onClick={handleClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div style={{ padding: '20px 24px' }}>
+        <div style={{ padding: isMobile ? '16px' : '20px 24px' }}>
           {step === 'upload' && (
             <div
               onDrop={handleDrop}
