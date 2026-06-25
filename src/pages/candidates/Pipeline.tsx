@@ -2016,59 +2016,59 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                 <div style={{ paddingBottom: 20 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 16 }}>
                         {/* Card 1: Total */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Total de Candidatos</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Total de Candidatos</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Em todas as etapas do processo</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
-                                <Calendar size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Em todas as etapas do processo</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                                <Calendar size={isMobile ? 14 : 18} />
                             </div>
                         </div>
                         
                         {/* Card 2: Em Andamento (Triagem, Entrevista, Proposta) */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Candidatos Ativos</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Candidatos Ativos</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && !col.name.toLowerCase().includes('reprovado') && !col.name.toLowerCase().includes('aprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Em avaliação ativa</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
-                                <Target size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Em avaliação ativa</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+                                <Target size={isMobile ? 14 : 18} />
                             </div>
                         </div>
 
                         {/* Card 3: Aprovados */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Aprovados</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Aprovados</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && col.name.toLowerCase().includes('aprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Aguardando contratação</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
-                                <ClipboardList size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Aguardando contratação</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                                <ClipboardList size={isMobile ? 14 : 18} />
                             </div>
                         </div>
 
                         {/* Card 4: Reprovados/Descartados */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Descartados</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Descartados</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && col.name.toLowerCase().includes('reprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Historico finalizado</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                                <AlertCircle size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Historico finalizado</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                                <AlertCircle size={isMobile ? 14 : 18} />
                             </div>
                         </div>
                     </div>
