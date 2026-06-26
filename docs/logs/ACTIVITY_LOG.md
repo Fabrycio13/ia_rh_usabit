@@ -3,7 +3,8 @@
 Este arquivo serve como índice para os registros diários de atividades localizados na pasta `docs/logs/`.
 
 ## Logs Diários
-- [2026-06-16 (Hoje)](file:///d:/Projetos/IA%20RH/docs/logs/2026-06-16.md) - Integração da marca "Usabit people" (novo logotipo SVG e PNG, cabeçalho e rodapé).
+- [2026-06-22 (Hoje)](file:///d:/Projetos/IA%20RH/docs/logs/2026-06-22.md) - Refactor do favicon (redesenho completo vetorial do "Up").
+- [2026-06-16](file:///d:/Projetos/IA%20RH/docs/logs/2026-06-16.md) - Integração da marca "Usabit people" (novo logotipo SVG e PNG, cabeçalho e rodapé).
 - [2026-06-09](file:///d:/Projetos/IA%20RH/docs/logs/2026-06-09.md) - Fundo Cósmico Global (SideRays + Estrelas fixas), Novo CTA Constelação e Redesenho do Footer.
 - [2026-06-04](file:///d:/Projetos/IA%20RH/docs/logs/2026-06-04.md) - Substituição da fonte da landing page por tipografia futurista (Oxanium).
 - [2026-05-27](file:///d:/Projetos/IA%20RH/docs/logs/2026-05-27.md) - Correção na lógica de e-mails ao fechar vaga (Vagas.tsx).
