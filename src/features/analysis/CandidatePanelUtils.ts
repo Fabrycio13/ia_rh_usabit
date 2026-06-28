@@ -1,5 +1,19 @@
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-export interface Candidate {
+export interface Application {
+    jobId: string;
+    jobName: string;
+    score: number;
+    appliedAt: string;
+    skills?: string | null;
+    experience?: string | null;
+    education?: string | null;
+    redFlags?: string | null;
+    jobCode?: string;
+    resume_url?: string | null;
+    positivePoints?: string | null;
+}
+
+export interface CandidateDetail {
     id: string;
     name: string;
     email: string;
@@ -16,23 +30,6 @@ export interface Candidate {
     vagas: string[];
     interview_eligible: boolean;
     is_blacklisted?: boolean;
-}
-
-export interface Application {
-    jobId: string;
-    jobName: string;
-    score: number;
-    appliedAt: string;
-    skills?: string | null;
-    experience?: string | null;
-    education?: string | null;
-    redFlags?: string | null;
-    jobCode?: string;
-    resume_url?: string | null;
-    positivePoints?: string | null;
-}
-
-export interface CandidateDetail extends Candidate {
     phone: string | null;
     skills: string | null;
     experience: string | null;
