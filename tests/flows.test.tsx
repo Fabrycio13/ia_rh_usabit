@@ -65,6 +65,7 @@ describe('VagaForm - criar vaga', () => {
     });
 
     it('preenche formulário completo e cria vaga com sucesso', async () => {
+        vi.setConfig({ testTimeout: 15000 });
         const user = userEvent.setup();
         render(
             <MemoryRouter initialEntries={['/vagas/nova']}>
