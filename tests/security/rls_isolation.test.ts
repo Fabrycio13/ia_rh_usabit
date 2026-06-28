@@ -46,4 +46,18 @@ describe('RLS Isolation - Security Simulation', () => {
         expect(canDelete('gestor', gestorOrg, targetOrg)).toBe(false);
         expect(canDelete('gestor', gestorOrg, gestorOrg)).toBe(true);
     });
+
+    it('candidato nao autenticado nao deve ver dados de candidatos', () => {
+        // Um usuario convidado so pode ver candidatos que ele mesmo criou
+        const canSelect = (role: string | null, uid: string | null, ownerId: string) => {
+            if (!uid) return false;
+            if (role === 'owner') return true;
+            if (['gestor', 'rh'].includes(role ?? '')) return true;
+            return uid === ownerId;
+        };
+
+        expect(canSelect(null, null, 'user-a')).toBe(false);
+        expect(canSelect('convidado', 'user-a', 'user-b')).toBe(false);
+        expect(canSelect('convidado', 'user-a', 'user-a')).toBe(true);
+    });
 });

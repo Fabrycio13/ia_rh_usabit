@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { VagaForm } from '../src/pages/vagas/VagaForm';
 
@@ -18,6 +19,7 @@ const mockLimit = vi.fn();
 const mockOrder = vi.fn();
 const mockEq = vi.fn();
 const mockSelect = vi.fn();
+const mockInsert = vi.fn(() => ({ error: null }));
 
 vi.mock('../src/core/services/supabase', () => ({
     supabase: {
@@ -28,7 +30,7 @@ vi.mock('../src/core/services/supabase', () => ({
         },
         from: vi.fn(() => ({
             select: mockSelect,
-            insert: vi.fn(() => ({ error: null })),
+            insert: mockInsert,
         })),
     }
 }));
@@ -60,6 +62,60 @@ describe('VagaForm - criar vaga', () => {
                 }))
             }))
         });
+    });
+
+    it('preenche formulário completo e cria vaga com sucesso', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter initialEntries={['/vagas/nova']}>
+                <Routes>
+                    <Route path="/vagas/nova" element={<VagaForm />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await screen.findByPlaceholderText('Ex: Desenvolvedor Frontend React Senior');
+
+        // Step 1: título, categoria, status
+        await user.type(screen.getByPlaceholderText('Ex: Desenvolvedor Frontend React Senior'), 'Desenvolvedor Frontend');
+        await user.click(screen.getByRole('button', { name: 'Desenvolvimento' }));
+        await user.click(screen.getByRole('button', { name: /Publicada/ }));
+        await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+        // Step 2: modelo, contrato, regime
+        await screen.findByText(/Detalhes do Cargo/);
+        await user.click(screen.getByRole('button', { name: /^Remoto/ }));
+        await user.click(screen.getByRole('button', { name: /^CLT/ }));
+        await user.click(screen.getByRole('button', { name: /Tempo Integral/ }));
+        await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+        // Step 3: responsabilidades, requisitos
+        await screen.findByPlaceholderText(/Desenvolver aplicações/);
+        await user.type(screen.getByPlaceholderText(/Desenvolver aplicações/), '• Desenvolver features\n• Manter código');
+        await user.type(screen.getByPlaceholderText(/Experiência com React/), '• React\n• TypeScript\n• Git');
+        await user.click(screen.getByRole('button', { name: 'Próximo' }));
+
+        // Step 4: submeter
+        await screen.findByRole('button', { name: 'Publicar Vaga' });
+        await user.click(screen.getByRole('button', { name: 'Publicar Vaga' }));
+
+        await waitFor(() => {
+            expect(mockInsert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: 'Desenvolvedor Frontend',
+                    category: 'Desenvolvimento',
+                    status: 'aberta',
+                    is_accepting_applications: true,
+                    work_model: 'remote',
+                    work_regime: 'full-time',
+                    contract_type: 'clt',
+                    is_pcd: 'no',
+                    is_active: true,
+                })
+            );
+        });
+
+        expect(screen.getByText(/Vaga Publicada/)).toBeInTheDocument();
     });
 
     it('renderiza Step 1 com campos obrigatórios', async () => {
