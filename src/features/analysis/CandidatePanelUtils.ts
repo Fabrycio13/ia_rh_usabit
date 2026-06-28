@@ -61,37 +61,8 @@ export interface Comment {
     author?: { name: string; avatarUrl?: string; initials: string; };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-export function initials(name: string) {
-    if (!name) return '';
-    return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
-}
-
-export function scoreColor(s: number) {
-    return s >= 70 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444';
-}
-
-export function formatDate(iso: string) {
-    if (!iso) return '';
-    return new Date(iso).toLocaleDateString('pt-BR');
-}
-
-/** Separa qualquer texto de skills em chips individuais */
-export function parseSkills(raw: string | string[] | null | undefined): string[] {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw.map(s => s.trim()).filter(s => s.length > 1);
-    
-    const cleaned = raw
-        .replace(/experiência em/gi, '')
-        .replace(/conhecimento em/gi, '')
-        .replace(/domínio de/gi, '')
-        .replace(/habilidade em/gi, '')
-        .replace(/proficiência em/gi, '');
-    const parts = cleaned.split(/,|;|\se\/ou\s|\sou\s|\se\s|\//);
-    return parts
-        .map(s => s.replace(/[.]/g, '').trim())
-        .filter(s => s.length > 1 && s.length < 60);
-}
+// ─── Helpers específicos deste módulo ─────────────────────────────────────────
+export { initials, scoreColor, formatDate, parseSkills, toStr } from '../../core/utils/format';
 
 export function parseComments(raw: string | null): Comment[] {
     if (!raw) return [];
@@ -115,11 +86,4 @@ export function relativeTime(iso: string): string {
     const h = Math.floor(min / 60);
     if (h < 24) return `${h}h`;
     return new Date(iso).toLocaleDateString('pt-BR');
-}
-
-export function toStr(v: unknown): string | null {
-    if (!v) return null;
-    if (typeof v === 'string') return v;
-    if (Array.isArray(v)) return v.join(', ');
-    return String(v);
 }

@@ -9,7 +9,8 @@ import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
-import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
+import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
+import { toStr, initials, scoreColor } from '../../core/utils/format';
 import { hasPermission } from '../../core/config/permissions';
 import { logActivity } from '../../core/services/logger';
 

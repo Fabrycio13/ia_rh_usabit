@@ -9,20 +9,10 @@ import { useUser } from '../../core/contexts/UserContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
+import { initials, toStr } from '../../core/utils/format';
 import { ReanalyzeCandidateModal } from '../../features/candidates/components/ReanalyzeCandidateModal';
 
 const PAGE_SIZE = 10;
-
-function initials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
-}
-
-function toStr(v: unknown): string | null {
-  if (!v) return null;
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v)) return v.join(', ');
-  return String(v);
-}
 
 const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
 function vagaColor(name: string): string {

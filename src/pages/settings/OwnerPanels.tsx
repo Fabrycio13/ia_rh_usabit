@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { ShieldCheck, Lock, Zap, Save, ChevronDown, ChevronUp, Check, Edit2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { initials } from '../../core/utils/format';
 
 // ─── TIPOS ──────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export const OwnerAdminApiPanel = ({
                 const cfg = configs[admin.id] ?? { evo_url: '', evo_key: '', evo_instance: '' };
                 const isOpen = expanded === admin.id;
                 const hasConfig = !!(admin.evo_url || admin.evo_key);
-                const initials = (admin.name || admin.email).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                const adminInitials = initials(admin.name || admin.email);
 
                 return (
                     <div key={admin.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', transition: 'all 0.2s' }}>
@@ -106,7 +107,7 @@ export const OwnerAdminApiPanel = ({
                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                         >
                             <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
-                                {initials}
+                                {adminInitials}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -278,7 +279,7 @@ export const OwnerAdminPlanPanel = ({
                         {gestores.map(admin => {
                             const currentPlan = admin.account_type || 'trial';
                             const planColor = planColors[currentPlan] || '#6366f1';
-                            const initials = (admin.name || admin.email).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+const adminInitials = initials(admin.name || admin.email);
                             const isEditingThis = editing === admin.id;
 
                             return (
@@ -287,7 +288,7 @@ export const OwnerAdminPlanPanel = ({
                                     <td style={{ padding: '14px 20px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>
-                                                {initials}
+                                                {adminInitials}
                                             </div>
                                             <div>
                                                 <p style={{ color: 'var(--text-main)', fontWeight: 500, fontSize: '13px', margin: 0 }}>

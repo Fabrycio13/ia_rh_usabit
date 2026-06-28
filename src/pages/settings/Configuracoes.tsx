@@ -8,6 +8,7 @@ import { logActivity } from '../../core/services/logger';
 import toast from 'react-hot-toast';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
+import { initials } from '../../core/utils/format';
 
 type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
@@ -524,7 +525,7 @@ export const Configuracoes = () => {
         );
     }
 
-    const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+    const computedInitials = initials(name) || '?';
 
     return (
         <div className="cfg-root">
@@ -645,7 +646,7 @@ export const Configuracoes = () => {
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
                                 ) : (
-                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{computedInitials}</div>
                                 )}
                                 <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}

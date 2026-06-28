@@ -10,6 +10,7 @@ import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtil
 import { PoolAddCandidate } from '../../features/candidates/components/PoolAddCandidate';
 import DatePicker from '../../common/components/ui/DatePicker';
 import { analyzeJobApplication } from '../../core/services/jobAnalyzer';
+import { formatDate } from '../../core/utils/format';
 
 interface Candidate {
     id: string;
@@ -134,12 +135,6 @@ export const PoolTalentos = () => {
     const totalPages = Math.max(1, Math.ceil(filteredCandidatos.length / PAGE_SIZE));
     const paginated = filteredCandidatos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     const goTo = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
-
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('pt-BR');
-    };
 
     function optStr(v: unknown): string | null {
         return v != null ? String(v) : null;

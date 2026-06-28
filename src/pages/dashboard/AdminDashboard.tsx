@@ -6,7 +6,8 @@ import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
-import { 
+import { initials } from '../../core/utils/format';
+import {
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
 } from 'recharts';
@@ -89,8 +90,8 @@ const iconFieldStyle: React.CSSProperties = {
     pointerEvents: 'none',
 };
 
-const initials = (name: string) =>
-    name?.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
+// ─── Helpers importados de core/utils/format ──────────────────────────────────
+// (initials vem do import acima)
 
 interface UserProfile {
     id: string;
