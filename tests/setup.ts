@@ -1,4 +1,16 @@
 // Polyfill browser APIs missing in jsdom/Node.js (required by pdfjs-dist)
+if (typeof globalThis.matchMedia === 'undefined') {
+  globalThis.matchMedia = vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof globalThis.matchMedia;
+}
 if (typeof globalThis.DOMMatrix === 'undefined') {
   globalThis.DOMMatrix = class DOMMatrix {
     constructor() { return Object.create(DOMMatrix.prototype); }
@@ -12,7 +24,7 @@ if (typeof globalThis.DOMMatrix === 'undefined') {
 }
 
 import '@testing-library/jest-dom';
-import { expect, afterEach } from 'vitest';
+import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
