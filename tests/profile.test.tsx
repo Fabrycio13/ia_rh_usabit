@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { validatePassword } from '../src/pages/settings/Configuracoes';
 
 const store: Record<string, string> = {};
 vi.stubGlobal('localStorage', {
@@ -94,13 +95,6 @@ describe('Configuracoes - Profile', () => {
 });
 
 describe('Configuracoes - Password validation', () => {
-    function validatePassword(newPass: string, confirmPass: string): string | null {
-        if (!newPass) return 'Digite a nova senha.';
-        if (newPass !== confirmPass) return 'As senhas não coincidem.';
-        if (newPass.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
-        return null;
-    }
-
     it('rejeita senha vazia', () => {
         expect(validatePassword('', '')).toBe('Digite a nova senha.');
     });

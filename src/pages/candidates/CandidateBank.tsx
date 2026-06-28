@@ -15,13 +15,13 @@ import { ReanalyzeCandidateModal } from '../../features/candidates/components/Re
 const PAGE_SIZE = 10;
 
 const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
-function vagaColor(name: string): string {
+export function vagaColor(name: string): string {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return VAGA_PALETTE[Math.abs(h) % VAGA_PALETTE.length];
 }
 
-function extractVagaName(field: unknown): string | undefined {
+export function extractVagaName(field: unknown): string | undefined {
   if (Array.isArray(field)) return (field[0] as { title?: string; name?: string } | undefined)?.title ?? (field[0] as { title?: string; name?: string } | undefined)?.name;
   if (field && typeof field === 'object') return (field as { title?: string; name?: string }).title ?? (field as { title?: string; name?: string }).name;
   return undefined;

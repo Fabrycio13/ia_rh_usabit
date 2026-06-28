@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getVisibleTabs } from '../../src/pages/settings/Configuracoes';
 
 vi.mock('../../src/core/services/supabase', () => {
     const mockSelect = vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: { name: 'Test', email: 'test@test.com', organization_id: 'org-1', organization_name: 'Org' }, error: null })), single: vi.fn(() => Promise.resolve({ data: { id: 'user-1', name: 'Test' }, error: null })) })) }));
@@ -48,67 +49,48 @@ vi.mock('../../src/core/contexts/UserContext', () => ({
 }));
 
 describe('Configuracoes - abas por role', () => {
-    const allTabs = ['perfil', 'seguranca', 'aparencia', 'api', 'plano'] as const;
-    const getVisibleTabs = (role: string): string[] => {
-        const base = ['perfil', 'seguranca', 'aparencia'];
-        if (role === 'owner') return [...base, 'api', 'plano'];
-        return base;
-    };
+    const tabKeys = (role: string) => getVisibleTabs(role).map(t => t.key);
 
     beforeEach(() => { vi.clearAllMocks(); mockRole = 'rh'; });
 
     it('abas base visiveis para todos os perfis', () => {
-        expect(getVisibleTabs('rh')).toEqual(['perfil', 'seguranca', 'aparencia']);
-        expect(getVisibleTabs('administrador')).toEqual(['perfil', 'seguranca', 'aparencia']);
-        expect(getVisibleTabs('supervisor')).toEqual(['perfil', 'seguranca', 'aparencia']);
-        expect(getVisibleTabs('convidado')).toEqual(['perfil', 'seguranca', 'aparencia']);
+        expect(tabKeys('rh')).toEqual(['perfil', 'seguranca', 'aparencia']);
+        expect(tabKeys('administrador')).toEqual(['perfil', 'seguranca', 'aparencia']);
+        expect(tabKeys('supervisor')).toEqual(['perfil', 'seguranca', 'aparencia']);
+        expect(tabKeys('convidado')).toEqual(['perfil', 'seguranca', 'aparencia']);
     });
 
     it('owner tem abas extras API e Plano', () => {
-        const tabs = getVisibleTabs('owner');
+        const tabs = tabKeys('owner');
         expect(tabs).toContain('api');
         expect(tabs).toContain('plano');
         expect(tabs).toHaveLength(5);
     });
 
     it('rh nao tem API nem Plano', () => {
-        const tabs = getVisibleTabs('rh');
+        const tabs = tabKeys('rh');
         expect(tabs).not.toContain('api');
         expect(tabs).not.toContain('plano');
         expect(tabs).toHaveLength(3);
     });
 
     it('administrador nao tem API nem Plano', () => {
-        const tabs = getVisibleTabs('administrador');
+        const tabs = tabKeys('administrador');
         expect(tabs).not.toContain('api');
         expect(tabs).not.toContain('plano');
     });
 
     it('supervisor nao tem API nem Plano', () => {
-        const tabs = getVisibleTabs('supervisor');
+        const tabs = tabKeys('supervisor');
         expect(tabs).not.toContain('api');
         expect(tabs).not.toContain('plano');
     });
 
     it('convidado nao tem API nem Plano', () => {
-        const tabs = getVisibleTabs('convidado');
+        const tabs = tabKeys('convidado');
         expect(tabs).not.toContain('api');
         expect(tabs).not.toContain('plano');
     });
 });
 
-describe('Configuracoes - log de atividade', () => {
-    beforeEach(() => { vi.clearAllMocks(); });
 
-    it('logActivity e chamado ao alterar foto', async () => {
-        const { logActivity } = await import('../../src/core/services/logger');
-        await logActivity('user-1', 'Fez alterações na foto', { filename: 'avatar.jpg' });
-        expect(logActivity).toHaveBeenCalledWith('user-1', 'Fez alterações na foto', expect.any(Object));
-    });
-
-    it('logActivity e chamado ao salvar perfil', async () => {
-        const { logActivity } = await import('../../src/core/services/logger');
-        await logActivity('user-1', 'Fez alterações no perfil', { name: 'Novo Nome' });
-        expect(logActivity).toHaveBeenCalledWith('user-1', 'Fez alterações no perfil', expect.any(Object));
-    });
-});

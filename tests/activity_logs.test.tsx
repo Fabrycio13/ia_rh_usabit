@@ -37,27 +37,6 @@ vi.mock('../src/core/contexts/UserContext', () => ({
 import { describe as describe2, it as it2, expect as expect2 } from 'vitest';
 import { logActivity, logScreening } from '../src/core/services/logger';
 
-describe('Activity Logs', () => {
-
-    beforeEach(() => { vi.clearAllMocks(); });
-
-    it('owner nao filtra por organization_id na query', async () => {
-        mockRole = 'owner';
-        mockOrgId = 'org-1';
-        const { AdminLogs } = await import('../src/pages/dashboard/AdminLogs');
-        // We can't easily render AdminLogs without mocking everything,
-        // so we verify the filtering logic directly via the logger service
-        expect(true).toBe(true);
-    });
-
-    it('logActivity insere registro com dados corretos', async () => {
-        const mockInsert = vi.fn(() => Promise.resolve({ error: null }));
-        vi.mocked(vi.fn()).mockReturnValue({ insert: mockInsert });
-        // Direct test of logActivity is done via unit test below
-        expect(true).toBe(true);
-    });
-});
-
 describe('logger - logActivity', () => {
     beforeEach(() => { vi.clearAllMocks(); });
 

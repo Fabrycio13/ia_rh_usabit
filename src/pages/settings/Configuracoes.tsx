@@ -116,7 +116,7 @@ const allTabs: TabItem[] = [
 ];
 
 // Abas visíveis para cada perfil
-const getVisibleTabs = (userRole: string): TabItem[] => {
+export const getVisibleTabs = (userRole: string): TabItem[] => {
     const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'aparencia'].includes(tab.key));
     // Apenas Owner veem API e Plano
     if (userRole === 'owner') {
@@ -124,6 +124,13 @@ const getVisibleTabs = (userRole: string): TabItem[] => {
     }
     return baseTabs;
 };
+
+export function validatePassword(newPass: string, confirmPass: string): string | null {
+    if (!newPass) return 'Digite a nova senha.';
+    if (newPass !== confirmPass) return 'As senhas não coincidem.';
+    if (newPass.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    return null;
+}
 
 const themeBtnCss = `
     .theme-switch-container {
@@ -471,16 +478,9 @@ export const Configuracoes = () => {
     };
 
     const handleChangePassword = async () => {
-        if (!newPassword) {
-            showToast('error', 'Digite a nova senha.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            showToast('error', 'As senhas não coincidem.');
-            return;
-        }
-        if (newPassword.length < 6) {
-            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
+        const validationError = validatePassword(newPassword, confirmPassword);
+        if (validationError) {
+            showToast('error', validationError);
             return;
         }
 

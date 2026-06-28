@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { VagaForm } from '../src/pages/vagas/VagaForm';
+import { vagaColor, extractVagaName } from '../src/pages/candidates/CandidateBank';
 
 const store: Record<string, string> = {};
 vi.stubGlobal('localStorage', {
@@ -136,35 +137,17 @@ describe('VagaForm - criar vaga', () => {
 
 describe('Utility - vagaColor', () => {
     it('retorna cor consistente para o mesmo nome', () => {
-        const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
-        function vagaColor(name: string): string {
-            let h = 0;
-            for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-            return VAGA_PALETTE[Math.abs(h) % VAGA_PALETTE.length];
-        }
         expect(vagaColor('Frontend')).toBe(vagaColor('Frontend'));
-        expect(VAGA_PALETTE).toContain(vagaColor('Backend'));
+        expect(['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316']).toContain(vagaColor('Backend'));
     });
 
     it('distribui cores entre nomes diferentes', () => {
-        const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
-        function vagaColor(name: string): string {
-            let h = 0;
-            for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-            return VAGA_PALETTE[Math.abs(h) % VAGA_PALETTE.length];
-        }
         const cores = new Set(['Frontend', 'Backend', 'DevOps', 'Design'].map(vagaColor));
         expect(cores.size).toBeGreaterThan(1);
     });
 });
 
 describe('Utility - extractVagaName', () => {
-    function extractVagaName(field: unknown): string | undefined {
-        if (Array.isArray(field)) return (field[0] as { title?: string; name?: string } | undefined)?.title ?? (field[0] as { title?: string; name?: string } | undefined)?.name;
-        if (field && typeof field === 'object') return (field as { title?: string; name?: string }).title ?? (field as { title?: string; name?: string }).name;
-        return undefined;
-    }
-
     it('extrai title de array', () => {
         expect(extractVagaName([{ title: 'Dev Frontend' }])).toBe('Dev Frontend');
     });
