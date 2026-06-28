@@ -9,7 +9,6 @@ export const OnboardingModal = () => {
     const [step, setStep] = useState(1);
     const [orgName, setOrgName] = useState('');
     const [saving, setSaving] = useState(false);
-    const [hasCompleted] = useState(false);
 
     const onboardingType = profile.user_role === 'administrador' ? 'setup' : 'welcome';
 
@@ -17,9 +16,8 @@ export const OnboardingModal = () => {
     const needsOrgSetup = onboardingType === 'setup' && (!profile.organization_id || !profile.organization_name);
 
     // Exibe se ainda não completou o onboarding persistido no banco E não houver trava local específica
-    const shouldShow = profile.loaded && 
-                      !profile.onboarding_completed && 
-                      !hasCompleted && 
+    const shouldShow = profile.loaded &&
+                      !profile.onboarding_completed &&
                       !localStorage.getItem(`ia_rh_onboarding_done_${profile.userId}`);
 
     if (!shouldShow) return null;

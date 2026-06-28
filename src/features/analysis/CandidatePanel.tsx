@@ -31,7 +31,6 @@ interface ScreeningLogGroup {
 }
 
 // ─── Candidate Panel Component ────────────────────────────────────────────────
-void Zap; // reserved for future feature
 export function CandidatePanel({
     c,
     onClose,
@@ -65,7 +64,6 @@ export function CandidatePanel({
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
-    void onDeleteFromBank;
 
     const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
     const [newText, setNewText] = useState('');

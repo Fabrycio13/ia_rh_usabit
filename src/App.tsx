@@ -21,8 +21,6 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { Chat } from './pages/support/Chat';
 import { Register } from './pages/auth/Register';
 import { SetPassword } from './pages/auth/SetPassword';
-// import { ConfirmEmail } from './pages/auth/ConfirmEmail';
-// import { TrialExpired } from './pages/auth/TrialExpired';
 
 import { VagaForm } from './pages/vagas/VagaForm';
 import { VagaCandidatos } from './pages/vagas/VagaCandidatos';
@@ -42,14 +40,6 @@ const JobDetailRoute = () => {
 
 const AppContent = ({ session }: { session: Session | null }) => {
     const { profile } = useUser();
-
-    // Helper to check if trial expired
-
-    // const isTrialExpired = () => {
-    //     if (!profile.trial_ends_at) return false;
-    //     if (profile.account_type === 'lifetime' || profile.user_role === 'admin' || profile.user_role === 'rh') return false;
-    //     return new Date(profile.trial_ends_at) < new Date();
-    // };
 
     if (session && !profile.loaded) {
         // Não bloqueia com tela escura se for uma rota pública (Portal de Carreiras ou Vaga)
