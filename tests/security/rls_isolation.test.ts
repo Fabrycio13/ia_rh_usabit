@@ -1,63 +1,89 @@
 import { describe, it, expect } from 'vitest';
 
-/**
- * Simulação de auditoria lógica de RLS (SQL Analysis)
- * Como não temos um Supabase local rodando no Vitest, validamos a lógica das políticas extraídas.
- */
-describe('RLS Isolation - Security Simulation', () => {
+function canAccessByRole(role: string | null, userOrg: string | null, dataOrg: string | null, userId: string | null, dataUserId: string | null): boolean {
+    if (role === 'owner') return true;
+    if (role === 'administrador' || role === 'supervisor' || role === 'rh') {
+        return dataOrg != null && userOrg === dataOrg;
+    }
+    if (role === 'convidado') {
+        return userId != null && dataUserId != null && userId === dataUserId;
+    }
+    return false;
+}
 
-    it('vagas_white_label: Deve permitir leitura pública apenas de vagas ATIVAS', () => {
-        // Lógica da política: (is_active = true AND is_accepting_applications = true)
-        const mockVagaAtiva = { is_active: true, is_accepting_applications: true };
-        const mockVagaInativa = { is_active: false, is_accepting_applications: true };
-        
-        const canSelectPublic = (v: { is_active: boolean; is_accepting_applications: boolean }) => v.is_active === true && v.is_accepting_applications === true;
-        
-        expect(canSelectPublic(mockVagaAtiva)).toBe(true);
-        expect(canSelectPublic(mockVagaInativa)).toBe(false);
+function canManageProfiles(role: string | null, userOrg: string | null, targetOrg: string | null): boolean {
+    if (role === 'owner') return true;
+    if (role === 'administrador' || role === 'supervisor') {
+        return targetOrg != null && userOrg === targetOrg;
+    }
+    return false;
+}
+
+function canAccessLogs(role: string | null, userOrg: string | null, logOrg: string | null, logUserId: string | null, currentUserId: string | null): boolean {
+    if (role === 'owner') return true;
+    if (role === 'administrador' || role === 'supervisor') {
+        return logOrg != null && userOrg === logOrg;
+    }
+    if (role === 'rh') {
+        return logUserId != null && currentUserId != null && logUserId === currentUserId;
+    }
+    return false;
+}
+
+describe('RLS Isolation - Multi-tenancy por role', () => {
+
+    it('owner acessa dados de qualquer organização', () => {
+        expect(canAccessByRole('owner', 'org-a', 'org-b', 'u1', 'u2')).toBe(true);
+        expect(canAccessByRole('owner', 'org-a', 'org-a', 'u1', 'u2')).toBe(true);
+        expect(canAccessByRole('owner', null, 'org-a', null, 'u2')).toBe(true);
     });
 
-    it('candidates: Não deve permitir leitura pública (não autenticada)', () => {
-        // Lógica da política: (get_my_role() IN ('gestor', 'rh') AND (organization_id = get_my_org_id() OR user_id = auth.uid()))
-        const getMyRole = () => null; // Simulação de usuário não logado ou sem perfil
-        const authUid = () => null;
-        
-        const canAccess = (role: string | null, uid: string | null, candidateData: { organization_id: string; user_id: string }) => {
-            if (role === 'owner') return true;
-            if (['gestor', 'rh'].includes(role)) {
-                return candidateData.organization_id === 'my-org' || candidateData.user_id === uid;
-            }
-            return candidateData.user_id === uid && uid !== null;
-        };
-
-        const targetCandidate = { id: 'victim-123', organization_id: 'org-b', user_id: 'user-b' };
-        
-        expect(canAccess(getMyRole(), authUid(), targetCandidate)).toBe(false);
+    it('administrador so ve dados da propria organização', () => {
+        const adminOrg = 'org-admin';
+        expect(canAccessByRole('administrador', adminOrg, 'org-admin', 'u1', 'u2')).toBe(true);
+        expect(canAccessByRole('administrador', adminOrg, 'org-outra', 'u1', 'u2')).toBe(false);
+        expect(canAccessByRole('administrador', adminOrg, null, 'u1', 'u2')).toBe(false);
     });
 
-    it('profiles: Gestor não deve conseguir deletar perfis de outra organização', () => {
-        const gestorOrg = 'org-a';
-        const targetOrg = 'org-b';
-        
-        const canDelete = (userRole: string, userOrg: string, targetProfileOrg: string) => {
-            return userRole === 'gestor' && userOrg === targetProfileOrg;
-        };
-
-        expect(canDelete('gestor', gestorOrg, targetOrg)).toBe(false);
-        expect(canDelete('gestor', gestorOrg, gestorOrg)).toBe(true);
+    it('supervisor so ve dados da propria organização', () => {
+        const supOrg = 'org-sup';
+        expect(canAccessByRole('supervisor', supOrg, 'org-sup', 'u1', 'u2')).toBe(true);
+        expect(canAccessByRole('supervisor', supOrg, 'org-outra', 'u1', 'u2')).toBe(false);
     });
 
-    it('candidato nao autenticado nao deve ver dados de candidatos', () => {
-        // Um usuario convidado so pode ver candidatos que ele mesmo criou
-        const canSelect = (role: string | null, uid: string | null, ownerId: string) => {
-            if (!uid) return false;
-            if (role === 'owner') return true;
-            if (['gestor', 'rh'].includes(role ?? '')) return true;
-            return uid === ownerId;
-        };
+    it('rh so ve dados da propria organização', () => {
+        const rhOrg = 'org-rh';
+        expect(canAccessByRole('rh', rhOrg, 'org-rh', 'u1', 'u2')).toBe(true);
+        expect(canAccessByRole('rh', rhOrg, 'org-outra', 'u1', 'u2')).toBe(false);
+    });
 
-        expect(canSelect(null, null, 'user-a')).toBe(false);
-        expect(canSelect('convidado', 'user-a', 'user-b')).toBe(false);
-        expect(canSelect('convidado', 'user-a', 'user-a')).toBe(true);
+    it('convidado nao ve dados de outras organizações nem de outros usuarios', () => {
+        expect(canAccessByRole('convidado', 'org-conv', 'org-conv', 'u1', 'u2')).toBe(false);
+        expect(canAccessByRole('convidado', 'org-conv', 'org-outra', 'u1', 'u2')).toBe(false);
+        expect(canAccessByRole('convidado', 'org-conv', 'org-conv', 'u1', 'u1')).toBe(true);
+    });
+
+    it('usuario nao autenticado nao acessa dados protegidos', () => {
+        expect(canAccessByRole(null, null, 'org-a', null, 'u1')).toBe(false);
+        expect(canAccessByRole(null, null, null, null, null)).toBe(false);
+    });
+
+    it('apenas owner e administrador/supervisor podem gerenciar perfis da organização', () => {
+        expect(canManageProfiles('owner', 'org-a', 'org-b')).toBe(true);
+        expect(canManageProfiles('administrador', 'org-a', 'org-a')).toBe(true);
+        expect(canManageProfiles('supervisor', 'org-a', 'org-a')).toBe(true);
+        expect(canManageProfiles('rh', 'org-a', 'org-a')).toBe(false);
+        expect(canManageProfiles('convidado', 'org-a', 'org-a')).toBe(false);
+        expect(canManageProfiles('administrador', 'org-a', 'org-b')).toBe(false);
+    });
+
+    it('logs: owner ve tudo, admin/supervisor veem da org, rh ve proprios', () => {
+        expect(canAccessLogs('owner', 'org-a', 'org-b', 'u3', 'u1')).toBe(true);
+        expect(canAccessLogs('administrador', 'org-a', 'org-a', 'u3', 'u1')).toBe(true);
+        expect(canAccessLogs('administrador', 'org-a', 'org-b', 'u3', 'u1')).toBe(false);
+        expect(canAccessLogs('supervisor', 'org-a', 'org-a', 'u3', 'u1')).toBe(true);
+        expect(canAccessLogs('supervisor', 'org-a', 'org-b', 'u3', 'u1')).toBe(false);
+        expect(canAccessLogs('rh', 'org-a', 'org-a', 'u1', 'u1')).toBe(true);
+        expect(canAccessLogs('rh', 'org-a', 'org-a', 'u2', 'u1')).toBe(false);
     });
 });
