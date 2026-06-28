@@ -106,11 +106,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('job-applications')
-        .getPublicUrl(filePath);
-
-      setResumeUrl(publicUrl);
+      setResumeUrl(`job-applications/${filePath}`);
       setUploadState('extracting');
 
       const text = await extractTextFromPDF(file);

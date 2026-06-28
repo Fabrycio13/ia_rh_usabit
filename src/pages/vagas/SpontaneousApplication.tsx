@@ -535,8 +535,7 @@ export const SpontaneousApplication = () => {
             cacheControl: '3600', upsert: false, contentType: 'application/pdf'
         });
         if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
-        return publicUrl;
+        return `job-applications/${filePath}`;
     };
 
     const handleSubmit = async () => {

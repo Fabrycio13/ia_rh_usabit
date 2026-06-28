@@ -781,8 +781,7 @@ export const JobApplication = () => {
         });
         
         if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
-        return publicUrl;
+        return `job-applications/${filePath}`;
     };
 
     const handleSubmit = async () => {
