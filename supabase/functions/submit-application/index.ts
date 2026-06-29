@@ -27,6 +27,25 @@ interface ApplicationPayload {
 
 const RATE_LIMIT_MAX = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
+const TEXT_MAX = 1000
+const EMAIL_MAX = 320
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function stripHtml(v: string): string {
+  return v.replace(/<[^>]*>/g, '').trim()
+}
+
+function sanitizeText(v: string): string {
+  // eslint-disable-next-line no-control-regex
+  return v.normalize('NFKC').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\uFEFF]/g, '').trim()
+}
+
+function validateField(label: string, value: unknown, maxLen: number): string | null {
+  if (value == null || String(value).trim() === '') return null
+  const s = String(value)
+  if (s.length > maxLen) return `Campo '${label}' excede ${maxLen} caracteres`
+  return null
+}
 
 async function checkRateLimit(
   supabaseAdmin: ReturnType<typeof createClient>,
@@ -72,6 +91,32 @@ serve(async (req) => {
         status: 400,
       })
     }
+
+    if (!EMAIL_RE.test(body.candidate_email)) {
+      return new Response(JSON.stringify({ error: 'Email inválido' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    const errs = [
+      validateField('candidate_name', body.candidate_name, TEXT_MAX),
+      validateField('candidate_email', body.candidate_email, EMAIL_MAX),
+      validateField('candidate_phone', body.candidate_phone, 50),
+      validateField('candidate_location', body.candidate_location, 255),
+      validateField('candidate_linkedin', body.candidate_linkedin, 500),
+    ].filter(Boolean)
+    if (errs.length > 0) {
+      return new Response(JSON.stringify({ error: errs[0] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    body.candidate_name = sanitizeText(stripHtml(body.candidate_name))
+    if (body.candidate_phone) body.candidate_phone = sanitizeText(stripHtml(body.candidate_phone))
+    if (body.candidate_location) body.candidate_location = sanitizeText(stripHtml(body.candidate_location))
+    if (body.candidate_linkedin) body.candidate_linkedin = sanitizeText(stripHtml(body.candidate_linkedin))
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -142,7 +187,7 @@ serve(async (req) => {
 
     if (error) {
       console.error('Erro no insert de candidatura:', error.message, error.details, error.hint)
-      return new Response(JSON.stringify({ error: error.message, details: error.details }), {
+      return new Response(JSON.stringify({ error: 'Erro ao salvar candidatura' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
@@ -155,7 +200,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na função submit-application:', (error as Error).message)
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
+    return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

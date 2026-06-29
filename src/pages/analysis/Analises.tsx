@@ -9,9 +9,11 @@ import { useUser } from '../../core/contexts/UserContext';
 import { useAnalysis } from '../../core/contexts/AnalysisContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
-import { type CandidateDetail, toStr, initials, scoreColor } from '../../features/analysis/CandidatePanelUtils';
+import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
+import { toStr, initials, scoreColor } from '../../core/utils/format';
 import { hasPermission } from '../../core/config/permissions';
 import { logActivity } from '../../core/services/logger';
+import { PlanetOverlay } from '../../common/components/ui/SpaceBackground';
 
 interface Job {
   id: string;
@@ -30,80 +32,6 @@ const planetCss = `
 .planet { position: absolute; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(1px); box-shadow: inset -10px -10px 20px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.1); }
 .planet-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; pointer-events: none; }
 `;
-
-// ─── Planet Details ───────────────────────────────────────────────────────────
-const PlanetOverlay = ({ type }: { type: string }) => {
-  switch (type) {
-    case 'Jupiter':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(124,45,18,0.25) 12px, rgba(124,45,18,0.25) 24px)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 18px, rgba(254,243,199,0.15) 18px, rgba(254,243,199,0.15) 36px)' }} />
-          <div style={{ position: 'absolute', top: '65%', left: '15%', width: '25%', height: '12%', borderRadius: '50%', background: 'rgba(124,45,18,0.45)', filter: 'blur(2px)', transform: 'rotate(-3deg)' }} />
-          <div style={{ position: 'absolute', top: '30%', left: '55%', width: '28%', height: '6%', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', filter: 'blur(1px)' }} />
-        </div>
-      );
-    case 'Earth':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, 
-            backgroundImage: `
-              radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
-              radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
-              radial-gradient(ellipse 18px 12px at 45% 45%, #3f6212 0%, transparent 100%),
-              radial-gradient(ellipse 12px 08px at 80% 20%, #14532d 0%, transparent 100%),
-              radial-gradient(circle 7px at 22% 72%, #166534 0%, transparent 100%)
-            `,
-            opacity: 0.85, filter: 'blur(1px)'
-          }} />
-          <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
-          <div style={{ position: 'absolute', inset: 0, 
-            backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
-            filter: 'blur(2px)', animation: 'float 30s linear infinite'
-          }} />
-        </div>
-      );
-    case 'Moon':
-      return (
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.7 }}>
-          <div style={{ position: 'absolute', top: '15%', left: '25%', width: '18%', height: '18%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'absolute', top: '45%', left: '60%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 3px rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'absolute', top: '70%', left: '30%', width: '22%', height: '22%', borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.25)' }} />
-        </div>
-      );
-    case 'Mars':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '15%', left: '15%', width: '35%', height: '15%', background: 'rgba(69,10,10,0.35)', filter: 'blur(4px)', transform: 'rotate(-5deg)' }} />
-          <div style={{ position: 'absolute', top: '65%', left: '50%', width: '25%', height: '15%', background: 'rgba(69,10,10,0.3)', filter: 'blur(3px)', transform: 'rotate(10deg)' }} />
-          <div style={{ position: 'absolute', top: '35%', left: '55%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(69,10,10,0.2)', boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.3)' }} />
-        </div>
-      );
-    case 'Neptune':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(160deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px)', filter: 'blur(1.5px)', animation: 'float 45s linear infinite' }} />
-          <div style={{ position: 'absolute', top: '40%', left: '10%', width: '80%', height: '4%', background: 'rgba(255,255,255,0.15)', filter: 'blur(3px)' }} />
-        </div>
-      );
-    case 'Venus':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.12) 0%, transparent 60%)', filter: 'blur(2px)' }} />
-          <div style={{ position: 'absolute', inset: -10, background: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.05) 12px, rgba(0,0,0,0.05) 24px)', filter: 'blur(4px)', opacity: 0.4 }} />
-        </div>
-      );
-    case 'Saturn':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
-          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
-        </div>
-      );
-    default:
-      return null;
-  }
-};
 
 interface Candidate {
   id: string;

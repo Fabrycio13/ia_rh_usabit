@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { analyzeResume } from '../../core/services/analyzers/resumeAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
+import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -211,7 +212,7 @@ const BotAvatar = () => (
         border: '1px solid rgba(255,255,255,0.15)'
     }}>
         <img 
-            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.png`}
+            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.webp`}
             alt="Assistant"
             style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
@@ -311,48 +312,6 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
     </div>
 );
 
-const maskPhone = (val: string, country: { code: string; iso: string }) => {
-    const clean = val.startsWith('+') ? '+' + val.replace(/\D/g, '') : '+' + val.replace(/\D/g, '');
-    const digits = clean.replace(/\D/g, '');
-    const codeDigits = country.code.replace(/\D/g, '');
-    let localDigits = digits.startsWith(codeDigits) ? digits.substring(codeDigits.length) : digits;
-    localDigits = localDigits.substring(0, 12);
-    if (country.code === '+55') {
-        let res = '+55 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 2);
-            if (localDigits.length > 2) {
-                res += ') ' + localDigits.substring(2, 7);
-                if (localDigits.length > 7) res += '-' + localDigits.substring(7, 11);
-            }
-        }
-        return res.trim();
-    }
-    if (country.code === '+1') {
-        let res = '+1 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 3);
-            if (localDigits.length > 3) {
-                res += ') ' + localDigits.substring(3, 6);
-                if (localDigits.length > 6) res += '-' + localDigits.substring(6, 10);
-            }
-        }
-        return res.trim();
-    }
-    let res = country.code + ' ';
-    for (let i = 0; i < localDigits.length; i++) {
-        if (i > 0 && i % 3 === 0 && i < 9) res += ' ';
-        res += localDigits[i];
-    }
-    return res.trim();
-};
-
-const maskCep = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
-    return v.substring(0, 9);
-};
-
 export const SpontaneousApplication = () => {
     const isMobile = window.innerWidth < 768;
     const { orgId } = useParams<{ orgId: string }>();
@@ -409,7 +368,6 @@ export const SpontaneousApplication = () => {
     const [selectedCountry, setSelectedCountry] = useState(countries[0]);
     const [countrySearch, setCountrySearch] = useState('');
 
-    const normalizeText = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const filteredCountries = countries.filter(c => {
         const search = normalizeText(countrySearch);
         return normalizeText(c.name).includes(search) || c.code.includes(search);
@@ -535,8 +493,7 @@ export const SpontaneousApplication = () => {
             cacheControl: '3600', upsert: false, contentType: 'application/pdf'
         });
         if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
-        return publicUrl;
+        return `job-applications/${filePath}`;
     };
 
     const handleSubmit = async () => {
@@ -726,7 +683,7 @@ export const SpontaneousApplication = () => {
     };
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isValidEmail = EMAIL_REGEX.test(formData.email.trim());
     const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 =
         isValidEmail &&

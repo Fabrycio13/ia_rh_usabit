@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight, Key, Layout } from 'lucide-react';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -238,7 +239,7 @@ const shortcuts = [
 // ─── FAQ COMPONENT ────────────────────────────────────────────────────────────
 const FaqItem = ({ q, a }: { q: string; a: string }) => {
     const [open, setOpen] = useState(false);
-    const renderedA = a.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    const renderedA = DOMPurify.sanitize(a.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'));
     return (
         <div style={{ borderBottom: '1px solid var(--border)', overflow: 'hidden', transition: 'all 0.2s' }}>
             <button

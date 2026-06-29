@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
+import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
 
 interface Job {
     id: string;
@@ -249,7 +250,7 @@ const BotAvatar = () => (
         border: '1px solid rgba(255,255,255,0.15)'
     }}>
         <img 
-            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.png`}
+            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.webp`}
             alt="Assistant"
             style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
@@ -386,70 +387,7 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
     );
 };
 
-const maskPhone = (val: string, country: { code: string; iso: string }) => {
-    const v = val;
-    if (!v) return country.code + ' ';
 
-    // Remove tudo que não é dígito, exceto o + inicial
-    const clean = v.startsWith('+') ? '+' + v.replace(/\D/g, '') : '+' + v.replace(/\D/g, '');
-    const digits = clean.replace(/\D/g, '');
-    const codeDigits = country.code.replace(/\D/g, '');
-    
-    // Extrai a parte local do número
-    let localDigits = '';
-    if (digits.startsWith(codeDigits)) {
-        localDigits = digits.substring(codeDigits.length);
-    } else {
-        localDigits = digits;
-    }
-
-    // Limita a 12 dígitos locais (padrão internacional seguro)
-    localDigits = localDigits.substring(0, 12);
-
-    // Máscara Brasil (+55)
-    if (country.code === '+55') {
-        let res = '+55 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 2);
-            if (localDigits.length > 2) {
-                res += ') ' + localDigits.substring(2, 7);
-                if (localDigits.length > 7) {
-                    res += '-' + localDigits.substring(7, 11);
-                }
-            }
-        }
-        return res.trim();
-    }
-
-    // Máscara NANP (+1) - EUA, Canadá e Caribe (que não tem prefixo maior)
-    if (country.code === '+1') {
-        let res = '+1 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 3);
-            if (localDigits.length > 3) {
-                res += ') ' + localDigits.substring(3, 6);
-                if (localDigits.length > 6) {
-                    res += '-' + localDigits.substring(6, 10);
-                }
-            }
-        }
-        return res.trim();
-    }
-
-    // Máscara Genérica (Europa e outros) - Agrupa de 3 em 3 ou 4 em 4
-    let res = country.code + ' ';
-    for (let i = 0; i < localDigits.length; i++) {
-        if (i > 0 && i % 3 === 0 && i < 9) res += ' ';
-        res += localDigits[i];
-    }
-    return res.trim();
-};
-
-const maskCep = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
-    return v.substring(0, 9);
-};
 
 interface AutoResizeEffectProps {
     step: number;
@@ -610,9 +548,6 @@ export const JobApplication = () => {
 
     const [selectedCountry, setSelectedCountry] = useState(countries[0]);
     const [countrySearch, setCountrySearch] = useState('');
-
-    const normalizeText = (text: string) => 
-        text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
     const filteredCountries = countries.filter(c => {
         const search = normalizeText(countrySearch);
@@ -781,8 +716,7 @@ export const JobApplication = () => {
         });
         
         if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
-        return publicUrl;
+        return `job-applications/${filePath}`;
     };
 
     const handleSubmit = async () => {
@@ -1020,7 +954,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
     const msg = stepMessages[step];
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isValidEmail = EMAIL_REGEX.test(formData.email.trim());
     const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 = 
         isValidEmail &&

@@ -51,5 +51,3 @@ export interface CandidateExtraction {
   experience: string;
   education: string;
 }
-
-

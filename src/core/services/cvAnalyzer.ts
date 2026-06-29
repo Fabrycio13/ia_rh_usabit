@@ -22,11 +22,10 @@ export async function extractCandidateData(
     try {
         const sanitizedText = sanitizeAIInput(fileText);
         const messages = buildExtractionMessages(sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000 });
+        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'extraction' });
         const parsed = parseJSON<CandidateExtraction>(data.content);
         const normalized = normalizeExtraction(parsed as unknown as Record<string, unknown>);
 
-        logAI({ operation: 'extraction', success: true, latencyMs: Date.now() - startTime });
         return normalized;
     } catch (err: unknown) {
         logAI({ operation: 'extraction', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
@@ -50,11 +49,9 @@ export async function analyzeCV(
     try {
         const sanitizedText = fileText ? sanitizeAIInput(fileText) : undefined;
         const messages = buildScoringMessages(jobTitle, jobDescription, currentIndex, totalCount, sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000 });
+        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'scoring' });
         const parsed = parseJSON<AnalysisResult>(data.content);
         const normalized = normalizeAnalysisResult(parsed as unknown as Record<string, unknown>);
-
-        logAI({ operation: 'scoring', success: true, latencyMs: Date.now() - startTime });
         console.log('[CV Analyzer] Parsed Result:', {
             name: normalized.name,
             skills: normalized.skills,

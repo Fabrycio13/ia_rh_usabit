@@ -6,6 +6,7 @@ import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
 import { type OpenAIMessage } from '../core/services/ai/types';
 import { supabase } from '../core/services/supabase';
+import { sanitizeAIInput } from '../core/services/sanitizer';
 
 const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
 const CHAT_MODEL = 'gpt-4o-mini';
@@ -116,7 +117,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                     role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
                     content: m.text
                 })),
-                { role: 'user', content: currentInput }
+                { role: 'user', content: sanitizeAIInput(currentInput) }
             ];
 
             let assistantMessage = await callOpenAIProxy(apiMessages);
@@ -147,7 +148,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                     apiMessages.push({
                         role: 'tool',
                         tool_call_id: toolCall.id,
-                        content: JSON.stringify(result)
+                        content: sanitizeAIInput(JSON.stringify(result))
                     });
                 }
 

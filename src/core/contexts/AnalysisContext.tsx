@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { logActivity } from '../services/logger';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-export interface Candidate {
+interface Candidate {
     id: string;
     name: string;
     age: string | null;

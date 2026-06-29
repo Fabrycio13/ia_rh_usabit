@@ -106,11 +106,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('job-applications')
-        .getPublicUrl(filePath);
-
-      setResumeUrl(publicUrl);
+      setResumeUrl(`job-applications/${filePath}`);
       setUploadState('extracting');
 
       const text = await extractTextFromPDF(file);
@@ -152,9 +148,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
     if (file) handleFileSelect(file);
   }, [handleFileSelect]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

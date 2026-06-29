@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { downloadResume } from '../../core/utils/storage';
 import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
@@ -10,6 +11,7 @@ import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtil
 import { PoolAddCandidate } from '../../features/candidates/components/PoolAddCandidate';
 import DatePicker from '../../common/components/ui/DatePicker';
 import { analyzeJobApplication } from '../../core/services/jobAnalyzer';
+import { formatDate } from '../../core/utils/format';
 
 interface Candidate {
     id: string;
@@ -134,12 +136,6 @@ export const PoolTalentos = () => {
     const totalPages = Math.max(1, Math.ceil(filteredCandidatos.length / PAGE_SIZE));
     const paginated = filteredCandidatos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     const goTo = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
-
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('pt-BR');
-    };
 
     function optStr(v: unknown): string | null {
         return v != null ? String(v) : null;
@@ -293,30 +289,6 @@ export const PoolTalentos = () => {
         setVagaSearch('');
         setShowConfirm(false);
         setConfirmCandidate(null);
-    };
-
-    const downloadResume = async (url: string, fileName: string): Promise<File> => {
-        let path = url;
-        let bucket = 'job-applications';
-        if (url.includes('/storage/v1/object/public/')) {
-            const afterPublic = url.split('/storage/v1/object/public/')[1];
-            const parts = afterPublic.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.includes('/storage/v1/object/')) {
-            const afterObject = url.split('/storage/v1/object/')[1];
-            const parts = afterObject.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.startsWith('job-applications/')) {
-            path = url.replace('job-applications/', '');
-        }
-
-        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-        if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
-        const response = await fetch(data.signedUrl);
-        const blob = await response.blob();
-        return new File([blob], fileName, { type: blob.type });
     };
 
     const handleConfirmAnalyze = async () => {

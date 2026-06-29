@@ -6,7 +6,9 @@ import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
-import { 
+import { initials } from '../../core/utils/format';
+import { inputStyle, labelStyle } from '../../core/utils/formatUtils';
+import {
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
 } from 'recharts';
@@ -53,29 +55,6 @@ const css = `
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
-const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '11px 14px 11px 42px',
-    color: 'var(--text-main)',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s, background 0.2s',
-};
-
-const labelStyle: React.CSSProperties = {
-    display: 'block',
-    color: 'var(--text-muted)',
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: '6px',
-};
-
 const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
 
 const iconFieldStyle: React.CSSProperties = {
@@ -89,8 +68,8 @@ const iconFieldStyle: React.CSSProperties = {
     pointerEvents: 'none',
 };
 
-const initials = (name: string) =>
-    name?.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
+// ─── Helpers importados de core/utils/format ──────────────────────────────────
+// (initials vem do import acima)
 
 interface UserProfile {
     id: string;
@@ -116,6 +95,13 @@ interface ChartData {
     name: string;
     value: number;
 }
+
+const ROLE_BG: Record<string, string> = { owner: 'rgba(239,68,68,0.1)', administrador: 'rgba(245,158,11,0.1)', supervisor: 'rgba(139,92,246,0.1)', rh: 'rgba(99,102,241,0.1)' };
+const ROLE_COLOR: Record<string, string> = { owner: '#ef4444', administrador: '#f59e0b', supervisor: '#8b5cf6', rh: '#6366f1' };
+const STATUS_DOT: Record<string, string> = { active: '#10b981', pending: '#f59e0b' };
+const STATUS_LABEL: Record<string, string> = { active: 'Ativo', pending: 'Pendente' };
+const STATUS_ACTION_COLOR: Record<string, string> = { active: '#ef4444', pending: '#f59e0b' };
+const STATUS_ACTION_LABEL: Record<string, string> = { active: 'Desativar', pending: 'Ativar' };
 
 export const AdminDashboard = () => {
     const { profile } = useUser();
@@ -906,7 +892,7 @@ export const AdminDashboard = () => {
                                                                     <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981' }}>
                                                                         {u.user_role?.toUpperCase()}
                                                                     </span>
-                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : u.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
+                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[u.status] ?? '#ef4444' }} />
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -976,7 +962,7 @@ export const AdminDashboard = () => {
                                                         {(() => { const n = user.name || user.email.split('@')[0] || 'Usuário'; const m = isMobile ? 12 : 999; return n.length > m ? n.substring(0, m) + '…' : n; })()}
                                                     </p>
                                                     {isMobile && (
-                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444', flexShrink: 0 }} />
+                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[user.status] ?? '#ef4444', flexShrink: 0 }} />
                                                     )}
                                                 </div>
                                             </div>
@@ -993,8 +979,8 @@ export const AdminDashboard = () => {
                                             borderRadius: '6px',
                                             fontSize: isMobile ? '10px' : '11px',
                                             fontWeight: 700,
-                                            background: user.user_role === 'owner' ? 'rgba(239, 68, 68, 0.1)' : user.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : user.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : user.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                            color: user.user_role === 'owner' ? '#ef4444' : user.user_role === 'administrador' ? '#f59e0b' : user.user_role === 'supervisor' ? '#8b5cf6' : user.user_role === 'rh' ? '#6366f1' : '#10b981',
+                                            background: ROLE_BG[user.user_role] ?? 'rgba(16, 185, 129, 0.1)',
+                                            color: ROLE_COLOR[user.user_role] ?? '#10b981',
                                             textTransform: 'uppercase',
                                             whiteSpace: 'nowrap',
                                         }}>
@@ -1003,9 +989,9 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: isMobile ? '10px 8px' : '16px', display: isMobile ? 'none' : 'table-cell' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
-                                            <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : user.status === 'pending' ? '#f59e0b' : '#ef4444' }}>
-                                                {user.status === 'active' ? 'Ativo' : user.status === 'pending' ? 'Pendente' : 'Inativo'}
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_DOT[user.status] ?? '#ef4444' }} />
+                                            <span style={{ fontSize: '13px', color: STATUS_DOT[user.status] ?? '#ef4444' }}>
+                                                {STATUS_LABEL[user.status] ?? 'Inativo'}
                                             </span>
                                         </div>
                                     </td>
@@ -1014,13 +1000,13 @@ export const AdminDashboard = () => {
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); toggleStatus(user.id, user.status); }}
                                                 disabled={updatingId === user.id}
-                                                title={user.status === 'active' ? 'Desativar' : 'Ativar'}
+                                                title={STATUS_ACTION_LABEL[user.status] ?? 'Ativar'}
                                                 style={{
                                                     padding: isMobile ? '6px' : '6px 12px',
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
-                                                    color: user.status === 'active' ? '#ef4444' : user.status === 'pending' ? '#f59e0b' : '#10b981',
+                                                    color: STATUS_ACTION_COLOR[user.status] ?? '#10b981',
                                                     fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: 'pointer',
@@ -1034,7 +1020,7 @@ export const AdminDashboard = () => {
                                                 }}
                                             >
                                                 {updatingId === user.id ? <Loader2 className="animate-spin" size={12} /> : (user.status === 'active' ? <UserX size={12} /> : <UserCheck size={12} />)}
-                                                {isMobile ? '' : (user.status === 'active' ? 'Desativar' : user.status === 'pending' ? 'Ativar' : 'Ativar')}
+                                                {isMobile ? '' : (STATUS_ACTION_LABEL[user.status] ?? 'Ativar')}
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleResendInvite({ id: user.id, name: user.name, email: user.email }); }}
@@ -1299,16 +1285,16 @@ export const AdminDashboard = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
                                     <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Cargo</span>
-                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : du.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : du.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : du.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: detailIsOwner ? '#ef4444' : du.user_role === 'administrador' ? '#f59e0b' : du.user_role === 'supervisor' ? '#8b5cf6' : du.user_role === 'rh' ? '#6366f1' : '#10b981', textTransform: 'uppercase' }}>
+                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: detailIsOwner || du.user_role === 'owner' ? 'rgba(239, 68, 68, 0.1)' : ROLE_BG[du.user_role] ?? 'rgba(16, 185, 129, 0.1)', color: detailIsOwner || du.user_role === 'owner' ? '#ef4444' : ROLE_COLOR[du.user_role] ?? '#10b981', textTransform: 'uppercase' }}>
                                         {du.user_role?.toUpperCase()}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
                                     <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: du.status === 'active' ? '#10b981' : du.status === 'pending' ? '#f59e0b' : '#ef4444' }} />
-                                        <span style={{ fontSize: '13px', fontWeight: 500, color: du.status === 'active' ? '#10b981' : du.status === 'pending' ? '#f59e0b' : '#ef4444' }}>
-                                            {du.status === 'active' ? 'Ativo' : du.status === 'pending' ? 'Pendente' : 'Inativo'}
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[du.status] ?? '#ef4444' }} />
+                                        <span style={{ fontSize: '13px', fontWeight: 500, color: STATUS_DOT[du.status] ?? '#ef4444' }}>
+                                            {STATUS_LABEL[du.status] ?? 'Inativo'}
                                         </span>
                                     </div>
                                 </div>
@@ -1352,10 +1338,10 @@ export const AdminDashboard = () => {
                                 <button
                                     onClick={() => { toggleStatus(du.id, du.status); setDetailUserId(null); }}
                                     disabled={updatingId === du.id}
-style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: du.status === 'active' ? '#ef4444' : du.status === 'pending' ? '#f59e0b' : '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: STATUS_ACTION_COLOR[du.status] ?? '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
                                                                 >
                                                                     {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
-                                                                    {du.status === 'active' ? 'Desativar' : du.status === 'pending' ? 'Ativar' : 'Ativar'}
+                                                                    {STATUS_ACTION_LABEL[du.status] ?? 'Ativar'}
                                 </button>
                                 <button
                                     onClick={() => { handleResendInvite({ id: du.id, name: du.name, email: du.email }); setDetailUserId(null); }}

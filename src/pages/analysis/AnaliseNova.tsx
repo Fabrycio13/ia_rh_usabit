@@ -10,6 +10,7 @@ import {
     UserRound, Mail, Phone, MapPin, Calendar, ChevronRight, XCircle, X, Ban
 } from 'lucide-react';
 import { handleViewResume } from '../../core/utils/storage';
+import { parseSkills, initials, scoreColor } from '../../core/utils/format';
 import {
     PieChart, Pie, Cell, Legend, Tooltip as RechartTooltip,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer
@@ -40,29 +41,8 @@ interface AnalysisResult {
     candidates: Candidate[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-/** Separa qualquer texto de skills em chips individuais */
-function parseSkills(raw: string | null | undefined): string[] {
-    if (!raw) return [];
-    // Remove frases comuns de contexto
-    const cleaned = raw
-        .replace(/experiência em/gi, '')
-        .replace(/conhecimento em/gi, '')
-        .replace(/domínio de/gi, '')
-        .replace(/habilidade em/gi, '')
-        .replace(/proficiência em/gi, '');
-    // Divide por separadores: vírgula, ponto e vírgula, ' e ', ' ou ', ' / ', ' e/ou '
-    const parts = cleaned.split(/,|;|\se\/ou\s|\sou\s|\se\s|\//);
-    return parts
-        .map(s => s.replace(/[.]/g, '').trim())
-        .filter(s => s.length > 1 && s.length < 60);
-}
-
-const initials = (name: string) =>
-    name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
-
-const scoreColor = (s: number) =>
-    s >= 70 ? '#10b981' : s >= 40 ? '#f59e0b' : '#ef4444';
+// ─── Helpers importados de core/utils/format ──────────────────────────────────
+// (parseSkills, initials, scoreColor vêm do import acima)
 
 const TT_STYLE = {
     background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -1028,7 +1008,7 @@ export const AnaliseNova = () => {
                             {files.length > 0 && (
                                 <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto' }} className="custom-scrollbar">
                                     {files.map((f, i) => (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-main)', borderRadius: 6, marginBottom: 4 }}>
+                                        <div key={f.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-main)', borderRadius: 6, marginBottom: 4 }}>
                                             <span style={{ fontSize: 12, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%' }}>{f.name}</span>
                                             <button onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 2 }}><X size={12} /></button>
                                         </div>

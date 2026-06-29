@@ -7,7 +7,8 @@ import { useUser } from '../../core/contexts/UserContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
-import { type CandidateDetail, type Application, toStr } from '../../features/analysis/CandidatePanelUtils';
+import { type CandidateDetail, type Application } from '../../features/analysis/CandidatePanelUtils';
+import { toStr, initials, scoreColor } from '../../core/utils/format';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -125,14 +126,6 @@ const DEFAULT_COLUMNS = [
 ];
 
 const COLUMN_COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#22c55e', '#ef4444', '#a78bfa', '#ec4899', '#14b8a6'];
-
-function initials(name: string) {
-    return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
-}
-function scoreColor(s: number | null) {
-    if (!s) return '#64748b';
-    return s >= 70 ? '#22c55e' : s >= 40 ? '#f59e0b' : '#ef4444';
-}
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `

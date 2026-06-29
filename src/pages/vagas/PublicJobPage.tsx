@@ -4,6 +4,7 @@ import {
     ArrowRight, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { formatSalary } from '../../core/utils/jobFormatter';
+import { formatDate } from '../../core/utils/format';
 import { FooterPortal } from './portal/FooterPortal';
 
 interface Job {
@@ -105,16 +106,6 @@ export const PublicJobPage = () => {
             onsite: 'Presencial'
         };
         return model ? labels[model] || model : '';
-    };
-
-
-
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-        });
     };
 
     const handleApply = () => {
@@ -397,7 +388,7 @@ export const PublicJobPage = () => {
                         fontFamily: "'Inter', sans-serif",
                         textAlign: 'center'
                     }}>
-                        Vaga publicada em {formatDate(job.created_at)}
+                        Vaga publicada em {formatDate(job.created_at, { longMonth: true })}
                     </p>
                 </div>
             </div>

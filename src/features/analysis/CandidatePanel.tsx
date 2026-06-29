@@ -16,6 +16,8 @@ import {
     type CandidateDetail, type Comment
 } from './CandidatePanelUtils';
 
+const EXCLUDED_KEYS = new Set(['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age']);
+
 interface ScreeningLog {
     id: string;
     action: string;
@@ -31,7 +33,6 @@ interface ScreeningLogGroup {
 }
 
 // ─── Candidate Panel Component ────────────────────────────────────────────────
-void Zap; // reserved for future feature
 export function CandidatePanel({
     c,
     onClose,
@@ -65,7 +66,6 @@ export function CandidatePanel({
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
-    void onDeleteFromBank;
 
     const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
     const [newText, setNewText] = useState('');
@@ -631,15 +631,13 @@ export function CandidatePanel({
                         {c.isVagaView && (
                             <>
                                 {c.answers && Object.entries(c.answers).filter(([key]) =>
-                                    !key.startsWith('_') &&
-                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                    !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
                                 ).length > 0 && (
                                     <section>
                                         <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Respostas Personalizadas</p>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                             {Object.entries(c.answers).filter(([key]) =>
-                                                !key.startsWith('_') &&
-                                                !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                                !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
                                             ).map(([key, value]) => {
                                                 const label = c.questionLabels?.[key] || key;
                                                 const display = typeof value === 'string' ? value : JSON.stringify(value);
@@ -659,8 +657,7 @@ export function CandidatePanel({
                         {c.isVagaView && (
                             <>
                                 {c.answers && Object.entries(c.answers).filter(([key]) =>
-                                    !key.startsWith('_') &&
-                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                    !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
                                 ).length > 0 && (
                                     <section style={{
                                         border: '1px solid var(--border)', 
@@ -676,7 +673,7 @@ export function CandidatePanel({
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                             {Object.entries(c.answers)
-                                                .filter(([key]) => !['_ai_analysis', 'address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .filter(([key]) => !['_ai_analysis', ...EXCLUDED_KEYS].includes(key))
                                                 .map(([key, value]) => {
                                                     const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
                                                     return (
@@ -830,10 +827,6 @@ export function CandidatePanel({
                         )}
 
 
-
-                        {!c.isVagaView && skillsList.length > 0 && (
-                            <></>
-                        )}
 
                         <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
                             {!c.isVagaView ? (

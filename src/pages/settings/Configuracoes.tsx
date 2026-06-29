@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
@@ -8,6 +9,8 @@ import { logActivity } from '../../core/services/logger';
 import toast from 'react-hot-toast';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
+import { initials } from '../../core/utils/format';
+import { inputStyle, labelStyle } from '../../core/utils/formatUtils';
 
 type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
@@ -115,7 +118,7 @@ const allTabs: TabItem[] = [
 ];
 
 // Abas visíveis para cada perfil
-const getVisibleTabs = (userRole: string): TabItem[] => {
+export const getVisibleTabs = (userRole: string): TabItem[] => {
     const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'aparencia'].includes(tab.key));
     // Apenas Owner veem API e Plano
     if (userRole === 'owner') {
@@ -123,6 +126,13 @@ const getVisibleTabs = (userRole: string): TabItem[] => {
     }
     return baseTabs;
 };
+
+export function validatePassword(newPass: string, confirmPass: string): string | null {
+    if (!newPass) return 'Digite a nova senha.';
+    if (newPass !== confirmPass) return 'As senhas não coincidem.';
+    if (newPass.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    return null;
+}
 
 const themeBtnCss = `
     .theme-switch-container {
@@ -172,29 +182,6 @@ const themeBtnCss = `
         transform: rotate(15deg) scale(1.1);
     }
 `;
-
-const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '11px 14px 11px 42px',
-    color: 'var(--text-main)',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s, background 0.2s',
-};
-
-const labelStyle: React.CSSProperties = {
-    display: 'block',
-    color: 'var(--text-muted)',
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: '6px',
-};
 
 const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
 
@@ -470,16 +457,9 @@ export const Configuracoes = () => {
     };
 
     const handleChangePassword = async () => {
-        if (!newPassword) {
-            showToast('error', 'Digite a nova senha.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            showToast('error', 'As senhas não coincidem.');
-            return;
-        }
-        if (newPassword.length < 6) {
-            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
+        const validationError = validatePassword(newPassword, confirmPassword);
+        if (validationError) {
+            showToast('error', validationError);
             return;
         }
 
@@ -524,7 +504,7 @@ export const Configuracoes = () => {
         );
     }
 
-    const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+    const computedInitials = initials(name) || '?';
 
     return (
         <div className="cfg-root">
@@ -645,7 +625,7 @@ export const Configuracoes = () => {
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
                                 ) : (
-                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{computedInitials}</div>
                                 )}
                                 <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}

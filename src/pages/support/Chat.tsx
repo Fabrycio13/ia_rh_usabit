@@ -4,6 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { EvolutionApiService } from '../../core/services/evolutionApi';
 import type { EvolutionMessage } from '../../core/services/evolutionApi';
+import { scoreColor } from '../../core/utils/format';
 
 // Interface Message removida em favor de EvolutionMessage
 
@@ -11,10 +12,6 @@ interface CandidateRow { name?: string; phone?: string }
 interface AvailableCandidate { id: string; name: string; phone?: string }
 
 // initialConvs removido para usar dados do banco
-
-function scoreColor(s: number) {
-    return s >= 70 ? '#22c55e' : s >= 40 ? '#f59e0b' : '#ef4444';
-}
 
 export function Chat() {
     const { profile } = useUser();
@@ -466,8 +463,8 @@ export function Chat() {
                                     borderRadius: '6px', padding: '3px 12px', margin: '0 auto',
                                 }}>Hoje</div>
 
-                                {activeConv.msgs.map((m, idx) => (
-                                    <div key={idx} style={{
+                                {activeConv.msgs.map((m) => (
+                                    <div key={m.timestamp} style={{
                                         display: 'flex', flexDirection: 'column',
                                         maxWidth: '70%',
                                         alignSelf: m.from === 'me' ? 'flex-end' : 'flex-start',

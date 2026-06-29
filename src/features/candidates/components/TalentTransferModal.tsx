@@ -64,8 +64,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 }
 
                 const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.id);
-                console.log(`[checkPipeline] INICIANDO BUSCA CRÍTICA - Vaga: "${job.title}" (${job.id})`);
-
                 // 1. Tentar busca direta por vaga_id (Independente de Org)
                 if (isUuid) {
                     const { data: directPipes } = await supabase
@@ -76,7 +74,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
                     if (directPipes && directPipes.length > 0) {
                         const found = directPipes[0];
-                        console.log('[checkPipeline] SUCESSO - Encontrado via vaga_id:', found.id);
                         setPipelineId(found.id);
                         setPipelineName(found.name);
                         setHasPipeline(true);
@@ -93,7 +90,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                         .maybeSingle();
 
                     if (vaga?.pipeline_id) {
-                        console.log('[checkPipeline] SUCESSO - Encontrado via pipeline_id da vaga:', vaga.pipeline_id);
                         setPipelineId(vaga.pipeline_id);
                         setHasPipeline(true);
 
@@ -118,7 +114,6 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                     setAllPipelines(allAccessiblePipes.filter(p => p.organization_id === targetOrgId));
                 }
 
-                console.warn('[checkPipeline] Pipeline não encontrado após busca exaustiva.');
                 setHasPipeline(false);
             } catch (err) {
                 console.error('[checkPipeline] Erro fatal:', err);

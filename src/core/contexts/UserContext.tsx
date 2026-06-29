@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../services/supabase';
 import { rolePermissions } from '../config/permissions';
+import { initials } from '../utils/format';
 
 interface UserProfile {
     userId: string;
@@ -59,7 +60,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const name = user.user_metadata?.full_name || user.email || '';
-        const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+        const userInitials = initials(name);
 
         const isPremiumOptimistic = user.user_metadata?.account_type === 'lifetime' || 
                                     user.user_metadata?.user_role?.toLowerCase() === 'owner' ||
@@ -76,7 +77,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             ...(prev.loaded ? {} : {
                 userName: name,
                 firstName: name.split(' ')[0],
-                initials,
+                initials: userInitials,
             }),
             loaded: prev.loaded, // Preserve loaded state during refetch
         }));
@@ -92,7 +93,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             const profileName = (data.name && !data.name.includes('@')) 
                 ? data.name 
                 : (user.user_metadata?.full_name || user.user_metadata?.name || data.name || name);
-            const profileInitials = profileName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+            const profileInitials = initials(profileName);
             setProfile(prev => ({
                 ...prev,
                 userId: user.id,
