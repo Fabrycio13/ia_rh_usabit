@@ -249,7 +249,7 @@ const BotAvatar = () => (
         border: '1px solid rgba(255,255,255,0.15)'
     }}>
         <img 
-            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.png`}
+            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.webp`}
             alt="Assistant"
             style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
