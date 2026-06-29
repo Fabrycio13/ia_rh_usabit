@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasPermission, rolePermissions } from '../src/core/config/permissions';
+import { hasPermission } from '../src/core/config/permissions';
 
 describe('Permissões por perfil', () => {
 

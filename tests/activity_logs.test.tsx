@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockQuery = vi.fn();
 const mockEq = vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn(() => Promise.resolve({ data: [], error: null })) })) }));
 const mockOrder = vi.fn(() => ({ limit: vi.fn(() => Promise.resolve({ data: [], error: null })) }));
 
@@ -34,7 +34,6 @@ vi.mock('../src/core/contexts/UserContext', () => ({
     }),
 }));
 
-import { describe as describe2, it as it2, expect as expect2 } from 'vitest';
 import { logActivity, logScreening } from '../src/core/services/logger';
 
 describe('logger - logActivity', () => {

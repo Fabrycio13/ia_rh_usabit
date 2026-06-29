@@ -37,7 +37,9 @@ export const CareerPortalHub = () => {
     const isConvidado = profile.user_role === 'convidado';
     const visibleTabs = isConvidado
         ? tabConfig.filter(t => t.id === 'vagas')
-        : tabConfig;
+        : profile.user_role === 'owner'
+            ? tabConfig
+            : tabConfig.filter(t => t.id !== 'analises');
     const [activeTab, setActiveTab] = useState<TabId>(
         tabFromUrl && tabConfig.some(t => t.id === tabFromUrl) && (!isConvidado || tabFromUrl === 'vagas') ? tabFromUrl : 'vagas'
     );

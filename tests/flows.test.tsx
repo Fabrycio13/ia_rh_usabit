@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -15,10 +16,6 @@ vi.stubGlobal('localStorage', {
     key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
 });
 
-const mockSingle = vi.fn();
-const mockLimit = vi.fn();
-const mockOrder = vi.fn();
-const mockEq = vi.fn();
 const mockSelect = vi.fn();
 const mockInsert = vi.fn(() => ({ error: null }));
 

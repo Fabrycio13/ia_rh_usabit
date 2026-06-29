@@ -42,7 +42,8 @@ function stripHtml(v: string): string {
 }
 
 function sanitizeText(v: string): string {
-  return v.normalize('NFKC').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\uFEFF]/g, '').trim()
+  // eslint-disable-next-line no-control-regex
+  return v.normalize('NFKC').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\uFEFF]/g, '').trim()
 }
 
 function validateField(label: string, value: unknown, maxLen: number): string | null {

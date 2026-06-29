@@ -1,5 +1,5 @@
 interface AILogData {
-  operation: 'scoring' | 'job-matching' | 'resume' | 'extraction';
+  operation: string;
   success: boolean;
   latencyMs: number;
   model?: string;

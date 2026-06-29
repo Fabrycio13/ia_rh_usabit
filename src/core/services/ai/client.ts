@@ -59,7 +59,7 @@ export async function callOpenAI(
       }
 
       logAI({
-        operation: operation as any,
+        operation,
         success: true,
         latencyMs: Date.now() - startTime,
         model,
@@ -73,7 +73,7 @@ export async function callOpenAI(
       lastError = err instanceof Error ? err : new Error(String(err));
 
       logAI({
-        operation: operation as any,
+        operation,
         success: false,
         latencyMs: Date.now() - startTime,
         model,

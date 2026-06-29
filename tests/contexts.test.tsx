@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, act, renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { LangProvider, useLang } from '../src/core/contexts/LangContext';
 import { ThemeProvider, useTheme } from '../src/core/contexts/ThemeContext';
 import { AnalysisProvider, useAnalysis } from '../src/core/contexts/AnalysisContext';
