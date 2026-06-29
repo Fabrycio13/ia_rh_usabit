@@ -463,8 +463,8 @@ export function Chat() {
                                     borderRadius: '6px', padding: '3px 12px', margin: '0 auto',
                                 }}>Hoje</div>
 
-                                {activeConv.msgs.map((m, idx) => (
-                                    <div key={idx} style={{
+                                {activeConv.msgs.map((m) => (
+                                    <div key={m.timestamp} style={{
                                         display: 'flex', flexDirection: 'column',
                                         maxWidth: '70%',
                                         alignSelf: m.from === 'me' ? 'flex-end' : 'flex-start',

@@ -55,6 +55,15 @@ export function sanitizeAIInput(text: string): string {
         /act\s+as\s+(if\s+you\s+are|though\s+you\s+were)/gi,
         /you\s+don'?t\s+(need|have\s+to)\s+(follow|obey)/gi,
         /override\s+(your\s+)?(instructions|rules|settings)/gi,
+        // Delimiters & markdown-based injection (usam formatação pra se passar por instrução do sistema)
+        /###\s*(instructions?|regras?|comandos?|system|sistema|nova\s+fase)/gi,
+        /---\s*(instructions?|regras?|comandos?|system|sistema)/gi,
+        /\[system\]|\[assistant\]|\[user\]|\[instructions?\]/gi,
+        /```(instructions?|regras?|comandos?|system)/gi,
+        /<\s*(system|assistant|instructions?)\s*>[\s\S]*?<\s*\/\s*(system|assistant|instructions?)\s*>/gi,
+        // Ofuscação — base64, hex, HTML entities com palavras-chave
+        /(?:base64|hex)\s*(?:decode|decodif|criptograf|encode)?[^.!?\n]*?(?:ignore|instru[çcç][ãa]o|desconsidera|system\s*prompt)/gi,
+        /(?:&#\d{2,4};|\\x[0-9a-f]{2}|\\u[0-9a-f]{4}).{0,20}(?:ignore|instru[çcç][ãa]o|regras?)/gi,
     ];
 
     patterns.forEach(pattern => {
