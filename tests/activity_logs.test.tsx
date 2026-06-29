@@ -17,8 +17,8 @@ vi.mock('../src/core/services/supabase', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: { error: vi.fn(), success: vi.fn() } }));
 
-let mockRole = 'owner';
-let mockOrgId = 'org-1';
+const mockRole = 'owner';
+const mockOrgId = 'org-1';
 vi.mock('../src/core/contexts/UserContext', () => ({
     useUser: () => ({
         profile: {

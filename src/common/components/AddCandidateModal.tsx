@@ -7,6 +7,7 @@ import { Upload, FileText, Loader2, X, Check, AlertCircle, FileSpreadsheet, File
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
+import { EMAIL_REGEX } from '../../core/utils/formatUtils';
 
 interface AddCandidateModalProps {
   isOpen: boolean;
@@ -64,8 +65,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     }
 
     if (email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      if (!EMAIL_REGEX.test(email)) {
         errors.email = 'E-mail inválido';
       }
     }

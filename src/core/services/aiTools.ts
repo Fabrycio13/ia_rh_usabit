@@ -87,64 +87,6 @@ export const get_assistant_tools = () => {
     };
 };
 
-export const toolDefinitions: {
-    name: string;
-    description: string;
-    parameters: {
-        type: 'OBJECT';
-        properties: Record<string, { type: string; description?: string }>;
-        required?: string[];
-    };
-}[] = [
-    {
-        name: "list_jobs",
-        description: "Lista todas as vagas/análises criadas pelo usuário. Útil para saber quais processos seletivos estão ativos.",
-        parameters: {
-            type: "OBJECT",
-            properties: {},
-        },
-    },
-    {
-        name: "search_candidates",
-        description: "Busca candidatos no banco de dados por nome, localização ou nome da vaga. Retorna os 10 melhores resultados.",
-        parameters: {
-            type: "OBJECT",
-            properties: {
-                query: { type: "STRING", description: "Nome ou parte do nome do candidato" },
-                jobName: { type: "STRING", description: "Nome da vaga (ex: 'Design', 'Padeiro')" },
-                location: { type: "STRING", description: "Cidade ou estado do candidato" }
-            },
-        },
-    },
-    {
-        name: "get_candidate_details",
-        description: "Retorna todos os detalhes de um candidato específico (experiência, habilidades, educação, e-mail, telefone) usando o ID retornado na busca.",
-        parameters: {
-            type: "OBJECT",
-            properties: {
-                candidateId: { type: "STRING", description: "O ID único do candidato" }
-            },
-            required: ["candidateId"]
-        },
-    },
-    {
-        name: "get_dashboard_stats",
-        description: "Retorna estatísticas rápidas do dashboard (total de vagas e candidatos).",
-        parameters: {
-            type: "OBJECT",
-            properties: {},
-        },
-    },
-    {
-        name: "get_job_candidate_counts",
-        description: "Retorna a contagem de candidatos por vaga, ordenada da que tem mais candidatos para a que tem menos. Útil para saber qual vaga é mais popular.",
-        parameters: {
-            type: "OBJECT",
-            properties: {},
-        },
-    }
-];
-
 export const openAiToolDefinitions: {
     type: 'function';
     function: {

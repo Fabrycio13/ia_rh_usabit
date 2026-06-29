@@ -66,7 +66,6 @@ describe('VagaForm - criar vaga', () => {
     });
 
     it('preenche formulário completo e cria vaga com sucesso', async () => {
-        vi.setConfig({ testTimeout: 15000 });
         const user = userEvent.setup();
         render(
             <MemoryRouter initialEntries={['/vagas/nova']}>
@@ -118,7 +117,7 @@ describe('VagaForm - criar vaga', () => {
         });
 
         expect(screen.getByText(/Vaga Publicada/)).toBeInTheDocument();
-    });
+    }, 15000);
 
     it('renderiza Step 1 com campos obrigatórios', async () => {
         render(

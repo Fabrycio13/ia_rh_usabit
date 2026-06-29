@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { isDisposableEmail } from '../../core/constants/disposableEmails';
 import { Eye, EyeOff } from 'lucide-react';
 
-const loadFont = () => {
-    if (document.querySelector('#poppins-font')) return;
-    const link = document.createElement('link');
-    link.id = 'poppins-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap';
-    document.head.appendChild(link);
-};
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com','guerrillamail.com','tempmail.com','10minutemail.com',
+  'throwaway.email','yopmail.com','mailnator.com','temp-mail.org',
+  'fakeinbox.com','trashmail.com','dispostable.com','sharklasers.com',
+  'getairmail.com','maildrop.cc','mailcatch.com','tempr.email',
+  'tempinbox.com','spamgourmet.com','mohmal.com','getnada.com',
+  'tempail.com','burnermail.io','mintemail.com','discard.email',
+  'mytemp.email','mailnesia.com','emailondeck.com','mailpoof.com',
+  'filzmail.com','tempemail.com','mailtemp.info','tempmailaddress.com',
+]);
+const isDisposableEmail = (email: string) => { const d = email.split('@')[1]?.toLowerCase().trim(); return !!d && DISPOSABLE_DOMAINS.has(d); };
 
 export const Register = () => {
     const navigate = useNavigate();
@@ -25,8 +27,6 @@ export const Register = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [honeypot, setHoneypot] = useState('');
     const [cooldown, setCooldown] = useState(0);
-
-    useEffect(() => { loadFont(); }, []);
 
     useEffect(() => {
         if (cooldown <= 0) return;

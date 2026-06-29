@@ -1007,7 +1007,7 @@ export const AnaliseNova = () => {
                             {/* File list */}
                             {files.length > 0 && (
                                 <div style={{ marginTop: 12, maxHeight: 150, overflowY: 'auto' }} className="custom-scrollbar">
-                                    {files.map((f) => (
+                                    {files.map((f, i) => (
                                         <div key={f.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-main)', borderRadius: 6, marginBottom: 4 }}>
                                             <span style={{ fontSize: 12, color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%' }}>{f.name}</span>
                                             <button onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 2 }}><X size={12} /></button>

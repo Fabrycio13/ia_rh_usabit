@@ -33,11 +33,9 @@ export async function analyzeJobApplication(
             Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
         );
         const messages = buildJobMatchingMessages(jobTitle, jobDescription, sanitizedAnswers, sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000 });
+        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'job-matching' });
         const parsed = parseJSON<JobMatchResult>(data.content);
         const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
-
-        logAI({ operation: 'job-matching', success: true, latencyMs: Date.now() - startTime });
         console.log("[Job Analyzer] Resumo do Match:", normalized);
 
         return normalized;

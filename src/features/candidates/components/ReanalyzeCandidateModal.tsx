@@ -5,6 +5,7 @@ import { supabase } from '../../../core/services/supabase';
 import { analyzeJobApplication } from '../../../core/services/jobAnalyzer';
 import { type CandidateDetail } from '../../analysis/CandidatePanelUtils';
 import type { JobMatchResult } from '../../../core/services/ai/types';
+import { downloadResume } from '../../../core/utils/storage';
 
 interface VagaRow {
     id: string;
@@ -22,29 +23,6 @@ interface Props {
     userId: string;
     onClose: () => void;
     onSuccess: () => Promise<void>;
-}
-
-async function downloadResume(url: string, fileName: string): Promise<File> {
-    let path = url;
-    let bucket = 'job-applications';
-    if (url.includes('/storage/v1/object/public/')) {
-        const afterPublic = url.split('/storage/v1/object/public/')[1];
-        const parts = afterPublic.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.includes('/storage/v1/object/')) {
-        const afterObject = url.split('/storage/v1/object/')[1];
-        const parts = afterObject.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.startsWith('job-applications/')) {
-        path = url.replace('job-applications/', '');
-    }
-    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-    if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
-    const response = await fetch(data.signedUrl);
-    const blob = await response.blob();
-    return new File([blob], fileName, { type: blob.type });
 }
 
 export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onClose, onSuccess }: Props) {

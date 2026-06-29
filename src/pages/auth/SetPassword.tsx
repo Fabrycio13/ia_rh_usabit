@@ -3,15 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 
-const loadFont = () => {
-    if (document.querySelector('#poppins-font')) return;
-    const link = document.createElement('link');
-    link.id = 'poppins-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap';
-    document.head.appendChild(link);
-};
-
 export const SetPassword = () => {
     const navigate = useNavigate();
     const [password, setPassword] = useState('');
@@ -21,7 +12,6 @@ export const SetPassword = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     useEffect(() => {
-        loadFont();
         supabase.auth.getSession().then(({ data: { session }, error }) => {
             if (error || !session) {
                 toast.error('Link inválido ou expirado. Solicite um novo convite.');
@@ -68,7 +58,7 @@ export const SetPassword = () => {
         }
 
         toast.success('Senha definida com sucesso!');
-        supabase.auth.signOut().catch(() => {});
+        supabase.auth.signOut().catch(() => console.warn('signOut falhou no setPassword'));
         navigate('/login', { replace: true });
     };
 

@@ -1,17 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
 import { Eye, EyeOff } from 'lucide-react';
-
-const loadFont = () => {
-    if (document.querySelector('#poppins-font')) return;
-    const link = document.createElement('link');
-    link.id = 'poppins-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap';
-    document.head.appendChild(link);
-};
 
 export const Login = () => {
     const navigate = useNavigate();
@@ -20,8 +11,6 @@ export const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-    useEffect(() => { loadFont(); }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

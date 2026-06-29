@@ -4,32 +4,21 @@ import { logAI } from './logger';
 
 const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
 
-interface CallOptions {
-  model?: string;
-  maxTokens?: number;
-  timeout?: number;
-  retries?: number;
-}
-
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    return response;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 export async function callOpenAI(
   messages: OpenAIMessage[],
-  options?: CallOptions
+  options?: {
+    model?: string;
+    maxTokens?: number;
+    timeout?: number;
+    retries?: number;
+    operation?: string;
+  }
 ) {
   const model = options?.model ?? 'gpt-4o';
   const maxTokens = options?.maxTokens ?? 8192;
   const timeout = options?.timeout ?? 60000;
   const maxRetries = options?.retries ?? 5;
+  const operation = options?.operation ?? 'scoring';
 
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -43,14 +32,15 @@ export async function callOpenAI(
         await new Promise(r => setTimeout(r, backoff));
       }
 
-      const response = await fetchWithTimeout(OPENAI_PROXY_URL, {
+      const response = await fetch(OPENAI_PROXY_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ messages, model, max_tokens: maxTokens }),
-      }, timeout);
+        signal: AbortSignal.timeout(timeout),
+      });
 
       if (!response.ok) {
         throw new Error(`OpenAI proxy error: ${response.status}`);
@@ -69,7 +59,7 @@ export async function callOpenAI(
       }
 
       logAI({
-        operation: 'scoring',
+        operation: operation as any,
         success: true,
         latencyMs: Date.now() - startTime,
         model,
@@ -83,7 +73,7 @@ export async function callOpenAI(
       lastError = err instanceof Error ? err : new Error(String(err));
 
       logAI({
-        operation: 'scoring',
+        operation: operation as any,
         success: false,
         latencyMs: Date.now() - startTime,
         model,

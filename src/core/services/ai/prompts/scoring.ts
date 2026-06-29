@@ -1,6 +1,6 @@
 import type { OpenAIMessage } from '../types';
 import { getScoringBase } from './scoring-base';
-import { getTextGuardrails, getImageGuardrails } from './guardrails';
+import { TEXT_GUARDRAILS, IMAGE_GUARDRAILS } from './guardrails';
 
 export function buildScoringMessages(
   jobTitle: string,
@@ -112,11 +112,11 @@ Retorne obrigatoriamente um objeto JSON com as seguintes chaves:
   if (fileText) {
     messages.push({
       role: "user",
-      content: `${basePrompt}\n\n${getTextGuardrails()}\n\n# CONTEÚDO DO CURRÍCULO (EXAME DE DADOS):\n<RESUME_DATA_CONTENT>\n${fileText}\n</RESUME_DATA_CONTENT>`
+      content: `${basePrompt}\n\n${TEXT_GUARDRAILS}\n\n# CONTEÚDO DO CURRÍCULO (EXAME DE DADOS):\n<RESUME_DATA_CONTENT>\n${fileText}\n</RESUME_DATA_CONTENT>`
     });
   } else if (images && images.length > 0) {
     const contentParts: { type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }[] = [
-      { type: "text", text: `${basePrompt}\n\n${getImageGuardrails()}` }
+      { type: "text", text: `${basePrompt}\n\n${IMAGE_GUARDRAILS}` }
     ];
     images.forEach(img => {
       contentParts.push({

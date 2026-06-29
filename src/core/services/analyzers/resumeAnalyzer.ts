@@ -22,11 +22,9 @@ export async function analyzeResume(file: File): Promise<ResumeAnalysis> {
 
         const sanitizedText = text ? sanitizeAIInput(text) : undefined;
         const messages = buildResumeMessages(sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000 });
+        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'resume' });
         const parsed = parseJSON<ResumeAnalysis>(data.content);
         const normalized = normalizeResumeAnalysis(parsed as unknown as Record<string, unknown>);
-
-        logAI({ operation: 'resume', success: true, latencyMs: Date.now() - startTime });
         console.log("[Resume Analyzer] Análise:", normalized);
 
         return normalized;

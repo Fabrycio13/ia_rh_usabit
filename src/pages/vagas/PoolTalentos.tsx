@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { downloadResume } from '../../core/utils/storage';
 import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
@@ -288,30 +289,6 @@ export const PoolTalentos = () => {
         setVagaSearch('');
         setShowConfirm(false);
         setConfirmCandidate(null);
-    };
-
-    const downloadResume = async (url: string, fileName: string): Promise<File> => {
-        let path = url;
-        let bucket = 'job-applications';
-        if (url.includes('/storage/v1/object/public/')) {
-            const afterPublic = url.split('/storage/v1/object/public/')[1];
-            const parts = afterPublic.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.includes('/storage/v1/object/')) {
-            const afterObject = url.split('/storage/v1/object/')[1];
-            const parts = afterObject.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.startsWith('job-applications/')) {
-            path = url.replace('job-applications/', '');
-        }
-
-        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-        if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
-        const response = await fetch(data.signedUrl);
-        const blob = await response.blob();
-        return new File([blob], fileName, { type: blob.type });
     };
 
     const handleConfirmAnalyze = async () => {

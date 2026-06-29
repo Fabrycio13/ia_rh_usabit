@@ -50,12 +50,3 @@ export function toStr(v: unknown): string | null {
     return String(v);
 }
 
-// Helper: retorna o primeiro valor não-nulo de um objeto, segundo a lista de chaves.
-export function pickFirst<T = unknown>(obj: Record<string, T> | null | undefined, keys: string[]): T | undefined {
-    if (!obj) return undefined;
-    for (const key of keys) {
-        const v = obj[key];
-        if (v != null) return v;
-    }
-    return undefined;
-}

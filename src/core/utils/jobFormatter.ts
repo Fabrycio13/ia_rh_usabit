@@ -5,7 +5,7 @@
 /**
  * Formata um valor numérico para moeda brasileira (BRL)
  */
-export const formatCurrency = (value: number | string | null | undefined): string => {
+const formatCurrency = (value: number | string | null | undefined): string => {
     if (value === null || value === undefined) return '';
     
     const num = typeof value === 'string' ? parseFloat(value) : value;

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
 import { initials } from '../../core/utils/format';
+import { inputStyle, labelStyle } from '../../core/utils/formatUtils';
 
 type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
@@ -180,29 +181,6 @@ const themeBtnCss = `
         transform: rotate(15deg) scale(1.1);
     }
 `;
-
-const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '11px 14px 11px 42px',
-    color: 'var(--text-main)',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s, background 0.2s',
-};
-
-const labelStyle: React.CSSProperties = {
-    display: 'block',
-    color: 'var(--text-muted)',
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: '6px',
-};
 
 const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
 

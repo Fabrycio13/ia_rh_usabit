@@ -50,7 +50,7 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
             path = url.replace('job-applications/', '');
         }
         
-        console.log('[Storage] Opening resume:', { bucket, path });
+
 
         const { data, error } = await supabase.storage
             .from(bucket)
@@ -70,3 +70,26 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
         toast.error('Erro ao abrir currículo. Verifique suas permissões.');
     }
 };
+
+export async function downloadResume(url: string, fileName: string): Promise<File> {
+    let path = url;
+    let bucket = 'job-applications';
+    if (url.includes('/storage/v1/object/public/')) {
+        const afterPublic = url.split('/storage/v1/object/public/')[1];
+        const parts = afterPublic.split('/');
+        bucket = parts[0];
+        path = parts.slice(1).join('/');
+    } else if (url.includes('/storage/v1/object/')) {
+        const afterObject = url.split('/storage/v1/object/')[1];
+        const parts = afterObject.split('/');
+        bucket = parts[0];
+        path = parts.slice(1).join('/');
+    } else if (url.startsWith('job-applications/')) {
+        path = url.replace('job-applications/', '');
+    }
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
+    if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
+    const response = await fetch(data.signedUrl);
+    const blob = await response.blob();
+    return new File([blob], fileName, { type: blob.type });
+}

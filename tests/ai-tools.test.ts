@@ -25,16 +25,6 @@ vi.mock('../src/core/services/supabase', () => ({
 }));
 
 describe('aiTools - tool definitions', () => {
-    it('toolDefinitions tem 5 tools com nome e descrição', async () => {
-        const { toolDefinitions } = await import('../src/core/services/aiTools');
-        expect(toolDefinitions).toHaveLength(5);
-        toolDefinitions.forEach(t => {
-            expect(t.name).toBeTruthy();
-            expect(t.description).toBeTruthy();
-            expect(t.parameters.type).toBe('OBJECT');
-        });
-    });
-
     it('openAiToolDefinitions tem 5 tools com formato OpenAI function calling', async () => {
         const { openAiToolDefinitions } = await import('../src/core/services/aiTools');
         expect(openAiToolDefinitions).toHaveLength(5);
@@ -47,9 +37,9 @@ describe('aiTools - tool definitions', () => {
     });
 
     it('search_candidates precisa de candidateId em get_candidate_details', async () => {
-        const { toolDefinitions } = await import('../src/core/services/aiTools');
-        const getDetails = toolDefinitions.find(t => t.name === 'get_candidate_details')!;
-        expect(getDetails.parameters.required).toContain('candidateId');
+        const { openAiToolDefinitions } = await import('../src/core/services/aiTools');
+        const getDetails = openAiToolDefinitions.find(t => t.function.name === 'get_candidate_details')!;
+        expect(getDetails.function.parameters.required).toContain('candidateId');
     });
 });
 
