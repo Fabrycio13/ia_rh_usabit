@@ -9,7 +9,7 @@ function normalizeScore(raw: unknown): number {
 
 function normalizeStringArray(raw: unknown): string[] {
   if (Array.isArray(raw)) {
-    return raw.map(s => String(s)).filter(s => s.trim().length > 0);
+    return raw.map(s => String(s).replace(/^[""']+|[""']+$/g, '')).filter(s => s.trim().length > 0);
   }
   if (typeof raw === 'string') {
     return raw.split(',').map(s => s.trim()).filter(Boolean);
@@ -18,7 +18,7 @@ function normalizeStringArray(raw: unknown): string[] {
 }
 
 function normalizeString(raw: unknown, fallback = ''): string {
-  if (typeof raw === 'string' && raw.trim().length > 0) return raw.trim();
+  if (typeof raw === 'string' && raw.trim().length > 0) return raw.trim().replace(/^[""']+|[""']+$/g, '');
   return fallback;
 }
 

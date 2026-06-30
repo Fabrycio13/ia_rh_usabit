@@ -7,9 +7,146 @@ import { buildScoringMessages } from './ai/prompts/scoring';
 import { parseJSON } from './ai/parsers';
 import { normalizeAnalysisResult, normalizeExtraction } from './ai/parsers/validators';
 import { logAI } from './ai/logger';
-import type { AnalysisResult, CandidateExtraction } from './ai/types';
+import type { AnalysisResult, CandidateExtraction, OpenAIMessage } from './ai/types';
 
 export type { CandidateExtraction, AnalysisResult };
+
+// ----- FUNÇÕES NOVAS (POOL OTIMIZADO) -----
+
+/**
+ * Extrai texto + dados estruturados de um PDF usando gpt-4o-mini.
+ * Retorna raw_text (cache) + extractedData (para salvar no banco).
+ */
+export async function extractTextAndData(file: File): Promise<{ rawText: string; extractedData: CandidateExtraction }> {
+  const startTime = Date.now();
+  try {
+    const rawText = await extractTextFromPDF(file);
+    let images: string[] | undefined;
+
+    if (!rawText || rawText.length < 80) {
+      images = await pdfToImages(file);
+    }
+
+    const sanitizedText = rawText ? sanitizeAIInput(rawText) : undefined;
+    const messages = buildExtractionMessages(sanitizedText, images);
+    const data = await callOpenAI(messages, { model: 'gpt-4o-mini', retries: 3, timeout: 30000, operation: 'extraction' });
+    const parsed = parseJSON<CandidateExtraction>(data.content);
+    const normalized = normalizeExtraction(parsed as unknown as Record<string, unknown>);
+
+    return { rawText: rawText || '', extractedData: normalized };
+  } catch (err: unknown) {
+    logAI({ operation: 'extraction', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
+    throw new Error(`Erro na extração: ${(err as Error).message}`);
+  }
+}
+
+export interface BatchMatchResult {
+  candidateId: string;
+  score: number;
+  classification: string;
+  skills: string[];
+  experience: string;
+  education: string;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  recommendation: string;
+  status: string;
+}
+
+/**
+ * Avalia lote de candidatos contra uma vaga usando gpt-4o.
+ * candidates: array com { id, name, rawText } (rawText truncado a 8k char cada)
+ * Retorna array de resultados na mesma ordem, cada um com candidateId + score.
+ */
+export async function batchMatchToJob(
+  candidates: Array<{ id: string; name: string; rawText: string }>,
+  jobTitle: string,
+  jobDescription: string
+): Promise<BatchMatchResult[]> {
+  const startTime = Date.now();
+  const now = new Date().toLocaleString('pt-BR');
+  const batches: Array<typeof candidates> = [];
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    batches.push(candidates.slice(i, i + BATCH_SIZE));
+  }
+
+  const allResults: BatchMatchResult[] = [];
+
+  for (const batch of batches) {
+    const candidateSection = batch.map((c, i) => {
+      const truncated = c.rawText.slice(0, 8000);
+      return `## CANDIDATO ${i + 1}: ${c.name}\nID: ${c.id}\nCURRÍCULO:\n${truncated}`;
+    }).join('\n\n---\n\n');
+
+    const prompt = `Você é um recrutador sênior especializado em avaliar candidatos para vagas.
+
+## VAGA
+Título: ${jobTitle}
+Descrição: ${jobDescription}
+
+## INSTRUÇÕES
+Abaixo estão ${batch.length} candidato(s). Para cada um:
+
+1. Leia o currículo.
+2. Avalie a aderência à vaga (0-100).
+3. Extraia skills, experiência, formação.
+4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
+
+HOJE É: ${now}
+
+## CANDIDATOS
+${candidateSection}
+
+## FORMATO DE SAÍDA (JSON ESTRITO)
+Retorne APENAS um array JSON, sem texto adicional:
+[
+  {
+    "candidateId": "ID do candidato",
+    "score": número 0-100,
+    "classification": "FORTE | MÉDIO | NÃO ADERENTE",
+    "skills": ["Skill1", "Skill2"],
+    "experience": "X anos e Y meses",
+    "education": "Formação1 | Formação2",
+    "summary": "2-3 linhas explicando o score",
+    "strengths": ["ponto forte 1", "ponto forte 2"],
+    "gaps": ["gap 1", "gap 2"],
+    "recommendation": "Avançar | Manter em banco | Não recomendado",
+    "status": "PROCESSADO | CURRICULO_INCOMPLETO"
+  }
+]
+Mantenha a ORDEM dos candidatos.`;
+
+    const messages: OpenAIMessage[] = [{ role: 'user', content: prompt }];
+    const data = await callOpenAI(messages, { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' });
+    const parsed = parseJSON<BatchMatchResult[]>(data.content);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error('batchMatchToJob: resposta não é um array');
+    }
+
+    for (const r of parsed) {
+      allResults.push({
+        candidateId: r.candidateId,
+        score: typeof r.score === 'number' ? r.score : 0,
+        classification: r.classification || '',
+        skills: Array.isArray(r.skills) ? r.skills : [],
+        experience: r.experience || '',
+        education: r.education || '',
+        summary: r.summary || '',
+        strengths: Array.isArray(r.strengths) ? r.strengths : [],
+        gaps: Array.isArray(r.gaps) ? r.gaps : [],
+        recommendation: r.recommendation || '',
+        status: r.status || 'PROCESSADO',
+      });
+    }
+  }
+
+  logAI({ operation: 'batch-scoring', success: true, latencyMs: Date.now() - startTime, model: 'gpt-4o' });
+  return allResults;
+}
 
 /**
  * Extrai dados do candidato de um currículo (sem scoring)

@@ -41,6 +41,8 @@ export interface CandidateDetail {
     resume_url?: string | null;
     enriched: boolean;
     analysis?: Record<string, unknown>;
+    raw_text?: string | null;
+    tags?: string[];
     conversations?: unknown[];
     hideBankButton?: boolean;
     isVagaView?: boolean;

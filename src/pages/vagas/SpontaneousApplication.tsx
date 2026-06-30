@@ -7,7 +7,7 @@ import {
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
-import { analyzeResume } from '../../core/services/analyzers/resumeAnalyzer';
+import { extractTextAndData } from '../../core/services/cvAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
 
@@ -554,39 +554,25 @@ export const SpontaneousApplication = () => {
                 console.error('Erro ao enviar email:', emailErr);
             }
 
-            analyzeResume(resumeFile).then(result => {
-                const aiAnalysis = {
-                    source: 'spontaneous',
-                    score: result.score,
-                    skills: result.skills.join(', '),
-                    experience: result.experience,
-                    education: result.education,
-                    summary: result.summary,
-                    strengths: result.strengths.join(', '),
-                    gaps: result.gaps.join(', ')
-                };
+            extractTextAndData(resumeFile).then(({ rawText, extractedData }) => {
+                const tags: string[] = extractedData.skills
+                    .map((s: string) => s.toLowerCase().trim())
+                    .filter((s: string, idx: number, arr: string[]) => s && arr.indexOf(s) === idx);
                 supabase.from('candidates').update({
-                    score: result.score,
-                    skills: String(result.skills),
-                    experience: result.experience,
-                    analysis: {
-                        ...aiAnalysis,
-                        history: [{
-                            type: 'spontaneous',
-                            date: new Date().toISOString(),
-                            summary: result.summary,
-                            skills: result.skills,
-                            experience: result.experience,
-                            education: result.education,
-                            strengths: result.strengths,
-                            gaps: result.gaps
-                        }]
-                    }
+                    raw_text: rawText,
+                    is_analyzed: true,
+                    tags,
+                    ...(extractedData.skills?.length && { skills: extractedData.skills }),
+                    ...(extractedData.experience && extractedData.experience !== 'Não informado' && { experience: extractedData.experience }),
+                    ...(extractedData.education && extractedData.education !== 'Não informado' && { education: extractedData.education }),
+                    ...(extractedData.name && extractedData.name !== 'Não identificado' && { name: extractedData.name }),
+                    ...(extractedData.location && { location: extractedData.location }),
+                    ...(extractedData.age && { age: extractedData.age }),
                 }).eq('email', formData.email).eq('organization_id', orgId).then(({ error }) => {
-                    if (error) console.error('Erro ao atualizar análise:', error);
+                    if (error) console.error('Erro ao atualizar extração:', error);
                 });
             }).catch(err => {
-                console.error('Análise IA falhou silenciosamente:', err);
+                console.error('Extração pós-submissão falhou silenciosamente:', err);
             });
         } catch {
             toast.error('Erro ao enviar candidatura. Tente novamente.');

@@ -10,6 +10,33 @@ import type { JobMatchResult } from './ai/types';
 export type { JobMatchResult };
 
 /**
+ * Analisa texto de currículo contra uma vaga (usando cache raw_text).
+ * Pula extração de PDF — espera raw_text já extraído.
+ */
+export async function analyzeJobApplicationText(
+  rawText: string,
+  jobTitle: string,
+  jobDescription: string,
+  formAnswers: Record<string, string>
+): Promise<JobMatchResult> {
+  const startTime = Date.now();
+  try {
+    const sanitizedText = sanitizeAIInput(rawText);
+    const sanitizedAnswers = Object.fromEntries(
+      Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
+    );
+    const messages = buildJobMatchingMessages(jobTitle, jobDescription, sanitizedAnswers, sanitizedText);
+    const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'job-matching' });
+    const parsed = parseJSON<JobMatchResult>(data.content);
+    const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
+    return normalized;
+  } catch (err: unknown) {
+    logAI({ operation: 'job-matching', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
+    throw new Error(`Erro na IA: ${(err as Error).message}`);
+  }
+}
+
+/**
  * Função principal de Análise que processa o PDF (Texto ou Visão) e cruza os dados
  */
 export async function analyzeJobApplication(
