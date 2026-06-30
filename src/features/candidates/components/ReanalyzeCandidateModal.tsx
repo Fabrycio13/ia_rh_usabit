@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, X, Loader, FileText, Check, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../../core/services/supabase';
-import { analyzeJobApplication } from '../../../core/services/jobAnalyzer';
+import { analyzeJobApplication, analyzeJobApplicationText } from '../../../core/services/jobAnalyzer';
 import { type CandidateDetail } from '../../analysis/CandidatePanelUtils';
 import type { JobMatchResult } from '../../../core/services/ai/types';
 import { downloadResume } from '../../../core/utils/storage';
@@ -85,7 +85,9 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
             });
 
             let result: JobMatchResult | null = null;
-            if (candidate.resume_url) {
+            if (candidate.raw_text) {
+                result = await analyzeJobApplicationText(candidate.raw_text, vaga.title, jobDesc, formAnswers);
+            } else if (candidate.resume_url) {
                 const resumeFile = await downloadResume(
                     candidate.resume_url,
                     'curriculo.pdf'

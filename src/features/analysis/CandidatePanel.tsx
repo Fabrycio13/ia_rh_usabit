@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
     Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
@@ -10,6 +10,7 @@ import { logActivity } from '../../core/services/logger';
 import { handleViewResume } from '../../core/utils/storage';
 import { TalentTransferModal } from '../candidates/components/TalentTransferModal';
 import { PipelineLinkSection } from '../candidates/components/PipelineLinkSection';
+import { TagInput } from '../../common/components/TagInput';
 
 import {
     initials, scoreColor, formatDate, parseSkills, parseComments, relativeTime,
@@ -97,6 +98,33 @@ export function CandidatePanel({
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
     const isConvidado = profile.user_role === 'convidado';
+
+    // ─── Tags ───────────────────────────────────────
+    const [editableTags, setEditableTags] = useState<string[]>(c.tags ?? []);
+    const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+    useEffect(() => {
+        if (!profile?.organization_id) return;
+        supabase.from('tags').select('name')
+            .eq('organization_id', profile.organization_id)
+            .then(({ data }) => {
+                setTagSuggestions((data ?? []).map(r => r.name));
+            }, () => {});
+    }, [profile?.organization_id]);
+    const saveTags = useCallback((newTags: string[]) => {
+        setEditableTags(newTags);
+        // Salvar no candidato
+        supabase.from('candidates').update({ tags: newTags }).eq('id', c.id).then(({ error }) => {
+            if (error) console.error('Erro ao salvar tags:', error);
+            else onFieldChange(c.id, 'tags', newTags);
+        });
+        // Garantir que existam na tabela global de tags
+        if (profile?.organization_id && newTags.length > 0) {
+            for (const tag of newTags) {
+                supabase.from('tags').upsert({ name: tag, organization_id: profile.organization_id }, { onConflict: 'name,organization_id' }).then(() => {}, () => {});
+            }
+        }
+    }, [c.id, onFieldChange, profile?.organization_id]);
+
     const [localC, setLocalC] = useState({ 
         email: c.email, 
         phone: c.phone, 
@@ -527,6 +555,12 @@ export function CandidatePanel({
                     </div>
                 ) : (
                     <div style={{ padding: isMobile ? '20px 18px 32px' : '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+                        {/* ─── Tags ─────── */}
+                        <section>
+                            <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Tags</p>
+                            <TagInput value={editableTags} onChange={saveTags} suggestions={tagSuggestions} placeholder="Adicionar tag..." />
+                        </section>
 
                         <section>
                             <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Contato</p>
