@@ -39,6 +39,21 @@ vi.mock('../src/core/services/supabase', () => ({
   },
 }));
 
+vi.mock('../src/core/contexts/ThemeContext', () => ({
+  useTheme: () => ({
+    theme: 'dark',
+    bgTheme: 'simple',
+    setBgTheme: vi.fn(),
+    toggleTheme: vi.fn(),
+    planetMode: false,
+    togglePlanetMode: vi.fn(),
+    customPrimaryColor: null,
+    setCustomPrimaryColor: vi.fn(),
+    customTextColor: null,
+    setCustomTextColor: vi.fn(),
+  }),
+}));
+
 vi.mock('../src/core/contexts/UserContext', () => ({
   useUser: () => ({
     profile: {
