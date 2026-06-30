@@ -1045,8 +1045,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         width: isMobile ? '100%' : 'auto',
                         order: isMobile ? -1 : 0,
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#4f46e5'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'var(--primary)'}
+                    onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(0.85)'}
+                    onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                 >
                     <Plus size={16} />
                     Nova Vaga

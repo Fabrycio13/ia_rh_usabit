@@ -78,6 +78,7 @@ interface PipelineCardRow { id: string; notes?: string; pipelines?: { name?: str
 export function JobDetailView({ jobId }: { jobId: string }) {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [job, setJob] = useState<{ name: string; created_at: string } | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -346,7 +347,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-1 w-fit">
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.12)' : '1px solid var(--border)', borderRadius: 12, padding: 4, width: 'fit-content' }}>
         {tabs.map(t => (
           <button
             key={t.key}
@@ -785,7 +786,7 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
                 <div
                   key={j.id}
                   onClick={() => navigate(`/analise/${j.id}`)}
-                  className={`d-card group ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+                  className={`d-card group ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
                   style={{ 
                     position: 'relative',
                     overflow: 'hidden',
@@ -809,6 +810,7 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
                   }}
                 >
                   {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                  {bgTheme === 'frequence' && <div className="card-frequence-glow" />}
                   {/* Theme-based backgrounds */}
                   {bgTheme === 'planets' && (
                     <>
@@ -867,6 +869,18 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
                       zIndex: 1
                     }} />
                   )}
+                  {bgTheme === 'frequence' && (
+                    <div style={{
+                      position: 'absolute',
+                      right: -10,
+                      bottom: -10,
+                      width: 80,
+                      height: 80,
+                      background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.12) 0%, transparent 70%)',
+                      filter: 'blur(20px)',
+                      zIndex: 1
+                    }} />
+                  )}
 
                   <div style={{ position: 'relative', zIndex: 3 }}>
                     <p className="font-bold text-sm text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">{j.name}</p>
@@ -880,7 +894,7 @@ export const Analises = ({ hideHeader }: { hideHeader?: boolean }) => {
       )}
 
       {/* Filter Bar — Positioned below Recent */}
-      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
+      <div style={{ background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar período:</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: isMobile ? 1 : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

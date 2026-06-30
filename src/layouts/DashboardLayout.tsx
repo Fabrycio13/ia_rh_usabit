@@ -7,6 +7,7 @@ import { useTheme } from '../core/contexts/ThemeContext';
 import { hasPermission } from '../core/config/permissions';
 import { SpaceBackground } from '../common/components/ui/SpaceBackground';
 import { SpatialBackground } from '../common/components/ui/SpatialBackground';
+import { FrequenceBackground } from '../common/components/ui/FrequenceBackground';
 import { PanelLeft } from 'lucide-react';
 
 export const DashboardLayout = () => {
@@ -57,6 +58,7 @@ export const DashboardLayout = () => {
         <div style={{ display: 'flex', width: '100vw', height: '100vh', position: 'relative', color: 'var(--text-main)', fontFamily: 'Inter, sans-serif', overflow: 'hidden' }}>
             {bgTheme === 'planets' && <SpaceBackground />}
             {bgTheme === 'spatial' && <SpatialBackground />}
+            {bgTheme === 'frequence' && <FrequenceBackground />}
             
             {hamburgerVisible && (
                 <button

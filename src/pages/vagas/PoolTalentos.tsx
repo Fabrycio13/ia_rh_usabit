@@ -434,12 +434,12 @@ export const PoolTalentos = () => {
                             <div key={candidato.id} onClick={() => fetchCandidateDetail(candidato)}
                                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
+                                    <div style={{ width: 40, height: 40, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
                                         {candidato.name?.charAt(0) || '?'}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />}
+                                            {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />}
                                             <span style={{ color: 'var(--text-main)', fontWeight: candidato.viewed_at ? 500 : 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidato.name}</span>
                                         </div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{candidato.email}</div>
@@ -509,12 +509,12 @@ export const PoolTalentos = () => {
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                            <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                                            <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                                                 {candidato.name?.charAt(0) || '?'}
                                             </div>
                                             <div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', flexShrink: 0 }} />}
+                                                    {!candidato.viewed_at && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />}
                                                     <div style={{ color: 'var(--text-main)', fontWeight: candidato.viewed_at ? 500 : 700, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {candidato.name}
                                                     </div>

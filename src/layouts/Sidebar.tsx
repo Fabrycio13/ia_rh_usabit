@@ -206,8 +206,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                         <stop offset="100%" stopColor="#0891b2" />
                     </linearGradient>
                     <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#8b5cf6" />
+                        <stop offset="0%" style={{ stopColor: 'var(--primary)' }} />
+                        <stop offset="100%" style={{ stopColor: 'var(--secondary)' }} />
                     </linearGradient>
                     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="1.5" result="blur" />
@@ -345,12 +345,12 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                             transition: 'all 0.2s',
                         }}
                         onMouseEnter={e => {
-                            e.currentTarget.style.background = '#1e202e';
-                            e.currentTarget.style.borderColor = '#6366f144';
+                            e.currentTarget.style.background = 'var(--sidebar-active)';
+                            e.currentTarget.style.borderColor = 'var(--primary-border)';
                         }}
                         onMouseLeave={e => {
-                            e.currentTarget.style.background = '#1a1c27';
-                            e.currentTarget.style.borderColor = '#1f2332';
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--border)';
                         }}
                     >
                         <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
@@ -102,11 +103,11 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
           }}>
              <div
                  onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
-                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'var(--primary-light-bg)' : 'transparent'}
                  style={{ 
                      padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-                     color: value === '' ? '#3b82f6' : 'var(--text-dim)',
-                     background: value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                     color: value === '' ? 'var(--primary)' : 'var(--text-dim)',
+                     background: value === '' ? 'var(--primary-light-bg)' : 'transparent',
                      fontWeight: value === '' ? 600 : 400
                  }} onClick={() => { onChange(''); setIsOpen(false); }}>
                  {placeholder}
@@ -114,11 +115,11 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
              {options.map(o => (
                 <div key={o}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'var(--primary-light-bg)' : 'transparent'}
                     style={{ 
                         padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-                        color: value === o ? '#3b82f6' : 'var(--text-dim)',
-                        background: value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        color: value === o ? 'var(--primary)' : 'var(--text-dim)',
+                        background: value === o ? 'var(--primary-light-bg)' : 'transparent',
                         fontWeight: value === o ? 600 : 400
                     }} onClick={() => { onChange(o); setIsOpen(false); }}>
                     {o}
@@ -134,6 +135,7 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
 export const CandidateBank = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -438,7 +440,11 @@ export const CandidateBank = () => {
         </div>
       </div>
 
-      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center' }}>
+      <div style={{ 
+        background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', 
+        border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', 
+        borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center' 
+      }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar por:</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />

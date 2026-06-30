@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { supabase } from '../../core/services/supabase';
+import { HeartbeatBackground } from '../../common/components/ui/HeartbeatBackground';
 import toast from 'react-hot-toast';
 import { 
     ArrowLeft, Save, X, FileText, Target, Award, Star, Info, 
@@ -618,10 +619,14 @@ export const VagaForm = () => {
             <div style={{
                 background: bgTheme === 'spatial' 
                     ? 'linear-gradient(135deg, #070F2A 0%, #000000 100%)' 
+                    : bgTheme === 'frequence'
+                    ? 'linear-gradient(135deg, #051005 0%, #000000 100%)'
                     : 'rgba(255, 255, 255, 0.03)',
                 backdropFilter: 'blur(12px)',
                 border: bgTheme === 'spatial'
                     ? '1px solid rgba(44, 88, 253, 0.2)'
+                    : bgTheme === 'frequence'
+                    ? '1px solid rgba(16, 185, 129, 0.2)'
                     : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: isMobile ? '20px' : '32px',
                 padding: isMobile ? '32px 20px' : '80px 40px',
@@ -630,6 +635,8 @@ export const VagaForm = () => {
                 position: 'relative',
                 zIndex: 10,
                 boxShadow: bgTheme === 'spatial'
+                    ? '0 15px 40px rgba(0, 0, 0, 0.5)'
+                    : bgTheme === 'frequence'
                     ? '0 15px 40px rgba(0, 0, 0, 0.5)'
                     : '0 10px 30px rgba(0, 0, 0, 0.15)',
                 overflow: 'hidden'
@@ -658,6 +665,14 @@ export const VagaForm = () => {
                         </svg>
                         <div className="card-spatial-glow" style={{ bottom: '-30px', right: '-30px', width: '150px', height: '150px' }} />
                     </div>
+                )}
+                {!isMobile && bgTheme === 'frequence' && (
+                    <HeartbeatBackground
+                      color="#22c55e"
+                      opacity={0.3}
+                      speed={5}
+                      overlayColor="#051005"
+                    />
                 )}
 
                 {!isMobile && bgTheme === 'planets' && (
@@ -738,7 +753,7 @@ export const VagaForm = () => {
                                         height: '40px',
                                         borderRadius: '10px',
                                         flexShrink: 0,
-                                        background: 'linear-gradient(135deg, var(--primary), #7c3aed)',
+                                        background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
@@ -1224,7 +1239,7 @@ export const VagaForm = () => {
                                         height: '40px',
                                         borderRadius: '10px',
                                         flexShrink: 0,
-                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                        background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
@@ -1424,7 +1439,7 @@ export const VagaForm = () => {
                                         height: '40px',
                                         borderRadius: '10px',
                                         flexShrink: 0,
-                                        background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                                        background: 'linear-gradient(135deg, #8b5cf6, var(--secondary))',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center'
@@ -2085,7 +2100,7 @@ export const VagaForm = () => {
                 .btn-publish {
                     position: relative;
                     overflow: hidden;
-                    background: linear-gradient(135deg, var(--primary), #7c3aed, var(--primary));
+                    background: linear-gradient(135deg, var(--primary), var(--secondary), var(--primary));
                     background-size: 200% 200%;
                     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2213,7 +2228,7 @@ export const VagaForm = () => {
                                     style={{
                                         width: '100%',
                                         padding: '16px',
-                                        background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
+                                        background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
                                         border: 'none',
                                         borderRadius: '12px',
                                         color: '#fff',
