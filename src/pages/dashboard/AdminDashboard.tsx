@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown, ChevronRight, Mail, Plus, Briefcase, Building2, User as UserIcon } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
@@ -50,7 +51,7 @@ const css = `
     font-size: 13px; cursor: pointer; transition: all 0.15s;
 }
 .cs-item:hover { background: var(--row-hover); color: var(--text-main); }
-.cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+                .cs-item.active { background: var(--primary-light-bg); color: var(--primary); font-weight: 600; }
 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
@@ -105,6 +106,7 @@ const STATUS_ACTION_LABEL: Record<string, string> = { active: 'Desativar', pendi
 
 export const AdminDashboard = () => {
     const { profile } = useUser();
+    const { bgTheme } = useTheme();
     const userRole = profile.user_role;
     const userOrgId = profile.organization_id;
 
@@ -511,7 +513,7 @@ export const AdminDashboard = () => {
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? '12px' : '20px', marginBottom: isMobile ? '20px' : '32px' }}>
                 {[
-                    { label: 'Total de Usuários', value: stats.total, icon: Users, color: '#3b82f6' },
+                    { label: 'Total de Usuários', value: stats.total, icon: Users, color: 'var(--primary)' },
                     { label: 'Usuários Ativos', value: stats.active, icon: UserCheck, color: '#10b981' },
                     { label: 'Usuários Inativos', value: stats.inactive, icon: UserX, color: '#ef4444' },
                 ].map((s, i) => (
@@ -558,7 +560,7 @@ export const AdminDashboard = () => {
                 <div style={{ background: 'var(--bg-card)', padding: isMobile ? '14px' : '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: '#3b82f6' }}>
+                            <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: 'var(--primary)' }}>
                                 <BarChart2 size={20} />
                             </div>
                             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
@@ -692,7 +694,7 @@ export const AdminDashboard = () => {
             </div>
 
             {/* Filter Bar */}
-            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
                     <input 
@@ -945,7 +947,7 @@ export const AdminDashboard = () => {
                                                 height: 32, 
                                                 borderRadius: '50%', 
                                                 background: isOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
-                                                color: isOwner ? '#ef4444' : '#3b82f6', 
+                                                color: isOwner ? '#ef4444' : 'var(--primary)', 
                                                 display: 'flex', 
                                                 alignItems: 'center', 
                                                 justifyContent: 'center', 
@@ -1030,7 +1032,7 @@ export const AdminDashboard = () => {
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
-                                                    color: '#3b82f6',
+                                                    color: 'var(--primary)',
                                                     fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: user.user_role === 'owner' ? 'default' : 'pointer',
@@ -1272,7 +1274,7 @@ export const AdminDashboard = () => {
 
                             {/* Avatar + Nome */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: detailIsOwner ? '#ef4444' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: detailIsOwner ? '#ef4444' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
                                     {initials(du.name)}
                                 </div>
                                 <div>
@@ -1345,7 +1347,7 @@ style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--bor
                                 </button>
                                 <button
                                     onClick={() => { handleResendInvite({ id: du.id, name: du.name, email: du.email }); setDetailUserId(null); }}
-                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: du.user_role === 'owner' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', visibility: du.user_role === 'owner' ? 'hidden' : 'visible', pointerEvents: du.user_role === 'owner' ? 'none' : 'auto' }}
+                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', fontSize: '12px', fontWeight: 600, cursor: du.user_role === 'owner' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', visibility: du.user_role === 'owner' ? 'hidden' : 'visible', pointerEvents: du.user_role === 'owner' ? 'none' : 'auto' }}
                                 >
                                     <Mail size={14} />
                                     Reenviar

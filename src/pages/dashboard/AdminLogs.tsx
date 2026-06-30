@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { Clock, Loader2, Info, Search, AlertCircle, ChevronLeft, ChevronRight, X, Database, ChevronDown } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 
@@ -22,6 +23,7 @@ interface LogEntry {
 
 export const AdminLogs = () => {
     const { profile } = useUser();
+    const { bgTheme } = useTheme();
     const userRole = profile.user_role;
     const userOrgId = profile.organization_id;
 
@@ -210,7 +212,7 @@ export const AdminLogs = () => {
                     font-size: 13px; cursor: pointer; transition: all 0.15s;
                 }
                 .cs-item:hover { background: var(--row-hover); color: var(--text-main); }
-                .cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+                .cs-item.active { background: var(--primary-light-bg); color: var(--primary); font-weight: 600; }
                 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
                 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
@@ -229,7 +231,7 @@ export const AdminLogs = () => {
             </div>
 
             {/* Standardized Filter Bar - Revised order and fields */}
-            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', flex: 1 }}>
                     {/* Date Range Group - FIRST */}
                     {isMobile ? (
@@ -321,7 +323,7 @@ export const AdminLogs = () => {
                                 <AlertCircle 
                                     size={14} 
                                     style={{ 
-                                        color: statusFilter === 'success' ? '#10b981' : statusFilter === 'error' ? '#ef4444' : '#3b82f6',
+                                        color: statusFilter === 'success' ? '#10b981' : statusFilter === 'error' ? '#ef4444' : 'var(--primary)',
                                     }} 
                                 />
                                 <span>{statusFilter === 'success' ? 'Sucesso' : statusFilter === 'error' ? 'Erro' : 'Todos status'}</span>
@@ -335,7 +337,7 @@ export const AdminLogs = () => {
                                     className={`cs-item ${statusFilter === '' ? 'active' : ''}`}
                                     onClick={() => { setStatusFilter(''); setIsStatusOpen(false); setCurrentPage(1); }}
                                 >
-                                    <div className="cs-dot" style={{ background: '#3b82f6' }} />
+                                    <div className="cs-dot" style={{ background: 'var(--primary)' }} />
                                     Todos status
                                 </div>
                                 <div 
@@ -381,7 +383,7 @@ export const AdminLogs = () => {
                             fontWeight: 700, 
                             cursor: 'pointer', 
                             transition: 'all 0.2s',
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                            boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.3)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -394,7 +396,7 @@ export const AdminLogs = () => {
                         onMouseLeave={e => {
                             e.currentTarget.style.background = 'var(--primary)';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(var(--primary-rgb), 0.3)';
                         }}
                     >
                         Atualizar
@@ -421,7 +423,7 @@ export const AdminLogs = () => {
                                     </span>
                                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: log.error ? '#ef4444' : '#10b981', flexShrink: 0 }} />
                                 </div>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.15)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: 'var(--primary-light-bg)', color: 'var(--primary)', border: '1px solid var(--primary-border)' }}>
                                     {log.action}
                                 </span>
                             </div>
@@ -463,7 +465,7 @@ export const AdminLogs = () => {
                                                 </div>
                                             </td>
                                             <td style={{ padding: '16px', textAlign: 'left', verticalAlign: 'middle' }}>
-                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.15)', textTransform: 'uppercase' }}>
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: 'var(--primary-light-bg)', color: 'var(--primary)', border: '1px solid var(--primary-border)', textTransform: 'uppercase' }}>
                                                     {log.action}
                                                 </span>
                                             </td>
@@ -504,11 +506,18 @@ export const AdminLogs = () => {
                         </div>
                     </>
                 )}
-            </div>
+            {/* No closing </div> here — pagination is inside the same container */}
 
-            {/* Pagination Controls */}
+            {/* Pagination Controls — inside the table container for border-radius */}
             {totalPages > 1 && (
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '12px 14px' : '14px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg-card)', gap: isMobile ? '8px' : 0 }}>
+                <div style={{ 
+                    display: 'flex', flexDirection: isMobile ? 'column' : 'row', 
+                    alignItems: 'center', justifyContent: 'space-between', 
+                    padding: isMobile ? '12px 14px' : '14px 20px', 
+                    borderTop: '1px solid var(--border)',
+                    background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-card)', 
+                    gap: isMobile ? '8px' : 0 
+                }}>
                     <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                         Página {currentPage} de {totalPages} · {filteredLogs.length} logs
                     </span>
@@ -538,8 +547,8 @@ export const AdminLogs = () => {
                                         height: isMobile ? 30 : 34, 
                                         borderRadius: 8, 
                                         border: '1px solid', 
-                                        borderColor: p === currentPage ? '#3b82f6' : 'var(--border)', 
-                                        background: p === currentPage ? '#3b82f6' : 'transparent', 
+                                        borderColor: p === currentPage ? 'var(--primary)' : 'var(--border)', 
+                                        background: p === currentPage ? 'var(--primary)' : 'transparent', 
                                         color: p === currentPage ? '#fff' : 'var(--text-dim)', 
                                         cursor: 'pointer', 
                                         fontSize: 13, 
@@ -558,9 +567,10 @@ export const AdminLogs = () => {
                         >
                             {!isMobile && 'Próximo'} <ChevronRight style={{ width: 15, height: 15 }} />
                         </button>
-                    </div>
                 </div>
+            </div>
             )}
+            </div>{/* closes table container */}
             {/* Detail Board Modal */}
             {selectedLog && (
                 <div onClick={() => setSelectedLog(null)}
@@ -602,7 +612,7 @@ export const AdminLogs = () => {
                         <div style={{ marginBottom: 16 }}>
                             <div style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Ação</div>
                             <div style={{ padding: '12px 14px', background: 'var(--bg-main)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.15)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'var(--primary-light-bg)', color: 'var(--primary)', border: '1px solid var(--primary-border)' }}>
                                     {selectedLog.action}
                                 </span>
                             </div>

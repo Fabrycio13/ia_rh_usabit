@@ -10,6 +10,7 @@ import DatePicker from '../../common/components/ui/DatePicker';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { PlanetOverlay } from '../../common/components/ui/SpaceBackground';
+import { HeartbeatBackground } from '../../common/components/ui/HeartbeatBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Job {
@@ -136,6 +137,16 @@ export const Dashboard = () => {
     const t = setTimeout(() => setShowCharts(true), 500);
     return () => clearTimeout(t);
   }, []);
+
+  // ── Frequence heartbeat sequencial: 0→1→2→3→0, 3s cada ──
+  const [activeFreqCard, setActiveFreqCard] = useState(0);
+  useEffect(() => {
+    if (bgTheme !== 'frequence') return;
+    const interval = setInterval(() => {
+      setActiveFreqCard(prev => (prev + 1) % 4);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [bgTheme]);
 
   const saveLayout = useCallback((newLayout: typeof layout) => {
     setLayout(newLayout);
@@ -427,10 +438,11 @@ export const Dashboard = () => {
           const Icon = k.icon;
           return (
             <div key={k.label} 
-              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
               style={{ position: 'relative', overflow: 'hidden', '--card-idx': idx } as React.CSSProperties}
             >
               {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+              {bgTheme === 'frequence' && <div className="card-frequence-glow" />}
               <div className="kpi-orb" style={{ background: k.orb }} />
               
               {/* Theme-based backgrounds */}
@@ -492,6 +504,23 @@ export const Dashboard = () => {
                   pointerEvents: 'none',
                   zIndex: 1
                 }} />
+              )}
+              {bgTheme === 'frequence' && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 60%)',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }} />
+              )}
+              {bgTheme === 'frequence' && idx === activeFreqCard && (
+                <HeartbeatBackground
+                  color="#22c55e"
+                  opacity={0.2}
+                  speed={3}
+                  overlayColor="var(--bg-card)"
+                />
               )}
 
               <div style={{ position: 'relative', zIndex: 3 }}>
@@ -866,23 +895,24 @@ export const Dashboard = () => {
 
                 return (
                   <div key={j.id} onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')} 
-                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
-                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
+                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' || bgTheme === 'frequence' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                     onMouseEnter={e => { 
-                      if (bgTheme !== 'spatial') {
+                      if (bgTheme !== 'spatial' && bgTheme !== 'frequence') {
                         (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; 
                       }
                       (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; 
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : bgTheme === 'frequence' ? '0 20px 40px rgba(16, 185, 129, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
                     }}
                     onMouseLeave={e => { 
-                      if (bgTheme !== 'spatial') {
+                      if (bgTheme !== 'spatial' && bgTheme !== 'frequence') {
                         (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; 
                       }
                       (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' || bgTheme === 'frequence' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
                     }}>
                     {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                    {bgTheme === 'frequence' && <div className="card-frequence-glow" />}
                     
                     {/* Theme-based backgrounds */}
                     {bgTheme === 'planets' && (
@@ -951,6 +981,18 @@ export const Dashboard = () => {
                         width: 80,
                         height: 80,
                         background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                        filter: 'blur(20px)',
+                        zIndex: 1
+                      }} />
+                    )}
+                    {bgTheme === 'frequence' && (
+                      <div style={{
+                        position: 'absolute',
+                        right: -10,
+                        bottom: -10,
+                        width: 80,
+                        height: 80,
+                        background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.12) 0%, transparent 70%)',
                         filter: 'blur(20px)',
                         zIndex: 1
                       }} />

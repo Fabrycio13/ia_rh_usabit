@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye, Link as LinkIcon, Unlink } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
@@ -128,10 +129,10 @@ const DEFAULT_COLUMNS = [
 const COLUMN_COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#22c55e', '#ef4444', '#a78bfa', '#ec4899', '#14b8a6'];
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
-const css = `
+const getCss = (bgTheme: string) => `
 @keyframes pipelineFadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-.pipe-col { display:flex; flex-direction:column; min-width:280px; max-width:280px; max-height:calc(100vh - 260px); border-radius:16px; padding:0; background:var(--bg-main); border:1px solid var(--border); transition:border-color 0.2s; }
-.pipe-col.drag-over { border-color:var(--primary); background:rgba(99,102,241,0.04); }
+.pipe-col { display:flex; flex-direction:column; min-width:280px; max-width:280px; max-height:calc(100vh - 260px); border-radius:16px; padding:0; background:${bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)'}; border:${bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.12)' : '1px solid var(--border)'}; transition:border-color 0.2s; }
+.pipe-col.drag-over { border-color:var(--primary); background:${bgTheme === 'frequence' ? 'rgba(34,197,94,0.06)' : 'rgba(99,102,241,0.04)'}; }
 .pipe-col.dragging { opacity:0.1; }
 .pipe-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; cursor:grab; user-select:none; position:relative; }
 .pipe-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.25); border-color:rgba(99,102,241,0.3); }
@@ -346,6 +347,7 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const Pipeline = () => {
     const { profile } = useUser();
+    const { bgTheme } = useTheme();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const vagaIdParam = searchParams.get('vagaId');
@@ -1398,7 +1400,7 @@ export const Pipeline = () => {
 
     return (
         <>
-            <style>{css}</style>
+            <style>{getCss(bgTheme)}</style>
 
             <div style={{ marginBottom: isMobile ? 12 : 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: isMobile ? 10 : 16 }}>
@@ -1551,7 +1553,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingRight: 28 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                                                <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                 <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                                             </div>
                                             <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase', flexShrink: 0 }}>
@@ -2186,7 +2188,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                     <span style={{ fontWeight: 600 }}>{v.title}</span>
                                                     {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{v.job_code}</span>}
                                                 </div>
@@ -2280,7 +2282,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                 style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                     <span style={{ fontWeight: 600 }}>{v.title}</span>
                                                 </div>
                                                 {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, paddingLeft: 20 }}>{v.job_code}</span>}
