@@ -1,4 +1,4 @@
-import usabitLogo from '/logos/usabit-logo.svg';
+import usabitLogo from '/logos/usabit-people-logo.svg';
 
 interface NavbarPortalProps {
   isMobile: boolean;
@@ -36,7 +36,7 @@ export const NavbarPortal = ({ isMobile }: NavbarPortalProps) => {
       >
         <img
           src={usabitLogo}
-          alt="Usabit"
+          alt="Usabit people"
           style={{ height: 32, width: 'auto', objectFit: 'contain' }}
         />
 
