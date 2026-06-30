@@ -1,4 +1,4 @@
-import usabitLogo from '/logos/usabit-logo.svg';
+import usabitLogo from '/logos/usabit-people-logo.svg';
 
 interface FooterPortalProps {
   isMobile: boolean;
@@ -46,7 +46,7 @@ export const FooterPortal = ({ isMobile }: FooterPortalProps) => {
           >
             <img
               src={usabitLogo}
-              alt="Usabit"
+              alt="Usabit people"
               style={{
                 height: 32,
                 width: 'auto',
