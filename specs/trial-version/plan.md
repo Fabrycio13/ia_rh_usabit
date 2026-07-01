@@ -55,9 +55,60 @@ Qualquer pessoa acessa o site, registra e começa usar na hora.
 
 ## PASSO A PASSO
 
-### Step 1: Migration (trigger + usage_tracker)
+### Step 1: Migration (trigger + usage_tracker + multi-org)
 
 **Arquivo:** `supabase/migrations/071_trial_setup.sql`
+
+#### 1.0 Multi-org: tabela `user_organizations`
+
+```sql
+CREATE TABLE IF NOT EXISTS user_organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'rh',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, organization_id)
+);
+
+ALTER TABLE user_organizations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "uo: user_read_own" ON user_organizations FOR SELECT
+    USING (user_id = auth.uid());
+
+CREATE POLICY "uo: admin_manage" ON user_organizations FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_organizations uo
+            WHERE uo.user_id = auth.uid()
+            AND uo.organization_id = user_organizations.organization_id
+            AND uo.role IN ('owner', 'administrador')
+        )
+    );
+```
+
+#### 1.0b Ajustar `get_my_org_id()` para multi-org
+
+```sql
+CREATE OR REPLACE FUNCTION get_my_org_id()
+RETURNS UUID AS $$
+DECLARE
+    v_org_id UUID;
+BEGIN
+    SELECT COALESCE(active_organization_id, organization_id)
+    INTO v_org_id
+    FROM profiles
+    WHERE id = auth.uid();
+    RETURN v_org_id;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
+```
+
+#### 1.0c Adicionar `active_organization_id` em profiles
+
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active_organization_id UUID;
+```
 
 #### 1.1 Fix trigger `handle_new_user`
 
@@ -95,17 +146,24 @@ BEGIN
     INSERT INTO public.profiles (
         id, email, name,
         user_role, organization_id, organization_name,
+        active_organization_id,
         status, account_type, onboarding_completed
     ) VALUES (
         NEW.id, NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
         v_role, v_org_id, v_org_name,
+        v_org_id,
         'pending', 'trial', false
     )
     ON CONFLICT (id) DO UPDATE SET
         organization_id = COALESCE(EXCLUDED.organization_id, profiles.organization_id),
         organization_name = COALESCE(EXCLUDED.organization_name, profiles.organization_name),
         user_role = COALESCE(EXCLUDED.user_role, profiles.user_role);
+
+    -- Multi-org: vincular usuário à organização
+    INSERT INTO user_organizations (user_id, organization_id, role)
+    VALUES (NEW.id, v_org_id, v_role)
+    ON CONFLICT (user_id, organization_id) DO NOTHING;
 
     RETURN NEW;
 END;
@@ -177,6 +235,35 @@ BEGIN
         UPDATE profiles SET organization_id = v_org_id WHERE id = r.id;
     END LOOP;
 END $$;
+```
+
+---
+
+**Arquivo:** `supabase/migrations/071_trial_setup.sql`
+
+(conteúdo acima)
+
+---
+
+### Step 1.5: Ajustar invite Edge Function (multi-org)
+
+**Arquivo:** `supabase/functions/send-invite-email/index.ts`
+
+O profile upsert atual sobrescreve `organization_id`. Com multi-org:
+1. Manter o `organization_id` original do profile (org própria do usuário)
+2. Inserir em `user_organizations` com a role do invite
+3. Atualizar `active_organization_id` pra org do invite
+
+```ts
+await supabaseAdmin.from('user_organizations').upsert({
+    user_id: userId,
+    organization_id: orgId,
+    role: targetRole,
+}, { onConflict: 'user_id,organization_id' });
+
+await supabaseAdmin.from('profiles').update({
+    active_organization_id: orgId,
+}).eq('id', userId);
 ```
 
 ---
@@ -339,7 +426,11 @@ Assim só nossa Edge Function envia o email customizado.
 
 ---
 
-### 🟢 Trial user convidado por admin → OK
+### 🟢 Multi-org (convidado ter 2 orgs) → RESOLVIDO
 
-**Solução:** Hoje `profiles` tem 1 `organization_id`. Se um trial user for convidado pra outra org, ele mantém a org atual. Multi-org é futuro.
+**Solução:** Tabela `user_organizations` permite múltiplos vínculos. `profiles.active_organization_id` define qual org está ativa pro RLS. `get_my_org_id()` lê da ativa.
+
+**Fluxo invite multi-org:** A Edge Function de invite também insere em `user_organizations` + atualiza `active_organization_id` se for a primeira org convidada. O usuário mantém acesso à sua org trial original.
+
+**Org switcher (futuro):** Dropdown no header pra alternar entre orgs. Por enquanto, `active_organization_id` é setado automaticamente.
 
