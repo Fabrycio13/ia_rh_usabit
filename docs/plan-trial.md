@@ -263,9 +263,11 @@ if (profile.account_type === 'trial') {
 | 7a | PoolAddCandidate | `canDoAnalysis()` + `canAddToPool()` antes de importar |
 | 7b | PoolTalentos batch | Cada candidato: checa + `useAnalysis()` após sucesso |
 | 7c | handleConfirmAnalyze | Checa antes, `useAnalysis()` depois |
-| 7d | VagaForm | Se trial: `canCreateVaga()` ao criar |
-| 7e | Sidebar ChatWidget | `if (trial) return null` |
-| 7f | openai-proxy EF | Buscar `account_type`, se trial → 402 |
+| 7d | ReanalyzeCandidateModal | Checa antes, `useAnalysis()` depois |
+| 7e | VagaForm | Se trial: `canCreateVaga()` ao criar |
+| 7f | Sidebar ChatWidget | `if (trial) return null` |
+| 7g | openai-proxy EF | Buscar `account_type`, se trial → 402 |
+| 7h | send-invite-email EF | Se `account_type = 'trial'` → 403 |
 
 ---
 
@@ -275,7 +277,7 @@ if (profile.account_type === 'trial') {
 Dia 1: T-01 + T-02 (independentes, paralelizáveis)
 Dia 2: T-03 (Register)
 Dia 3: T-04 + T-05 + T-06 (sequencial)
-Dia 4: T-07a,b,c,d,e,f (6 bloqueios)
+Dia 4: T-07a,b,c,d,e,f,g,h (8 bloqueios)
 ```
 
 ---
@@ -312,7 +314,32 @@ Dia 4: T-07a,b,c,d,e,f (6 bloqueios)
 **Solução:** Query no profile: `select account_type`. Se trial → 402.
 **Teste:** Chamar proxy com token trial → 402.
 
-### 🟢 T-01: Usuários existentes sem org
+### 🔴 T-07h: Trial user pode chamar `send-invite-email` direto
+
+**Risco:** Trial user descobre a URL e chama a EF de invite via API, burlando o bloqueio de convidar.
+**Solução:** A EF já valida JWT + role. Adicionar verificação de `account_type`:
+```ts
+if (callerProfile.account_type === 'trial') {
+    return error 403; // Trial users cannot invite
+}
+```
+**Teste:** Chamar EF com token de trial user → 403.
+
+---
+
+### 🟡 T-07d: ReanalyzeCandidateModal sem bloqueio
+
+**Risco:** O modal de reanálise (ReanalyzeCandidateModal) chama `analyzeJobApplication` (gpt-4o) sem verificar limite de análises.
+**Solução:** Mesmo padrão do T-07c:
+```ts
+const can = await canDoAnalysis(profile.organization_id);
+if (!can) { toast.error('Limite de análises atingido'); return; }
+// ... análise ...
+await useAnalysis(profile.organization_id);
+```
+**Teste:** Tentar reanalisar com 0 análises restantes → bloqueado.
+
+---
 
 **Risco:** `DO $$` loop pode demorar se muitos registros.
 **Mitigação:** Poucos registros. `ON CONFLICT DO NOTHING` evita duplicatas.
@@ -334,5 +361,7 @@ Dia 4: T-07a,b,c,d,e,f (6 bloqueios)
 - [ ] T-07a: Pool cheio → bloqueado
 - [ ] T-07a: Sem análises → bloqueado
 - [ ] T-07b: Batch para ao zerar
-- [ ] T-07d: 4ª vaga → bloqueada
-- [ ] T-07e: ChatWidget não aparece trial
+- [ ] T-07d: Reanálise com 0 restantes → bloqueado
+- [ ] T-07e: 4ª vaga → bloqueada
+- [ ] T-07f: ChatWidget não aparece trial
+- [ ] T-07h: Invite EF chamada por trial → 403
