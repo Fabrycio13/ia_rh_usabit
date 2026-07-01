@@ -23,28 +23,25 @@
 
 ## Arquitetura — O que muda no sistema
 
-### 1. Tabelas novas
+### Única tabela nova
 
 ```sql
-user_organizations (user_id, organization_id, role)  -- multi-org
 usage_tracker (organization_id, period_month, analyses_used)  -- controle de uso
 ```
 
-### 2. Colunas novas
+### Único campo novo
 
-```sql
-profiles.active_organization_id UUID  -- qual org está ativa pro RLS
-```
+Nenhum. Sem `user_organizations`, sem `active_organization_id`. **Multi-org não existe na trial.**
 
-### 3. Trigger modificado
+### Trigger modificado
 
-`handle_new_user` — gera org automaticamente quando `organization_id` não vem no metadata.
+`handle_new_user` — gera UUID + cria org automaticamente quando `organization_id` não vem no metadata (self-register). Invite flow **intocado**.
 
-### 4. Função RLS ajustada
+### Função RLS
 
-`get_my_org_id()` — passa a ler `active_organization_id` com fallback para `organization_id`.
+`get_my_org_id()` — **não muda**.
 
-### 5. Edge Function nova
+### Edge Function nova
 
 `send-confirmation-email` — envia email de confirmação com template visual Usabit.
 
@@ -55,43 +52,13 @@ profiles.active_organization_id UUID  -- qual org está ativa pro RLS
 ### T-01: Migration `071_trial_setup.sql` [P0]
 
 **Dependências:** Nenhuma  
-**Arquivo:** `supabase/migrations/071_trial_setup.sql`
+**Arquivo:** `supabase/migrations/071_trial_setup.sql`  
+**Tempo:** ~5 min
 
-#### 1. Adicionar `active_organization_id` em profiles
-```sql
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active_organization_id UUID;
-```
+#### 1. Substituir `handle_new_user`
 
-#### 2. Criar `user_organizations`
-```sql
-CREATE TABLE IF NOT EXISTS user_organizations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'rh',
-    created_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE(user_id, organization_id)
-);
+Mesma lógica de hoje, só adiciona geração automática de org.
 
-ALTER TABLE user_organizations ENABLE ROW LEVEL SECURITY;
-
--- Usuário vê seus próprios vínculos
-CREATE POLICY "uo: user_read_own" ON user_organizations FOR SELECT
-    USING (user_id = auth.uid());
-
--- Admin/owner da org pode gerenciar membros
-CREATE POLICY "uo: admin_manage" ON user_organizations FOR ALL
-    USING (
-        EXISTS (
-            SELECT 1 FROM user_organizations uo
-            WHERE uo.user_id = auth.uid()
-            AND uo.organization_id = user_organizations.organization_id
-            AND uo.role IN ('owner', 'administrador')
-        )
-    );
-```
-
-#### 3. Substituir `handle_new_user`
 ```sql
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
@@ -127,46 +94,31 @@ BEGIN
     INSERT INTO public.profiles (
         id, email, name,
         user_role, organization_id, organization_name,
-        active_organization_id,
         status, account_type, onboarding_completed
     ) VALUES (
         NEW.id, NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
         v_role, v_org_id, v_org_name,
-        v_org_id,
         'pending', 'trial', false
     )
     ON CONFLICT (id) DO UPDATE SET
         organization_id = COALESCE(EXCLUDED.organization_id, profiles.organization_id),
         organization_name = COALESCE(EXCLUDED.organization_name, profiles.organization_name),
-        active_organization_id = COALESCE(EXCLUDED.active_organization_id, profiles.active_organization_id),
         user_role = COALESCE(EXCLUDED.user_role, profiles.user_role);
-
-    -- Multi-org: vincular usuário à organização
-    INSERT INTO user_organizations (user_id, organization_id, role)
-    VALUES (NEW.id, v_org_id, v_role)
-    ON CONFLICT (user_id, organization_id) DO NOTHING;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 ```
 
-#### 4. Substituir `get_my_org_id()`
-```sql
-CREATE OR REPLACE FUNCTION get_my_org_id()
-RETURNS UUID AS $$
-BEGIN
-    RETURN (
-        SELECT COALESCE(active_organization_id, organization_id)
-        FROM profiles
-        WHERE id = auth.uid()
-    );
-END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '';
-```
+**Garantias:**
+- ✅ Invite: `organization_id` existe no metadata → usa ele (invite flow intacto)
+- ✅ Self-register: `organization_id` NÃO existe → gera UUID + cria org
+- ✅ `ON CONFLICT (id) DO UPDATE` não quebra perfil existente (invite upsert)
+- ✅ `SECURITY DEFINER` → trigger ignora RLS de organizations
+- ✅ Role default: `administrador` (não `owner`) — escopo multi-tenant correto
 
-#### 5. Criar `usage_tracker`
+#### 2. Criar `usage_tracker` + RPC
 ```sql
 CREATE TABLE IF NOT EXISTS usage_tracker (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -214,7 +166,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 ```
 
-#### 7. Corrigir usuários existentes com `organization_id=NULL`
+#### 3. Corrigir usuários existentes com `organization_id=NULL`
+
 ```sql
 DO $$
 DECLARE
@@ -225,13 +178,7 @@ BEGIN
         v_org_id := gen_random_uuid();
         INSERT INTO organizations (id, name) VALUES (v_org_id, 'Minha Organização')
             ON CONFLICT DO NOTHING;
-        UPDATE profiles 
-        SET organization_id = v_org_id, 
-            active_organization_id = COALESCE(active_organization_id, v_org_id)
-        WHERE id = r.id;
-        INSERT INTO user_organizations (user_id, organization_id, role)
-        VALUES (r.id, v_org_id, 'administrador')
-        ON CONFLICT DO NOTHING;
+        UPDATE profiles SET organization_id = v_org_id WHERE id = r.id;
     END LOOP;
 END $$;
 ```
