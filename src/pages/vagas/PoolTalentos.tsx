@@ -346,16 +346,37 @@ export const PoolTalentos = () => {
                 toast.error(`Análise ignorada: ${reason}`)
                 return
             }
-            // Buscar candidato ATUALIZADO do banco (IA gravou skills/experiencia/educacao/analysis)
+            // Buscar candidato ATUALIZADO do banco
             const { data: updated } = await supabase
                 .from('candidates')
                 .select('*')
                 .eq('id', aiCandidate.id)
                 .single()
-            if (updated) {
-                setCandidatos(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
-                await fetchCandidateDetail(updated as Candidate)
-            }
+            if (!updated) throw new Error('Candidato não encontrado')
+
+            // Atualizar lista
+            setCandidatos(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+
+            // Se o painel estiver aberto, atualizar direto
+            setSelectedCandDetail(prev => {
+                if (!prev || prev.id !== updated.id) return prev
+                const aiRaw = (updated.analysis || {}) as Record<string, unknown>
+                function optStr(v: unknown): string | null {
+                    if (v == null) return null
+                    if (typeof v === 'string') return v
+                    if (Array.isArray(v)) return v.join(', ')
+                    return String(v)
+                }
+                return {
+                    ...prev,
+                    skills: optStr(aiRaw['skills'] || updated.skills),
+                    experience: optStr(aiRaw['experience'] || updated.experience),
+                    education: optStr(aiRaw['education'] || updated.education),
+                    analysis: updated.analysis,
+                    raw_text: updated.raw_text,
+                    tags: updated.tags || [],
+                }
+            })
             toast.success('Currículo analisado com sucesso!')
         } catch (e) {
             console.error('Erro ao analisar currículo:', e)
