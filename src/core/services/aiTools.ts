@@ -45,9 +45,11 @@ export const get_assistant_tools = () => {
         },
 
         get_candidate_details: async (params: { candidateId: string }) => {
+            // ponytail: select only non-PII columns — email, phone, linkedin, age, gender
+            // nunca devem ser expostos ao modelo de IA
             const { data, error } = await supabase
                 .from('candidates')
-                .select('*')
+                .select('id, name, location, skills, experience, education, score, status, tags, summary, strengths, gaps, created_at')
                 .eq('id', params.candidateId)
                 .single();
 

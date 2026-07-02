@@ -138,34 +138,35 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [jobName, setJobName] = useState('');
     const [jobDescription, setJobDescription] = useState('');
 
-    // Persistence: load state on mount
+    // Persistence: load state on mount (sem PII — result nao persiste em localStorage)
     React.useEffect(() => {
         const stored = localStorage.getItem('active_analysis');
         if (stored) {
             try {
                 const data = JSON.parse(stored);
-                if (data.result) setResult(data.result);
                 if (data.analyzing) setAnalyzing(data.analyzing);
                 if (data.progress) setProgress(data.progress);
                 if (data.jobName) setJobName(data.jobName);
                 if (data.jobDescription) setJobDescription(data.jobDescription);
                 if (data.error) setError(data.error);
+                // result NÃO é restaurado do localStorage — contém PII de candidatos
             } catch {
                 localStorage.removeItem('active_analysis');
             }
         }
     }, []);
 
-    // Persistence: save state on changes
+    // Persistence: save state on changes (sem result — PII nunca em localStorage)
     React.useEffect(() => {
-        if (analyzing || result || error || jobName) {
+        if (analyzing || error || jobName) {
             localStorage.setItem('active_analysis', JSON.stringify({
-                analyzing, progress, jobName, jobDescription, result, error
+                analyzing, progress, jobName, jobDescription, error
+                // result omitido intencionalmente — contém email, telefone, etc.
             }));
         } else {
             localStorage.removeItem('active_analysis');
         }
-    }, [analyzing, progress, jobName, jobDescription, result, error]);
+    }, [analyzing, progress, jobName, jobDescription, error]);
 
     const clearAnalysis = useCallback(() => {
         setResult(null);
