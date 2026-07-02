@@ -109,14 +109,21 @@ Retorne obrigatoriamente um objeto JSON com as seguintes chaves:
 
   const messages: OpenAIMessage[] = [];
 
+  // Guardrails como system message (não na mesma mensagem que o currículo)
+  if (fileText) {
+    messages.push({ role: 'system', content: TEXT_GUARDRAILS });
+  } else if (images && images.length > 0) {
+    messages.push({ role: 'system', content: IMAGE_GUARDRAILS });
+  }
+
   if (fileText) {
     messages.push({
       role: "user",
-      content: `${basePrompt}\n\n${TEXT_GUARDRAILS}\n\n# CONTEÚDO DO CURRÍCULO (EXAME DE DADOS):\n<RESUME_DATA_CONTENT>\n${fileText}\n</RESUME_DATA_CONTENT>`
+      content: `${basePrompt}\n\n# CONTEÚDO DO CURRÍCULO (EXAME DE DADOS):\n<RESUME_DATA_CONTENT>\n${fileText}\n</RESUME_DATA_CONTENT>`
     });
   } else if (images && images.length > 0) {
     const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [
-      { type: "text", text: `${basePrompt}\n\n${IMAGE_GUARDRAILS}` }
+      { type: "text", text: basePrompt }
     ];
     images.forEach(img => {
       contentParts.push({ type: "image_url", image_url: { url: img } });

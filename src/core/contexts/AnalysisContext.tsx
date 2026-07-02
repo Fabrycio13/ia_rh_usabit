@@ -5,6 +5,7 @@ import { processFiles } from '../services/cvAnalyzer';
 import { useUser } from './UserContext';
 import toast from 'react-hot-toast';
 import { logActivity } from '../services/logger';
+import { uploadViaSignedUrl } from '../utils/storage';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Candidate {
@@ -137,34 +138,35 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [jobName, setJobName] = useState('');
     const [jobDescription, setJobDescription] = useState('');
 
-    // Persistence: load state on mount
+    // Persistence: load state on mount (sem PII — result nao persiste em localStorage)
     React.useEffect(() => {
         const stored = localStorage.getItem('active_analysis');
         if (stored) {
             try {
                 const data = JSON.parse(stored);
-                if (data.result) setResult(data.result);
                 if (data.analyzing) setAnalyzing(data.analyzing);
                 if (data.progress) setProgress(data.progress);
                 if (data.jobName) setJobName(data.jobName);
                 if (data.jobDescription) setJobDescription(data.jobDescription);
                 if (data.error) setError(data.error);
+                // result NÃO é restaurado do localStorage — contém PII de candidatos
             } catch {
                 localStorage.removeItem('active_analysis');
             }
         }
     }, []);
 
-    // Persistence: save state on changes
+    // Persistence: save state on changes (sem result — PII nunca em localStorage)
     React.useEffect(() => {
-        if (analyzing || result || error || jobName) {
+        if (analyzing || error || jobName) {
             localStorage.setItem('active_analysis', JSON.stringify({
-                analyzing, progress, jobName, jobDescription, result, error
+                analyzing, progress, jobName, jobDescription, error
+                // result omitido intencionalmente — contém email, telefone, etc.
             }));
         } else {
             localStorage.removeItem('active_analysis');
         }
-    }, [analyzing, progress, jobName, jobDescription, result, error]);
+    }, [analyzing, progress, jobName, jobDescription, error]);
 
     const clearAnalysis = useCallback(() => {
         setResult(null);
@@ -233,20 +235,20 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         let resumeUrl: string | null = null;
                         let uploadId: string | null = null;
 
-                        // Se for PDF, faz upload agora
+                        // Se for PDF, faz upload via presigned URL
                         if (mode === 'pdf' && files[idx]) {
                             const file = files[idx];
                             console.log(`[Analysis] Fazendo upload do arquivo: ${file.name}`);
-                            const path = `${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
-                            const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
-                            if (uploadError) {
-                                console.error(`[Analysis] Erro no upload de ${file.name}:`, uploadError);
-                                toast.error(`Erro ao salvar PDF de ${file.name}. Verifique as permissões de armazenamento.`);
-                                resumeUrl = null;
-                            } else {
-                                const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
-                                resumeUrl = publicUrl;
+                            const uuid = crypto.randomUUID().substring(0, 8);
+                            const path = `resumes/manual/${profile.organization_id}/${Date.now()}_${idx}_${uuid}.pdf`;
+
+                            try {
+                                resumeUrl = await uploadViaSignedUrl('job-applications', path, file);
                                 console.log(`[Analysis] Upload concluído: ${resumeUrl}`);
+                            } catch {
+                                console.error(`[Analysis] Erro no upload de ${file.name}`);
+                                toast.error(`Erro ao salvar PDF de ${file.name}.`);
+                                resumeUrl = null;
                             }
 
                             // Registro no resume_uploads
@@ -254,6 +256,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 const { data: insUpload } = await supabase.from('resume_uploads').insert({
                                     user_id: session.user.id,
                                     job_id: jobData.id,
+                                    organization_id: profile.organization_id,
                                     original_filename: file.name,
                                     file_path: path,
                                     file_size: file.size,

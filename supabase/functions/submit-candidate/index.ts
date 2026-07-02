@@ -152,7 +152,21 @@ serve(async (req) => {
       })
     }
 
-    // 2. Upsert do candidato
+    // 2. Validar que a organização existe
+    const { data: org, error: orgError } = await supabaseAdmin
+      .from('organizations')
+      .select('id')
+      .eq('id', body.organization_id)
+      .maybeSingle();
+
+    if (orgError || !org) {
+      return new Response(JSON.stringify({ error: 'Organização não encontrada' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 404,
+      })
+    }
+
+    // 3. Upsert do candidato
     const { data, error } = await supabaseAdmin
       .from('candidates')
       .upsert({

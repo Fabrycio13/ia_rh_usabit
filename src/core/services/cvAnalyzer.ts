@@ -5,7 +5,7 @@ import { callOpenAI } from './ai/client';
 import { parseJSON } from './ai/parsers';
 import { normalizeAnalysisResult, normalizeExtraction } from './ai/parsers/validators';
 import { logAI } from './ai/logger';
-import type { AnalysisResult, CandidateExtraction, OpenAIMessage } from './ai/types';
+import type { AnalysisResult, CandidateExtraction } from './ai/types';
 
 export type { CandidateExtraction, AnalysisResult };
 
@@ -65,7 +65,6 @@ export async function batchMatchToJob(
   jobDescription: string
 ): Promise<BatchMatchResult[]> {
   const startTime = Date.now();
-  const now = new Date().toLocaleString('pt-BR');
   const batches: Array<typeof candidates> = [];
   const BATCH_SIZE = 10;
 
@@ -76,51 +75,16 @@ export async function batchMatchToJob(
   const allResults: BatchMatchResult[] = [];
 
   for (const batch of batches) {
-    const candidateSection = batch.map((c, i) => {
-      const truncated = c.rawText.slice(0, 8000);
-      return `## CANDIDATO ${i + 1}: ${c.name}\nID: ${c.id}\nCURRÍCULO:\n${truncated}`;
-    }).join('\n\n---\n\n');
+    const sanitizedBatch = batch.map(c => ({
+      id: c.id,
+      name: sanitizeAIInput(c.name),
+      rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
+    }));
 
-    const prompt = `Você é um recrutador sênior especializado em avaliar candidatos para vagas.
-
-## VAGA
-Título: ${jobTitle}
-Descrição: ${jobDescription}
-
-## INSTRUÇÕES
-Abaixo estão ${batch.length} candidato(s). Para cada um:
-
-1. Leia o currículo.
-2. Avalie a aderência à vaga (0-100).
-3. Extraia skills, experiência, formação.
-4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
-
-HOJE É: ${now}
-
-## CANDIDATOS
-${candidateSection}
-
-## FORMATO DE SAÍDA (JSON ESTRITO)
-Retorne APENAS um array JSON, sem texto adicional:
-[
-  {
-    "candidateId": "ID do candidato",
-    "score": número 0-100,
-    "classification": "FORTE | MÉDIO | NÃO ADERENTE",
-    "skills": ["Skill1", "Skill2"],
-    "experience": "X anos e Y meses",
-    "education": "Formação1 | Formação2",
-    "summary": "2-3 linhas explicando o score",
-    "strengths": ["ponto forte 1", "ponto forte 2"],
-    "gaps": ["gap 1", "gap 2"],
-    "recommendation": "Avançar | Manter em banco | Não recomendado",
-    "status": "PROCESSADO | CURRICULO_INCOMPLETO"
-  }
-]
-Mantenha a ORDEM dos candidatos.`;
-
-    const messages: OpenAIMessage[] = [{ role: 'user', content: prompt }];
-    const data = await callOpenAI(messages, { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' });
+    const data = await callOpenAI(
+      { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
+      { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
+    );
     const parsed = parseJSON<BatchMatchResult[]>(data.content);
 
     if (!Array.isArray(parsed)) {
