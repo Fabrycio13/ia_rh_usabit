@@ -8,6 +8,8 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 interface CandidatePayload {
   email: string
@@ -237,8 +239,15 @@ serve(async (req) => {
     const candidateFirstName = body.name.split(' ')[0];
     sendConfirmationEmail(candidateFirstName, body.email);
 
-    // ponytail: candidato preencheu tudo no formulário, IA não roda aqui
-    // IA só roda quando recrutador faz upload em massa de PDFs (dashboard autenticado)
+    // 6. Disparar enriquecimento IA (async, fire-and-forget)
+    // Se sem vaga → análise básica: skills/exp/edu/feedback
+    if (!body.vaga_id && body.resume_url) {
+      fetch(`${SUPABASE_URL}/functions/v1/enrich-candidate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+        body: JSON.stringify({ candidateId: data.id }),
+      }).catch(() => {});
+    }
 
     return new Response(JSON.stringify({ id: data.id, success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
