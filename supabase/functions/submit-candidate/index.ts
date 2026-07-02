@@ -3,9 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 interface CandidatePayload {
   email: string
@@ -166,7 +166,35 @@ serve(async (req) => {
       })
     }
 
-    // 3. Upsert do candidato
+    // 3. Se informou vaga_id, validar que ela existe e pertence à org
+    if (body.vaga_id) {
+      const { data: vaga, error: vagaError } = await supabaseAdmin
+        .from('vagas_white_label')
+        .select('id, organization_id, is_active, status')
+        .eq('id', body.vaga_id)
+        .single();
+
+      if (vagaError || !vaga) {
+        return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404,
+        })
+      }
+      if (!vaga.is_active || vaga.status !== 'aberta') {
+        return new Response(JSON.stringify({ error: 'Vaga não está mais disponível' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+      if (vaga.organization_id !== body.organization_id) {
+        return new Response(JSON.stringify({ error: 'Vaga não pertence à organização' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+    }
+
+    // 4. Upsert do candidato
     const { data, error } = await supabaseAdmin
       .from('candidates')
       .upsert({

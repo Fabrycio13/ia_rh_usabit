@@ -3,9 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 interface ApplicationPayload {
   vaga_id: string
@@ -142,10 +142,10 @@ serve(async (req) => {
       })
     }
 
-    // 2. Validar vaga (existe, organization_id bate)
+    // 2. Validar vaga (existe, ativa, aceitando candidaturas, organization_id bate)
     const { data: vaga, error: vagaError } = await supabaseAdmin
       .from('vagas_white_label')
-      .select('id, organization_id, status')
+      .select('id, organization_id, status, is_active, is_accepting_applications')
       .eq('id', body.vaga_id)
       .single()
 
@@ -153,6 +153,18 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 404,
+      })
+    }
+    if (!vaga.is_active || vaga.status !== 'aberta') {
+      return new Response(JSON.stringify({ error: 'Vaga não está mais disponível' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+    if (vaga.is_accepting_applications === false) {
+      return new Response(JSON.stringify({ error: 'Vaga não está aceitando candidaturas no momento' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
       })
     }
     if (vaga.organization_id !== body.organization_id) {
