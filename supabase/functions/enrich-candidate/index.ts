@@ -38,6 +38,11 @@ function extractTextFromPdfBytes(buffer: Uint8Array): string {
   }
 }
 
+// Remove caracteres de controle que quebram JSON no PostgreSQL
+function sanitizeText(s: string): string {
+  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/g, '').trim()
+}
+
 serve(async (req) => {
   console.log('[enrich-candidate] request received')
 
@@ -140,24 +145,24 @@ ${extractedText}`
     }
 
     const analysis: Record<string, unknown> = {}
-    if (parsed.summary) analysis.summary = parsed.summary
+    if (parsed.summary) analysis.summary = sanitizeText(parsed.summary as string)
     if (parsed.feedback) {
-      analysis.general_analysis = parsed.feedback
-      analysis.feedback = parsed.feedback
+      analysis.general_analysis = sanitizeText(parsed.feedback as string)
+      analysis.feedback = sanitizeText(parsed.feedback as string)
     }
 
     const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : []
     const updates: Record<string, unknown> = {
-      raw_text: extractedText,
+      raw_text: sanitizeText(extractedText),
       is_analyzed: true,
       analysis,
     }
     if (skillsArr.length) {
-      updates.skills = skillsArr.join(', ')
-      updates.tags = skillsArr.map((s: string) => s.toLowerCase().trim())
+      updates.skills = skillsArr.map(s => sanitizeText(s)).join(', ')
+      updates.tags = skillsArr.map((s: string) => sanitizeText(s).toLowerCase())
     }
-    if (parsed.experience && !candidate.experience) updates.experience = parsed.experience
-    if (parsed.education && !candidate.education) updates.education = parsed.education
+    if (parsed.experience && !candidate.experience) updates.experience = sanitizeText(parsed.experience as string)
+    if (parsed.education && !candidate.education) updates.education = sanitizeText(parsed.education as string)
 
     const { error: updateErr } = await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId)
     if (updateErr) {
