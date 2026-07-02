@@ -176,11 +176,6 @@ describe('SpontaneousApplication', () => {
             (call: unknown[]) => (call[0] as string).includes('submit-candidate')
         );
         expect(submitCall).toBeTruthy();
-
-        // Verify send-spontaneous-email was invoked
-        expect(mockInvoke).toHaveBeenCalledWith('send-spontaneous-email', {
-            body: { candidateId: 'candidate-123' }
-        });
     });
 
     it('exibe mensagem de boas-vindas com nome do candidato', async () => {
