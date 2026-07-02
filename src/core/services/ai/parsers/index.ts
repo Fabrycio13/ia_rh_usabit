@@ -10,13 +10,13 @@ export function parseJSON<T>(content: string): T {
     const objectMatch = clean.match(/\{[\s\S]*\}/);
     const jsonMatch = arrayMatch || objectMatch;
     if (!jsonMatch) {
-      console.error('[parseJSON] Raw AI response (not JSON):', clean);
+      console.error('[parseJSON] AI response was not valid JSON (length:', clean.length, 'chars)');
       throw new Error("IA não retornou JSON válido.");
     }
     try {
       return JSON.parse(jsonMatch[0]) as T;
     } catch {
-      console.error('[parseJSON] Extracted JSON match also invalid:', jsonMatch[0], '| full content:', clean);
+      console.error('[parseJSON] Extracted JSON fragment also invalid (length:', jsonMatch[0].length, 'chars)');
       throw new Error("IA não retornou JSON válido.");
     }
   }
