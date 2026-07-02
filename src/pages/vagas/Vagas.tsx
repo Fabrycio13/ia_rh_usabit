@@ -611,7 +611,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return { approved, rejected, others };
     }
 
-    async function sendCloseEmails(vagaId: string, vagaTitle: string, tipo: 'fechada' | 'cancelada' = 'fechada') {
+    async function sendCloseEmails(vagaId: string, tipo: 'fechada' | 'cancelada' = 'fechada') {
         if (sendingCloseEmails) return;
         setSendingCloseEmails(true);
         try {
@@ -1880,7 +1880,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             <button
                                 onClick={() => {
                                     if (sendingCloseEmails) return;
-                                    sendCloseEmails(closeEmailVaga.id, closeEmailVaga.title, closeEmailVagaType ?? 'fechada');
+                                    sendCloseEmails(closeEmailVaga.id, closeEmailVagaType ?? 'fechada');
                                 }}
                                 disabled={sendingCloseEmails}
                                 style={{
