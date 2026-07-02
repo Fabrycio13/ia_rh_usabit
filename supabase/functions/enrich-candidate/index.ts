@@ -132,10 +132,6 @@ serve(async (req) => {
       return json({ error: 'Candidato não encontrado' }, 404)
     }
 
-    if (candidate.is_analyzed) {
-      console.log('[enrich-candidate] Já analisado, pulando')
-      return json({ skipped: true, reason: 'já analisado' })
-    }
     if (!candidate.resume_url) {
       console.log('[enrich-candidate] Sem currículo, pulando')
       return json({ skipped: true, reason: 'sem currículo' })
