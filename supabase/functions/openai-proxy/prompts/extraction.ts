@@ -118,6 +118,11 @@ Retorne APENAS este JSON, sem texto adicional:
 
   const messages: OpenAIMessage[] = [];
 
+  // Guardrails como system message
+  if (fileText || (images && images.length > 0)) {
+    messages.push({ role: 'system', content: TEXT_GUARDRAILS });
+  }
+
   if (fileText) {
     messages.push({
       role: "user",

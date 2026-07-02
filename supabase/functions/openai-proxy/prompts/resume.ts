@@ -39,14 +39,21 @@ Retorne APENAS JSON:
 
   const messages: OpenAIMessage[] = [];
 
+  // Guardrails como system message
+  if (fileText) {
+    messages.push({ role: 'system', content: TEXT_GUARDRAILS });
+  } else if (images && images.length > 0) {
+    messages.push({ role: 'system', content: IMAGE_GUARDRAILS });
+  }
+
   if (fileText) {
     messages.push({
       role: "user",
-      content: `${basePrompt}\n\n${TEXT_GUARDRAILS}\n\n# CONTEÚDO DO CANDIDATO (EXAME DE DADOS):\n<CANDIDATE_DATA_CONTENT>\n${fileText}\n</CANDIDATE_DATA_CONTENT>`
+      content: `${basePrompt}\n\n# CONTEÚDO DO CANDIDATO (EXAME DE DADOS):\n<CANDIDATE_DATA_CONTENT>\n${fileText}\n</CANDIDATE_DATA_CONTENT>`
     });
   } else if (images && images.length > 0) {
     const contentParts: Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }> = [
-      { type: "text", text: `${basePrompt}\n\n${IMAGE_GUARDRAILS}\n\n# CONTEÚDO DO CANDIDATO (IMAGEM DIGITALIZADA):` }
+      { type: "text", text: `${basePrompt}\n\n# CONTEÚDO DO CANDIDATO (IMAGEM DIGITALIZADA):` }
     ];
     images.forEach(img => {
       contentParts.push({ type: "image_url", image_url: { url: img } });

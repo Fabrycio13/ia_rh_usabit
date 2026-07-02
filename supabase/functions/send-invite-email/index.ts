@@ -79,6 +79,15 @@ serve(async (req) => {
       });
     }
 
+    // 3. Validar que organizationId pertence ao caller (cross-org protection)
+    if (organizationId && callerProfile?.user_role !== 'owner') {
+      if (callerProfile?.organization_id !== organizationId) {
+        return new Response(JSON.stringify({ error: 'Você só pode convidar usuários para sua própria organização' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     if (!email || !name || !role) {
       return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
