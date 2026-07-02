@@ -1,29 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
-const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
-
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 const ALLOWED_BUCKET = 'job-applications'
 const RATE_LIMIT_MAX = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
 
 serve(async (req) => {
-  const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: getCorsHeaders(origin) })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método não permitido' }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 405,
     })
   }
@@ -37,14 +32,14 @@ serve(async (req) => {
 
     if (!body.bucket || !body.path) {
       return new Response(JSON.stringify({ error: 'bucket e path são obrigatórios' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
     if (body.bucket !== ALLOWED_BUCKET) {
       return new Response(JSON.stringify({ error: 'Bucket não permitido' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -52,7 +47,7 @@ serve(async (req) => {
     // Anti path traversal + formato esperado: resumes/<...>/<timestamp>_secure.pdf
     if (!body.path.startsWith('resumes/') || body.path.includes('..')) {
       return new Response(JSON.stringify({ error: 'Formato de path inválido' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -77,7 +72,7 @@ serve(async (req) => {
 
     if ((count ?? 0) >= RATE_LIMIT_MAX) {
       return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 429,
       })
     }
@@ -95,20 +90,20 @@ serve(async (req) => {
     if (error) {
       console.error('Erro ao gerar signed upload URL:', error.message)
       return new Response(JSON.stringify({ error: 'Erro ao gerar URL de upload' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
     return new Response(JSON.stringify({ signedUrl: data.signedUrl, path: body.path }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (err) {
     console.error('Erro inesperado na função get-upload-url:', (err as Error).message)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
   }

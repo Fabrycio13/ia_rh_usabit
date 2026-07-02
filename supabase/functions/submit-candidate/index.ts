@@ -1,15 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 
-const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
-
-function getCorsHeaders(origin: string | null): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 interface CandidatePayload {
   email: string
@@ -77,14 +73,13 @@ async function checkRateLimit(
 }
 
 serve(async (req) => {
-  const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: getCorsHeaders(origin) })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método não permitido' }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 405,
     })
   }
@@ -98,14 +93,14 @@ serve(async (req) => {
 
     if (!body.email || !body.organization_id || !body.name) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
     if (!EMAIL_RE.test(body.email)) {
       return new Response(JSON.stringify({ error: 'Email inválido' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -121,7 +116,7 @@ serve(async (req) => {
     ].filter(Boolean)
     if (errs.length > 0) {
       return new Response(JSON.stringify({ error: errs[0] }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -152,7 +147,7 @@ serve(async (req) => {
     )
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 429,
       })
     }
@@ -166,7 +161,7 @@ serve(async (req) => {
 
     if (orgError || !org) {
       return new Response(JSON.stringify({ error: 'Organização não encontrada' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 404,
       })
     }
@@ -181,19 +176,19 @@ serve(async (req) => {
 
       if (vagaError || !vaga) {
         return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 404,
         })
       }
       if (!vaga.is_active || vaga.status !== 'aberta') {
         return new Response(JSON.stringify({ error: 'Vaga não está mais disponível' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         })
       }
       if (vaga.organization_id !== body.organization_id) {
         return new Response(JSON.stringify({ error: 'Vaga não pertence à organização' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         })
       }
@@ -231,20 +226,20 @@ serve(async (req) => {
     if (error) {
       console.error('Erro no upsert de candidato:', error.message, error.details, error.hint)
       return new Response(JSON.stringify({ error: 'Erro ao salvar candidato' }), {
-        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
     return new Response(JSON.stringify({ id: data.id, success: true }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
     console.error('Erro na função submit-candidate:', (error as Error).message)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
   }
