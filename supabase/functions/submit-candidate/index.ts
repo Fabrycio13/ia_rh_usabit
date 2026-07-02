@@ -1,11 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import pdfParse from "npm:pdf-parse@1.1.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 
 interface CandidatePayload {
   email: string
@@ -231,6 +235,15 @@ serve(async (req) => {
       })
     }
 
+    // 5. Enviar email de confirmação (best-effort, não bloqueia)
+    const candidateFirstName = body.name.split(' ')[0];
+    sendConfirmationEmail(candidateFirstName, body.email);
+
+    // 6. Enriquecer com IA (best-effort, não bloqueia)
+    if (body.resume_url) {
+      enrichWithAI(data.id, body.resume_url, supabaseAdmin);
+    }
+
     return new Response(JSON.stringify({ id: data.id, success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
@@ -244,3 +257,80 @@ serve(async (req) => {
     })
   }
 })
+
+// ─── Helpers (server-side, nunca expostos ao frontend) ─────────────────────
+
+// ponytail: fire-and-forget, sem await — usuário já recebeu 200
+function sendConfirmationEmail(firstName: string, email: string) {
+  if (!RESEND_API_KEY) return;
+  // ponytail: busca nome da org mas nao espera
+  const subject = 'Currículo recebido com sucesso!';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#04070c;font-family:Inter,sans-serif;color:#fff"><div style="max-width:600px;margin:0 auto;background:#0b111a;border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:40px 24px;text-align:left"><h2 style="color:#2C58FD;font-family:'Space Grotesk',sans-serif;font-size:26px;margin:0 0 16px">Olá, ${firstName}!</h2><p style="font-size:17px;line-height:1.6;color:#94a3b8;margin:0 0 24px">Recebemos seu currículo com sucesso! Seu perfil foi incluído em nosso Banco de Talentos e poderá ser considerado para futuras oportunidades.</p><p style="font-size:14px;color:#64748b;margin:0">Atenciosamente,<br><strong style="color:#fff">Usabit people</strong></p></div></body></html>`;
+
+  fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({ from: 'Usabit people <noreply@space.pro.br>', to: [email], subject, html }),
+  }).catch(() => {}); // ponytail: falha silenciosa, candidato já está no banco
+}
+
+// ponytail: extrai dados do PDF via IA, faz UPDATE no candidato. Best-effort.
+async function enrichWithAI(candidateId: string, resumeUrl: string, supabaseAdmin: ReturnType<typeof createClient>) {
+  try {
+    if (!OPENAI_API_KEY) return;
+
+    // 1. Baixar PDF do storage
+    const bucket = 'job-applications';
+    const path = resumeUrl.replace(`${bucket}/`, '');
+    const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path);
+    if (downloadErr || !pdfBlob) return;
+
+    // 2. Extrair texto do PDF
+    const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer());
+    let extractedText = '';
+    try {
+      const pdfData = await pdfParse(pdfBuffer);
+      extractedText = (pdfData.text || '').slice(0, 8000); // truncar pra 8k chars
+    } catch {
+      return; // PDF ilegível, sem enriquecimento
+    }
+    if (!extractedText.trim()) return;
+
+    // 3. Chamar OpenAI para extração estruturada
+    const prompt = `Extraia do currículo abaixo os seguintes dados em JSON estrito (sem texto adicional):
+{
+  "skills": ["skill1", "skill2", ...],
+  "experience": "X anos e Y meses como ...",
+  "education": "Formação principal"
+}
+Se um campo não existir, use string vazia.
+
+CURRÍCULO:
+${extractedText}`;
+
+    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0 }),
+    });
+    if (!aiRes.ok) return;
+
+    const aiData = await aiRes.json();
+    const content = aiData?.choices?.[0]?.message?.content || '';
+    let parsed: { skills?: string[]; experience?: string; education?: string } = {};
+    try { parsed = JSON.parse(content); } catch { return; }
+
+    // 4. Atualizar candidato com dados da IA
+    const updates: Record<string, unknown> = { raw_text: extractedText, is_analyzed: true };
+    if (parsed.skills?.length) {
+      updates.skills = parsed.skills.join(', ');
+      updates.tags = parsed.skills.map((s: string) => s.toLowerCase().trim());
+    }
+    if (parsed.experience) updates.experience = parsed.experience;
+    if (parsed.education) updates.education = parsed.education;
+
+    await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId);
+  } catch {
+    // ponytail: falha silenciosa de IA, candidato permanece sem enriquecimento
+  }
+}

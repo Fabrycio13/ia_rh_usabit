@@ -1,13 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../core/services/supabase';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, User, Mail, Phone, Linkedin, MapPin, Upload, FileText,
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
-import { extractTextAndData } from '../../core/services/cvAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
 import { uploadViaSignedUrl } from '../../core/utils/storage';
@@ -546,38 +544,9 @@ export const SpontaneousApplication = () => {
                 console.error('submit-candidate error:', res.status, errBody);
                 throw new Error('Erro ao salvar candidato');
             }
-            const submitData = await res.json();
-            const candidateId = submitData.id;
+            await res.json();
             setSubmitted(true);
 
-            try {
-                await supabase.functions.invoke('send-spontaneous-email', {
-                    body: { candidateId }
-                });
-            } catch (emailErr) {
-                console.error('Erro ao enviar email:', emailErr);
-            }
-
-            extractTextAndData(resumeFile).then(({ rawText, extractedData }) => {
-                const tags: string[] = extractedData.skills
-                    .map((s: string) => s.toLowerCase().trim())
-                    .filter((s: string, idx: number, arr: string[]) => s && arr.indexOf(s) === idx);
-                supabase.from('candidates').update({
-                    raw_text: rawText,
-                    is_analyzed: true,
-                    tags,
-                    ...(extractedData.skills?.length && { skills: extractedData.skills }),
-                    ...(extractedData.experience && extractedData.experience !== 'Não informado' && { experience: extractedData.experience }),
-                    ...(extractedData.education && extractedData.education !== 'Não informado' && { education: extractedData.education }),
-                    ...(extractedData.name && extractedData.name !== 'Não identificado' && { name: extractedData.name }),
-                    ...(extractedData.location && { location: extractedData.location }),
-                    ...(extractedData.age && { age: extractedData.age }),
-                }).eq('email', formData.email).eq('organization_id', orgId).then(({ error }) => {
-                    if (error) console.error('Erro ao atualizar extração:', error);
-                });
-            }).catch(err => {
-                console.error('Extração pós-submissão falhou silenciosamente:', err);
-            });
         } catch {
             toast.error('Erro ao enviar candidatura. Tente novamente.');
         } finally {
