@@ -25,16 +25,40 @@ function json(body: Record<string, unknown>, status = 200) {
   })
 }
 
-// ponytail: extrai texto do content stream do PDF via regex, sem dependências externas
-function extractTextFromPdfBytes(buffer: Uint8Array): string {
+// ponytail: extração de texto de PDF — tenta pdfjs-dist (npm), fallback regex no raw
+async function extractTextFromPdfBytes(buffer: Uint8Array): Promise<string> {
+  // Tenta pdfjs-dist (funciona em Deno moderno)
   try {
-    const decoder = new TextDecoder('latin1')
-    const raw = decoder.decode(buffer)
-    const matches = raw.match(/\(([^()\\]{2,200})\)/g) || []
-    const texts = matches
-      .map(m => m.slice(1, -1))
-      .filter(t => /[a-zA-ZÀ-ÿ]{3,}/.test(t))
-      .map(t => t.replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 10))))
+    const { getDocument } = await import("npm:pdfjs-dist@4.0.379")
+    const pdf = await getDocument({ data: buffer.buffer }).promise
+    let text = ''
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      text += content.items.map((item: { str?: string }) => item.str || '').join(' ') + ' '
+    }
+    if (text.trim().length > 50) return text.slice(0, 8000)
+  } catch {
+    console.warn('[enrich-candidate] pdfjs-dist falhou, fallback regex')
+  }
+
+  // Fallback: regex no raw bytes (PDFs sem compressão)
+  try {
+    const raw = new TextDecoder('latin1').decode(buffer)
+    const texts: string[] = []
+    const parenMatches = raw.match(/\(([^()\\]{2,200})\)/g) || []
+    for (const m of parenMatches) {
+      const t = m.slice(1, -1).replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 10)))
+      if (/[a-zA-ZÀ-ÿ]{3,}/.test(t)) texts.push(t)
+    }
+    const hexMatches = raw.match(/<([0-9A-Fa-f]{4,})>\s*Tj/g) || []
+    for (const m of hexMatches) {
+      const hex = m.replace(/[<>]/g, '').replace(/\s/g, '').replace(/Tj$/, '').trim()
+      if (hex.length >= 4) {
+        const t = hex.match(/.{1,2}/g)?.map(b => String.fromCharCode(parseInt(b, 16))).join('') || ''
+        if (/[a-zA-ZÀ-ÿ]{3,}/.test(t)) texts.push(t)
+      }
+    }
     return texts.join(' ').slice(0, 8000)
   } catch {
     return ''
@@ -128,7 +152,7 @@ serve(async (req) => {
     console.log('[enrich-candidate] PDF baixado:', pdfBlob.size, 'bytes')
 
     const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer())
-    const extractedText = extractTextFromPdfBytes(pdfBuffer)
+    const extractedText = await extractTextFromPdfBytes(pdfBuffer)
     console.log('[enrich-candidate] Texto extraído:', extractedText.length, 'chars')
     if (!extractedText.trim()) {
       console.warn('[enrich-candidate] Sem texto extraído do PDF')

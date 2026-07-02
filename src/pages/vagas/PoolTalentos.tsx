@@ -339,8 +339,13 @@ export const PoolTalentos = () => {
         setShowAIConfirm(false);
         setAiAnalyzing(true);
         try {
-            const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId: aiCandidate.id } })
+            const { data: result, error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId: aiCandidate.id } })
             if (error) throw new Error(error.message)
+            if (result && (result as Record<string, unknown>).skipped) {
+                const reason = (result as Record<string, unknown>).reason || 'motivo desconhecido'
+                toast.error(`Análise ignorada: ${reason}`)
+                return
+            }
             // Buscar candidato ATUALIZADO do banco (IA gravou skills/experiencia/educacao/analysis)
             const { data: updated } = await supabase
                 .from('candidates')
