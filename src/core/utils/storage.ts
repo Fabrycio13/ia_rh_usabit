@@ -90,6 +90,7 @@ export async function uploadViaSignedUrl(
     headers: {
       'Content-Type': 'application/json',
       'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
     },
     body: JSON.stringify({ bucket, path }),
   });
