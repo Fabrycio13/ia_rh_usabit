@@ -9,37 +9,24 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || ''
 
-// ponytail: extração simples via regex do content stream do PDF (fallback se pdf-parse falhar)
+// ponytail: extrai texto do content stream do PDF via regex (sem deps externas)
 function extractTextFromPdfBytes(buffer: Uint8Array): string {
   try {
     const decoder = new TextDecoder('latin1')
     const raw = decoder.decode(buffer)
+    // PDFs têm texto entre parênteses em content streams: (texto)
     const matches = raw.match(/\(([^()\\]{2,200})\)/g) || []
     const texts = matches
       .map(m => m.slice(1, -1))
       .filter(t => /[a-zA-ZÀ-ÿ]{3,}/.test(t))
       .map(t => t.replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 10))))
-    return texts.join(' ').slice(0, 8000)
-  } catch {
+    const result = texts.join(' ').slice(0, 8000)
+    console.log('[enrich-candidate] regex extraiu', result.length, 'chars')
+    return result
+  } catch (e) {
+    console.error('[enrich-candidate] regex falhou:', (e as Error).message)
     return ''
   }
-}
-
-async function extractPdfText(buffer: Uint8Array): Promise<string> {
-  try {
-    const { default: pdfParse } = await import("npm:pdf-parse@1.1.1")
-    const pdfData = await pdfParse(buffer)
-    const text = (pdfData.text || '').slice(0, 8000)
-    if (text.trim()) {
-      console.log('[enrich-candidate] pdf-parse OK,', text.length, 'chars')
-      return text
-    }
-  } catch (e) {
-    console.warn('[enrich-candidate] pdf-parse falhou:', (e as Error).message)
-  }
-  const text = extractTextFromPdfBytes(buffer)
-  console.log('[enrich-candidate] fallback regex extraiu', text.length, 'chars')
-  return text
 }
 
 serve(async (req) => {
@@ -91,7 +78,7 @@ serve(async (req) => {
     console.log('[enrich-candidate] PDF baixado:', pdfBlob.size, 'bytes')
 
     const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer())
-    const extractedText = await extractPdfText(pdfBuffer)
+    const extractedText = extractTextFromPdfBytes(pdfBuffer)
     if (!extractedText.trim()) {
       console.warn('[enrich-candidate] Sem texto extraído do PDF')
       return new Response(JSON.stringify({ skipped: true, reason: 'PDF sem texto' }), { status: 200 })
@@ -163,7 +150,7 @@ ${extractedText}`
     return new Response(JSON.stringify({ success: true, candidateId }), { status: 200 })
 
   } catch (err) {
-    console.error('[enrich-candidate] Erro geral:', (err as Error).message)
-    return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500 })
+    console.error('[enrich-candidate] Erro geral:', (err as Error).message, (err as Error).stack)
+    return new Response(JSON.stringify({ error: 'Erro interno', detail: (err as Error).message }), { status: 500 })
   }
 })
