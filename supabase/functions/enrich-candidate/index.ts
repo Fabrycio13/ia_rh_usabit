@@ -40,6 +40,7 @@ function extractTextFromPdfBytes(buffer: Uint8Array): string {
 
 // Remove caracteres de controle que quebram JSON no PostgreSQL
 function sanitizeText(s: string): string {
+  // eslint-disable-next-line no-control-regex
   return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/g, '').trim()
 }
 
