@@ -277,33 +277,47 @@ function sendConfirmationEmail(firstName: string, email: string) {
 // ponytail: extrai dados do PDF via IA, faz UPDATE no candidato. Best-effort.
 async function enrichWithAI(candidateId: string, resumeUrl: string, supabaseAdmin: ReturnType<typeof createClient>) {
   try {
-    if (!OPENAI_API_KEY) return;
+    if (!OPENAI_API_KEY) {
+      console.warn('[submit-candidate] OPENAI_API_KEY não configurada, IA pulada');
+      return;
+    }
 
     // 1. Baixar PDF do storage
     const bucket = 'job-applications';
     const path = resumeUrl.replace(`${bucket}/`, '');
     const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path);
-    if (downloadErr || !pdfBlob) return;
+    if (downloadErr || !pdfBlob) {
+      console.error('[submit-candidate] Erro ao baixar PDF:', downloadErr?.message);
+      return;
+    }
 
     // 2. Extrair texto do PDF
     const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer());
     let extractedText = '';
     try {
       const pdfData = await pdfParse(pdfBuffer);
-      extractedText = (pdfData.text || '').slice(0, 8000); // truncar pra 8k chars
-    } catch {
-      return; // PDF ilegível, sem enriquecimento
+      extractedText = (pdfData.text || '').slice(0, 8000);
+    } catch (parseErr) {
+      console.error('[submit-candidate] Erro ao extrair texto do PDF:', (parseErr as Error).message);
+      return;
     }
-    if (!extractedText.trim()) return;
+    if (!extractedText.trim()) {
+      console.warn('[submit-candidate] PDF sem texto extraível');
+      return;
+    }
 
     // 3. Chamar OpenAI para extração estruturada
-    const prompt = `Extraia do currículo abaixo os seguintes dados em JSON estrito (sem texto adicional):
+    const prompt = `Analise o currículo abaixo e retorne APENAS um JSON estrito (sem markdown, sem texto adicional) no formato:
 {
+  "name": "Nome completo identificado ou string vazia",
   "skills": ["skill1", "skill2", ...],
-  "experience": "X anos e Y meses como ...",
-  "education": "Formação principal"
+  "experience": "Resumo da experiência profissional (ex: '5 anos em desenvolvimento web')",
+  "education": "Formação principal (ex: 'Ciência da Computação - USP')",
+  "summary": "Resumo profissional do candidato em 2-3 linhas",
+  "feedback": "Análise geral do perfil: pontos fortes, áreas de atuação, observações relevantes (3-5 linhas)",
+  "location": "Cidade/Estado se identificado ou string vazia"
 }
-Se um campo não existir, use string vazia.
+Use string vazia se um campo não existir.
 
 CURRÍCULO:
 ${extractedText}`;
@@ -311,17 +325,45 @@ ${extractedText}`;
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0 }),
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0 }),
     });
-    if (!aiRes.ok) return;
+    if (!aiRes.ok) {
+      console.error('[submit-candidate] OpenAI erro:', aiRes.status);
+      return;
+    }
 
     const aiData = await aiRes.json();
     const content = aiData?.choices?.[0]?.message?.content || '';
-    let parsed: { skills?: string[]; experience?: string; education?: string } = {};
-    try { parsed = JSON.parse(content); } catch { return; }
+    let parsed: {
+      name?: string; skills?: string[]; experience?: string; education?: string;
+      summary?: string; feedback?: string; location?: string;
+    } = {};
+    try {
+      // Remove markdown code blocks se houver
+      const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      parsed = JSON.parse(cleanContent);
+    } catch (jsonErr) {
+      console.error('[submit-candidate] Erro ao parsear resposta da IA:', (jsonErr as Error).message, '| content:', content.slice(0, 200));
+      return;
+    }
 
-    // 4. Atualizar candidato com dados da IA
-    const updates: Record<string, unknown> = { raw_text: extractedText, is_analyzed: true };
+    // 4. Montar objeto analysis (JSONB)
+    const analysis: Record<string, unknown> = {};
+    if (parsed.summary) analysis.summary = parsed.summary;
+    if (parsed.feedback) {
+      analysis.general_analysis = parsed.feedback;
+      analysis.feedback = parsed.feedback;
+    }
+    if (parsed.experience) analysis.experience = parsed.experience;
+
+    // 5. Atualizar candidato com dados da IA
+    const updates: Record<string, unknown> = {
+      raw_text: extractedText,
+      is_analyzed: true,
+      analysis,
+    };
+    if (parsed.name) updates.name = parsed.name;
+    if (parsed.location) updates.location = parsed.location;
     if (parsed.skills?.length) {
       updates.skills = parsed.skills.join(', ');
       updates.tags = parsed.skills.map((s: string) => s.toLowerCase().trim());
@@ -329,8 +371,13 @@ ${extractedText}`;
     if (parsed.experience) updates.experience = parsed.experience;
     if (parsed.education) updates.education = parsed.education;
 
-    await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId);
-  } catch {
-    // ponytail: falha silenciosa de IA, candidato permanece sem enriquecimento
+    const { error: updateErr } = await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId);
+    if (updateErr) {
+      console.error('[submit-candidate] Erro ao atualizar candidato:', updateErr.message);
+    } else {
+      console.log('[submit-candidate] Candidato enriquecido com IA:', candidateId);
+    }
+  } catch (err) {
+    console.error('[submit-candidate] Erro inesperado na IA:', (err as Error).message);
   }
 }
