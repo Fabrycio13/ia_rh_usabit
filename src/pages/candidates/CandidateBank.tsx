@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Star, Search, ChevronLeft, ChevronRight,
-  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye, Zap
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -396,19 +396,6 @@ export const CandidateBank = () => {
     }
   }
 
-  async function handleAIAnalyze(candidateId: string) {
-    try {
-      const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId } })
-      if (error) throw new Error(error.message)
-      if (selected?.id === candidateId) {
-        await enrichCandidate(candidateId)
-      }
-    } catch (e) {
-      console.error('Erro ao analisar currículo:', e)
-      alert('Erro ao analisar currículo com IA')
-    }
-  }
-
   const handleReanalyzeSuccess = async () => {
     setReanalysingCandId(null);
     if (selected) await enrichCandidate(selected.id);
@@ -588,11 +575,6 @@ export const CandidateBank = () => {
                       <Phone style={{ width: 18, height: 18, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
                     </div>
                   )}
-                  <button onClick={e => { e.stopPropagation(); handleAIAnalyze(c.id); }}
-                    title="Analisar currículo com IA"
-                    style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', cursor: 'pointer' }}>
-                    <Zap size={18} />
-                  </button>
                   <button onClick={e => { e.stopPropagation(); openCandidate(c); }}
                     style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', cursor: 'pointer' }}>
                     <Eye size={18} />
@@ -754,38 +736,7 @@ export const CandidateBank = () => {
                     </td>
                   )}
                   <td style={{ padding: '0 16px', height: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <button
-                            title="Analisar currículo com IA"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAIAnalyze(c.id);
-                            }}
-                            style={{
-                              padding: '6px',
-                              background: 'transparent',
-                              border: '1px solid var(--border)',
-                              borderRadius: '6px',
-                              color: '#a855f7',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = 'rgba(168,85,247,0.1)';
-                              e.currentTarget.style.borderColor = '#a855f7';
-                              e.currentTarget.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.borderColor = 'var(--border)';
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                          >
-                            <Zap size={16} />
-                          </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <button 
                             title="Visualizar Card"
                             onClick={(e) => {
@@ -873,7 +824,6 @@ export const CandidateBank = () => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
-          onEnrich={handleAIAnalyze}
           showAnalyzeWithVagas={true}
           hideFeedbackDaIA={true}
           onAnalyzeWithVagas={(cid) => setReanalysingCandId(cid)}
