@@ -17,17 +17,21 @@ const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'gestor', 'owner']
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400',
+const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
 }
 
-function jsonResponse(status: number, body: Record<string, unknown>) {
+function jsonResponse(status: number, body: Record<string, unknown>, origin: string | null) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 }
 
@@ -60,25 +64,26 @@ const DEFAULT_MODELS: Record<string, string> = {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+    return new Response(null, { status: 204, headers: getCorsHeaders(origin) })
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse(405, { error: 'Método não permitido' })
+    return jsonResponse(405, { error: 'Método não permitido' }, origin)
   }
 
   // 1. Validar JWT
   const authHeader = req.headers.get('Authorization') || ''
   const token = authHeader.replace('Bearer ', '').trim()
   if (!token) {
-    return jsonResponse(401, { error: 'Token não fornecido' })
+    return jsonResponse(401, { error: 'Token não fornecido' }, origin)
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   const { data: { user }, error: userError } = await supabase.auth.getUser(token)
   if (userError || !user) {
-    return jsonResponse(401, { error: 'Token inválido' })
+    return jsonResponse(401, { error: 'Token inválido' }, origin)
   }
 
   // 2. Verificar role
@@ -90,7 +95,7 @@ serve(async (req) => {
     .single()
 
   if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-    return jsonResponse(403, { error: 'Permissão insuficiente' })
+    return jsonResponse(403, { error: 'Permissão insuficiente' }, origin)
   }
 
   // 3. Rate limit por usuário
@@ -102,7 +107,7 @@ serve(async (req) => {
     RATE_LIMIT_WINDOW_MS,
   )
   if (!allowed) {
-    return jsonResponse(429, { error: 'Muitas requisições. Tente novamente em 1 minuto.' })
+    return jsonResponse(429, { error: 'Muitas requisições. Tente novamente em 1 minuto.' }, origin)
   }
 
   // 4. Processar requisição OpenAI
@@ -118,7 +123,7 @@ serve(async (req) => {
   try {
     body = await req.json()
   } catch {
-    return jsonResponse(400, { error: 'Body JSON inválido' })
+    return jsonResponse(400, { error: 'Body JSON inválido' }, origin)
   }
 
   let messages: OpenAIMessage[]
@@ -221,16 +226,16 @@ Mantenha a ORDEM dos candidatos.`;
           break
         }
         default:
-          return jsonResponse(400, { error: `Tipo desconhecido: ${body.type}` })
+          return jsonResponse(400, { error: `Tipo desconhecido: ${body.type}` }, origin)
       }
     } catch (err) {
-      return jsonResponse(400, { error: `Erro ao montar prompt: ${(err as Error).message}` })
+      return jsonResponse(400, { error: `Erro ao montar prompt: ${(err as Error).message}` }, origin)
     }
   } else if (body.messages && Array.isArray(body.messages)) {
     // ── Formato antigo: compatibilidade ──
     messages = body.messages as OpenAIMessage[]
   } else {
-    return jsonResponse(400, { error: 'Envie "messages" (formato antigo) ou "type"+"data" (formato novo)' })
+    return jsonResponse(400, { error: 'Envie "messages" (formato antigo) ou "type"+"data" (formato novo)' }, origin)
   }
 
   const model = body.model || DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
@@ -254,6 +259,6 @@ Mantenha a ORDEM dos candidatos.`;
 
   return new Response(JSON.stringify(data), {
     status: response.status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 })
