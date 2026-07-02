@@ -241,7 +241,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       setUploadState('error');
       toast.error(`Erro: ${message}`);
     }
-  }, []);
+  }, [profile.organization_id]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
