@@ -103,7 +103,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
     const [showReopenEmailModal, setShowReopenEmailModal] = useState(false);
     const [reopenEmailVagaId, setReopenEmailVagaId] = useState<string | null>(null);
-    const [reopenEmailVagaTitle, setReopenEmailVagaTitle] = useState('');
     const [reopenCandidates, setReopenCandidates] = useState<{name: string; email: string}[]>([]);
     
     // Filtros Avançados
@@ -376,7 +375,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 if (allCandidates.length > 0) {
                     setReopenCandidates(allCandidates);
                     setReopenEmailVagaId(id);
-                    setReopenEmailVagaTitle(vagaAtual?.title || '');
                     setShowReopenEmailModal(true);
                 } else {
                     setVagas(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
@@ -648,11 +646,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 allCandidaturas.map(async c => {
                     if (tipo === 'cancelada') {
                         return supabase.functions.invoke('send-candidate-vaga-canceled-email', {
-                            body: {
-                                candidateName: c.name,
-                                candidateEmail: c.email,
-                                jobTitle: vagaTitle,
-                            }
+                            body: { candidateEmail: c.email, vagaId }
                         });
                     }
 
@@ -660,19 +654,11 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
 
                     if (isApproved) {
                         return supabase.functions.invoke('send-candidate-congratulations-email', {
-                            body: {
-                                candidateName: c.name,
-                                candidateEmail: c.email,
-                                jobTitle: vagaTitle,
-                            }
+                            body: { candidateEmail: c.email, vagaId }
                         });
                     }
                     return supabase.functions.invoke('send-candidate-thankyou-email', {
-                        body: {
-                            candidateName: c.name,
-                            candidateEmail: c.email,
-                            jobTitle: vagaTitle,
-                        }
+                        body: { candidateEmail: c.email, vagaId }
                     });
                 })
             );
@@ -713,14 +699,13 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                 setShowReopenEmailModal(false);
                 setReopenCandidates([]);
                 setReopenEmailVagaId(null);
-                setReopenEmailVagaTitle('');
                 return;
             }
 
             const results = await Promise.allSettled(
                 validCandidates.map(c =>
                     supabase.functions.invoke('send-candidate-vaga-reopened-email', {
-                        body: { candidateName: c.name, candidateEmail: c.email, jobTitle: reopenEmailVagaTitle }
+                        body: { candidateEmail: c.email, vagaId: reopenEmailVagaId }
                     })
                 )
             );
@@ -746,7 +731,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
             setShowReopenEmailModal(false);
             setReopenCandidates([]);
             setReopenEmailVagaId(null);
-            setReopenEmailVagaTitle('');
         }
     }
 
@@ -1975,7 +1959,6 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     setShowReopenEmailModal(false);
                                     setReopenCandidates([]);
                                     setReopenEmailVagaId(null);
-                                    setReopenEmailVagaTitle('');
                                 }}
                                 disabled={sendingCloseEmails}
                                 style={{
