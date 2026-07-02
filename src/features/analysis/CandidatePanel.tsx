@@ -48,7 +48,8 @@ export function CandidatePanel({
     showAnalyzeWithVagas,
     onAnalyzeWithVagas,
     onCardRemoved,
-    hideFeedbackDaIA
+    hideFeedbackDaIA,
+    onEnrich,
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -64,6 +65,7 @@ export function CandidatePanel({
     onAnalyzeWithVagas?: (id: string) => void;
     onCardRemoved?: (cardId: string) => void;
     hideFeedbackDaIA?: boolean;
+    onEnrich?: (candidateId: string) => Promise<void>;
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
@@ -638,7 +640,7 @@ export function CandidatePanel({
                             </div>
                         </section>
 
-                        {skillsList.length > 0 && (
+                        {skillsList.length > 0 ? (
                             <section>
                                 <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
                                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
@@ -659,6 +661,26 @@ export function CandidatePanel({
                                         }} title={s}>{s}</span>
                                     ))}
                                 </div>
+                            </section>
+                        ) : c.resume_url && (
+                            <section>
+                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
+                                <button
+                                    onClick={() => onEnrich?.(c.id)}
+                                    disabled={c.id === 'loading'}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)',
+                                        borderRadius: 10, padding: '10px 16px',
+                                        color: 'var(--primary)', fontSize: 13, fontWeight: 600,
+                                        cursor: 'pointer', transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-light-bg)'; e.currentTarget.style.borderColor = 'var(--primary-border)' }}
+                                >
+                                    <Zap size={16} />
+                                    Analisar currículo com IA
+                                </button>
                             </section>
                         )}
 

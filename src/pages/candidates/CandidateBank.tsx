@@ -396,6 +396,17 @@ export const CandidateBank = () => {
     }
   }
 
+  async function handleAIAnalyze(candidateId: string) {
+    try {
+      const res = await supabase.functions.invoke('enrich-candidate', { body: { candidateId } })
+      if (res.error) throw new Error(res.error.message || 'Erro')
+      await enrichCandidate(candidateId)
+    } catch (e) {
+      console.error('Erro ao analisar currículo:', e)
+      alert('Erro ao analisar currículo com IA')
+    }
+  }
+
   const handleReanalyzeSuccess = async () => {
     setReanalysingCandId(null);
     if (selected) await enrichCandidate(selected.id);
@@ -824,6 +835,7 @@ export const CandidateBank = () => {
             setCandidates(prev => prev.map(cand => cand.id === id ? { ...cand, is_blacklisted: val } : cand));
             setSelected(prev => prev && prev.id === id ? { ...prev, is_blacklisted: val } : prev);
           }}
+          onEnrich={handleAIAnalyze}
           showAnalyzeWithVagas={true}
           hideFeedbackDaIA={true}
           onAnalyzeWithVagas={(cid) => setReanalysingCandId(cid)}
