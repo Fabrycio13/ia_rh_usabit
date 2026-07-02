@@ -239,17 +239,27 @@ serve(async (req) => {
     const candidateFirstName = body.name.split(' ')[0];
     sendConfirmationEmail(candidateFirstName, body.email);
 
-    // 6. Disparar enriquecimento IA (async, fire-and-forget)
-    // Se sem vaga → análise básica: skills/exp/edu/feedback
+    // 6. Enriquecimento IA — aguarda terminar antes de retornar
+    // Sem vaga → análise básica: skills/exp/edu/feedback
+    let enriched = false;
     if (!body.vaga_id && body.resume_url) {
-      fetch(`${SUPABASE_URL}/functions/v1/enrich-candidate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ candidateId: data.id }),
-      }).catch(() => {});
+      try {
+        const enrichRes = await fetch(`${SUPABASE_URL}/functions/v1/enrich-candidate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+          body: JSON.stringify({ candidateId: data.id }),
+        });
+        if (enrichRes.ok) {
+          enriched = true;
+        } else {
+          console.error('[submit-candidate] enrich-candidate falhou:', enrichRes.status);
+        }
+      } catch (err) {
+        console.error('[submit-candidate] Erro ao chamar enrich-candidate:', (err as Error).message);
+      }
     }
 
-    return new Response(JSON.stringify({ id: data.id, success: true }), {
+    return new Response(JSON.stringify({ id: data.id, success: true, enriched }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

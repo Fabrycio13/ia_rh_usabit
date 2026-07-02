@@ -12,6 +12,12 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 
 serve(async (req) => {
+  // Auth: só aceita chamadas internas com service_role key
+  const authHeader = req.headers.get('Authorization') || '';
+  if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+    return new Response(JSON.stringify({ error: 'Não autorizado' }), { status: 401 });
+  }
+
   try {
     const { candidateId } = await req.json();
     if (!candidateId) {
