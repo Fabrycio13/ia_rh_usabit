@@ -1,8 +1,15 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.local') });
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 
-const supabaseUrl = 'https://dfsqdfetzcwvmfphljzs.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmc3FkZmV0emN3dm1mcGhsanpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgyODUxODYsImV4cCI6MjA2Mzg2MTE4Nn0.qChPcuPmJCfkF7-xrqGP6fOHLIqz7QqzPJRzSHT7Pq8';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Erro: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY devem estar configuradas no .env.local');
+    process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

@@ -157,14 +157,7 @@ export async function analyzeCV(
         );
         const parsed = parseJSON<AnalysisResult>(data.content);
         const normalized = normalizeAnalysisResult(parsed as unknown as Record<string, unknown>);
-        console.log('[CV Analyzer] Parsed Result:', {
-            name: normalized.name,
-            skills: normalized.skills,
-            skillsIsArray: Array.isArray(normalized.skills),
-            skillsLength: normalized.skills.length,
-            experience: normalized.experience,
-            education: normalized.education,
-        });
+        console.log('[CV Analyzer] Análise concluída com sucesso');
 
         return normalized;
     } catch (err: unknown) {

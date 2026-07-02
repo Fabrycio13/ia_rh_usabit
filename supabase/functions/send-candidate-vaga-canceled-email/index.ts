@@ -234,7 +234,7 @@ serve(async (req) => {
       const error = await res.json();
       console.error('Resend error:', error);
       return new Response(
-        JSON.stringify({ error: 'Failed to send email', details: error }),
+        JSON.stringify({ error: 'Erro ao enviar email' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -247,7 +247,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('[send-candidate-vaga-canceled-email] Error:', error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

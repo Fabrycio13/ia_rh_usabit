@@ -164,7 +164,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
             };
             setMessages(prev => [...prev, botMsg]);
         } catch (error: unknown) {
-            console.error('OpenAI Error:', error);
+            console.error('OpenAI proxy falhou');
             const errorMsg: ChatMessage = {
                 id: Date.now().toString(),
                 text: `Ops! Ocorreu um erro: ${(error as Error).message || 'Erro desconhecido'}.`,
