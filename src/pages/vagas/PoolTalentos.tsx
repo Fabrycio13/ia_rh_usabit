@@ -105,6 +105,9 @@ export const PoolTalentos = () => {
     const [batchVagaSearch, setBatchVagaSearch] = useState('');
     const [batchLoading, setBatchLoading] = useState(false);
     const [sourceOpen, setSourceOpen] = useState(false);
+    const [showAIConfirm, setShowAIConfirm] = useState(false);
+    const [aiCandidate, setAiCandidate] = useState<Candidate | null>(null);
+    const [aiAnalyzing, setAiAnalyzing] = useState(false);
     const sourceRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -323,18 +326,30 @@ export const PoolTalentos = () => {
         }
     };
 
-    const handleAIAnalyze = async (candidateId: string) => {
+    const handleAIAnalyze = (candidateId: string) => {
+        const candidate = candidatos.find(c => c.id === candidateId);
+        if (candidate) {
+            setAiCandidate(candidate);
+            setShowAIConfirm(true);
+        }
+    }
+
+    const confirmAIAnalyze = async () => {
+        if (!aiCandidate) return;
+        setShowAIConfirm(false);
+        setAiAnalyzing(true);
         try {
-            const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId } })
+            const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId: aiCandidate.id } })
             if (error) throw new Error(error.message)
-            setSelectedCandDetail(prev => prev && prev.id === candidateId ? { ...prev, skills: null } : prev)
-            if (selectedCandDetail?.id === candidateId) {
-                fetchCandidateDetail(candidatos.find(c => c.id === candidateId)!)
-            }
+            // Recarrega dados do candidato e abre painel com feedback
+            await fetchCandidateDetail(aiCandidate);
             toast.success('Currículo analisado com sucesso!')
         } catch (e) {
             console.error('Erro ao analisar currículo:', e)
             toast.error('Erro ao analisar currículo com IA')
+        } finally {
+            setAiAnalyzing(false);
+            setAiCandidate(null);
         }
     }
 
@@ -769,6 +784,53 @@ export const PoolTalentos = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Modal de confirmação — Analisar currículo com IA */}
+            {showAIConfirm && aiCandidate && (
+                <>
+                    <div onClick={() => { setShowAIConfirm(false); setAiCandidate(null); }} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+                    <div style={{
+                        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        zIndex: 401, width: isMobile ? '95%' : 'clamp(380px, 35vw, 500px)',
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        borderRadius: 20, fontFamily: 'Inter, sans-serif',
+                        boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+                    }}>
+                        <div style={{ padding: isMobile ? '16px 16px 12px' : '24px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <h2 style={{ margin: 0, fontSize: isMobile ? 16 : 18, fontWeight: 700, color: 'var(--text-main)' }}>
+                                Analisar currículo com IA
+                            </h2>
+                        </div>
+                        <div style={{ padding: isMobile ? '16px' : '20px 24px' }}>
+                            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-main)', lineHeight: '1.6' }}>
+                                Deseja analisar o currículo de <strong>{aiCandidate.name}</strong> com IA?
+                            </p>
+                            <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--text-dim)', lineHeight: '1.5' }}>
+                                A IA vai extrair skills, experiência e formação do currículo e preencher automaticamente os dados do candidato.
+                            </p>
+                        </div>
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button onClick={() => { setShowAIConfirm(false); setAiCandidate(null); }}
+                                style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                                Cancelar
+                            </button>
+                            <button onClick={confirmAIAnalyze}
+                                style={{ padding: '10px 24px', background: '#a855f7', border: 'none', borderRadius: 12, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Zap size={16} /> Sim, analisar
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Loading overlay durante análise IA */}
+            {aiAnalyzing && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+                    <Loader size={48} style={{ animation: 'spin 1s linear infinite', color: '#a855f7' }} />
+                    <p style={{ color: '#fff', fontSize: 16, fontWeight: 600, margin: 0 }}>Analisando currículo com IA…</p>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>Extraindo skills, experiência e formação</p>
                 </div>
             )}
 
