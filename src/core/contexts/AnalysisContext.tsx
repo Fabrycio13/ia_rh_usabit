@@ -255,6 +255,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                                 const { data: insUpload } = await supabase.from('resume_uploads').insert({
                                     user_id: session.user.id,
                                     job_id: jobData.id,
+                                    organization_id: profile.organization_id,
                                     original_filename: file.name,
                                     file_path: path,
                                     file_size: file.size,
