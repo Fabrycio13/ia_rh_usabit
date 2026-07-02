@@ -4,8 +4,10 @@ import { logAI } from './logger';
 
 const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
 
+type AIPayload = OpenAIMessage[] | { type: string; data: Record<string, unknown> };
+
 export async function callOpenAI(
-  messages: OpenAIMessage[],
+  messagesOrPayload: AIPayload,
   options?: {
     model?: string;
     maxTokens?: number;
@@ -21,6 +23,12 @@ export async function callOpenAI(
   const operation = options?.operation ?? 'scoring';
 
   const { data: { session } } = await supabase.auth.getSession();
+
+  // ponytail: aceita array (formato antigo) ou { type, data } (formato novo — prompt server-side)
+  const isNewFormat = !Array.isArray(messagesOrPayload) && 'type' in messagesOrPayload;
+  const bodyPayload = isNewFormat
+    ? { ...messagesOrPayload, model, max_tokens: maxTokens }
+    : { messages: messagesOrPayload, model, max_tokens: maxTokens };
 
   let lastError: Error | null = null;
 
@@ -38,7 +46,7 @@ export async function callOpenAI(
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ messages, model, max_tokens: maxTokens }),
+        body: JSON.stringify(bodyPayload),
         signal: AbortSignal.timeout(timeout),
       });
 

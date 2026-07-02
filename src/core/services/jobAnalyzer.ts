@@ -1,7 +1,6 @@
 import { sanitizeAIInput } from './sanitizer';
 import { extractTextFromPDF, pdfToImages } from './pdfExtractor';
 import { callOpenAI } from './ai/client';
-import { buildJobMatchingMessages } from './ai/prompts/job-matching';
 import { parseJSON } from './ai/parsers';
 import { normalizeJobMatchResult } from './ai/parsers/validators';
 import { logAI } from './ai/logger';
@@ -25,8 +24,10 @@ export async function analyzeJobApplicationText(
     const sanitizedAnswers = Object.fromEntries(
       Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
     );
-    const messages = buildJobMatchingMessages(jobTitle, jobDescription, sanitizedAnswers, sanitizedText);
-    const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'job-matching' });
+    const data = await callOpenAI(
+      { type: 'job-matching', data: { jobTitle, jobDescription, formAnswers: sanitizedAnswers, fileText: sanitizedText } },
+      { retries: 3, timeout: 30000, operation: 'job-matching' }
+    );
     const parsed = parseJSON<JobMatchResult>(data.content);
     const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
     return normalized;
@@ -59,8 +60,10 @@ export async function analyzeJobApplication(
         const sanitizedAnswers = Object.fromEntries(
             Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
         );
-        const messages = buildJobMatchingMessages(jobTitle, jobDescription, sanitizedAnswers, sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'job-matching' });
+        const data = await callOpenAI(
+          { type: 'job-matching', data: { jobTitle, jobDescription, formAnswers: sanitizedAnswers, fileText: sanitizedText, images: images.length > 0 ? images : undefined } },
+          { retries: 3, timeout: 30000, operation: 'job-matching' }
+        );
         const parsed = parseJSON<JobMatchResult>(data.content);
         const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
         console.log("[Job Analyzer] Resumo do Match:", normalized);

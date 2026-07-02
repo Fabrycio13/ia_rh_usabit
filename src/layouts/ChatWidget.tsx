@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { AI_SYSTEM_PROMPT } from '../core/config/aiPrompt';
 import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
 import { type OpenAIMessage } from '../core/services/ai/types';
@@ -18,7 +17,9 @@ type ChatCompletionMessage = {
 };
 
 async function callOpenAIProxy(
-    messages: OpenAIMessage[]
+    messages: OpenAIMessage[],
+    tools?: unknown[],
+    tool_choice?: string
 ): Promise<ChatCompletionMessage> {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -29,10 +30,11 @@ async function callOpenAIProxy(
             'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify({
-            messages,
+            type: 'chat',
+            data: { messages },
             model: CHAT_MODEL,
-            tools: openAiToolDefinitions,
-            tool_choice: 'auto',
+            tools,
+            tool_choice,
         }),
     });
 
@@ -64,7 +66,7 @@ const typingDotsStyle = `
 `;
 
 export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; onClose: () => void; fullScreen?: boolean }) => {
-    const { profile } = useUser();
+    useUser(); // needed for context initialization
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             id: '1',
@@ -78,9 +80,6 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const assistantTools = get_assistant_tools();
-    const orgContext = profile.organization_name
-        ? `\n## ORGANIZAÇÃO ATUAL\nVocê está prestando serviços para a organização "${profile.organization_name}" (ID: ${profile.organization_id}).\nTodas as consultas ao banco de dados são automaticamente filtradas para os dados desta organização. Nunca acesse dados de fora dela.\n`
-        : '';
 
     useEffect(() => {
         const style = document.createElement('style');
@@ -112,7 +111,6 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
 
         try {
             const apiMessages: OpenAIMessage[] = [
-                { role: 'system', content: AI_SYSTEM_PROMPT + orgContext },
                 ...messages.map(m => ({
                     role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
                     content: m.text
@@ -120,7 +118,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                 { role: 'user', content: sanitizeAIInput(currentInput) }
             ];
 
-            let assistantMessage = await callOpenAIProxy(apiMessages);
+            let assistantMessage = await callOpenAIProxy(apiMessages, openAiToolDefinitions, 'auto');
 
             while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
                 apiMessages.push({
@@ -152,7 +150,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                     });
                 }
 
-                assistantMessage = await callOpenAIProxy(apiMessages);
+                assistantMessage = await callOpenAIProxy(apiMessages, openAiToolDefinitions, 'auto');
             }
 
             const text = assistantMessage.content || "";

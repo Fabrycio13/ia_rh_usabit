@@ -7,9 +7,9 @@ import {
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
-import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
+import { uploadViaSignedUrl } from '../../core/utils/storage';
 
 interface Job {
     id: string;
@@ -703,20 +703,16 @@ export const JobApplication = () => {
 
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !job) return null;
-        
-        // PROTEÇÃO [RED TEAM]: Hacker pode tentar usar Burp Suite pra enviar um .exe fraudulento.
-        // Forçamos a extensão a ser .pdf para matar a execução e o contentType para application/pdf.
-        const safeExtensionsOnly = 'pdf';
-        const filePath = `resumes/${job.id}/${Date.now()}_secure.${safeExtensionsOnly}`;
-        
-        const { error: uploadError } = await supabase.storage.from('job-applications').upload(filePath, resumeFile, { 
-            cacheControl: '3600', 
-            upsert: false,
-            contentType: 'application/pdf'
-        });
-        
-        if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        return `job-applications/${filePath}`;
+
+        // ponytail: extensão e tipo forçados server-side pelo path fixo
+        const filePath = `resumes/${job.id}/${Date.now()}_secure.pdf`;
+
+        try {
+            return await uploadViaSignedUrl('job-applications', filePath, resumeFile);
+        } catch {
+            toast.error('Erro ao enviar currículo.');
+            return null;
+        }
     };
 
     const handleSubmit = async () => {
@@ -740,28 +736,9 @@ export const JobApplication = () => {
                 })
             );
 
-            // Análise com IA local (TypeScript no browser, igual ao AnaliseNova)
-            let aiResult: JobMatchResult | null = null;
-            try {
-                const combinedJobDesc = `
-${job!.description ? `Descrição:\n${job!.description}\n\n` : ''}
-${job!.responsibilities ? `Responsabilidades:\n${job!.responsibilities}\n\n` : ''}
-${job!.requirements ? `Requisitos:\n${job!.requirements}\n\n` : ''}
-${job!.differentials ? `Diferenciais:\n${job!.differentials}\n\n` : ''}
-${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n` : ''}
-`.trim();
+            // Análise de IA removida do fluxo público (proxy exige auth).
+            // O recrutador pode executar análise posteriormente pelo painel.
 
-                aiResult = await analyzeJobApplication(
-                    resumeFile,
-                    job!.title,
-                    combinedJobDesc,
-                    filteredAnswers
-                );
-            } catch (aiErr) {
-                console.error("Erro na análise via IA, prosseguindo com cadastro...", aiErr);
-            }
-
-            // Unir resultados da IA com as respostas do usuário caso a IA tenha funcionado
             const finalAnswers = {
                 ...filteredAnswers,
                 portfolio: formData.portfolio,
@@ -769,23 +746,9 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 address: formData.address,
                 address_number: formData.addressNumber,
                 complement: formData.complement,
-                _ai_analysis: aiResult ? {
-                    classification: aiResult.classification,
-                    summary: aiResult.summary,
-                    skills: aiResult.skills,
-                    strengths: aiResult.strengths,
-                    gaps: aiResult.gaps,
-                } : null
             };
 
             // 1. Salvar na tabela de candidaturas (vínculo com a vaga)
-            console.log('[DEBUG] Saving analysis to vagas_candidaturas:', {
-                hasAiResult: !!aiResult,
-                match_score: aiResult?.score,
-                hasAiAnalysis: !!finalAnswers._ai_analysis,
-                aiKeys: finalAnswers._ai_analysis ? Object.keys(finalAnswers._ai_analysis as object) : 'n/a'
-            });
-
             const submitRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-application`, {
                 method: 'POST',
                 headers: {
@@ -805,8 +768,8 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     candidate_age: formData.age || null,
                     resume_url: resumeUrl,
                     resume_file_name: resumeFile.name,
-                    status: aiResult ? 'reviewed' : 'pending',
-                    match_score: aiResult ? aiResult.score : 0,
+                    status: 'pending',
+                    match_score: 0,
                     source: 'public_link',
                     answers: finalAnswers,
                 })

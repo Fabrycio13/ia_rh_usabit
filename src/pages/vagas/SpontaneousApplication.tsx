@@ -10,6 +10,7 @@ import {
 import { extractTextAndData } from '../../core/services/cvAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
 import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
+import { uploadViaSignedUrl } from '../../core/utils/storage';
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -487,13 +488,16 @@ export const SpontaneousApplication = () => {
 
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !orgId) return null;
-        const safeExtensionsOnly = 'pdf';
-        const filePath = `resumes/spontaneous/${orgId}/${Date.now()}_secure.${safeExtensionsOnly}`;
-        const { error: uploadError } = await supabase.storage.from('job-applications').upload(filePath, resumeFile, {
-            cacheControl: '3600', upsert: false, contentType: 'application/pdf'
-        });
-        if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        return `job-applications/${filePath}`;
+
+        // ponytail: extensão e tipo forçados server-side pelo path fixo
+        const filePath = `resumes/spontaneous/${orgId}/${Date.now()}_secure.pdf`;
+
+        try {
+            return await uploadViaSignedUrl('job-applications', filePath, resumeFile);
+        } catch {
+            toast.error('Erro ao enviar currículo.');
+            return null;
+        }
     };
 
     const handleSubmit = async () => {

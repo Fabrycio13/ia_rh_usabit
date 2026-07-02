@@ -1,5 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { buildScoringMessages } from './prompts/scoring.ts'
+import { buildJobMatchingMessages } from './prompts/job-matching.ts'
+import { buildExtractionMessages } from './prompts/extraction.ts'
+import { buildResumeMessages } from './prompts/resume.ts'
+import { AI_SYSTEM_PROMPT } from './prompts/chat-system.ts'
+import type { OpenAIMessage } from './prompts/types.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -32,18 +38,24 @@ async function checkRateLimit(
   windowMs: number,
 ): Promise<boolean> {
   const windowStart = new Date(Date.now() - windowMs).toISOString()
-
   const { count } = await supabaseAdmin
     .from('rate_limits')
     .select('id', { count: 'exact', head: true })
     .eq('key', key)
     .eq('endpoint', endpoint)
     .gte('window_start', windowStart)
-
   if ((count ?? 0) >= maxRequests) return false
-
   await supabaseAdmin.from('rate_limits').insert({ key, endpoint })
   return true
+}
+
+// ponytail: map operation type to default model
+const DEFAULT_MODELS: Record<string, string> = {
+  chat: 'gpt-4o-mini',
+  scoring: 'gpt-4o',
+  'job-matching': 'gpt-4o',
+  extraction: 'gpt-4o',
+  resume: 'gpt-4o',
 }
 
 serve(async (req) => {
@@ -94,7 +106,9 @@ serve(async (req) => {
 
   // 4. Processar requisição OpenAI
   let body: {
-    messages?: unknown
+    messages?: unknown          // formato antigo (compatibilidade)
+    type?: string               // formato novo: 'scoring'|'job-matching'|'extraction'|'chat'|'resume'
+    data?: Record<string, unknown>
     model?: string
     max_tokens?: number
     tools?: unknown
@@ -106,11 +120,70 @@ serve(async (req) => {
     return jsonResponse(400, { error: 'Body JSON inválido' })
   }
 
-  if (!body.messages || !Array.isArray(body.messages)) {
-    return jsonResponse(400, { error: 'Campo "messages" é obrigatório e deve ser um array' })
+  let messages: OpenAIMessage[]
+
+  // Detectar formato: novo (type) vs antigo (messages)
+  if (body.type && body.data) {
+    // ── Formato novo: monta prompt server-side ──
+    const d = body.data
+    try {
+      switch (body.type) {
+        case 'chat': {
+          const conversation = (d.messages as OpenAIMessage[]) || []
+          messages = [
+            { role: 'system', content: AI_SYSTEM_PROMPT },
+            ...conversation,
+          ]
+          break
+        }
+        case 'scoring':
+          messages = buildScoringMessages(
+            d.jobTitle as string,
+            d.jobDescription as string,
+            (d.currentIndex as number) ?? 1,
+            (d.totalCount as number) ?? 1,
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'job-matching':
+          messages = buildJobMatchingMessages(
+            d.jobTitle as string,
+            d.jobDescription as string,
+            (d.formAnswers as Record<string, string>) || {},
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'extraction':
+          messages = buildExtractionMessages(
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'resume':
+          messages = buildResumeMessages(
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        default:
+          return jsonResponse(400, { error: `Tipo desconhecido: ${body.type}` })
+      }
+    } catch (err) {
+      return jsonResponse(400, { error: `Erro ao montar prompt: ${(err as Error).message}` })
+    }
+  } else if (body.messages && Array.isArray(body.messages)) {
+    // ── Formato antigo: compatibilidade ──
+    messages = body.messages as OpenAIMessage[]
+  } else {
+    return jsonResponse(400, { error: 'Envie "messages" (formato antigo) ou "type"+"data" (formato novo)' })
   }
 
-  const { messages, model = 'gpt-4o', max_tokens = 8192, tools, tool_choice } = body
+  const model = body.model || DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
+  const max_tokens = body.max_tokens ?? 8192
+  const { tools, tool_choice } = body
+
   const openaiBody: Record<string, unknown> = { model, messages, max_tokens }
   if (tools) openaiBody.tools = tools
   if (tool_choice) openaiBody.tool_choice = tool_choice

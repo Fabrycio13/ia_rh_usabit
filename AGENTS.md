@@ -53,7 +53,7 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 - `@revisor` — subagent read-only para análise de código em 6 categorias
 - `@designer` — subagent especialista em design system e componentes UI
 - `@testador` — subagent especialista em criar testes seguindo os padrões do projeto (Vitest + Testing Library + mocks)
-- `@orquestrador` — primary agent que coordena planejamento, implementação e revisão
+- `@orquestrador` — primary agent que coordena, revisa, implementa e **auto-melhora os agentes**: refina prompts, instruções e padrões no `AGENTS.md` com base em lições aprendidas durante o desenvolvimento
 
 ## Referências
 - `.agent/` — Antigravity Kit (framework separado, NÃO integrado ao opencode)
@@ -78,7 +78,8 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan.
-Current plan: `specs/nova-hierarquia-perfis/plan.md`
+Current plan: `specs/trial-version/plan.md`
+Previous plan: `specs/trial-version/plan.md`
 Previous plan: `specs/001-banco-talentos-pool/plan.md`
 
 # Supabase CLI
