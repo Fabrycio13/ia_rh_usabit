@@ -4,7 +4,7 @@ import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { downloadResume } from '../../core/utils/storage';
 import { extractTextFromPDF } from '../../core/services/pdfExtractor';
-import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight, CheckSquare, Filter, ChevronDown, Trash2 } from 'lucide-react';
+import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight, CheckSquare, Filter, ChevronDown, Trash2, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
@@ -323,6 +323,21 @@ export const PoolTalentos = () => {
         }
     };
 
+    const handleAIAnalyze = async (candidateId: string) => {
+        try {
+            const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId } })
+            if (error) throw new Error(error.message)
+            setSelectedCandDetail(prev => prev && prev.id === candidateId ? { ...prev, skills: null } : prev)
+            if (selectedCandDetail?.id === candidateId) {
+                fetchCandidateDetail(candidatos.find(c => c.id === candidateId)!)
+            }
+            toast.success('Currículo analisado com sucesso!')
+        } catch (e) {
+            console.error('Erro ao analisar currículo:', e)
+            toast.error('Erro ao analisar currículo com IA')
+        }
+    }
+
     const openAnalyzeModal = () => {
         if (!confirmCandidate) return;
         setAnalyzingCandidate(confirmCandidate);
@@ -582,6 +597,10 @@ export const PoolTalentos = () => {
                                                 <FileText size={18} />
                                             </button>
                                         ) : null}
+                                        <button title="Analisar currículo com IA" onClick={(e) => { e.stopPropagation(); handleAIAnalyze(candidato.id); }}
+                                            style={{ width: 44, height: 44, padding: 0, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 8, color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Zap size={18} />
+                                        </button>
                                         <button title="Analisar para uma Vaga" onClick={(e) => { e.stopPropagation(); openConfirmModal(candidato); }}
                                             style={{ width: 44, height: 44, padding: 0, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, color: '#22c55e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Target size={18} />
@@ -711,6 +730,12 @@ export const PoolTalentos = () => {
                                                     <FileText size={15} />
                                                 </button>
                                             ) : (<span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>-</span>)}
+                                            <button title="Analisar currículo com IA" onClick={(e) => { e.stopPropagation(); handleAIAnalyze(candidato.id); }}
+                                                style={{ width: 34, height: 34, padding: '0', background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '8px', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = '#a855f7'; e.currentTarget.style.color = '#fff'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(168,85,247,0.1)'; e.currentTarget.style.color = '#a855f7'; }}>
+                                                <Zap size={15} />
+                                            </button>
                                             <button title="Analisar para uma Vaga" onClick={(e) => { e.stopPropagation(); openConfirmModal(candidato); }}
                                                 style={{ width: 34, height: 34, padding: '0', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', color: '#22c55e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                                                 onMouseEnter={e => { e.currentTarget.style.background = '#22c55e'; e.currentTarget.style.color = '#fff'; }}
@@ -754,6 +779,7 @@ export const PoolTalentos = () => {
                             c={selectedCandDetail}
                             onClose={() => setSelectedCandDetail(null)}
                             navigate={navigate}
+                            onEnrich={handleAIAnalyze}
                             onTransferSuccess={() => {
                                 setSelectedCandDetail(null);
                                 if (profile.organization_id) {
@@ -807,6 +833,7 @@ export const PoolTalentos = () => {
                     c={selectedCandDetail}
                     onClose={() => setSelectedCandDetail(null)}
                     navigate={navigate}
+                    onEnrich={handleAIAnalyze}
                     onTransferSuccess={() => {
                         setSelectedCandDetail(null);
                         if (profile.organization_id) {
