@@ -341,8 +341,16 @@ export const PoolTalentos = () => {
         try {
             const { error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId: aiCandidate.id } })
             if (error) throw new Error(error.message)
-            // Recarrega dados do candidato e abre painel com feedback
-            await fetchCandidateDetail(aiCandidate);
+            // Buscar candidato ATUALIZADO do banco (IA gravou skills/experiencia/educacao/analysis)
+            const { data: updated } = await supabase
+                .from('candidates')
+                .select('*')
+                .eq('id', aiCandidate.id)
+                .single()
+            if (updated) {
+                setCandidatos(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
+                await fetchCandidateDetail(updated as Candidate)
+            }
             toast.success('Currículo analisado com sucesso!')
         } catch (e) {
             console.error('Erro ao analisar currículo:', e)
