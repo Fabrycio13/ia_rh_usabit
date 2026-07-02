@@ -71,6 +71,50 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
     }
 };
 
+/**
+ * Upload seguro via presigned URL (chamada Edge Function + PUT direto ao Storage).
+ * Substitui upload client-side com anon key (vulnerável a JWT inválido em buckets privados).
+ * @returns path completo no formato "bucket/caminho" (ex: "job-applications/resumes/123/timestamp.pdf")
+ */
+export async function uploadViaSignedUrl(
+  bucket: string,
+  path: string,
+  file: File
+): Promise<string> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+  // 1. Obter signed upload URL da Edge Function
+  const res = await fetch(`${supabaseUrl}/functions/v1/get-upload-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': anonKey,
+    },
+    body: JSON.stringify({ bucket, path }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Falha ao obter URL de upload (${res.status}): ${errBody}`);
+  }
+
+  const { signedUrl, path: resultPath } = await res.json() as { signedUrl: string; path: string };
+
+  // 2. Upload direto ao Storage (PUT binário, sem JWT)
+  const uploadRes = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/pdf' },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`Falha no upload do arquivo (${uploadRes.status})`);
+  }
+
+  return `${bucket}/${resultPath}`;
+}
+
 export async function downloadResume(url: string, fileName: string): Promise<File> {
     let path = url;
     let bucket = 'job-applications';

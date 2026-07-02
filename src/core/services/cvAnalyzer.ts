@@ -2,8 +2,6 @@ import * as XLSX from 'xlsx';
 import { sanitizeAIInput } from './sanitizer';
 import { extractTextFromPDF, pdfToImages } from './pdfExtractor';
 import { callOpenAI } from './ai/client';
-import { buildExtractionMessages } from './ai/prompts/extraction';
-import { buildScoringMessages } from './ai/prompts/scoring';
 import { parseJSON } from './ai/parsers';
 import { normalizeAnalysisResult, normalizeExtraction } from './ai/parsers/validators';
 import { logAI } from './ai/logger';
@@ -28,8 +26,10 @@ export async function extractTextAndData(file: File): Promise<{ rawText: string;
     }
 
     const sanitizedText = rawText ? sanitizeAIInput(rawText) : undefined;
-    const messages = buildExtractionMessages(sanitizedText, images);
-    const data = await callOpenAI(messages, { model: 'gpt-4o-mini', retries: 3, timeout: 30000, operation: 'extraction' });
+    const data = await callOpenAI(
+      { type: 'extraction', data: { fileText: sanitizedText, images } },
+      { model: 'gpt-4o-mini', retries: 3, timeout: 30000, operation: 'extraction' }
+    );
     const parsed = parseJSON<CandidateExtraction>(data.content);
     const normalized = normalizeExtraction(parsed as unknown as Record<string, unknown>);
 
@@ -158,8 +158,10 @@ export async function extractCandidateData(
     const startTime = Date.now();
     try {
         const sanitizedText = sanitizeAIInput(fileText);
-        const messages = buildExtractionMessages(sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'extraction' });
+        const data = await callOpenAI(
+          { type: 'extraction', data: { fileText: sanitizedText, images } },
+          { retries: 3, timeout: 30000, operation: 'extraction' }
+        );
         const parsed = parseJSON<CandidateExtraction>(data.content);
         const normalized = normalizeExtraction(parsed as unknown as Record<string, unknown>);
 
@@ -185,8 +187,10 @@ export async function analyzeCV(
     const startTime = Date.now();
     try {
         const sanitizedText = fileText ? sanitizeAIInput(fileText) : undefined;
-        const messages = buildScoringMessages(jobTitle, jobDescription, currentIndex, totalCount, sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000, operation: 'scoring' });
+        const data = await callOpenAI(
+          { type: 'scoring', data: { jobTitle, jobDescription, currentIndex, totalCount, fileText: sanitizedText, images } },
+          { retries: 3, timeout: 30000, operation: 'scoring' }
+        );
         const parsed = parseJSON<AnalysisResult>(data.content);
         const normalized = normalizeAnalysisResult(parsed as unknown as Record<string, unknown>);
         console.log('[CV Analyzer] Parsed Result:', {
