@@ -5,6 +5,7 @@ import { buildJobMatchingMessages } from './prompts/job-matching.ts'
 import { buildExtractionMessages } from './prompts/extraction.ts'
 import { buildResumeMessages } from './prompts/resume.ts'
 import { AI_SYSTEM_PROMPT } from './prompts/chat-system.ts'
+import { TEXT_GUARDRAILS } from './prompts/guardrails.ts'
 import type { OpenAIMessage } from './prompts/types.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
@@ -167,6 +168,58 @@ serve(async (req) => {
             d.images as string[] | undefined,
           )
           break
+        case 'batch-scoring': {
+          const candidates = (d.candidates as Array<{ id: string; name: string; rawText: string }>) || []
+          const jobTitle = d.jobTitle as string
+          const jobDescription = d.jobDescription as string
+          const now = new Date().toLocaleString('pt-BR')
+
+          const candidateSection = candidates.map((c, i) => {
+            return `## CANDIDATO ${i + 1}: ${c.name}\nID: ${c.id}\nCURRÍCULO:\n${c.rawText}`
+          }).join('\n\n---\n\n')
+
+          const prompt = `Você é um recrutador sênior especializado em avaliar candidatos para vagas.
+
+## VAGA
+Título: ${jobTitle}
+Descrição: ${jobDescription}
+
+## INSTRUÇÕES
+Abaixo estão ${candidates.length} candidato(s). Para cada um:
+
+1. Leia o currículo.
+2. Avalie a aderência à vaga (0-100).
+3. Extraia skills, experiência, formação.
+4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
+
+HOJE É: ${now}
+
+## CANDIDATOS
+${candidateSection}
+
+${TEXT_GUARDRAILS}
+
+## FORMATO DE SAÍDA (JSON ESTRITO)
+Retorne APENAS um array JSON, sem texto adicional:
+[
+  {
+    "candidateId": "ID do candidato",
+    "score": número 0-100,
+    "classification": "FORTE | MÉDIO | NÃO ADERENTE",
+    "skills": ["Skill1", "Skill2"],
+    "experience": "X anos e Y meses",
+    "education": "Formação1 | Formação2",
+    "summary": "2-3 linhas explicando o score",
+    "strengths": ["ponto forte 1", "ponto forte 2"],
+    "gaps": ["gap 1", "gap 2"],
+    "recommendation": "Avançar | Manter em banco | Não recomendado",
+    "status": "PROCESSADO | CURRICULO_INCOMPLETO"
+  }
+]
+Mantenha a ORDEM dos candidatos.`;
+          messages = [{ role: 'user', content: prompt }]
+          break
+        }
         default:
           return jsonResponse(400, { error: `Tipo desconhecido: ${body.type}` })
       }

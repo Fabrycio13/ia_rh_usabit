@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { EMAIL_REGEX } from '../../core/utils/formatUtils';
+import { uploadViaSignedUrl } from '../../core/utils/storage';
 
 interface AddCandidateModalProps {
   isOpen: boolean;
@@ -110,25 +111,16 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     setUploadedFileName(file.name);
 
     try {
-      // Step 1: Upload file to Supabase Storage
+      // Step 1: Upload file via presigned URL (seguro, com rate limit + path validation)
       setUploadProgress(20);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt.substring(1)}`;
-      const filePath = `resumes/${fileName}`;
+      const filePath = `resumes/manual/${profile.organization_id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('resumes')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
+      const resumeUrl = await uploadViaSignedUrl('job-applications', filePath, file);
 
       setUploadProgress(40);
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('resumes')
-        .getPublicUrl(filePath);
-
-      const publicResumeUrl = urlData.publicUrl;
+      // Store the path (not public URL — bucket is private, signed URL at view time)
       setUploadProgress(50);
 
       // Step 2: Extract text based on file type
@@ -238,7 +230,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       }
 
       // Set the resume URL for saving later
-      setResumeUrl(publicResumeUrl);
+      setResumeUrl(resumeUrl);
       setUploadProgress(100);
       setUploadState('success');
       toast.success('Currículo analisado com sucesso! Dados preenchidos automaticamente.');

@@ -5,6 +5,7 @@ import { processFiles } from '../services/cvAnalyzer';
 import { useUser } from './UserContext';
 import toast from 'react-hot-toast';
 import { logActivity } from '../services/logger';
+import { uploadViaSignedUrl } from '../utils/storage';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Candidate {
@@ -233,20 +234,20 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         let resumeUrl: string | null = null;
                         let uploadId: string | null = null;
 
-                        // Se for PDF, faz upload agora
+                        // Se for PDF, faz upload via presigned URL
                         if (mode === 'pdf' && files[idx]) {
                             const file = files[idx];
                             console.log(`[Analysis] Fazendo upload do arquivo: ${file.name}`);
-                            const path = `${session.user.id}/${Date.now()}-${idx}-${file.name.replace(/\s+/g, '_')}`;
-                            const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file, { upsert: true });
-                            if (uploadError) {
-                                console.error(`[Analysis] Erro no upload de ${file.name}:`, uploadError);
-                                toast.error(`Erro ao salvar PDF de ${file.name}. Verifique as permissões de armazenamento.`);
-                                resumeUrl = null;
-                            } else {
-                                const { data: { publicUrl } } = supabase.storage.from('resumes').getPublicUrl(path);
-                                resumeUrl = publicUrl;
+                            const uuid = crypto.randomUUID().substring(0, 8);
+                            const path = `resumes/manual/${profile.organization_id}/${Date.now()}_${idx}_${uuid}.pdf`;
+
+                            try {
+                                resumeUrl = await uploadViaSignedUrl('job-applications', path, file);
                                 console.log(`[Analysis] Upload concluído: ${resumeUrl}`);
+                            } catch {
+                                console.error(`[Analysis] Erro no upload de ${file.name}`);
+                                toast.error(`Erro ao salvar PDF de ${file.name}.`);
+                                resumeUrl = null;
                             }
 
                             // Registro no resume_uploads

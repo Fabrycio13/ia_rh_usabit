@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
 import { extractTextAndData } from '../../../core/services/cvAnalyzer';
+import { uploadViaSignedUrl } from '../../../core/utils/storage';
 import { TagInput } from '../../../common/components/TagInput';
 import { X, Upload, Check, AlertCircle, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -120,10 +121,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
       try {
         const uuid = crypto.randomUUID().substring(0, 8);
         const filePath = `resumes/manual/${profile.organization_id}/${Date.now()}_${uuid}.pdf`;
-        const { error: uploadError } = await supabase.storage
-          .from('job-applications')
-          .upload(filePath, entry.file, { cacheControl: '3600', upsert: false, contentType: 'application/pdf' });
-        if (uploadError) throw uploadError;
+        const resumeUrl = await uploadViaSignedUrl('job-applications', filePath, entry.file);
 
         // Extraction
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'extracting' } : f));
@@ -153,7 +151,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
         if (extractedData.skills.length) candidateData.skills = extractedData.skills;
         if (extractedData.experience && extractedData.experience !== 'Não informado') candidateData.experience = extractedData.experience;
         if (extractedData.education && extractedData.education !== 'Não informado') candidateData.education = extractedData.education;
-        candidateData.resume_url = `job-applications/${filePath}`;
+        candidateData.resume_url = resumeUrl;
         candidateData.resume_file_name = entry.file.name;
 
         const { error: insertError } = await supabase.from('candidates').insert(candidateData);

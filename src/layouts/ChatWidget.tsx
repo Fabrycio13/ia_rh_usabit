@@ -6,6 +6,7 @@ import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiT
 import { type OpenAIMessage } from '../core/services/ai/types';
 import { supabase } from '../core/services/supabase';
 import { sanitizeAIInput } from '../core/services/sanitizer';
+import { sanitizeHtml } from '../core/utils/security';
 
 const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
 const CHAT_MODEL = 'gpt-4o-mini';
@@ -262,7 +263,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                                     strong: ({ children }) => <strong style={{ fontWeight: 700, color: msg.sender === 'ia' ? 'var(--primary)' : 'inherit' }}>{children}</strong>
                                 }}
                             >
-                                {msg.text}
+                                {msg.sender === 'ia' ? sanitizeHtml(msg.text) : msg.text}
                             </ReactMarkdown>
                         </div>
                         <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
