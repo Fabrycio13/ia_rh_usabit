@@ -13,7 +13,10 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || ''
+
+const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'gestor', 'owner']
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -51,10 +54,34 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Auth: aceita service_role (chamadas internas) OU JWT de usuário logado
   const authHeader = req.headers.get('Authorization') || ''
-  if (!SUPABASE_SERVICE_ROLE_KEY || !authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
-    console.error('[enrich-candidate] Auth falhou')
-    return json({ error: 'Não autorizado' }, 401)
+  if (SUPABASE_SERVICE_ROLE_KEY && authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
+    // service_role — chamada interna (ex: submit-candidate)
+    console.log('[enrich-candidate] auth via service_role')
+  } else {
+    // JWT de usuário — validar token e role
+    const token = authHeader.replace('Bearer ', '').trim()
+    if (!token) {
+      return json({ error: 'Não autorizado' }, 401)
+    }
+    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
+    if (userError || !user) {
+      console.error('[enrich-candidate] Token inválido')
+      return json({ error: 'Não autorizado' }, 401)
+    }
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('user_role')
+      .eq('id', user.id)
+      .single()
+    if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
+      console.error('[enrich-candidate] Permissão insuficiente:', profile?.user_role)
+      return json({ error: 'Não autorizado' }, 401)
+    }
+    console.log('[enrich-candidate] auth via JWT, role:', profile.user_role)
   }
 
   try {
