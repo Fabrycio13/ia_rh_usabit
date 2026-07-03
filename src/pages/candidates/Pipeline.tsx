@@ -54,7 +54,7 @@ interface CandidateQueryRow {
     is_blacklisted?: boolean;
     phone?: string | null;
     conversations?: unknown[];
-    job_candidates?: { jobs?: { name?: string }; vagas_white_label?: { title?: string } }[];
+    vagas_candidaturas?: { vagas_white_label?: { title?: string } }[];
 }
 
 interface PipeQueryRow {
@@ -75,8 +75,7 @@ interface RawCardRow {
         is_blacklisted: boolean;
         phone: string | null;
         conversations: unknown[];
-        job_candidates: Array<{
-            jobs: { name: string } | null;
+        vagas_candidaturas: Array<{
             vagas_white_label: { title: string } | null;
         }>;
     } | null;
@@ -947,7 +946,7 @@ export const Pipeline = () => {
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -975,7 +974,7 @@ export const Pipeline = () => {
                     pipeline_id: pipelineId,
                     candidate_name: c.candidates?.name ?? 'Sem nome',
                     candidate_score: c.candidates?.score ?? null,
-                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc) => jc.vagas_white_label?.title || jc.jobs?.name).filter((s): s is string => !!s),
+                    candidate_vagas: (c.candidates?.vagas_candidaturas ?? []).map((vc) => vc.vagas_white_label?.title).filter((s): s is string => !!s),
                     display_job_name: displayJobName,
                     display_job_score: displayJobScore,
                     job_id: jobId,
@@ -993,7 +992,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: PipelineCard[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -1004,7 +1003,7 @@ export const Pipeline = () => {
             id: c.id,
             name: c.name,
             score: c.score,
-            vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name || jc.vagas_white_label?.title).filter((s): s is string => !!s),
+            vagas: (c.vagas_candidaturas ?? []).map((vc) => vc.vagas_white_label?.title).filter((s): s is string => !!s),
             already_in_pipeline: inPipeline.has(c.id),
             is_blacklisted: c.is_blacklisted,
             phone: c.phone,
@@ -1016,7 +1015,7 @@ export const Pipeline = () => {
     async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
-            supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
+            supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
             supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
@@ -1025,8 +1024,7 @@ export const Pipeline = () => {
 
         const analysis = cand.analysis ?? {};
         const validJobIds = new Set<string>();
-        (jcData ?? []).forEach((jc: { job_id?: string; vaga_id?: string }) => {
-            if (jc.job_id) validJobIds.add(jc.job_id);
+        (jcData ?? []).forEach((jc: { vaga_id?: string }) => {
             if (jc.vaga_id) validJobIds.add(jc.vaga_id);
         });
         const rawHistory: HistoryItem[] = analysis?.history ?? [];

@@ -6,14 +6,12 @@ import {
     ExternalLink,
     Briefcase,
     User,
-    Users,
-    Activity
+    Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Vagas } from './Vagas';
 import { PoolTalentos } from './PoolTalentos';
-import { Analises } from '../analysis/Analises';
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -22,12 +20,11 @@ const tabCss = `
 .tab-btn:hover .tab-ico { animation: tabIconBounce 0.4s ease forwards; }
 `;
 
-type TabId = 'vagas' | 'pool' | 'analises';
+type TabId = 'vagas' | 'pool';
 
 const tabConfig: { id: TabId; label: string; icon: typeof Briefcase }[] = [
     { id: 'vagas', label: 'Gestão de Vagas', icon: Briefcase },
     { id: 'pool', label: 'Pool de Talentos', icon: Users },
-    { id: 'analises', label: 'Análises', icon: Activity },
 ];
 
 export const CareerPortalHub = () => {
@@ -37,9 +34,7 @@ export const CareerPortalHub = () => {
     const isConvidado = profile.user_role === 'convidado';
     const visibleTabs = isConvidado
         ? tabConfig.filter(t => t.id === 'vagas')
-        : profile.user_role === 'owner'
-            ? tabConfig
-            : tabConfig.filter(t => t.id !== 'analises');
+        : tabConfig;
     const [activeTab, setActiveTab] = useState<TabId>(
         tabFromUrl && tabConfig.some(t => t.id === tabFromUrl) && (!isConvidado || tabFromUrl === 'vagas') ? tabFromUrl : 'vagas'
     );
@@ -79,12 +74,10 @@ export const CareerPortalHub = () => {
                 const subtitles: Record<TabId, string> = {
                     vagas: 'Gerencie suas oportunidades e personalize seu portal de carreiras.',
                     pool: 'Currículos recebidos sem vaga específica',
-                    analises: 'Acompanhe e gerencie as análises de currículos realizadas.',
                 };
                 const iconMap: Record<TabId, JSX.Element> = {
                     vagas: <Briefcase size={32} />,
                     pool: <User size={32} />,
-                    analises: <Activity size={32} />,
                 };
 
                 return (
@@ -160,13 +153,9 @@ export const CareerPortalHub = () => {
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
                     <Vagas hideHeader={true} />
                 </div>
-            ) : activeTab === 'pool' ? (
-                <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                    <PoolTalentos />
-                </div>
             ) : (
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                    <Analises hideHeader={true} />
+                    <PoolTalentos />
                 </div>
             )}
         </div>

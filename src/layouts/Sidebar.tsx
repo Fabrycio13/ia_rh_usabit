@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, memo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, Zap, Bot, Kanban, ShieldCheck, Database, Briefcase, Bell, X } from 'lucide-react';
+import { LayoutGrid, Users, LogOut, Globe, HelpCircle, ChevronRight, Check, PanelLeft, Settings, Bot, Kanban, ShieldCheck, Database, Briefcase, Bell, X, Zap } from 'lucide-react';
 import { supabase } from '../core/services/supabase';
 import { useUser } from '../core/contexts/UserContext';
 import { useLang } from '../core/contexts/LangContext';
-import { useAnalysis } from '../core/contexts/AnalysisContext';
 import { hasPermission } from '../core/config/permissions';
 import toast from 'react-hot-toast';
 
@@ -66,7 +65,6 @@ const NavItem = memo(({ to, icon: Icon, label, collapsed, end, disabled }: NI) =
 export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void; hideToggle?: boolean }) => {
     const { profile } = useUser();
     const { lang, setLang, t } = useLang();
-    const { analyzing, progress, jobName } = useAnalysis();
     const navigate = useNavigate();
 
 
@@ -330,50 +328,6 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                         </>
                     )}
                 </nav>
-
-                {/* Analysis Progress - Background indicator */}
-                {analyzing && !collapsed && (
-                    <div
-                        onClick={() => navigate('/analise/nova')}
-                        style={{
-                            padding: '12px 14px',
-                            margin: '0 8px 10px',
-                            background: 'var(--bg-card)',
-                            borderRadius: '12px',
-                            border: '1px solid var(--border)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.background = 'var(--sidebar-active)';
-                            e.currentTarget.style.borderColor = 'var(--primary-border)';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                        }}
-                    >
-                        <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Zap size={10} className="text-yellow-500 fill-yellow-500" />
-                            Analisando: {jobName}
-                        </p>
-                        <div style={{ height: '6px', background: 'var(--bg-main)', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${(progress.current / (progress.total || 1)) * 100}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.3s ease' }} />
-                        </div>
-                        <p style={{ color: 'var(--primary)', fontSize: '10px', marginTop: '6px', fontWeight: 700 }}>{progress.current} / {progress.total} CVs</p>
-                    </div>
-                )}
-                {analyzing && collapsed && (
-                    <div
-                        onClick={() => navigate('/analise/nova')}
-                        title={`Analisando: ${jobName} (${progress.current}/${progress.total})`}
-                        style={{ margin: '0 10px 10px', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}
-                    >
-                        <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--border)', borderTopColor: 'var(--primary)', animation: 'spin 1s linear infinite', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Zap size={10} style={{ color: 'var(--primary)' }} />
-                        </div>
-                    </div>
-                )}
 
                 <div style={{ padding: '0 8px', marginBottom: '10px' }}>
                     {hasPermission(profile.user_role, 'chat_widget') && (

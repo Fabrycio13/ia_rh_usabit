@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
-import pdfParse from "npm:pdf-parse@1.1.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
+
 
 interface CandidatePayload {
   email: string
@@ -198,32 +197,34 @@ serve(async (req) => {
       }
     }
 
-    // 4. Upsert do candidato
+    // 4. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
+    const candidaturaData: Record<string, unknown> = {
+      vaga_id: body.vaga_id || null,
+      organization_id: body.organization_id,
+      candidate_name: body.name,
+      candidate_email: body.email,
+      candidate_phone: body.phone || null,
+      candidate_location: body.location || null,
+      candidate_linkedin: body.linkedin || null,
+      resume_url: body.resume_url || null,
+      resume_file_name: body.resume_file_name || null,
+      candidate_gender: body.gender || null,
+      candidate_age: body.age != null ? String(body.age) : null,
+      address: body.address || null,
+      portfolio: body.portfolio || null,
+      cep: body.cep || null,
+      address_number: body.address_number || null,
+      complement: body.complement || null,
+      status: body.status || 'pending',
+      source: body.source || 'spontaneous',
+      skills: body.skills || null,
+      experience: body.experience || null,
+      analysis: body.analysis || null,
+    };
+
     const { data, error } = await supabaseAdmin
-      .from('candidates')
-      .upsert({
-        email: body.email,
-        organization_id: body.organization_id,
-        name: body.name,
-        phone: body.phone || null,
-        location: body.location || null,
-        linkedin: body.linkedin || null,
-        resume_url: body.resume_url || null,
-        resume_file_name: body.resume_file_name || null,
-        gender: body.gender || null,
-        age: body.age != null ? String(body.age) : null,
-        address: body.address || null,
-        portfolio: body.portfolio || null,
-        cep: body.cep || null,
-        address_number: body.address_number || null,
-        complement: body.complement || null,
-        vaga_id: body.vaga_id || null,
-        status: body.status || 'pending',
-        source: body.source || null,
-        skills: body.skills || null,
-        experience: body.experience || null,
-        analysis: body.analysis || null,
-      }, { onConflict: 'email,organization_id' })
+      .from('vagas_candidaturas')
+      .insert(candidaturaData)
       .select('id')
       .single()
 
@@ -238,11 +239,6 @@ serve(async (req) => {
     // 5. Enviar email de confirmação (best-effort, não bloqueia)
     const candidateFirstName = body.name.split(' ')[0];
     sendConfirmationEmail(candidateFirstName, body.email);
-
-    // 6. Enriquecer com IA (best-effort, não bloqueia)
-    if (body.resume_url) {
-      enrichWithAI(data.id, body.resume_url, supabaseAdmin);
-    }
 
     return new Response(JSON.stringify({ id: data.id, success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -272,65 +268,4 @@ function sendConfirmationEmail(firstName: string, email: string) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
     body: JSON.stringify({ from: 'Usabit people <noreply@space.pro.br>', to: [email], subject, html }),
   }).catch(() => {}); // ponytail: falha silenciosa, candidato já está no banco
-}
-
-// ponytail: extrai dados do PDF via IA, faz UPDATE no candidato. Best-effort.
-async function enrichWithAI(candidateId: string, resumeUrl: string, supabaseAdmin: ReturnType<typeof createClient>) {
-  try {
-    if (!OPENAI_API_KEY) return;
-
-    // 1. Baixar PDF do storage
-    const bucket = 'job-applications';
-    const path = resumeUrl.replace(`${bucket}/`, '');
-    const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path);
-    if (downloadErr || !pdfBlob) return;
-
-    // 2. Extrair texto do PDF
-    const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer());
-    let extractedText = '';
-    try {
-      const pdfData = await pdfParse(pdfBuffer);
-      extractedText = (pdfData.text || '').slice(0, 8000); // truncar pra 8k chars
-    } catch {
-      return; // PDF ilegível, sem enriquecimento
-    }
-    if (!extractedText.trim()) return;
-
-    // 3. Chamar OpenAI para extração estruturada
-    const prompt = `Extraia do currículo abaixo os seguintes dados em JSON estrito (sem texto adicional):
-{
-  "skills": ["skill1", "skill2", ...],
-  "experience": "X anos e Y meses como ...",
-  "education": "Formação principal"
-}
-Se um campo não existir, use string vazia.
-
-CURRÍCULO:
-${extractedText}`;
-
-    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0 }),
-    });
-    if (!aiRes.ok) return;
-
-    const aiData = await aiRes.json();
-    const content = aiData?.choices?.[0]?.message?.content || '';
-    let parsed: { skills?: string[]; experience?: string; education?: string } = {};
-    try { parsed = JSON.parse(content); } catch { return; }
-
-    // 4. Atualizar candidato com dados da IA
-    const updates: Record<string, unknown> = { raw_text: extractedText, is_analyzed: true };
-    if (parsed.skills?.length) {
-      updates.skills = parsed.skills.join(', ');
-      updates.tags = parsed.skills.map((s: string) => s.toLowerCase().trim());
-    }
-    if (parsed.experience) updates.experience = parsed.experience;
-    if (parsed.education) updates.education = parsed.education;
-
-    await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId);
-  } catch {
-    // ponytail: falha silenciosa de IA, candidato permanece sem enriquecimento
-  }
 }

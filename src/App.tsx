@@ -1,10 +1,9 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './core/services/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { useUser, UserProvider } from './core/contexts/UserContext';
 import { LangProvider } from './core/contexts/LangContext';
-import { AnalysisProvider } from './core/contexts/AnalysisContext';
 import { hasPermission } from './core/config/permissions';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Toaster } from 'react-hot-toast';
@@ -12,9 +11,7 @@ import { Toaster } from 'react-hot-toast';
 const Login = React.lazy(() => import('./pages/auth/Login').then(m => ({ default: m.Login })));
 const LandingPage = React.lazy(() => import('./pages/marketing/LandingPage').then(m => ({ default: m.LandingPage })));
 const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard').then(m => ({ default: m.Dashboard })));
-const JobDetailView = React.lazy(() => import('./pages/analysis/Analises').then(m => ({ default: m.JobDetailView })));
 const CandidateBank = React.lazy(() => import('./pages/candidates/CandidateBank').then(m => ({ default: m.CandidateBank })));
-const AnaliseNova = React.lazy(() => import('./pages/analysis/AnaliseNova').then(m => ({ default: m.AnaliseNova })));
 const Configuracoes = React.lazy(() => import('./pages/settings/Configuracoes').then(m => ({ default: m.Configuracoes })));
 const Ajuda = React.lazy(() => import('./pages/support/Ajuda').then(m => ({ default: m.Ajuda })));
 const Pipeline = React.lazy(() => import('./pages/candidates/Pipeline').then(m => ({ default: m.Pipeline })));
@@ -37,12 +34,6 @@ const LoadingFallback = () => (
         <div className="w-8 h-8 border-4 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
     </div>
 );
-
-const JobDetailRoute = () => {
-    const { jobId } = useParams<{ jobId: string }>();
-    if (!jobId) return <Navigate to="/analises" />;
-    return <JobDetailView jobId={jobId} />;
-};
 
 const AppContent = ({ session }: { session: Session | null }) => {
     const { profile } = useUser();
@@ -76,16 +67,13 @@ const AppContent = ({ session }: { session: Session | null }) => {
                     <Route path="/carreiras/:orgId/candidatar" element={<SpontaneousApplication />} />
 
                     {/* Persist Layout for Logged-in Routes */}
-                    <Route element={session ? <AnalysisProvider><DashboardLayout /></AnalysisProvider> : <Navigate to="/" />}>
+                    <Route element={session ? <DashboardLayout /> : <Navigate to="/" />}>
                         <Route path="/dashboard" element={hasPermission(profile.user_role, 'dashboard') ? <Dashboard /> : <Navigate to={hasPermission(profile.user_role, 'vagas') ? '/vagas' : '/ajuda'} />} />
                         <Route path="/vagas" element={hasPermission(profile.user_role, 'vagas') ? <CareerPortalHub /> : <Navigate to={hasPermission(profile.user_role, 'dashboard') ? '/dashboard' : '/ajuda'} />} />
                         <Route path="/vagas/nova" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                         <Route path="/vagas/editar/:id" element={hasPermission(profile.user_role, 'vagas') ? <VagaForm /> : <Navigate to="/dashboard" />} />
                         <Route path="/vagas/:id/candidatos" element={hasPermission(profile.user_role, 'vagas') ? <VagaCandidatos /> : <Navigate to="/dashboard" />} />
-                        <Route path="/analises" element={<Navigate to="/vagas?tab=analises" replace />} />
                         <Route path="/candidatos" element={hasPermission(profile.user_role, 'candidatos') ? <CandidateBank /> : <Navigate to="/dashboard" />} />
-                        <Route path="/analise/nova" element={hasPermission(profile.user_role, 'analises') ? <AnaliseNova /> : <Navigate to="/dashboard" />} />
-                        <Route path="/analise/:jobId" element={hasPermission(profile.user_role, 'analises') ? <JobDetailRoute /> : <Navigate to="/dashboard" />} />
                         <Route path="/configuracoes" element={<Configuracoes />} />
                         <Route path="/ajuda" element={<Ajuda />} />
                         <Route path="/pipeline" element={hasPermission(profile.user_role, 'pipeline') ? <Pipeline /> : <Navigate to="/dashboard" />} />

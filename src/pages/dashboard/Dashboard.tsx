@@ -20,7 +20,7 @@ interface Job {
   created_at: string;
 }
 interface JobWithStats extends Job {
-  type: 'analysis' | 'job';
+  type: 'job';
   totalCandidates: number;
   topCandidates: number;
 }
@@ -161,35 +161,27 @@ export const Dashboard = () => {
     : 0;
 
    
-  const fetchDataRef = useRef<(userId: string) => Promise<void>>(() => Promise.resolve());
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(() => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const t = setTimeout(() => setLoading(false), 8000);
     fetchDataRef.current = fetchData;
-    fetchDataRef.current!(profile.userId).finally(() => clearTimeout(t));
+    fetchDataRef.current!().finally(() => clearTimeout(t));
     const ch = supabase.channel('dash-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_candidates' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchDataRef.current?.(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchDataRef.current?.())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchDataRef.current?.())
       .subscribe();
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.userId, profile.loaded]);
 
-  async function fetchData(userId: string) {
+  async function fetchData() {
     try {
       setLoading(true); setError(null);
-      
-      // 1. Buscar Análises (jobs)
-      const { data: analysesData, error: ae } = await supabase
-        .from('jobs').select('id,name,filters,created_at')
-        .eq('user_id', userId).order('created_at', { ascending: false });
-      if (ae) throw ae;
 
-      // 2. Buscar Vagas do Portal (vagas_white_label)
+      // 1. Buscar Vagas do Portal (vagas_white_label)
       let query = supabase
         .from('vagas_white_label')
         .select('id, title, created_at, organization_id');
@@ -206,26 +198,7 @@ export const Dashboard = () => {
       
       if (we) throw we;
 
-      // 3. Buscar estatísticas para Análises
-      let analysisStats: JobWithStats[] = [];
-      if (analysesData?.length) {
-        const ids = analysesData.map(j => j.id);
-        const { data: jcData } = await supabase.from('job_candidates').select('job_id, score').in('job_id', ids);
-        const cnt: Record<string, number> = {};
-        const top: Record<string, number> = {};
-        (jcData ?? []).forEach(row => {
-          cnt[row.job_id] = (cnt[row.job_id] ?? 0) + 1;
-          if ((row.score || 0) >= 70) top[row.job_id] = (top[row.job_id] ?? 0) + 1;
-        });
-        analysisStats = analysesData.map(j => ({
-          ...j,
-          type: 'analysis',
-          totalCandidates: cnt[j.id] ?? 0,
-          topCandidates: top[j.id] ?? 0
-        }));
-      }
-
-      // 4. Buscar estatísticas para Vagas Criadas
+      // 2. Buscar estatísticas para Vagas Criadas
       let whiteLabelStats: JobWithStats[] = [];
       if (whiteLabelData?.length) {
         const ids = whiteLabelData.map(j => j.id);
@@ -247,8 +220,8 @@ export const Dashboard = () => {
         }));
       }
 
-      // Mesclar e ordenar por data
-      const merged = [...analysisStats, ...whiteLabelStats].sort((a, b) => 
+      // Ordenar por data
+      const merged = whiteLabelStats.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
@@ -287,16 +260,15 @@ export const Dashboard = () => {
     : jobs;
 
   // Group data by date for Area Chart (Volume Histórico)
-  const groupedByDate: Record<string, { name: string, Vagas: number, Analises: number, Match: number }> = {};
+  const groupedByDate: Record<string, { name: string, Vagas: number, Match: number }> = {};
   
   filteredJobs.slice().reverse().forEach(j => {
     const date = j.created_at.slice(0, 10);
     const dayMonth = `${date.slice(8, 10)}/${date.slice(5, 7)}`;
     if (!groupedByDate[date]) {
-      groupedByDate[date] = { name: dayMonth, Vagas: 0, Analises: 0, Match: 0 };
+      groupedByDate[date] = { name: dayMonth, Vagas: 0, Match: 0 };
     }
-    if (j.type === 'job') groupedByDate[date].Vagas += j.totalCandidates;
-    else groupedByDate[date].Analises += j.totalCandidates;
+    groupedByDate[date].Vagas += j.totalCandidates;
     groupedByDate[date].Match += j.topCandidates;
   });
 
@@ -347,7 +319,7 @@ export const Dashboard = () => {
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400 }}>
         <p style={{ color: '#ef4444', fontWeight: 600, marginBottom: 8 }}>Erro ao carregar</p>
         <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{error}</p>
-        <button onClick={() => fetchData(profile.userId)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Tentar novamente</button>
+        <button onClick={() => fetchData()} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Tentar novamente</button>
       </div>
     </div>
   );
@@ -554,9 +526,8 @@ export const Dashboard = () => {
             <Briefcase style={{ width: 28, height: 28, color: 'var(--primary)' }} />
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nenhuma vaga encontrada</p>
-          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova análise ou vaga para começar a ver os dados aqui.</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova vaga para começar a ver os dados aqui.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24 }}>
-            <button onClick={() => navigate('/analise/nova')} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Nova Análise</button>
             <button onClick={() => navigate('/vagas/nova')} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Criar Vaga</button>
           </div>
         </div>
@@ -609,10 +580,6 @@ export const Dashboard = () => {
                           <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
                           <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="gAnalise" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                        </linearGradient>
                         <linearGradient id="gMatch" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
                           <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
@@ -641,7 +608,6 @@ export const Dashboard = () => {
                         }}
                       />
                       <Area type="monotone" dataKey="Vagas" stroke="#6366f1" strokeWidth={2.5} fill="url(#gVaga)" dot={false} activeDot={{ r: 5, fill: '#6366f1' }} />
-                      <Area type="monotone" dataKey="Analises" stroke="#a78bfa" strokeWidth={2.5} fill="url(#gAnalise)" dot={false} activeDot={{ r: 5, fill: '#a78bfa' }} />
                       <Area type="monotone" dataKey="Match" stroke="#22c55e" strokeWidth={2.5} fill="url(#gMatch)" dot={false} activeDot={{ r: 5, fill: '#22c55e' }} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -839,7 +805,7 @@ export const Dashboard = () => {
                   return (
                     <div key={j.id} 
                       className="top-row" 
-                      onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')}
+                      onClick={() => navigate(`/vagas/${j.id}/candidatos`)}
                       style={{ padding: '10px 8px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderRadius: 8, transition: 'all 0.2s' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -894,7 +860,7 @@ export const Dashboard = () => {
                 const p = planetVariants[j.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % planetVariants.length];
 
                 return (
-                  <div key={j.id} onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')} 
+                  <div key={j.id} onClick={() => navigate(`/vagas/${j.id}/candidatos`)} 
                     className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
                     style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' || bgTheme === 'frequence' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                     onMouseEnter={e => { 

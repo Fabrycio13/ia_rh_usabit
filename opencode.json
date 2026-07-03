@@ -1,5 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "docs/manuais/componentes_e_padroes.md",
+    "docs/manuais/identidade_visual.md",
+    ".specify/memory/constitution.md",
+    "docs/security/SECURITY_BACKLOG.md"
+  ],
+  "default_agent": "orquestrador",
   "mcp": {
     "Figma": {
       "type": "remote",
