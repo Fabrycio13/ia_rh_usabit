@@ -25,9 +25,9 @@ vi.mock('../src/core/services/supabase', () => ({
 }));
 
 describe('aiTools - tool definitions', () => {
-    it('openAiToolDefinitions tem 5 tools com formato OpenAI function calling', async () => {
+    it('openAiToolDefinitions tem 4 tools com formato OpenAI function calling', async () => {
         const { openAiToolDefinitions } = await import('../src/core/services/aiTools');
-        expect(openAiToolDefinitions).toHaveLength(5);
+        expect(openAiToolDefinitions).toHaveLength(4);
         openAiToolDefinitions.forEach(t => {
             expect(t.type).toBe('function');
             expect(t.function.name).toBeTruthy();
@@ -44,14 +44,6 @@ describe('aiTools - tool definitions', () => {
 });
 
 describe('aiTools - assistant functions', () => {
-    it('list_jobs retorna vagas ordenadas', async () => {
-        const { get_assistant_tools } = await import('../src/core/services/aiTools');
-        const tools = get_assistant_tools();
-        const result = await tools.list_jobs();
-        expect(result).toHaveLength(2);
-        expect(result[0].name).toBe('Vaga Frontend');
-    });
-
     it('search_candidates filtra por query', async () => {
         const { get_assistant_tools } = await import('../src/core/services/aiTools');
         const tools = get_assistant_tools();

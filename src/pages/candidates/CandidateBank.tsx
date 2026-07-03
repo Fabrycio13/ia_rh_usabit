@@ -30,7 +30,7 @@ export function extractVagaName(field: unknown): string | undefined {
 }
 
 // â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface JCDataRow { job_id?: string; vaga_id?: string }
+interface JCDataRow { vaga_id?: string }
 interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
 interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
 interface HistoryEntry { job_id: string; job_name?: string; job_title?: string; score?: number; match_score?: number; analyzed_at?: string; date?: string; created_at?: string; skills?: string; habilidades?: string; summary?: string; experience?: string; experiencia?: string; strengths?: string; positivePoints?: string; pontos_positivos?: string; positive_points?: string; education?: string; formacao?: string; gaps?: string; redFlags?: string; pontos_atencao?: string; attention_points?: string; job_code?: string; code?: string; resume_url?: string | null }
@@ -186,7 +186,7 @@ export const CandidateBank = () => {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
@@ -202,7 +202,7 @@ export const CandidateBank = () => {
       if (error) {
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -215,7 +215,7 @@ export const CandidateBank = () => {
         setCandidates(((fallback ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
           ...c,
           vagas: [...new Set(
-            (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+            (c.vagas_candidaturas ?? []).map((vc) => extractVagaName(vc.vagas_white_label)).filter((s: unknown): s is string => !!s)
           )]
         }))) as unknown as Candidate[]);
         return;
@@ -224,7 +224,7 @@ export const CandidateBank = () => {
       setCandidates(((data ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
         ...c,
         vagas: [...new Set(
-          (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+          (c.vagas_candidaturas ?? []).map((vc) => extractVagaName(vc.vagas_white_label)).filter((s: unknown): s is string => !!s)
         )]
       }))) as unknown as Candidate[]);
     } finally {
@@ -315,14 +315,13 @@ export const CandidateBank = () => {
     try {
       const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
-        supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
+        supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
         supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
       const validJobIds = new Set();
       (jcData ?? []).forEach((jc: JCDataRow) => {
-        if (jc.job_id) validJobIds.add(jc.job_id);
         if (jc.vaga_id) validJobIds.add(jc.vaga_id);
       });
       console.log('[enrichCandidate] validJobIds:', Array.from(validJobIds));
@@ -829,16 +828,14 @@ export const CandidateBank = () => {
           onAnalyzeWithVagas={(cid) => setReanalysingCandId(cid)}
           onDeleteFromBank={async (id) => {
             const cand = candidates.find(c => c.id === id);
-            await Promise.all([
-              supabase.from('candidates').delete().eq('id', id),
-              supabase.from('job_candidates').delete().eq('candidate_id', id),
-              cand?.email
-                ? supabase.from('vagas_candidaturas')
+            await supabase.from('vagas_candidaturas').delete().eq('candidate_id', id);
+            await supabase.from('candidates').delete().eq('id', id);
+            if (cand?.email) {
+                await supabase.from('vagas_candidaturas')
                     .update({ status: 'pending' })
                     .eq('candidate_email', cand.email)
-                    .eq('status', 'talent_bank')
-                : Promise.resolve(),
-            ]);
+                    .eq('status', 'talent_bank');
+            }
             setSelected(null);
             if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}

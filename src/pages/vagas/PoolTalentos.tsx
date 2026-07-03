@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { downloadResume } from '../../core/utils/storage';
-import { extractTextFromPDF } from '../../core/services/pdfExtractor';
+import { extractTextFromPDF, pdfToImages } from '../../core/services/pdfExtractor';
 import { FileText, Target, Search, X, Loader, Plus, ChevronLeft, ChevronRight, CheckSquare, Filter, ChevronDown, Trash2, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { handleViewResume } from '../../core/utils/storage';
@@ -42,6 +42,40 @@ interface Candidate {
     raw_text?: string | null;
     tags?: string[];
     source?: string | null;
+    /** FK para candidates (Banco de Talentos) — NULL enquanto não foi pro Banco */
+    candidate_id?: string | null;
+}
+
+/** Mapeia uma row de vagas_candidaturas (Pool) para o formato Candidate usado na UI. */
+function mapVCToCandidate(vc: Record<string, unknown>): Candidate {
+    return {
+        id: vc.id as string,
+        name: (vc.candidate_name as string) || '',
+        email: (vc.candidate_email as string) || '',
+        phone: (vc.candidate_phone as string) ?? null,
+        location: (vc.candidate_location as string) ?? null,
+        linkedin: (vc.candidate_linkedin as string) ?? null,
+        resume_url: (vc.resume_url as string) ?? null,
+        resume_file_name: (vc.resume_file_name as string) ?? null,
+        created_at: (vc.applied_at as string) || (vc.created_at as string) || new Date().toISOString(),
+        status: (vc.status as string) || 'pending',
+        gender: (vc.candidate_gender as string) ?? null,
+        age: (vc.candidate_age as string) ?? null,
+        address: (vc.address as string) ?? null,
+        portfolio: (vc.portfolio as string) ?? null,
+        cep: (vc.cep as string) ?? null,
+        address_number: (vc.address_number as string) ?? null,
+        complement: (vc.complement as string) ?? null,
+        skills: (vc.skills as string) ?? null,
+        experience: (vc.experience as string) ?? null,
+        education: (vc.education as string) ?? null,
+        analysis: (vc.analysis as Record<string, unknown>) ?? null,
+        viewed_at: (vc.viewed_at as string) ?? null,
+        raw_text: (vc.raw_text as string) ?? null,
+        tags: (vc.tags as string[]) ?? undefined,
+        source: (vc.source as string) ?? null,
+        candidate_id: (vc.candidate_id as string) ?? null,
+    };
 }
 
 interface VagaItem {
@@ -132,15 +166,16 @@ export const PoolTalentos = () => {
         const fetchData = async () => {
             if (!profile.organization_id) return;
             try {
+                // Pool de Talentos: vagas_candidaturas SEM vaga (vaga_id IS NULL)
                 const { data, error } = await supabase
-                    .from('candidates')
+                    .from('vagas_candidaturas')
                     .select('*')
-                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                    .is('vaga_id', null)
                     .eq('organization_id', profile.organization_id)
-                    .order('created_at', { ascending: false });
+                    .order('applied_at', { ascending: false });
 
                 if (error) throw error;
-                setCandidatos(data || []);
+                setCandidatos((data ?? []).map(mapVCToCandidate));
             } catch (err) {
                 console.error('Erro ao carregar pool de talentos:', err);
                 toast.error('Erro ao carregar candidatos');
@@ -179,10 +214,10 @@ export const PoolTalentos = () => {
 
     const fetchCandidateDetail = async (c: Candidate) => {
         try {
-            // Mark as viewed
+            // Mark as viewed (vagas_candidaturas, não candidates)
             if (!c.viewed_at) {
                 supabase
-                    .from('candidates')
+                    .from('vagas_candidaturas')
                     .update({ viewed_at: new Date().toISOString() })
                     .eq('id', c.id)
                     .then(() => {
@@ -192,14 +227,28 @@ export const PoolTalentos = () => {
 
             const aiRaw = (c.analysis || {}) as unknown as Record<string, unknown>;
 
-            const { data: jcData } = await supabase
-                .from('job_candidates')
-                .select('job_id, vaga_id')
-                .eq('candidate_id', c.id);
+            // Buscar vagas vinculadas: candidaturas com vaga_id NOT NULL do mesmo candidato
+            // Match por candidate_id (se já foi pro Banco) ou por email
+            let jcData: { vaga_id?: string }[] = [];
+            if (c.candidate_id) {
+                const { data } = await supabase
+                    .from('vagas_candidaturas')
+                    .select('vaga_id')
+                    .not('vaga_id', 'is', null)
+                    .eq('candidate_id', c.candidate_id);
+                jcData = data ?? [];
+            } else if (c.email) {
+                const { data } = await supabase
+                    .from('vagas_candidaturas')
+                    .select('vaga_id')
+                    .not('vaga_id', 'is', null)
+                    .eq('candidate_email', c.email)
+                    .eq('organization_id', profile.organization_id);
+                jcData = data ?? [];
+            }
 
             const validJobIds = new Set<string>();
-            (jcData ?? []).forEach((jc: { job_id?: string; vaga_id?: string }) => {
-                if (jc.job_id) validJobIds.add(jc.job_id);
+            (jcData ?? []).forEach((jc: { vaga_id?: string }) => {
                 if (jc.vaga_id) validJobIds.add(jc.vaga_id);
             });
 
@@ -314,10 +363,7 @@ export const PoolTalentos = () => {
     const handleDeleteCandidate = async (candidate: Candidate) => {
         if (!window.confirm(`Tem certeza que deseja remover "${candidate.name}" do Pool de Talentos?`)) return;
         try {
-            await Promise.all([
-                supabase.from('candidates').delete().eq('id', candidate.id),
-                supabase.from('job_candidates').delete().eq('candidate_id', candidate.id)
-            ]);
+            await supabase.from('vagas_candidaturas').delete().eq('id', candidate.id);
             toast.success('Candidato removido do pool');
             setCandidatos(prev => prev.filter(c => c.id !== candidate.id));
         } catch (err) {
@@ -326,7 +372,7 @@ export const PoolTalentos = () => {
         }
     };
 
-    const handleAIAnalyze = (candidateId: string) => {
+    const handleAIAnalyze = async (candidateId: string) => {
         const candidate = candidatos.find(c => c.id === candidateId);
         if (candidate) {
             setAiCandidate(candidate);
@@ -339,48 +385,110 @@ export const PoolTalentos = () => {
         setShowAIConfirm(false);
         setAiAnalyzing(true);
         try {
-            const { data: result, error } = await supabase.functions.invoke('enrich-candidate', { body: { candidateId: aiCandidate.id } })
-            if (error) throw new Error(error.message)
-            if (result && (result as Record<string, unknown>).skipped) {
-                const reason = (result as Record<string, unknown>).reason || 'motivo desconhecido'
-                toast.error(`Análise ignorada: ${reason}`)
-                return
+            if (!aiCandidate.resume_url) {
+                toast.error('Candidato sem currículo');
+                setAiAnalyzing(false);
+                return;
             }
-            // Buscar candidato ATUALIZADO do banco
+
+            // Verifica se texto tem palavras reais (3+ letras ASCII) — lixo binário não tem
+            const isLegibleText = (text: string): boolean => {
+                if (!text || text.length < 50) return false;
+                const words = text.match(/[a-zA-Z]{3,}/g) || [];
+                return words.length >= 5;
+            };
+
+            // 1. Baixar PDF
+            const file = await downloadResume(aiCandidate.resume_url, aiCandidate.resume_file_name || 'curriculo.pdf');
+
+            // 2. Tentar extrair texto (pdfjs-dist no frontend — funciona pra PDF de texto)
+            let fileText: string | undefined;
+            let images: string[] | undefined;
+
+            const extracted = await extractTextFromPDF(file);
+            if (isLegibleText(extracted)) {
+                // PDF de texto — barato, usa modo texto
+                fileText = extracted;
+                // Salvar raw_text legível pra reuso
+                supabase.from('vagas_candidaturas').update({ raw_text: extracted }).eq('id', aiCandidate.id).then(() => {}, () => {});
+            } else {
+                // PDF escaneado/imagem — converte em imagens pra vision
+                images = await pdfToImages(file);
+            }
+
+            if (!fileText && (!images || images.length === 0)) {
+                toast.error('Não foi possível ler o PDF do currículo');
+                setAiAnalyzing(false);
+                return;
+            }
+
+            // 3. Chamar openai-proxy (texto = barato, imagens = vision)
+            const { data: aiResult, error: aiError } = await supabase.functions.invoke('openai-proxy', {
+                body: {
+                    type: 'extraction',
+                    data: { fileText, images },
+                },
+            });
+
+            if (aiError) throw new Error(aiError.message);
+            if (!aiResult?.choices?.[0]?.message?.content) {
+                throw new Error('Resposta vazia da IA');
+            }
+
+            // 4. Parsear resposta JSON da IA
+            let parsed: Record<string, unknown> = {};
+            try {
+                const content = aiResult.choices[0].message.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+                parsed = JSON.parse(content);
+            } catch (e) {
+                console.error('Erro ao parsear resposta da IA:', e);
+                toast.error('Erro ao processar resposta da IA');
+                setAiAnalyzing(false);
+                return;
+            }
+
+            // 5. Montar analysis JSONB
+            const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : [];
+            const analysis: Record<string, unknown> = {};
+            if (parsed.experience) analysis.experience = parsed.experience;
+            if (parsed.education) analysis.education = parsed.education;
+            if (skillsArr.length) analysis.skills = skillsArr;
+
+            // 6. Salvar em vagas_candidaturas
+            const updates: Record<string, unknown> = {
+                is_analyzed: true,
+                analysis,
+            };
+            if (skillsArr.length) {
+                updates.skills = skillsArr.join(', ');
+                updates.tags = skillsArr.map(s => s.toLowerCase());
+            }
+            if (parsed.experience) updates.experience = parsed.experience;
+            if (parsed.education) updates.education = parsed.education;
+
+            const { error: updateErr } = await supabase
+                .from('vagas_candidaturas')
+                .update(updates)
+                .eq('id', aiCandidate.id);
+
+            if (updateErr) throw new Error(updateErr.message);
+
+            // 7. Recarregar e reabrir painel
+            setSelectedCandDetail(null);
             const { data: updated } = await supabase
-                .from('candidates')
+                .from('vagas_candidaturas')
                 .select('*')
                 .eq('id', aiCandidate.id)
-                .single()
-            if (!updated) throw new Error('Candidato não encontrado')
-
-            // Atualizar lista
-            setCandidatos(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c))
-
-            // Se o painel estiver aberto, atualizar direto
-            setSelectedCandDetail(prev => {
-                if (!prev || prev.id !== updated.id) return prev
-                const aiRaw = (updated.analysis || {}) as Record<string, unknown>
-                function optStr(v: unknown): string | null {
-                    if (v == null) return null
-                    if (typeof v === 'string') return v
-                    if (Array.isArray(v)) return v.join(', ')
-                    return String(v)
-                }
-                return {
-                    ...prev,
-                    skills: optStr(aiRaw['skills'] || updated.skills),
-                    experience: optStr(aiRaw['experience'] || updated.experience),
-                    education: optStr(aiRaw['education'] || updated.education),
-                    analysis: updated.analysis,
-                    raw_text: updated.raw_text,
-                    tags: updated.tags || [],
-                }
-            })
-            toast.success('Currículo analisado com sucesso!')
+                .single();
+            if (updated) {
+                const mapped = mapVCToCandidate(updated as unknown as Record<string, unknown>);
+                setCandidatos(prev => prev.map(c => c.id === mapped.id ? mapped : c));
+                fetchCandidateDetail(mapped);
+            }
+            toast.success('Currículo analisado com sucesso!');
         } catch (e) {
-            console.error('Erro ao analisar currículo:', e)
-            toast.error('Erro ao analisar currículo com IA')
+            console.error('Erro ao analisar currículo:', e);
+            toast.error('Erro ao analisar currículo com IA');
         } finally {
             setAiAnalyzing(false);
             setAiCandidate(null);
@@ -447,52 +555,29 @@ export const PoolTalentos = () => {
 
             const aiData = result || {};
 
-            await supabase.from('vagas_candidaturas').insert({
+            // "Tacar pra vaga" = UPDATE na candidatura do Pool setando vaga_id
+            // O candidato sai do Pool e entra na Gestão de Vagas
+            await supabase.from('vagas_candidaturas').update({
                 vaga_id: vaga.id,
-                organization_id: profile.organization_id,
-                candidate_name: analyzingCandidate.name,
-                candidate_email: analyzingCandidate.email,
-                candidate_phone: analyzingCandidate.phone,
-                candidate_location: analyzingCandidate.location,
-                candidate_linkedin: analyzingCandidate.linkedin,
-                candidate_gender: analyzingCandidate.gender,
-                candidate_age: analyzingCandidate.age,
-                resume_url: analyzingCandidate.resume_url,
-                resume_file_name: analyzingCandidate.resume_file_name,
                 status: 'reviewed',
                 match_score: (aiData as unknown as Record<string, unknown>)?.score ?? 0,
                 source: 'transferred_from_pool',
-                answers: { _ai_analysis: aiData }
-            });
-
-            await supabase.from('job_candidates').upsert({
-                candidate_id: analyzingCandidate.id,
-                vaga_id: vaga.id,
-                user_id: profile.userId,
-                score: (aiData as unknown as Record<string, unknown>)?.score ?? 0,
-                status: 'reviewed'
-            }, { onConflict: 'candidate_id,vaga_id' });
-
-            const oldAnalysis = (analyzingCandidate.analysis || {}) as Record<string, unknown>;
-            await supabase.from('candidates').update({
-                source: null,
-                analysis: {
-                    ...oldAnalysis,
-                    source: 'transferred'
-                }
+                answers: { _ai_analysis: aiData },
+                analysis_vs_vaga: aiData as unknown as Record<string, unknown>
             }).eq('id', analyzingCandidate.id);
 
             toast.success(`Candidato analisado para a vaga "${vaga.title}"`);
             closeAnalyzeModal();
             setSelectedCandDetail(null);
+            // Recarregar Pool (sem o candidato que foi pra Gestão)
             if (profile.organization_id) {
                 const { data } = await supabase
-                    .from('candidates')
+                    .from('vagas_candidaturas')
                     .select('*')
-                    .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                    .is('vaga_id', null)
                     .eq('organization_id', profile.organization_id)
-                    .order('created_at', { ascending: false });
-                if (data) setCandidatos(data);
+                    .order('applied_at', { ascending: false });
+                if (data) setCandidatos(data.map(mapVCToCandidate));
             }
         } catch (err) {
             console.error('[Pool] Erro ao reanalisar candidato:', err);
@@ -880,13 +965,13 @@ export const PoolTalentos = () => {
                                 setSelectedCandDetail(null);
                                 if (profile.organization_id) {
                                     supabase
-                                        .from('candidates')
+                                        .from('vagas_candidaturas')
                                         .select('*')
-                                        .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                        .is('vaga_id', null)
                                         .eq('organization_id', profile.organization_id)
-                                        .order('created_at', { ascending: false })
+                                        .order('applied_at', { ascending: false })
                                         .then(({ data }) => {
-                                            if (data) setCandidatos(data);
+                                            if (data) setCandidatos(data.map(mapVCToCandidate));
                                         });
                                 }
                             }}
@@ -901,19 +986,16 @@ export const PoolTalentos = () => {
                                 setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
                             }}
                             onDeleteFromBank={async (id) => {
-                                await Promise.all([
-                                    supabase.from('candidates').delete().eq('id', id),
-                                    supabase.from('job_candidates').delete().eq('candidate_id', id)
-                                ]);
+                                await supabase.from('vagas_candidaturas').delete().eq('id', id);
                                 setSelectedCandDetail(null);
                                 if (profile.organization_id) {
                                     const { data } = await supabase
-                                        .from('candidates')
+                                        .from('vagas_candidaturas')
                                         .select('*')
-                                        .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                        .is('vaga_id', null)
                                         .eq('organization_id', profile.organization_id)
-                                        .order('created_at', { ascending: false });
-                                    if (data) setCandidatos(data);
+                                        .order('applied_at', { ascending: false });
+                                    if (data) setCandidatos(data.map(mapVCToCandidate));
                                 }
                             }}
                             hidePipelineAndBlacklist={true}
@@ -934,13 +1016,13 @@ export const PoolTalentos = () => {
                         setSelectedCandDetail(null);
                         if (profile.organization_id) {
                             supabase
-                                .from('candidates')
+                                .from('vagas_candidaturas')
                                 .select('*')
-                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
-                                .order('created_at', { ascending: false })
+                                .order('applied_at', { ascending: false })
                                 .then(({ data }) => {
-                                    if (data) setCandidatos(data);
+                                    if (data) setCandidatos(data.map(mapVCToCandidate));
                                 });
                         }
                     }}
@@ -955,19 +1037,16 @@ export const PoolTalentos = () => {
                         setSelectedCandDetail(prev => prev && prev.id === cid ? { ...prev, is_blacklisted: val } : prev);
                     }}
                     onDeleteFromBank={async (id) => {
-                        await Promise.all([
-                            supabase.from('candidates').delete().eq('id', id),
-                            supabase.from('job_candidates').delete().eq('candidate_id', id)
-                        ]);
+                        await supabase.from('vagas_candidaturas').delete().eq('id', id);
                         setSelectedCandDetail(null);
                         if (profile.organization_id) {
                             const { data } = await supabase
-                                .from('candidates')
+                                .from('vagas_candidaturas')
                                 .select('*')
-                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
-                                .order('created_at', { ascending: false });
-                            if (data) setCandidatos(data);
+                                .order('applied_at', { ascending: false });
+                            if (data) setCandidatos(data.map(mapVCToCandidate));
                         }
                     }}
                     hidePipelineAndBlacklist={true}
@@ -1167,13 +1246,13 @@ export const PoolTalentos = () => {
                         setShowAddModal(false);
                         if (profile.organization_id) {
                             supabase
-                                .from('candidates')
+                                .from('vagas_candidaturas')
                                 .select('*')
-                                .or('source.eq.spontaneous,source.eq.manual_add,analysis->>source.eq.spontaneous,analysis->>source.eq.manual_add')
+                                .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
-                                .order('created_at', { ascending: false })
+                                .order('applied_at', { ascending: false })
                                 .then(({ data }) => {
-                                    if (data) setCandidatos(data);
+                                    if (data) setCandidatos(data.map(mapVCToCandidate));
                                 });
                         }
                     }}
@@ -1257,7 +1336,7 @@ export const PoolTalentos = () => {
                                             try {
                                                 const file = await downloadResume(c.resume_url, 'curriculo.pdf');
                                                 rawText = await extractTextFromPDF(file);
-                                                supabase.from('candidates').update({ raw_text: rawText }).eq('id', c.id).then(() => {}, () => {});
+                                                supabase.from('vagas_candidaturas').update({ raw_text: rawText }).eq('id', c.id).then(() => {}, () => {});
                                             } catch (e) {
                                                 console.warn(`[Batch] Falha ao extrair texto de ${c.name}:`, e);
                                             }
@@ -1266,60 +1345,21 @@ export const PoolTalentos = () => {
                                     }
                                     if (candidatesForAI.length === 0) { toast.error('Nenhum candidato com dados'); return; }
                                     const results = await batchMatchToJob(candidatesForAI, vaga.title, jobDesc);
-                                    // Salvar resultados
+                                    // Salvar resultados: UPDATE em cada candidatura do Pool setando vaga_id
                                     let savedCount = 0;
                                     for (const r of results) {
                                         const cand = selected.find(c => c.id === r.candidateId);
                                         if (!cand) continue;
-                                        const historyEntry = {
-                                            type: 'batch_match',
-                                            vaga_id: vaga.id,
-                                            vaga_title: vaga.title,
-                                            date: new Date().toISOString(),
-                                            score: r.score,
-                                            classification: r.classification,
-                                            skills: r.skills,
-                                            experience: r.experience,
-                                            education: r.education,
-                                            summary: r.summary,
-                                            strengths: r.strengths,
-                                            gaps: r.gaps,
-                                            recommendation: r.recommendation,
-                                        };
-                                        const oldAnalysis = (cand.analysis || {}) as Record<string, unknown>;
-                                        const oldHistory = (oldAnalysis.history || []) as unknown as Record<string, unknown>[];
                                         const aiData = r as unknown as Record<string, unknown>;
-                                        await Promise.all([
-                                            supabase.from('candidates').update({
-                                                score: r.score,
-                                                source: null,
-                                                analysis: { ...oldAnalysis, history: [...oldHistory, historyEntry] },
-                                            }).eq('id', r.candidateId),
-                                            supabase.from('vagas_candidaturas').insert({
-                                                vaga_id: vaga.id,
-                                                organization_id: profile.organization_id,
-                                                candidate_name: cand.name,
-                                                candidate_email: cand.email,
-                                                candidate_phone: cand.phone,
-                                                candidate_location: cand.location,
-                                                candidate_linkedin: cand.linkedin,
-                                                candidate_gender: cand.gender,
-                                                candidate_age: cand.age,
-                                                resume_url: cand.resume_url,
-                                                resume_file_name: cand.resume_file_name,
-                                                status: 'reviewed',
-                                                match_score: r.score,
-                                                source: 'transferred_from_pool',
-                                                answers: { _ai_analysis: aiData },
-                                            }),
-                                            supabase.from('job_candidates').upsert({
-                                                candidate_id: r.candidateId,
-                                                vaga_id: vaga.id,
-                                                user_id: profile.userId,
-                                                score: r.score,
-                                                status: 'reviewed',
-                                            }, { onConflict: 'candidate_id,vaga_id' }),
-                                        ]);
+                                        // "Tacar pra vaga" = UPDATE seta vaga_id (candidato sai do Pool, entra na Gestão)
+                                        await supabase.from('vagas_candidaturas').update({
+                                            vaga_id: vaga.id,
+                                            status: 'reviewed',
+                                            match_score: r.score,
+                                            source: 'transferred_from_pool',
+                                            answers: { _ai_analysis: aiData },
+                                            analysis_vs_vaga: aiData,
+                                        }).eq('id', r.candidateId);
                                         savedCount++;
                                     }
                                     // Remover candidatos do state local (sem precisar F5)

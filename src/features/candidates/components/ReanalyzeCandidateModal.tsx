@@ -124,6 +124,7 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
             await supabase.from('vagas_candidaturas').insert({
                 vaga_id: vaga.id,
                 organization_id: organizationId,
+                candidate_id: candidate.id,
                 candidate_name: candidate.name,
                 candidate_email: candidate.email,
                 candidate_phone: candidate.phone,
@@ -135,16 +136,9 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
                 status: 'reviewed',
                 match_score: aiResult.score ?? 0,
                 source: 'talent_bank_reanalysis',
-                answers: { _ai_analysis: aiData }
+                answers: { _ai_analysis: aiData },
+                analysis_vs_vaga: aiData
             });
-
-            await supabase.from('job_candidates').upsert({
-                candidate_id: candidate.id,
-                vaga_id: vaga.id,
-                user_id: userId,
-                score: aiResult.score ?? 0,
-                status: 'reviewed'
-            }, { onConflict: 'candidate_id,vaga_id' });
 
             const oldAnalysis = (candidate.analysis || {}) as Record<string, unknown>;
             const oldHistory = (oldAnalysis.history || []) as unknown as Record<string, unknown>[];

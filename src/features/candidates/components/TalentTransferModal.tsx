@@ -298,33 +298,17 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
             if (!dbCandidate) throw new Error('Falha ao salvar candidato');
 
-            // 1.5. Vincular à vaga no Banco de Talentos (tabela job_candidates)
-            // job.id pode ser de vagas_white_label (vaga_id) ou jobs (job_id)
-            const { data: vagaExists } = await supabase
-                .from('vagas_white_label')
-                .select('id')
-                .eq('id', job.id)
-                .maybeSingle();
+            // 1.5. Vincular candidatura existente ao perfil master no Banco de Talentos
+            // No novo modelo, vagas_candidaturas já tem candidate_id FK.
+            // Apenas setamos o candidate_id na candidatura existente (match por email).
+            const { error: vcLinkError } = await supabase
+                .from('vagas_candidaturas')
+                .update({ candidate_id: dbCandidate.id })
+                .eq('candidate_email', candidate.email)
+                .is('candidate_id', 'null');
 
-            const jcPayload: Record<string, unknown> = {
-                candidate_id: dbCandidate.id,
-                user_id: profile.userId,
-                score: candidate.match_score || 0,
-                status: 'Banco de Talentos'
-            };
-
-            if (vagaExists) {
-                jcPayload.vaga_id = job.id;
-            } else {
-                jcPayload.job_id = job.id;
-            }
-
-            const { error: jcError } = await supabase
-                .from('job_candidates')
-                .upsert(jcPayload, { onConflict: vagaExists ? 'candidate_id,vaga_id' : 'candidate_id,job_id' });
-            
-            if (jcError) {
-                toast.error('Erro ao vincular vaga ao banco: ' + jcError.message);
+            if (vcLinkError) {
+                toast.error('Erro ao vincular candidatura ao banco: ' + vcLinkError.message);
             }
 
             // 2. Atualizar status na vaga original

@@ -109,8 +109,11 @@ serve(async (req) => {
   }
 
   try {
-    const { candidateId } = await req.json()
-    console.log('[enrich-candidate] Iniciando para', candidateId)
+    const body = await req.json()
+    const candidateId = body.candidateId
+    const source = body.source || 'candidates'  // 'candidates' (Banco) ou 'pool' (vagas_candidaturas)
+    const rawTextFromClient = body.rawText as string | undefined  // texto extraído no frontend (pdfjs-dist funciona lá)
+    console.log('[enrich-candidate] Iniciando para', candidateId, '| source:', source, '| rawText:', rawTextFromClient?.length || 0, 'chars')
 
     if (!candidateId) {
       return json({ error: 'candidateId obrigatório' }, 400)
@@ -121,42 +124,66 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    const { data: candidate, error: candidateErr } = await supabaseAdmin
-      .from('candidates')
-      .select('id, name, resume_url, is_analyzed, skills, experience, education')
-      .eq('id', candidateId)
-      .single()
+    // source='pool' → lê de vagas_candidaturas (campos candidate_*)
+    // source='candidates' (default) → lê de candidates (Banco de Talentos)
+    let candidate: Record<string, unknown> | null = null
+    if (source === 'pool') {
+      const { data, error: candidateErr } = await supabaseAdmin
+        .from('vagas_candidaturas')
+        .select('id, candidate_name, resume_url, is_analyzed, skills, experience, education, raw_text')
+        .eq('id', candidateId)
+        .single()
+      if (candidateErr || !data) {
+        console.error('[enrich-candidate] Candidatura não encontrada:', candidateErr?.message)
+        return json({ error: 'Candidato não encontrado' }, 404)
+      }
+      candidate = data as Record<string, unknown>
+    } else {
+      const { data, error: candidateErr } = await supabaseAdmin
+        .from('candidates')
+        .select('id, name, resume_url, is_analyzed, skills, experience, education, raw_text')
+        .eq('id', candidateId)
+        .single()
+      if (candidateErr || !data) {
+        console.error('[enrich-candidate] Candidato não encontrado:', candidateErr?.message)
+        return json({ error: 'Candidato não encontrado' }, 404)
+      }
+      candidate = data as Record<string, unknown>
+    }
 
-    if (candidateErr || !candidate) {
-      console.error('[enrich-candidate] Candidato não encontrado:', candidateErr?.message)
+    if (!candidate) {
       return json({ error: 'Candidato não encontrado' }, 404)
     }
 
-    if (!candidate.resume_url) {
-      console.log('[enrich-candidate] Sem currículo, pulando')
-      return json({ skipped: true, reason: 'sem currículo' })
+    // Usar texto extraído do frontend (rawTextFromClient) ou raw_text já salvo no banco
+    // NÃO tentar extrair PDF no Deno — pdfjs-dist não funciona aqui
+    let extractedText = rawTextFromClient || (candidate.raw_text as string | undefined) || ''
+
+    // Se ainda não tem texto, tentar baixar e extrair no Deno (fallback — pode não funcionar)
+    if (!extractedText) {
+      const resumeUrl = candidate.resume_url as string | null
+      if (!resumeUrl) {
+        console.log('[enrich-candidate] Sem currículo, pulando')
+        return json({ skipped: true, reason: 'sem currículo' })
+      }
+      const bucket = 'job-applications'
+      const path = resumeUrl.replace(`${bucket}/`, '')
+      console.log('[enrich-candidate] Fallback: baixando PDF no Deno:', path)
+      const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path)
+      if (downloadErr || !pdfBlob) {
+        console.error('[enrich-candidate] Erro ao baixar PDF:', downloadErr?.message)
+        return json({ skipped: true, reason: 'erro ao baixar PDF' })
+      }
+      const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer())
+      extractedText = await extractTextFromPdfBytes(pdfBuffer)
     }
 
-    const bucket = 'job-applications'
-    const path = candidate.resume_url.replace(`${bucket}/`, '')
-    console.log('[enrich-candidate] Baixando PDF:', path)
-    const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path)
-    if (downloadErr || !pdfBlob) {
-      console.error('[enrich-candidate] Erro ao baixar PDF:', downloadErr?.message)
-      return json({ error: 'Erro ao baixar PDF' }, 500)
-    }
-    console.log('[enrich-candidate] PDF baixado:', pdfBlob.size, 'bytes')
+    // Receber imagens do body (PDF escaneado/imagem → vision)
+    const images = body.images as string[] | undefined
 
-    const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer())
-    const extractedText = await extractTextFromPdfBytes(pdfBuffer)
-    console.log('[enrich-candidate] Texto extraído:', extractedText.length, 'chars')
-    if (!extractedText.trim()) {
-      console.warn('[enrich-candidate] Sem texto extraído do PDF')
-      return json({ skipped: true, reason: 'PDF sem texto' })
-    }
-
-    console.log('[enrich-candidate] Chamando OpenAI,', extractedText.length, 'chars')
-    const prompt = `Analise o currículo abaixo e retorne APENAS um JSON estrito (sem markdown, sem texto adicional) no formato:
+    // Se tem texto, usa prompt de texto. Se tem imagens, usa vision.
+    let aiRes: Response
+    const systemPrompt = `Analise o currículo e retorne APENAS um JSON estrito (sem markdown, sem texto adicional) no formato:
 {
   "skills": ["skill1", "skill2", ...],
   "experience": "Resumo da experiência profissional (ex: '5 anos em desenvolvimento web fullstack')",
@@ -164,16 +191,40 @@ serve(async (req) => {
   "summary": "Resumo profissional do candidato em 2-3 linhas",
   "feedback": "Análise geral do perfil: pontos fortes e áreas de atuação em 3-5 linhas"
 }
-Use string vazia ("") se um campo não for identificável.
+Use string vazia ("") se um campo não for identificável.`
 
-CURRÍCULO:
-${extractedText}`
-
-    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0 }),
-    })
+    if (extractedText.trim()) {
+      // PDF de texto — prompt normal
+      console.log('[enrich-candidate] Chamando OpenAI (texto),', extractedText.length, 'chars')
+      aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: `${systemPrompt}\n\nCURRÍCULO:\n${extractedText}` }],
+          max_tokens: 600, temperature: 0,
+        }),
+      })
+    } else if (images && images.length > 0) {
+      // PDF de imagem — vision (gpt-4o-mini suporta imagens)
+      console.log('[enrich-candidate] Chamando OpenAI (vision),', images.length, 'imagens')
+      const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [{ type: 'text', text: systemPrompt }]
+      for (const img of images.slice(0, 5)) {  // máx 5 imagens pra não estourar limite
+        content.push({ type: 'image_url', image_url: { url: img } })
+      }
+      aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content }],
+          max_tokens: 800, temperature: 0,
+        }),
+      })
+    } else {
+      console.warn('[enrich-candidate] Sem texto e sem imagens')
+      return json({ skipped: true, reason: 'PDF sem texto' })
+    }
     if (!aiRes.ok) {
       const errBody = await aiRes.text().catch(() => '')
       console.error('[enrich-candidate] OpenAI erro:', aiRes.status, errBody.slice(0, 200))
@@ -200,6 +251,13 @@ ${extractedText}`
     }
 
     const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : []
+    // Salvar skills/experience/education TAMBÉM no JSONB analysis — o CandidatePanel lê de lá
+    if (skillsArr.length) {
+      analysis.skills = skillsArr.map(s => sanitizeText(s))
+    }
+    if (parsed.experience) analysis.experience = sanitizeText(parsed.experience as string)
+    if (parsed.education) analysis.education = sanitizeText(parsed.education as string)
+
     const updates: Record<string, unknown> = {
       raw_text: sanitizeText(extractedText),
       is_analyzed: true,
@@ -209,10 +267,14 @@ ${extractedText}`
       updates.skills = skillsArr.map(s => sanitizeText(s)).join(', ')
       updates.tags = skillsArr.map((s: string) => sanitizeText(s).toLowerCase())
     }
-    if (parsed.experience && !candidate.experience) updates.experience = sanitizeText(parsed.experience as string)
-    if (parsed.education && !candidate.education) updates.education = sanitizeText(parsed.education as string)
+    const existingExperience = source === 'pool' ? candidate.experience : candidate.experience
+    const existingEducation = source === 'pool' ? candidate.education : candidate.education
+    if (parsed.experience && !existingExperience) updates.experience = sanitizeText(parsed.experience as string)
+    if (parsed.education && !existingEducation) updates.education = sanitizeText(parsed.education as string)
 
-    const { error: updateErr } = await supabaseAdmin.from('candidates').update(updates).eq('id', candidateId)
+    // Update na tabela certa conforme source
+    const tableName = source === 'pool' ? 'vagas_candidaturas' : 'candidates'
+    const { error: updateErr } = await supabaseAdmin.from(tableName).update(updates).eq('id', candidateId)
     if (updateErr) {
       console.error('[enrich-candidate] Erro update:', updateErr.message)
       return json({ error: updateErr.message }, 500)

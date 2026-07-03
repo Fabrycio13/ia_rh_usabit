@@ -87,10 +87,10 @@ serve(async (req) => {
       );
     }
 
-    // Buscar candidato no banco
+    // Buscar candidatura no banco (Pool = vagas_candidaturas)
     const { data: candidate, error: candidateError } = await supabaseAdmin
-      .from('candidates')
-      .select('name, email, organization_id')
+      .from('vagas_candidaturas')
+      .select('candidate_name, candidate_email, organization_id')
       .eq('id', candidateId)
       .single();
 
@@ -101,7 +101,9 @@ serve(async (req) => {
       );
     }
 
-    if (!candidate.email || !candidate.name) {
+    const candidateName = candidate.candidate_name;
+    const candidateEmail = candidate.candidate_email;
+    if (!candidateEmail || !candidateName) {
       return new Response(
         JSON.stringify({ error: 'Candidato sem dados de contato' }),
         { status: 400, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
@@ -127,8 +129,6 @@ serve(async (req) => {
       );
     }
 
-    const candidateName = candidate.name;
-    const candidateEmail = candidate.email;
     const candidateFirstName = candidateName.split(' ')[0];
 
     const html = `

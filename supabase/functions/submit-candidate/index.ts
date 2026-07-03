@@ -197,32 +197,34 @@ serve(async (req) => {
       }
     }
 
-    // 4. Upsert do candidato
+    // 4. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
+    const candidaturaData: Record<string, unknown> = {
+      vaga_id: body.vaga_id || null,
+      organization_id: body.organization_id,
+      candidate_name: body.name,
+      candidate_email: body.email,
+      candidate_phone: body.phone || null,
+      candidate_location: body.location || null,
+      candidate_linkedin: body.linkedin || null,
+      resume_url: body.resume_url || null,
+      resume_file_name: body.resume_file_name || null,
+      candidate_gender: body.gender || null,
+      candidate_age: body.age != null ? String(body.age) : null,
+      address: body.address || null,
+      portfolio: body.portfolio || null,
+      cep: body.cep || null,
+      address_number: body.address_number || null,
+      complement: body.complement || null,
+      status: body.status || 'pending',
+      source: body.source || 'spontaneous',
+      skills: body.skills || null,
+      experience: body.experience || null,
+      analysis: body.analysis || null,
+    };
+
     const { data, error } = await supabaseAdmin
-      .from('candidates')
-      .upsert({
-        email: body.email,
-        organization_id: body.organization_id,
-        name: body.name,
-        phone: body.phone || null,
-        location: body.location || null,
-        linkedin: body.linkedin || null,
-        resume_url: body.resume_url || null,
-        resume_file_name: body.resume_file_name || null,
-        gender: body.gender || null,
-        age: body.age != null ? String(body.age) : null,
-        address: body.address || null,
-        portfolio: body.portfolio || null,
-        cep: body.cep || null,
-        address_number: body.address_number || null,
-        complement: body.complement || null,
-        vaga_id: body.vaga_id || null,
-        status: body.status || 'pending',
-        source: body.source || null,
-        skills: body.skills || null,
-        experience: body.experience || null,
-        analysis: body.analysis || null,
-      }, { onConflict: 'email,organization_id' })
+      .from('vagas_candidaturas')
+      .insert(candidaturaData)
       .select('id')
       .single()
 

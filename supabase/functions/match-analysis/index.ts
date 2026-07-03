@@ -22,9 +22,9 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Buscar candidato + vaga
+    // 1. Buscar candidatura + vaga
     const [{ data: candidate, error: candidateErr }, { data: vaga, error: vagaErr }] = await Promise.all([
-      supabaseAdmin.from('candidates').select('id, name, resume_url, raw_text, skills, experience, education').eq('id', candidateId).single(),
+      supabaseAdmin.from('vagas_candidaturas').select('id, candidate_name, resume_url, raw_text, skills, experience, education').eq('id', candidateId).single(),
       supabaseAdmin.from('vagas_white_label').select('id, title, description, requirements, responsibilities, differentials').eq('id', vagaId).single(),
     ]);
 
@@ -52,7 +52,7 @@ serve(async (req) => {
 
     // 3. Montar dados do candidato para o prompt
     const candidateProfile = [
-      `Nome: ${candidate.name || 'Não informado'}`,
+      `Nome: ${candidate.candidate_name || 'Não informado'}`,
       candidate.skills ? `Skills: ${candidate.skills}` : '',
       candidate.experience ? `Experiência: ${candidate.experience}` : '',
       candidate.education ? `Formação: ${candidate.education}` : '',
@@ -113,12 +113,12 @@ ${candidateProfile}`;
     if (Array.isArray(parsed.gaps)) matchAnalysis.gaps = parsed.gaps;
     if (parsed.recommendation) matchAnalysis.recommendation = parsed.recommendation;
 
-    // 6. Atualizar candidates com score + analysis de match
+    // 6. Atualizar vagas_candidaturas com score + analysis de match
     const { error: updateErr } = await supabaseAdmin
-      .from('candidates')
+      .from('vagas_candidaturas')
       .update({
-        score: typeof parsed.score === 'number' ? parsed.score : 0,
-        analysis: matchAnalysis,
+        match_score: typeof parsed.score === 'number' ? parsed.score : 0,
+        analysis_vs_vaga: matchAnalysis,
       })
       .eq('id', candidateId);
 

@@ -8,20 +8,10 @@ import { supabase } from './supabase';
 
 export const get_assistant_tools = () => {
     return {
-        list_jobs: async () => {
-            const { data, error } = await supabase
-                .from('jobs')
-                .select('id, name, created_at')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            return data;
-        },
-
         search_candidates: async (params: { query?: string; jobName?: string; location?: string }) => {
             let q = supabase
                 .from('candidates')
-                .select('id, name, email, location, age, gender, score, job_candidates(jobs(name))');
+                .select('id, name, email, location, age, gender, score, vagas_candidaturas(vaga_id, candidate_name)');
 
             if (params.query) q = q.ilike('name', `%${params.query}%`);
             if (params.location) q = q.ilike('location', `%${params.location}%`);
@@ -29,10 +19,10 @@ export const get_assistant_tools = () => {
             const { data, error } = await q.order('score', { ascending: false });
             if (error) throw error;
 
-            type CandidateRow = { id: string; name?: string; email?: string; location?: string; score?: number; job_candidates?: { jobs?: { name?: string } }[] };
+            type CandidateRow = { id: string; name?: string; email?: string; location?: string; score?: number; vagas_candidaturas?: { vaga_id?: string; candidate_name?: string }[] };
             let filtered = ((data ?? []) as CandidateRow[]).map((c) => ({
                 ...c,
-                vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name).filter(Boolean) as string[]
+                vagas: (c.vagas_candidaturas ?? []).map((vc) => vc.candidate_name).filter(Boolean) as string[]
             }));
 
             if (params.jobName) {
@@ -58,30 +48,30 @@ export const get_assistant_tools = () => {
         },
 
         get_dashboard_stats: async () => {
-            const [{ count: jobsCount }, { count: candidatesCount }] = await Promise.all([
-                supabase.from('jobs').select('*', { count: 'exact', head: true }),
+            const [{ count: vagasCount }, { count: candidatesCount }] = await Promise.all([
+                supabase.from('vagas_white_label').select('*', { count: 'exact', head: true }),
                 supabase.from('candidates').select('*', { count: 'exact', head: true })
             ]);
 
             return {
-                total_vagas: jobsCount ?? 0,
+                total_vagas: vagasCount ?? 0,
                 total_candidatos: candidatesCount ?? 0,
             };
         },
 
         get_job_candidate_counts: async () => {
-            const { data: jobs, error: jobsError } = await supabase
-                .from('jobs')
-                .select('id, name');
+            const { data: vagas, error: vagasError } = await supabase
+                .from('vagas_white_label')
+                .select('id, title');
 
-            if (jobsError) throw jobsError;
+            if (vagasError) throw vagasError;
 
-            const result = await Promise.all((jobs || []).map(async (job) => {
+            const result = await Promise.all((vagas || []).map(async (vaga) => {
                 const { count } = await supabase
-                    .from('job_candidates')
+                    .from('vagas_candidaturas')
                     .select('*', { count: 'exact', head: true })
-                    .eq('job_id', job.id);
-                return { id: job.id, name: job.name, candidate_count: count ?? 0 };
+                    .eq('vaga_id', vaga.id);
+                return { id: vaga.id, name: vaga.title, candidate_count: count ?? 0 };
             }));
 
             return result.sort((a, b) => b.candidate_count - a.candidate_count);
@@ -101,18 +91,6 @@ export const openAiToolDefinitions: {
         };
     };
 }[] = [
-    {
-        type: "function",
-        function: {
-            name: "list_jobs",
-            description: "Lista todas as vagas/análises criadas pelo usuário. Útil para saber quais processos seletivos estão ativos.",
-            parameters: {
-                type: "object",
-                properties: {},
-                required: [],
-            },
-        }
-    },
     {
         type: "function",
         function: {

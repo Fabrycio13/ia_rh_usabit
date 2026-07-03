@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, FileText, Database, Star, CheckCircle2, ArrowRight, Key, Layout } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, MessageCircle, Search, HelpCircle, BookOpen, Lightbulb, AlertTriangle, Zap, Users, Briefcase, LayoutGrid, Database, Star, CheckCircle2, ArrowRight, Key, Layout } from 'lucide-react';
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
@@ -399,21 +399,6 @@ export const Ajuda = () => {
                                     link: '/vagas',
                                 },
                                 {
-                                    icon: FileText,
-                                    title: 'Análises',
-                                    desc: 'Analise currículos com IA',
-                                    color: '#8b5cf6',
-                                    steps: [
-                                        'Acesse "Análises" no menu',
-                                        'Crie uma análise ou selecione existente',
-                                        'Faça upload dos currículos (PDF)',
-                                        'Aguarde o processamento da IA',
-                                        'Revise os scores e detalhes',
-                                    ],
-                                    tip: 'PDFs de texto têm melhor extração que imagens',
-                                    link: '/analises',
-                                },
-                                {
                                     icon: LayoutGrid,
                                     title: 'Dashboard',
                                     desc: 'Acompanhe métricas e resultados',
@@ -686,7 +671,6 @@ export const Ajuda = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {[
                                 { label: 'Criar Nova Vaga', link: '/vagas/nova', color: '#3b82f6' },
-                                { label: 'Nova Análise', link: '/analise/nova', color: '#8b5cf6' },
                                 { label: 'Dashboard', link: '/dashboard', color: '#10b981' },
                                 { label: 'Banco de Candidatos', link: '/candidatos', color: '#f59e0b' },
                             ].map(link => (

@@ -1,50 +1,56 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# IA RH — Usabit people Constitution
+
+> Regras não-negociáveis do projeto. Supersede práticas locais.
+> Consulte para decisões arquiteturais e revisões de código.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Segurança de Dados (NON-NEGOTIABLE)
+Nenhum PII (email, telefone, endereço, CPF, CEP) em logs ou erros de cliente.
+Toda Edge Function pública com auth ou rate limit. Toda tabela com RLS.
+Respostas de erro genéricas (`'Erro interno'`), nunca raw stack traces ou detalhes de API externa.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Consistência Visual (NON-NEGOTIABLE)
+CSS via variáveis (`var(--text-main)`, `var(--bg-card)`, `var(--border)`), nunca `#fff`/`#000`.
+Componentes como `export const`, nunca `export default`. Ícones `lucide-react`.
+Dois temas (dark + light) sempre funcionais.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. TypeScript Estrito (NON-NEGOTIABLE)
+`strict: true`, `noUnusedLocals`, `noUnusedParameters`.
+Tipos com `interface` para objetos, não classes. Sem `any` sem justificativa.
+`verbatimModuleSyntax` e `erasableSyntaxOnly` habilitados.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. SQL com RLS em Camadas (NON-NEGOTIABLE)
+`IS NOT DISTINCT FROM` para org_id. `SECURITY DEFINER SET search_path` para helpers.
+Migration numerada, idempotente com `DO $$`.
+Roles: owner > administrador > supervisor > rh > convidado.
+Toda política cobre todos os 5 roles.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Qualidade com Evidência (NON-NEGOTIABLE)
+Toda funcionalidade nova com teste. `npm run lint && npx tsc --noEmit` antes de commit.
+Sem regressão de segurança. Testes de segurança nunca excluídos do CI.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Segurança (obrigatório para toda mudança)
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- **Edge Functions de email**: autenticação + rate limit obrigatórios
+- **Error handling**: mensagens genéricas ao cliente, log interno sem PII
+- **Storage RLS**: ownership checks por auth.uid() ou organization_id
+- **Anti-XSS**: DOMPurify (sanitizeHtml) para HTML injetável
+- **Anti-prompt-injection**: sanitizeAIInput() para inputs que vão para AI
+- **Audit trail**: activity_logs NÃO pode ser mutável (sem UPDATE/DELETE por não-owner)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Revisão de Código
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Toda mudança em SQL, RLS, auth, Edge Functions deve passar pelo @revisor
+- O revisor usa o formato 🔴 ALTA | 🟡 MÉDIA | 🟢 BAIXA | ❓ DÚVIDA
+- Issues de segurança são sempre no mínimo 🟡
+- Violações de NON-NEGOTIABLE no constitution são 🔴 e bloqueiam a implementação
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Constitution supersedes all other practices. Amendments require:
+1. Proposta documentada
+2. Aprovação por owner/lead
+3. Atualização deste documento com versão + data
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-06-29 | **Last Amended**: 2026-06-29

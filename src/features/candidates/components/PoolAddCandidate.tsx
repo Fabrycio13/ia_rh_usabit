@@ -130,23 +130,23 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
         // Tags manuais do batch (definidas pelo usuário)
         const tags = batchTags;
 
-        // Insert candidate
+        // Insert candidate no Pool (vagas_candidaturas com vaga_id NULL)
         const candidateData: Record<string, unknown> = {
-          name: extractedData.name && extractedData.name !== 'Não identificado' ? extractedData.name : entry.file.name.replace('.pdf', ''),
+          vaga_id: null,
           organization_id: profile.organization_id,
-          user_id: profile.userId,
+          candidate_name: extractedData.name && extractedData.name !== 'Não identificado' ? extractedData.name : entry.file.name.replace('.pdf', ''),
           status: 'pending',
           source: 'manual_add',
           raw_text: rawText,
           is_analyzed: true,
           tags,
         };
-        if (extractedData.email) candidateData.email = extractedData.email;
-        if (extractedData.phone) candidateData.phone = extractedData.phone;
-        if (extractedData.location) candidateData.location = extractedData.location;
-        if (extractedData.age) candidateData.age = extractedData.age;
-        if (extractedData.gender && extractedData.gender !== 'Não identificado') candidateData.gender = extractedData.gender;
-        if (extractedData.linkedin) candidateData.linkedin = extractedData.linkedin;
+        if (extractedData.email) candidateData.candidate_email = extractedData.email;
+        if (extractedData.phone) candidateData.candidate_phone = extractedData.phone;
+        if (extractedData.location) candidateData.candidate_location = extractedData.location;
+        if (extractedData.age) candidateData.candidate_age = extractedData.age;
+        if (extractedData.gender && extractedData.gender !== 'Não identificado') candidateData.candidate_gender = extractedData.gender;
+        if (extractedData.linkedin) candidateData.candidate_linkedin = extractedData.linkedin;
         if (extractedData.portfolio) candidateData.portfolio = extractedData.portfolio;
         if (extractedData.skills.length) candidateData.skills = extractedData.skills;
         if (extractedData.experience && extractedData.experience !== 'Não informado') candidateData.experience = extractedData.experience;
@@ -154,7 +154,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
         candidateData.resume_url = resumeUrl;
         candidateData.resume_file_name = entry.file.name;
 
-        const { error: insertError } = await supabase.from('candidates').insert(candidateData);
+        const { error: insertError } = await supabase.from('vagas_candidaturas').insert(candidateData);
         if (insertError) throw insertError;
 
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'done' } : f));
