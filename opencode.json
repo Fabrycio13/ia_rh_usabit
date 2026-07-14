@@ -3,6 +3,11 @@
   "instructions": [
     "docs/manuais/componentes_e_padroes.md",
     "docs/manuais/identidade_visual.md",
+    "docs/manuais/spacing.md",
+    "docs/manuais/layout.md",
+    "docs/manuais/forbidden-patterns.md",
+    "docs/manuais/guidelines.csv",
+    "docs/manuais/auditoria-cores-hardcoded.md",
     ".specify/memory/constitution.md",
     "docs/security/SECURITY_BACKLOG.md"
   ],
