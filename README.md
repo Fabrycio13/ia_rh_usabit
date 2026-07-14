@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="public/docs/banner.png" alt="Usabit people Banner" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/docs/banner-dark.svg">
+    <img src="public/docs/banner-light.svg" alt="Usabit people — Recrutamento e Seleção com IA" width="100%">
+  </picture>
 </p>
 
 <h1 align="center">🚀 Usabit people</h1>
@@ -101,7 +104,7 @@ npm run dev
 ## 📁 Arquitetura do Projeto
 
 ```text
-├── .agent/              # Configurações de Agentes de IA e workflows
+
 ├── docs/                # Documentação técnica e políticas de segurança
 ├── src/
 │   ├── core/           # Lógica de negócio, serviços (Supabase, API)

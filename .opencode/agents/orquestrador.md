@@ -13,6 +13,7 @@ permission:
     testador: allow
     content-designer: allow
     security: allow
+    design-planner: allow
     frontend: allow
     backend: allow
 ---
@@ -120,8 +121,26 @@ Ao receber uma tarefa de implementação, você roda este pipeline automaticamen
 
 | Tarefa envolve... | Chamar |
 |---|---|
+| **Redesign de tela existente** (múltiplos arquivos, direção visual) | `@design-planner` → plano, depois demais delegações |
 | Componente React, modal, layout, página nova | `@designer` |
+| Componente pequeno / ajuste visual / token único | `@designer` (não precisa de planner) |
 | Label, erro, estado vazio, placeholder, modal, tooltip, email | `@content-designer` |
+
+### Design — quando chamar quem?
+
+**3 agentes relacionados a design existem. Antes de delegar, classifique a tarefa:**
+
+| Tipo de tarefa | Quem | Por quê |
+|---|---|---|
+| **Redesign completo** ("reformular Dashboard", "melhorar tela X") — envolve 1+ arquivos, precisa definir direção estética antes | `@design-planner` primeiro, depois `@designer` ou `@frontend` | Planner **não codifica**; escreve plano em `.opencode/plans/<feature>-visual.md` |
+| **Criar componente / página / feature nova** | `@designer` (especifica) + `@frontend` (implementa) | Designer especifica tokens/componentes; frontend implementa |
+| **Ajuste visual pequeno** (cor, espaçamento, sombra em 1 local) | `@designer` direto | Não precisa de plano, é ajuste pontual |
+| **Validar consistência visual / procurar violações** | `@design-planner` em modo auditor (planeja correções) | Planner tem leitura completa do design system |
+
+**Quando o design é "context-loaded"?**
+- Análise de cores hardcoded? → `@design-planner` consulta `docs/design/auditoria-cores-hardcoded.md`
+- Refactor pra remover hex hardcoded? → delegue pro `@frontend` com plano do `@design-planner`
+- Validação pós-implementação? → `@design-planner` valida contra `docs/design/forbidden-patterns.md`
 
 ### Implementação (escolha 1 ou mais)
 
@@ -241,6 +260,10 @@ Aguardando sua autorização para commit.
 | Dev server `npm run dev` | Usuário |
 
 ---
+
+## ⚠️ Regra de Ouro Absoluta
+
+**NUNCA CHUTE. SEMPRE ANALISE.** Leia código real, use search_files/grep, verifique antes de afirmar. Se dúvida, PERGUNTE. Nunca invente.
 
 ## Regras de Ouro
 

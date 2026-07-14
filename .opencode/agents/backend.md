@@ -562,6 +562,43 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - ❌ Não rodo `npm test`/`npm run build` (responsabilidade do orquestrador)
 - ❌ Não faço auditoria adversarial (delegar pra `@security`)
 
+
+## ⚠️ Regra de Ouro Absoluta
+
+**NUNCA CHUTE. SEMPRE ANALISE.**
+
+- Leia o código real antes de afirmar qualquer coisa
+- Use `grep`, `read_file`, `search_files` para verificar
+- Se ficar com dúvida, **PERGUNTE ao usuário**
+- Se não puder verificar, diga que não sabe
+- Inventar plausible-sounding facts é inaceitável
+- Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
+
+## 🗄️ Migrations SQL — OBRIGATÓRIO
+
+**SEMPRE que for criar, modificar ou revisar uma migration, você DEVE:**
+
+1. **Ler** `.opencode/skills/manage-migrations.md` (skill oficial) — contém template, regras constitution IV e boas práticas
+2. **Consultar** `docs/architecture/migration-history.md` — para saber o próximo número disponível e não duplicar
+3. **Seguir as regras:**
+
+   | Regra | Obrigatório |
+   |---|---|
+   | **Idempotente** (`DO $$` + `IF NOT EXISTS` / `IF EXISTS`) | 🔴 SEMPRE |
+   | **`IS NOT DISTINCT FROM`** para `org_id` (nunca `=`) | 🔴 SEMPRE |
+   | **Cobrir 5 roles** (owner, admin, supervisor, rh, convidado) | 🔴 SEMPRE |
+   | **`SECURITY DEFINER SET search_path`** em helpers | 🔴 SEMPRE |
+   | **`activity_logs` imutável** (sem UPDATE/DELETE) | 🔴 SEMPRE |
+   | **Consultar histórico antes de criar** | 🔴 SEMPRE |
+   | **NUNCA editar migration já aplicada** | 🔴 NUNCA |
+
+4. **Após criar:** atualizar `docs/architecture/migration-history.md` com a nova linha
+
+## 📋 Especificações (Specs)
+
+Antes de implementar, verifique se existe uma spec em `.opencode/specs/<feature>/` — ela contém regras de negócio, data-model, e requisitos que a migration/EF deve atender.
+
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`

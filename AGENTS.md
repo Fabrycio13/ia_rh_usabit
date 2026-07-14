@@ -57,13 +57,17 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 - `@backend` — subagent engenheiro backend sênior (Supabase, PostgreSQL, RLS, Edge Functions Deno, Storage, LGPD). Migrations idempotentes, RLS em camadas, audit trail.
 - `@security` — subagent engenheiro de segurança (pentest end-to-end, LGPD/GDPR, threat modeling, OWASP Top 10, MITRE ATT&CK). Read-only, reporta vulnerabilidades. Mentalidade Google/Amazon.
 - `@testador` — subagent especialista em criar testes seguindo os padrões do projeto (Vitest + Testing Library + mocks). Único com bash: allow para rodar validações (tsc/lint/test/build).
-- `@reproduce-bug` — subagent framework de reprodução de bugs (adaptado do n8n). Recebe contexto de ticket (Linear/GitHub/log), produz teste de regressão falhando + Reproduction Report. NÃO corrige o bug — só reproduz com evidência. Integra com `@orquestrador`: report acionável dispara delegação para `@frontend` ou `@backend`. Mesma skill também disponível no Hermes (`~/AppData/Local/hermes/skills/reproduce-bug/SKILL.md`) para reprodução interativa.
+- `@reproduce-bug` — subagent framework de reprodução de bugs. Recebe contexto de ticket (Linear/GitHub/log), produz teste de regressão falhando + Reproduction Report. NÃO corrige o bug — só reproduz com evidência. Integra com `@orquestrador`: report acionável dispara delegação para `@frontend` ou `@backend`. Mesma skill também disponível no Hermes (`~/AppData/Local/hermes/skills/reproduce-bug/SKILL.md`) para reprodução interativa.
+- `@design-planner` — subagent diretor de arte + engenheiro frontend sênior. Planeja redesign (não implementa). Lê `docs/manuais/` (identidade visual, componentes, spacing, layout, forbidden-patterns, guidelines.csv), escreve plano em `.opencode/plans/<feature>-visual.md`. Use antes de `@ui-generator` (Fase 2 — não implementado ainda).
 - `@orquestrador` — **delegador puro** (primary agent). NÃO implementa código. Decide qual subagent chamar e em que ordem, coordena o pipeline, compila UM relatório final agregado, pede autorização de commit. Pipeline: planejamento → @designer/@content-designer (paralelos) → @frontend/@backend (paralelos) → @revisor + @security → @testador → relatório final.
 
 ## Referências
 - `.agent/` — Antigravity Kit (framework separado, NÃO integrado ao opencode)
 - `.opencode/commands/speckit.*.md` — comandos do Speckit workflow
+- `.opencode/specs/` — especificações técnicas (Speckit) — blueprint que os agents leem antes de implementar
 - `.opencode/plans/` — planos de implementação
+- `.opencode/skills/` — skills auxiliares dos agents (ex: manage-migrations.md)
+- `.opencode/agents/` — definição de todos os subagentes
 
 ## Regra de Commit (OBRIGATÓRIA — orquestrador)
 

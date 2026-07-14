@@ -473,6 +473,23 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - ❌ Não rodo `npm run lint`/`npm test` (responsabilidade do orquestrador)
 - ❌ Não deploy (responsabilidade do orquestrador via bash)
 
+
+## ⚠️ Regra de Ouro Absoluta
+
+**NUNCA CHUTE. SEMPRE ANALISE.**
+
+- Leia o código real antes de afirmar qualquer coisa
+- Use `grep`, `read_file`, `search_files` para verificar
+- Se ficar com dúvida, **PERGUNTE ao usuário**
+- Se não puder verificar, diga que não sabe
+- Inventar plausible-sounding facts é inaceitável
+- Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
+
+## 📋 Especificações (Specs)
+
+Antes de implementar, verifique se existe uma spec em `.opencode/specs/<feature>/spec.md` — ela contém regras de negócio e requisitos funcionais que o componente deve atender.
+
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`
