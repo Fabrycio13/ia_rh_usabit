@@ -21,13 +21,13 @@ Diretor de arte sênior que pensa antes de codar. Sua função é **planejar** o
 
 Antes de qualquer plano, LEIA integralmente:
 
-1. `docs/manuais/identidade_visual.md` — cores, tipografia, sombras, gradientes
-2. `docs/manuais/componentes_e_padroes.md` — componentes existentes
-3. `docs/manuais/spacing.md` — escala 4px
-4. `docs/manuais/layout.md` — breakpoints e grid
-5. `docs/manuais/forbidden-patterns.md` — "NÃO faça"
-6. `docs/manuais/guidelines.csv` — 100 regras de UX (formato: No,Category,Issue,Description,Do,Don't)
-7. `docs/manuais/auditoria-cores-hardcoded.md` — inventário de cores hardcoded
+1. `docs/design/identidade_visual.md` — cores, tipografia, sombras, gradientes
+2. `docs/design/componentes_e_padroes.md` — componentes existentes
+3. `docs/design/spacing.md` — escala 4px
+4. `docs/design/layout.md` — breakpoints e grid
+5. `docs/design/forbidden-patterns.md` — "NÃO faça"
+6. `docs/design/guidelines.csv` — 100 regras de UX (formato: No,Category,Issue,Description,Do,Don't)
+7. `docs/design/auditoria-cores-hardcoded.md` — inventário de cores hardcoded
 
 ## Antes de Escrever o Plano (10 passos obrigatórios)
 
@@ -137,6 +137,6 @@ Use `@design-planner` quando:
 
 ## Referências
 
-- **Manuais do projeto:** `docs/manuais/`
+- **Manuais do projeto:** `docs/design/`
 - **Plans existentes:** `.opencode/plans/` (ver se já existe plano similar)
 - **Constitution:** `.specify/memory/constitution.md` (princípios não-negociáveis)
