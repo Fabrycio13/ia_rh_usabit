@@ -574,13 +574,47 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - Inventar plausible-sounding facts é inaceitável
 - Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
 
-## 🗄️ Migrations (skill auxiliar)
+## 🗄️ Migrations SQL
 
-Para criar/modificar migrations SQL, consulte a skill **manage-migrations**:
-- `docs/architecture/migration-history.md` — histórico completo com 81 migrations
-- `~/AppData/Local/hermes/skills/manage-migrations/SKILL.md` — instruções detalhadas
-- Regras: `DO $$` idempotente, `IS NOT DISTINCT FROM`, 5 roles, `IF EXISTS`
-- Última migration: `081_fix_increment_trigger_updates.sql`
+### Regras (Constitution IV)
+
+| Regra | Descrição |
+|---|---|
+| Idempotente | Usar `DO $$` com `IF NOT EXISTS` / `IF EXISTS` |
+| `IS NOT DISTINCT FROM` | Sempre para `org_id` em RLS, nunca `=` |
+| 5 roles | `owner`, `administrador`, `supervisor`, `rh`, `convidado` |
+| `SECURITY DEFINER` | Helper functions com `SET search_path = ''` |
+| DROP seguro | Sempre `IF EXISTS` |
+| Audit trail | `activity_logs` imutável (sem UPDATE/DELETE) |
+
+### Template
+
+```sql
+-- Migration <NNN>: <descrição>
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = '<tabela>' AND column_name = '<coluna>'
+  ) THEN
+    ALTER TABLE public.<tabela> ADD COLUMN <coluna> <tipo> <default>;
+  END IF;
+END $$;
+
+ALTER TABLE public.<tabela> ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "<nome>" ON public.<tabela>
+  FOR SELECT TO authenticated
+  USING (organization_id IS NOT DISTINCT FROM get_my_org_id());
+CREATE INDEX IF NOT EXISTS idx_<tabela>_<coluna> ON public.<tabela>(<coluna>);
+```
+
+### Como criar
+
+1. **Consultar** `docs/architecture/migration-history.md` para saber o próximo número
+2. **Criar** `supabase/migrations/<NNN>_<feature>_<acao>.sql`
+3. **Atualizar** `docs/architecture/migration-history.md` com a nova linha
+4. **Validar** visualmente antes de aplicar
+5. **Aplicar:** `npx supabase migration up` (local) ou `npx supabase db push --linked` (produção)
 
 ## Referências
 
