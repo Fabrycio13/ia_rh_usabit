@@ -3,6 +3,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -23,23 +24,6 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
-}
-
-async function checkRateLimit(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  key: string,
-  endpoint: string,
-): Promise<boolean> {
-  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const { count } = await supabaseAdmin
-    .from('rate_limits')
-    .select('id', { count: 'exact', head: true })
-    .eq('key', key)
-    .eq('endpoint', endpoint)
-    .gte('window_start', windowStart);
-  if ((count ?? 0) >= RATE_LIMIT_MAX) return false;
-  await supabaseAdmin.from('rate_limits').insert({ key, endpoint });
-  return true;
 }
 
 serve(async (req) => {
@@ -86,7 +70,7 @@ serve(async (req) => {
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Rate limit por IP
-    const allowed = await checkRateLimit(supabaseAdmin, `ip:${clientIp}`, 'send-candidate-vaga-canceled-email');
+    const allowed = await checkRateLimit(supabaseAdmin, `ip:${clientIp}`, 'send-candidate-vaga-canceled-email', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
         status: 429, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },

@@ -4,6 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -23,25 +24,6 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-
-async function checkRateLimit(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  key: string,
-  endpoint: string,
-  maxRequests: number,
-  windowMs: number,
-): Promise<boolean> {
-  const windowStart = new Date(Date.now() - windowMs).toISOString();
-  const { count } = await supabaseAdmin
-    .from('rate_limits')
-    .select('id', { count: 'exact', head: true })
-    .eq('key', key)
-    .eq('endpoint', endpoint)
-    .gte('window_start', windowStart);
-  if ((count ?? 0) >= maxRequests) return false;
-  await supabaseAdmin.from('rate_limits').insert({ key, endpoint });
-  return true;
-}
 
 serve(async (req) => {
   const origin = req.headers.get('Origin');

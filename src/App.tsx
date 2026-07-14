@@ -30,8 +30,8 @@ const SpontaneousApplication = React.lazy(() => import('./pages/vagas/Spontaneou
 const OnboardingModal = React.lazy(() => import('./common/components/OnboardingModal').then(m => ({ default: m.OnboardingModal })));
 
 const LoadingFallback = () => (
-    <div className="min-h-screen bg-[#0f111a] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-main)' }}>
+        <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }} />
     </div>
 );
 
@@ -40,7 +40,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
 
     if (session && !profile.loaded) {
         const isPublicRoute = window.location.hash.includes('/carreiras/') || window.location.hash.includes('/v/');
-        if (!isPublicRoute) return <div style={{ height: '100vh', background: '#0B1020' }} />;
+        if (!isPublicRoute) return <div style={{ height: '100vh', background: 'var(--bg-main)' }} />;
     }
 
     return (
@@ -49,9 +49,9 @@ const AppContent = ({ session }: { session: Session | null }) => {
             <Toaster
                 position="bottom-right"
                 toastOptions={{
-                    style: { background: '#1a1c27', color: '#e2e8f0', border: '1px solid #1f2332' },
-                    success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
-                    error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+                    style: { background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)' },
+                    success: { iconTheme: { primary: 'var(--success)', secondary: '#fff' } },
+                    error: { iconTheme: { primary: 'var(--text-error)', secondary: '#fff' } },
                 }}
             />
             <Suspense fallback={<LoadingFallback />}>
@@ -124,8 +124,8 @@ export const App = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0f111a] flex items-center justify-center">
-                <div className="w-8 h-8 border-4 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-main)' }}>
+                <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }} />
             </div>
         );
     }

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,25 +63,13 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
     // Rate limit por IP
-    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString()
-    const { count } = await supabaseAdmin
-      .from('rate_limits')
-      .select('id', { count: 'exact', head: true })
-      .eq('key', `ip:${clientIp}`)
-      .eq('endpoint', 'get-upload-url')
-      .gte('window_start', windowStart)
-
-    if ((count ?? 0) >= RATE_LIMIT_MAX) {
+    const allowed = await checkRateLimit(supabaseAdmin, `ip:${clientIp}`, 'get-upload-url', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)
+    if (!allowed) {
       return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 429,
       })
     }
-
-    await supabaseAdmin.from('rate_limits').insert({
-      key: `ip:${clientIp}`,
-      endpoint: 'get-upload-url',
-    })
 
     // Gerar signed upload URL (60s de expiração)
     const { data, error } = await supabaseAdmin.storage

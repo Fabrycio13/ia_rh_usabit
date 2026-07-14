@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import { checkRateLimit } from '../_shared/rate-limit.ts';
+
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
 
@@ -38,6 +42,17 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+    // Rate limit por IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || req.headers.get('cf-connecting-ip')
+      || 'unknown';
+    const allowed = await checkRateLimit(supabaseAdmin, `ip:${clientIp}`, 'public-jobs', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
+        status: 429, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
+      });
+    }
 
     // 1. Busca detalhes visuais e config da Organização
     const { data: orgData, error: orgError } = await supabaseAdmin

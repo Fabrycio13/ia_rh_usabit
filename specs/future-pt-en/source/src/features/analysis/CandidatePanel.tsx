@@ -1,0 +1,1301 @@
+import { useEffect, useState, useRef } from 'react';
+import {
+    X, MapPin, Calendar, UserRound, Mail, Phone,
+    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
+    ChevronLeft, FileText, GitBranch
+} from 'lucide-react';
+import { supabase } from '../../core/services/supabase';
+import { useUser } from '../../core/contexts/UserContext';
+import { useLang } from '../../core/contexts/LangContext';
+import { logActivity } from '../../core/services/logger';
+import { handleViewResume } from '../../core/utils/storage';
+import { TalentTransferModal } from '../candidates/components/TalentTransferModal';
+import { PipelineLinkSection } from '../candidates/components/PipelineLinkSection';
+
+import {
+    initials, scoreColor, formatDate, parseSkills, parseComments, relativeTime,
+    type CandidateDetail, type Comment
+} from './CandidatePanelUtils';
+
+interface ScreeningLog {
+    id: string;
+    action: string;
+    to_stage?: string | null;
+    from_stage?: string | null;
+    created_at: string;
+    details?: Record<string, unknown>;
+}
+
+interface ScreeningLogGroup {
+    name: string;
+    logs: ScreeningLog[];
+}
+
+// ─── Candidate Panel Component ────────────────────────────────────────────────
+void Zap; // reserved for future feature
+export function CandidatePanel({
+    c,
+    onClose,
+    navigate,
+    onNotesChange,
+    onFieldChange,
+    onBlacklistChange,
+    onTransferSuccess,
+    currentJobContext,
+    onDeleteFromBank,
+    hidePipelineAndBlacklist,
+    showAnalyzeWithVagas,
+    onAnalyzeWithVagas,
+    onCardRemoved,
+    hideFeedbackDaIA
+}: {
+    c: CandidateDetail;
+    onClose: () => void;
+    navigate: (path: string) => void;
+    onNotesChange: (id: string, notes: string) => void;
+    onFieldChange: (id: string, field: string, val: unknown) => void;
+    onBlacklistChange: (id: string, val: boolean) => void;
+    onTransferSuccess?: () => void;
+    currentJobContext?: { id: string; title: string };
+    onDeleteFromBank?: (id: string) => Promise<void>;
+    hidePipelineAndBlacklist?: boolean;
+    showAnalyzeWithVagas?: boolean;
+    onAnalyzeWithVagas?: (id: string) => void;
+    onCardRemoved?: (cardId: string) => void;
+    hideFeedbackDaIA?: boolean;
+}) {
+    const skillsList = parseSkills(c.skills);
+    const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
+    void onDeleteFromBank;
+
+    const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
+    const [newText, setNewText] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editText, setEditText] = useState('');
+    const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
+    const [inputExpanded, setInputExpanded] = useState(false);
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width:767px)');
+        const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
+    useEffect(() => {
+        if (inputExpanded && textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    }, [inputExpanded]);
+
+    // Edição de campos do candidato
+    const [editField, setEditField] = useState<string | null>(null);
+    const [editFieldVal, setEditFieldVal] = useState('');
+    const [savingField, setSavingField] = useState(false);
+    const { profile } = useUser();
+    const { t } = useLang();
+    const isConvidado = profile.user_role === 'convidado';
+    const [localC, setLocalC] = useState({ 
+        email: c.email, 
+        phone: c.phone, 
+        location: c.location, 
+        address: c.address, 
+        linkedin: c.linkedin, 
+        age: c.age, 
+        gender: c.gender,
+        portfolio: c.portfolio,
+        cep: c.cep,
+        address_number: c.address_number,
+        complement: c.complement
+    });
+    const prevIdRef = useRef(c.id);
+    useEffect(() => {
+        setLocalC({
+            email: c.email, phone: c.phone, location: c.location,
+            address: c.address, linkedin: c.linkedin, age: c.age,
+            gender: c.gender, portfolio: c.portfolio, cep: c.cep,
+            address_number: c.address_number, complement: c.complement
+        });
+        prevIdRef.current = c.id;
+    }, [c.id, c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
+    const [transferringToBank, setTransferringToBank] = useState(false);
+    const [togglingBlacklist, setTogglingBlacklist] = useState(false);
+
+    async function toggleBlacklist() {
+        if (togglingBlacklist) return;
+        if (isConvidado) return;
+        setTogglingBlacklist(true);
+        const newVal = !c.is_blacklisted;
+        try {
+            const { error } = await supabase.from('candidates').update({ is_blacklisted: newVal }).eq('id', c.id);
+            if (!error) {
+                onBlacklistChange(c.id, newVal);
+                logActivity(profile.userId, newVal ? `Restringiu o candidato "${c.name}"` : `Removeu "${c.name}" da lista de restrição`);
+            }
+        } finally { setTogglingBlacklist(false); }
+    }
+
+    async function handleFieldSave(field: string) {
+        if (savingField) return;
+        if (isConvidado) return;
+        setSavingField(true);
+        try {
+            const val = editFieldVal.trim() || null;
+
+            if (c.isVagaView) {
+                const directFields: Record<string, string> = {
+                    email: 'candidate_email',
+                    phone: 'candidate_phone',
+                    linkedin: 'candidate_linkedin',
+                    location: 'candidate_location',
+                    gender: 'candidate_gender',
+                    age: 'candidate_age',
+                };
+                const answersFields = new Set(['portfolio', 'cep', 'address', 'address_number', 'complement']);
+
+                if (directFields[field]) {
+                    const { error } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ [directFields[field]]: val })
+                        .eq('id', c.id);
+                    if (error) {
+                        console.warn('[handleFieldSave] error:', error);
+                        return;
+                    }
+                } else if (answersFields.has(field)) {
+                    const { data: row, error: fetchErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .select('answers')
+                        .eq('id', c.id)
+                        .single();
+                    if (fetchErr) {
+                        console.warn('[handleFieldSave] fetch error:', fetchErr);
+                        return;
+                    }
+                    const answers = (row?.answers && typeof row.answers === 'object')
+                        ? { ...(row.answers as Record<string, unknown>) }
+                        : {};
+                    if (val === null) {
+                        delete answers[field];
+                    } else {
+                        answers[field] = val;
+                    }
+                    const { error: updateErr } = await supabase
+                        .from('vagas_candidaturas')
+                        .update({ answers })
+                        .eq('id', c.id);
+                    if (updateErr) {
+                        console.warn('[handleFieldSave] update error:', updateErr);
+                        return;
+                    }
+                }
+
+                setLocalC(prev => ({ ...prev, [field]: val }));
+                setEditField(null);
+                onFieldChange(c.id, field, val);
+                logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+            } else {
+                const { error } = await supabase.from('candidates').update({ [field]: val }).eq('id', c.id);
+                if (!error) {
+                    setLocalC(prev => ({ ...prev, [field]: val }));
+                    setEditField(null);
+                    onFieldChange(c.id, field, val);
+                    logActivity(profile.userId, `Alterou o campo "${field}" de "${c.name}" para "${val || 'Não informado'}"`);
+                } else {
+                    console.warn('[handleFieldSave] error:', error);
+                }
+            }
+        } finally { setSavingField(false); }
+    }
+
+    const [expandedJob, setExpandedJob] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'vagas' | 'comments' | 'triagem'>(c.isVagaView ? 'comments' : 'triagem');
+    const hasAutoSwitched = useRef(false);
+    useEffect(() => {
+      if (!c.isVagaView && c.applications?.length && !hasAutoSwitched.current) {
+        hasAutoSwitched.current = true;
+        setActiveTab('vagas');
+      }
+    }, [c.applications, c.isVagaView]);
+    const [vagasOpen, setVagasOpen] = useState(true);
+
+    const [screeningLogs, setScreeningLogs] = useState<ScreeningLog[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [expandedLogJob, setExpandedLogJob] = useState<string | null>(null);
+    const fetchedLogsFor = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (activeTab !== 'triagem' || !c.id) return;
+        if (fetchedLogsFor.current === c.id) return;
+        fetchedLogsFor.current = c.id;
+        const candidateId = c.id;
+        setLoadingLogs(true);
+        supabase
+            .from('candidate_screening_logs')
+            .select('*')
+            .eq('candidate_id', candidateId)
+            .order('created_at', { ascending: true })
+            .then(({ data, error }) => {
+                if (c.id !== candidateId) return;
+                if (!error) setScreeningLogs(data || []);
+                setLoadingLogs(false);
+            });
+    }, [activeTab, c.id]);
+
+    useEffect(() => {
+        setComments(parseComments(c.notes));
+    }, [c.notes]);
+
+    async function persistComments(updated: Comment[]) {
+        const json = JSON.stringify(updated);
+        
+        const { error: candError, data: candData } = await supabase
+            .from('candidates')
+            .update({ notes: json })
+            .eq('id', c.id)
+            .select('id');
+
+        if (candError || !candData || candData.length === 0) {
+            const { error: appError } = await supabase
+                .from('vagas_candidaturas')
+                .update({ internal_notes: json })
+                .eq('id', c.id);
+            
+            if (!appError) {
+                onNotesChange(c.id, json);
+                return true;
+            }
+            return false;
+        }
+
+        if (!candError) onNotesChange(c.id, json);
+        return !candError;
+    }
+
+    async function handleAddComment() {
+        if (!newText.trim() || saving) return;
+        setSaving(true);
+        try {
+            const newComment: Comment = {
+                id: Date.now().toString(),
+                text: newText.trim(),
+                createdAt: new Date().toISOString(),
+                liked: false,
+                author: {
+                    name: profile.userName || 'Recrutador',
+                    avatarUrl: profile.avatarUrl,
+                    initials: profile.initials || 'R'
+                }
+            };
+            const updated = [...comments, newComment];
+            const ok = await persistComments(updated);
+            if (ok) { 
+                setComments(updated); 
+                setNewText(''); 
+                logActivity(profile.userId, `Adicionou um comentário em "${c.name}"`);
+            }
+        } finally { setSaving(false); }
+    }
+
+    function insertEmoji(emoji: string) {
+        setNewText(prev => prev + emoji);
+        setEmojiPickerOpen(false);
+    }
+
+    async function handleDelete(id: string) {
+        const updated = comments.filter(cm => cm.id !== id);
+        if (await persistComments(updated)) setComments(updated);
+    }
+
+    async function handleReaction(id: string, emoji: string) {
+        const updated = comments.map(cm => {
+            if (cm.id === id) {
+                const newReaction = cm.reaction === emoji ? undefined : emoji;
+                return { ...cm, reaction: newReaction, liked: !!newReaction };
+            }
+            return cm;
+        });
+        if (await persistComments(updated)) setComments(updated);
+    }
+
+    async function handleEditSave(id: string) {
+        if (!editText.trim()) return;
+        const updated = comments.map(cm => cm.id === id ? { ...cm, text: editText.trim() } : cm);
+        if (await persistComments(updated)) { setComments(updated); setEditingId(null); }
+    }
+
+    const renderAvatar = (author?: Comment['author']) => {
+        if (author?.avatarUrl) {
+            return <img src={author.avatarUrl} alt={author.name} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
+        }
+        return (
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                {author?.initials || 'R'}
+            </div>
+        );
+    };
+
+    return (
+        <>
+            <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}} 
+        @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        .comment-row .comment-actions { opacity: 0; visibility: hidden; transition: all 0.2s ease; transform: translateY(5px); }
+        .comment-row:hover .comment-actions { opacity: 1; visibility: visible; transform: translateY(0); }
+        .reaction-btn { opacity: 0.6; transition: all 0.2s; border-radius: 6px; padding: 2px 6px; }
+        .reaction-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+        .reaction-active { opacity: 1 !important; background: rgba(99,102,241,0.2) !important; border: 1px solid rgba(99,102,241,0.4); }
+        .publish-btn { 
+          background: linear-gradient(135deg, #6366f1, #4f46e5);
+          box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+          transition: all 0.2s;
+        }
+        .publish-btn:hover:not(:disabled) { 
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(99,102,241,0.4);
+          filter: brightness(1.1);
+        }
+        .publish-btn:active:not(:disabled) { transform: translateY(0); }
+        .emoji-picker-bar {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 0;
+          background: #1e2230;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 30px;
+          padding: 6px 10px;
+          display: flex;
+          gap: 8px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+          z-index: 100;
+          animation: emojiPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes emojiPop { from { opacity: 0; transform: scale(0.5) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .emoji-option {
+          font-size: 20px;
+          cursor: pointer;
+          transition: transform 0.2s;
+          padding: 2px;
+        }
+        .emoji-option:hover { transform: scale(1.3); }
+      `}</style>
+            <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+            <div style={{
+                position: 'fixed', top: 0, right: 0, bottom: 0, left: isMobile ? 0 : 'auto',
+                zIndex: 301, width: isMobile ? '100vw' : 'clamp(320px, 50vw, 100vw)',
+                background: 'var(--bg-card)', borderLeft: isMobile ? 'none' : '1px solid var(--border)',
+                display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif',
+                boxShadow: '-20px 0 60px rgba(0,0,0,0.5)', animation: 'slideInRight 0.28s cubic-bezier(0.16,1,0.3,1)',
+                overflowY: 'auto'
+            }}>
+                <div style={{ padding: isMobile ? '68px 18px 16px' : '24px 24px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
+                            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{initials(c.name)}</div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                    {!isMobile && (
+                                        <>
+                                            <button
+                                                onClick={onClose}
+                                                style={{
+                                                    background: 'none', border: 'none', padding: 0,
+                                                    color: 'var(--primary)', fontSize: 13, fontWeight: 600,
+                                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+                                                }}
+                                            >
+                                                <ChevronLeft size={14} /> {t('voltar')}
+                                            </button>
+                                            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>|</span>
+                                        </>
+                                    )}
+                                    <h2 style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontSize: isMobile ? 16 : 18, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {c.name}
+                                        {c.is_blacklisted && <Ban size={16} />}
+                                    </h2>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                    {c.location && <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><MapPin size={11} />{c.location}</span>}
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><Calendar size={11} />{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : t('naoInformado')}</span>
+                                    {c.gender && <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)' }}><UserRound size={11} />{c.gender}</span>}
+                                </div>
+                            </div>
+                        </div>
+                        {!isMobile && (
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                            {c.resume_url && (
+                                <button
+                                    onClick={() => handleViewResume(c.resume_url)}
+                                    title={t('verCurriculo')}
+                                    style={{
+                                        background: 'rgba(99,102,241,0.1)',
+                                        border: '1px solid rgba(99,102,241,0.2)',
+                                        borderRadius: 10, padding: isMobile ? 8 : '8px 14px', cursor: 'pointer',
+                                        color: 'var(--primary)',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        marginRight: isMobile ? 0 : 4
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'; }}
+                                >
+                                    <FileText size={16} />
+                                    {!isMobile && t('curriculo')}
+                                </button>
+                            )}
+
+                            {onDeleteFromBank && (
+                                <button
+                                    onClick={() => onDeleteFromBank(c.id)}
+                                    title={t('excluirCandidato')}
+                                    style={{
+                                        background: 'rgba(239,68,68,0.1)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        borderRadius: 10, padding: 8, cursor: 'pointer',
+                                        color: '#ef4444',
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                </button>
+                            )}
+                            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', flexShrink: 0 }}><X size={16} /></button>
+                        </div>
+                        )}
+                        {isMobile && (
+                            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', flexShrink: 0 }}><X size={16} /></button>
+                        )}
+                    </div>
+                    {isMobile && (c.resume_url || onDeleteFromBank) && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                            {c.resume_url && (
+                                <button
+                                    onClick={() => handleViewResume(c.resume_url)}
+                                    title={t('verCurriculo')}
+                                    style={{
+                                        background: 'rgba(99,102,241,0.1)',
+                                        border: '1px solid rgba(99,102,241,0.2)',
+                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        color: 'var(--primary)',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        flex: 1, justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'; }}
+                                >
+                                    <FileText size={16} />
+                                    {t('curriculo')}
+                                </button>
+                            )}
+                            {onDeleteFromBank && (
+                                <button
+                                    onClick={() => onDeleteFromBank(c.id)}
+                                    title={t('excluirCandidato')}
+                                    style={{
+                                        background: 'rgba(239,68,68,0.1)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        color: '#ef4444',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        flex: 1, justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                    {t('excluir')}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {!c.enriched ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: '#64748b' }}>
+                        <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                        <span style={{ fontSize: 14 }}>{t('carregandoDetalhes')}</span>
+                    </div>
+                ) : (
+                    <div style={{ padding: isMobile ? '20px 18px 32px' : '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+                        <section>
+                            <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>{t('informacoesContato')}</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                                {([
+                                    { key: 'email', label: t('email'), icon: <Mail size={14} />, value: localC.email },
+                                    { key: 'phone', label: t('phone'), icon: <Phone size={14} />, value: localC.phone },
+                                    { key: 'linkedin', label: t('linkedin'), icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>, value: localC.linkedin },
+                                    { key: 'location', label: t('localizacao'), icon: <MapPin size={14} />, value: localC.location },
+                                    { 
+                                        key: 'address', 
+                                        label: t('endereco'), 
+                                        icon: <MapPin size={14} />, 
+                                        value: localC.address ? (
+                                            `${localC.address}${localC.address_number ? ', ' + localC.address_number : ''}${localC.complement ? ' - ' + localC.complement : ''}`
+                                        ) : null 
+                                    },
+                                    { key: 'gender', label: t('genero'), icon: <UserRound size={14} />, value: localC.gender },
+                                    { key: 'age', label: t('idade'), icon: <Calendar size={14} />, value: (localC.age && !['Não informado', 'não informado', '—'].includes(localC.age ?? '')) ? localC.age : null },
+                                    { key: 'portfolio', label: t('portfolio'), icon: <Briefcase size={14} />, value: localC.portfolio },
+                                ] as { key: string; label: string; icon: React.ReactNode; value: string | null | undefined }[]                                ).map(({ key, label, icon, value }) => (
+                                    <div key={key} style={{
+                                        background: 'var(--bg-main)',
+                                        border: `1px solid ${editField === key ? 'var(--primary)' : 'var(--border)'}`,
+                                        borderRadius: 12,
+                                        padding: '14px 16px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 6,
+                                        transition: 'border-color 0.15s',
+                                        position: 'relative',
+                                        minHeight: 64,
+                                        justifyContent: 'center',
+                                        boxSizing: 'border-box',
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{icon}{label}</span>
+                                            {editField !== key && (
+                                                <button onClick={() => { setEditField(key); setEditFieldVal(value ?? ''); }}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 2, display: 'flex', transition: 'color 0.15s' }}
+                                                    onMouseEnter={e => (e.currentTarget.style.color = '#6366f1')}
+                                                    onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        {editField === key ? (
+                                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                <input autoFocus value={editFieldVal} onChange={e => setEditFieldVal(e.target.value)}
+                                                    onKeyDown={e => { if (e.key === 'Enter') handleFieldSave(key); if (e.key === 'Escape') setEditField(null); }}
+                                                    style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--primary)', borderRadius: 7, padding: isMobile ? '8px 10px' : '5px 9px', color: 'var(--text-main)', fontSize: 13, outline: 'none', fontFamily: 'Inter, sans-serif', minWidth: 0, height: isMobile ? 36 : 'auto' }}
+                                                />
+                                                <button onClick={() => handleFieldSave(key)} disabled={savingField}
+                                                    style={{ background: 'var(--primary)', border: 'none', borderRadius: 7, padding: isMobile ? '8px 12px' : '5px 10px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0, height: isMobile ? 36 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>
+                                                    {savingField ? '…' : '✓'}
+                                                </button>
+                                                <button onClick={() => setEditField(null)}
+                                                    style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 7, padding: isMobile ? '8px 10px' : '5px 8px', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', flexShrink: 0, height: isMobile ? 36 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>✕</button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                <span style={{ fontSize: 14, fontWeight: 600, color: value ? 'var(--text-main)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                                    {(value && (key === 'linkedin' || key === 'portfolio') && value.startsWith('http')) ? (
+                                                        <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }} onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'} onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}>
+                                                            {value.replace(/^https?:\/\/(www\.)?/, '')}
+                                                        </a>
+                                                    ) : (
+                                                        value ?? t('naoInformado')
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        {skillsList.length > 0 && (
+                            <section>
+                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>{t('habilidades')}</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                                    {[...skillsList].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((s, i) => (
+                                        <span key={i} style={{
+                                            background: 'rgba(99, 102, 241, 0.15)',
+                                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                                            borderRadius: 8,
+                                            padding: '8px 12px',
+                                            fontSize: 12,
+                                            color: 'var(--text-main)',
+                                            fontWeight: 600,
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                            textAlign: 'center',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }} title={s}>{s}</span>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {c.isVagaView && (
+                            <>
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') &&
+                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                ).length > 0 && (
+                                    <section>
+                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>{t('respostasPersonalizadas')}</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            {Object.entries(c.answers).filter(([key]) =>
+                                                !key.startsWith('_') &&
+                                                !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                            ).map(([key, value]) => {
+                                                const label = c.questionLabels?.[key] || key;
+                                                const display = typeof value === 'string' ? value : JSON.stringify(value);
+                                                return (
+                                                    <div key={key} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>{label}</p>
+                                                        <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{display}</p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+                                )}
+                            </>
+                        )}
+
+                        {c.isVagaView && (
+                            <>
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') &&
+                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                                ).length > 0 && (
+                                    <section style={{
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: 20, 
+                                        padding: 24, 
+                                        background: 'rgba(255,255,255,0.02)', 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        gap: 16
+                                    }}>
+                                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <ClipboardList size={16} /> {t('respostasAdicionais')}
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                            {Object.entries(c.answers)
+                                                .filter(([key]) => !['_ai_analysis', 'address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .map(([key, value]) => {
+                                                    const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
+                                                    return (
+                                                        <div key={key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 12 }}>
+                                                            <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.03em' }}>
+                                                                {questionLabel}
+                                                            </p>
+                                                            <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, fontWeight: 500 }}>
+                                                                {typeof value === 'boolean' ? (value ? t('sim') : t('nao')) : (value || '-')}
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    </section>
+                                )}
+                            </>
+                        )}
+
+                        {!hideFeedbackDaIA && (c.isVagaView || showAnalyzeWithVagas) && hasAnalysis && (
+                            <>
+                                <section style={{
+                                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                                    borderRadius: 20,
+                                    padding: 24,
+                                    background: 'rgba(99, 102, 241, 0.03)',
+                                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 20
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', margin: '0', display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <Zap size={16} fill="var(--primary)" /> {t('feedbackIA')}
+                                        </p>
+                                        {c.score !== null && c.score !== undefined && (
+                                            <div style={{
+                                                background: scoreColor(c.score),
+                                                color: '#fff',
+                                                padding: '4px 12px',
+                                                borderRadius: '12px',
+                                                fontSize: '14px',
+                                                fontWeight: 800,
+                                                boxShadow: `0 4px 12px ${scoreColor(c.score)}44`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4
+                                            }}>
+                                                <span style={{ fontSize: 10, opacity: 0.9, fontWeight: 700 }}>{t('scoreLabel')}:</span>
+                                                {c.score}%
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {[c.analysis?.match_rationale, c.analysis?.score_justification, c.analysis?.summary, c.analysis?.general_analysis, c.analysis?.reasoning, c.analysis?.feedback, c.analysis?.analysis, c.analysis?.experience].some(Boolean) && (
+                                        <div>
+                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>{t('analiseDaNota')}</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {String(c.analysis?.match_rationale || c.analysis?.score_justification || c.analysis?.summary || c.analysis?.general_analysis || c.analysis?.reasoning || c.analysis?.feedback || c.analysis?.analysis || c.analysis?.experience || '')}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {[c.analysis?.education, c.analysis?.Education, c.analysis?.formacao, c.analysis?.Formacao].some(Boolean) && (
+                                        <div style={{ borderTop: '1px solid rgba(99,102,241,0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', opacity: 0.8 }}>{t('formacao')}</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {(() => {
+                                                    const val = c.analysis?.education || c.analysis?.Education || c.analysis?.formacao || c.analysis?.Formacao;
+                                                    return Array.isArray(val) ? val.join(' | ') : String(val ?? '');
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {[c.analysis?.strengths, c.analysis?.pros, c.analysis?.positive_points, c.analysis?.positivePoints, c.analysis?.pontos_positivos].some(Boolean) && (
+                                        <div style={{ borderTop: '1px solid rgba(34, 197, 94, 0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>{t('pontosPositivosCurriculo')}</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {(() => {
+                                                    const val = c.analysis?.strengths || c.analysis?.pros || c.analysis?.positive_points || c.analysis?.positivePoints || c.analysis?.pontos_positivos;
+                                                    return Array.isArray(val) ? val.join('\n') : String(val ?? '');
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {[c.analysis?.redFlags, c.analysis?.weaknesses, c.analysis?.cons, c.analysis?.negative_points, c.analysis?.gaps, c.analysis?.pontos_atencao].some(Boolean) && (
+                                        <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
+                                            <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>{t('pontosAtencaoNegativos')}</p>
+                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                {(() => {
+                                                    const val = c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao;
+                                                    return Array.isArray(val) ? val.join('\n') : String(val ?? '');
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+                                </section>
+                            </>
+                        )}
+
+                        {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} isBlacklisted={c.is_blacklisted} onCardRemoved={onCardRemoved} />}
+
+                        {!c.isVagaView && !hidePipelineAndBlacklist && (
+                            <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 14 }}>
+                                <div>
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <Ban size={14} /> {t('listaRestricao')}
+                                    </p>
+                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, maxWidth: '300px' }}>
+                                        {c.is_blacklisted
+                                            ? t('candidatoRestritoDesc')
+                                            : t('sinalizarCandidatosDesc')
+                                        }
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={toggleBlacklist}
+                                    disabled={togglingBlacklist}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'transparent',
+                                        border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
+                                        borderRadius: 12, padding: '10px 20px',
+                                        color: c.is_blacklisted ? '#ef4444' : 'var(--text-dim)',
+                                        fontSize: 13, fontWeight: 700,
+                                        cursor: togglingBlacklist ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                        width: isMobile ? '100%' : 'auto',
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (!c.is_blacklisted) {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                                            e.currentTarget.style.borderColor = '#ef4444';
+                                            e.currentTarget.style.color = '#ef4444';
+                                        }
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (!c.is_blacklisted) {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.borderColor = 'var(--border)';
+                                            e.currentTarget.style.color = 'var(--text-dim)';
+                                        }
+                                    }}
+                                >
+                                    {togglingBlacklist ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={14} />}
+                                    {c.is_blacklisted ? t('removerDaLista') : t('restringirCandidato')}
+                                </button>
+                            </section>
+                        )}
+
+
+
+                        {!c.isVagaView && skillsList.length > 0 && (
+                            <></>
+                        )}
+
+                        <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+                            {!c.isVagaView ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 16, background: 'var(--bg-main)', borderRadius: 12, padding: 4 }}>
+                                    <button onClick={() => setActiveTab('vagas')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'vagas' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'vagas' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'vagas' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <Briefcase size={12} />
+                                        {t('vagasTab')} {(c.applications.length || c.vagas?.length || 0) > 0 && <span style={{ background: activeTab === 'vagas' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'vagas' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{c.applications.length || c.vagas?.length}</span>}
+                                    </button>
+                                    <button onClick={() => setActiveTab('triagem')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'triagem' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'triagem' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'triagem' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <Activity size={12} />
+                                        {t('triagem')}
+                                    </button>
+                                    <button onClick={() => setActiveTab('comments')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: activeTab === 'comments' ? 'var(--bg-card)' : 'transparent', color: activeTab === 'comments' ? 'var(--text-main)' : 'var(--text-dim)', boxShadow: activeTab === 'comments' ? '0 1px 4px rgba(0,0,0,0.2)' : 'none' }}>
+                                        <MessageSquare size={12} />
+                                        {t('notasTab')} {comments.length > 0 && <span style={{ background: activeTab === 'comments' ? 'var(--primary)' : 'var(--bg-main)', color: activeTab === 'comments' ? '#fff' : 'var(--text-dim)', borderRadius: 20, padding: '1px 7px', fontSize: 10 }}>{comments.length}</span>}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>{t('notasRecrutador')}</p>
+                                    {comments.length > 0 && <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{comments.length}</span>}
+                                </div>
+                            )}
+
+                            {activeTab === 'vagas' && (
+                                <div>
+                                    <button onClick={() => setVagasOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '0 0 10px', width: '100%' }}>
+                                        <span style={{ transition: 'transform 0.2s', transform: vagasOpen ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'inline-block' }}>▾</span>
+                                        {vagasOpen ? t('recolherTodas') : t('expandirVagas').replace('{count}', String(c.applications.length))}
+                                    </button>
+
+                                    {vagasOpen && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {c.applications.length === 0 ? <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>{t('nenhumaVagaAssociada')}</p> :
+                                                c.applications.map(app => (
+                                                    <div key={app.jobId} style={{ background: 'var(--bg-main)', border: `1px solid ${expandedJob === app.jobId ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden' }}>
+                                                        <div onClick={() => setExpandedJob(expandedJob === app.jobId ? null : app.jobId)} style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                                <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                    {app.jobName}
+                                                                    {app.jobCode && <span style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>{app.jobCode}</span>}
+                                                                </p>
+                                                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                                    <span style={{ background: scoreColor(app.score), color: '#fff', borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>{app.score}{t('percentualMatch')}</span>
+                                                                    <span style={{ fontSize: 11, color: '#64748b' }}>{formatDate(app.appliedAt)}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                                {(app.resume_url || c.resume_url) && (
+                                                                    <button 
+                                                                        onClick={e => { 
+                                                                            e.stopPropagation(); 
+                                                                            handleViewResume(app.resume_url || c.resume_url);
+                                                                        }} 
+                                                                        title={t('verCurriculoInscricao')}
+                                                                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--primary)', display: 'flex' }}
+                                                                    >
+                                                                        <FileText size={14} />
+                                                                    </button>
+                                                                )}
+                                                                <button onClick={e => { e.stopPropagation(); navigate(`/vagas/${app.jobId}/candidatos`); }} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><Eye size={14} /></button>
+                                                                <button onClick={e => { e.stopPropagation(); navigate('/pipeline'); }} title={t('pipeline')} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 7, cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><GitBranch size={14} /></button>
+                                                                <span style={{ transition: 'transform 0.2s', transform: expandedJob === app.jobId ? 'rotate(180deg)' : 'none' }}>▾</span>
+                                                            </div>
+                                                        </div>
+                                                        {expandedJob === app.jobId && (
+                                                            <div style={{ borderTop: '1px solid var(--border)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                                {(app.experience || c.experience) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{t('analiseDaNota')}</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.experience || c.experience}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.education || c.education) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{t('formacao')}</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', margin: 0 }}>{app.education || c.education}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.positivePoints) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{t('pontosPositivos')}</p>
+                                                                        <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: 0 }}>{app.positivePoints}</p>
+                                                                    </div>
+                                                                )}
+                                                                {(app.redFlags || c.redFlags) && (
+                                                                    <div>
+                                                                        <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{t('pontosAtencao')}</p>
+                                                                        <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>{(app.redFlags || c.redFlags || '').split('\n').filter(Boolean).map((line, i) => <li key={i} style={{ fontSize: 13, color: '#fca5a5', marginBottom: 4 }}>• {line}</li>)}</ul>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'triagem' && (
+                                <div style={{ minHeight: 100 }}>
+                                    {loadingLogs ? (
+                                        <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}><Loader className="animate-spin" size={20} color="var(--primary)" /></div>
+                                    ) : screeningLogs.length === 0 ? (
+                                        <p style={{ fontSize: 13, color: 'var(--text-dim)', textAlign: 'center', padding: '12px 0' }}>{t('nenhumLogTriagem')}</p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                            {(Object.entries(
+                                                screeningLogs.reduce((acc, log) => {
+                                                    const details = log.details ?? {};
+                                                    const groupId = String(details['pipeline_id'] ?? details['job_id'] ?? 'unknown');
+                                                    const groupName = String(details['pipeline_name'] ?? details['job_name'] ?? (log.action === 'inclusion' ? log.to_stage : null) ?? 'Vaga não identificada');
+                                                    if (!acc[groupId]) acc[groupId] = { name: groupName, logs: [] };
+                                                    acc[groupId].logs.push(log);
+                                                    return acc;
+                                                }, {} as Record<string, ScreeningLogGroup>)
+                                            ) as [string, ScreeningLogGroup][]).map(([jobId, group]) => (
+                                                <div key={jobId} style={{ 
+                                                    background: 'var(--bg-main)', 
+                                                    border: '1px solid var(--border)', 
+                                                    borderRadius: 12, 
+                                                    overflow: 'hidden',
+                                                    transition: 'all 0.2s'
+                                                }}>
+                                                    <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: expandedLogJob === jobId ? '1px solid var(--border)' : 'none' }}>
+                                                        <div style={{ minWidth: 0, flex: 1 }}>
+                                                            <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {t('processoSeletivo').replace('{name}', group.name)}
+                                                            </p>
+                                                        </div>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setExpandedLogJob(expandedLogJob === jobId ? null : jobId); }}
+                                                            style={{ 
+                                                                background: expandedLogJob === jobId ? 'rgba(99,102,241,0.1)' : 'var(--bg-card)', 
+                                                                border: `1px solid ${expandedLogJob === jobId ? 'var(--primary)' : 'var(--border)'}`, 
+                                                                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', 
+                                                                color: expandedLogJob === jobId ? 'var(--primary)' : 'var(--text-dim)', 
+                                                                fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 
+                                                            }}
+                                                        >
+                                                            {expandedLogJob === jobId ? t('recolherLog') : t('verLogCompleto')}
+                                                            <span style={{ transition: 'transform 0.2s', transform: expandedLogJob === jobId ? 'rotate(180deg)' : 'none' }}>▼</span>
+                                                        </button>
+                                                    </div>
+
+                                                    {expandedLogJob === jobId && (
+                                                        <div style={{ padding: '16px 20px', position: 'relative' }}>
+                                                            <div style={{ position: 'absolute', left: 24.5, top: 16, bottom: 16, width: 1, background: 'var(--border)' }} />
+                                                            {group.logs.map((log: ScreeningLog, i: number) => (
+                                                                <div key={log.id} style={{ position: 'relative', paddingLeft: 24, paddingBottom: i === group.logs.length - 1 ? 0 : 20 }}>
+                                                                    <div style={{ 
+                                                                        position: 'absolute', left: -4, top: 2, width: 9, height: 9, borderRadius: '50%', 
+                                        background: i === 0 ? 'var(--primary)' : 'var(--bg-card)', 
+                                                                        border: `2px solid ${i === 0 ? 'var(--primary)' : 'var(--border)'}`, 
+                                                                        boxShadow: i === 0 ? '0 0 8px var(--primary)' : 'none' 
+                                                                    }} />
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-main)' }}>
+                                                                            {log.action === 'inclusion' ? t('candidatoIncluidoVaga') : 
+                                                                             log.action === 'move' ? t('transicaoEtapa') : log.action}
+                                                                        </span>
+                                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', margin: 0, lineHeight: '1.4' }}>
+                                                                            {log.action === 'inclusion' && t('etapaInicial').replace('{stage}', log.to_stage ?? '')}
+                                                                            {log.action === 'move' && `${t('mudouDe').replace('{from}', log.from_stage ?? '')} ${t('mudouPara').replace('{to}', log.to_stage ?? '')}`}
+                                                                        </p>
+                                                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                                                            <Clock size={9} /> {relativeTime(log.created_at)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'comments' && (
+                                <div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+                                        {comments.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-dim)', textAlign: 'center', padding: '12px 0' }}>{t('nenhumComentario')}</p>}
+                                        {comments.map(cm => (
+                                            <div key={cm.id} className="comment-row" style={{ display: 'flex', gap: 12 }}>
+                                                {renderAvatar(cm.author)}
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{cm.author?.name || 'Recrutador'}</span>
+                                                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {relativeTime(cm.createdAt)}</span>
+                                                    </div>
+                                                    {editingId === cm.id ? (
+                                                        <div style={{ background: 'var(--bg-main)', border: '1px solid var(--primary)', borderRadius: '4px 16px 16px 16px', padding: '12px' }}>
+                                                            <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={3} autoFocus style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: 13, lineHeight: '1.6', resize: 'none', outline: 'none' }} />
+                                                            <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
+                                                                <button onClick={() => setEditingId(null)} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>{t('cancelar')}</button>
+                                                                <button onClick={() => handleEditSave(cm.id)} style={{ background: 'var(--primary)', border: 'none', borderRadius: 8, padding: '5px 16px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{t('salvar')}</button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '4px 16px 16px 16px', padding: '12px 14px', position: 'relative' }}>
+                                                            <p style={{ fontSize: 13, color: 'var(--text-main)', lineHeight: '1.6', margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>{cm.text}</p>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 24 }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
+                                                                    {!cm.reaction ? (
+                                                                        <div className="comment-actions" style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <button
+                                                                                onClick={() => setPickerOpenId(pickerOpenId === cm.id ? null : cm.id)}
+                                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: pickerOpenId === cm.id ? 'var(--primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: 2, transition: 'color 0.2s' }}
+                                                                            >
+                                                                                <Smile size={18} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={() => setPickerOpenId(pickerOpenId === cm.id ? null : cm.id)}
+                                                                            style={{ background: 'rgba(99,102,241,0.15)', border: pickerOpenId === cm.id ? '1px solid var(--primary)' : '1px solid rgba(99,102,241,0.3)', borderRadius: 20, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all 0.2s' }}
+                                                                        >
+                                                                            <span style={{ fontSize: 14 }}>{cm.reaction}</span>
+                                                                            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 700 }}>1</span>
+                                                                        </button>
+                                                                    )}
+                                                                    {pickerOpenId === cm.id && (
+                                                                        <div className="emoji-picker-bar">
+                                                                            {['❤️', '👍', '💡', '👏', '😂', '😮'].map(emoji => (
+                                                                                <span
+                                                                                    key={emoji}
+                                                                                    className="emoji-option"
+                                                                                    onClick={(e) => { e.stopPropagation(); handleReaction(cm.id, emoji); setPickerOpenId(null); }}
+                                                                                >
+                                                                                    {emoji}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="comment-actions" style={{ display: 'flex', gap: 12 }}>
+                                                                    <button onClick={() => { setEditingId(cm.id); setEditText(cm.text); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                        {t('editar')}
+                                                                    </button>
+                                                                    <button onClick={() => handleDelete(cm.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.7)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                                        <X size={12} />
+                                                                        {t('apagar')}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                        {renderAvatar({ name: profile.userName, avatarUrl: profile.avatarUrl, initials: profile.initials })}
+                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                            <div
+                                                onClick={() => setInputExpanded(true)}
+                                                style={{
+                                                    cursor: 'text',
+                                                    padding: '12px 14px',
+                                                    background: 'var(--bg-main)',
+                                                    border: '1px solid var(--border)',
+                                                    borderRadius: 16,
+                                                    color: 'var(--text-dim)',
+                                                    fontSize: 13,
+                                                    display: inputExpanded ? 'none' : 'block',
+                                                    transition: 'border-color 0.2s'
+                                                }}
+                                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                                            >
+                                                {t('adicioneComentario')}
+                                            </div>
+                                            <div style={{
+                                                maxHeight: inputExpanded ? '250px' : '0',
+                                                opacity: inputExpanded ? 1 : 0,
+                                                overflow: 'hidden',
+                                                visibility: inputExpanded ? 'visible' : 'hidden',
+                                                transition: 'max-height 0.35s ease, opacity 0.3s ease'
+                                            }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <textarea
+                                                        ref={textareaRef}
+                                                        value={newText}
+                                                        onChange={e => setNewText(e.target.value)}
+                                                        placeholder={t('adicioneComentario')}
+                                                        rows={3}
+                                                        onBlur={() => { if (!newText.trim()) setInputExpanded(false); }}
+                                                        style={{
+                                                            width: '100%', boxSizing: 'border-box',
+                                                            background: 'var(--bg-main)',
+                                                            border: '1px solid var(--border)',
+                                                            borderRadius: 16,
+                                                            padding: '12px 14px 44px',
+                                                            color: 'var(--text-main)',
+                                                            fontSize: 13, lineHeight: '1.6',
+                                                            resize: 'none', outline: 'none'
+                                                        }}
+                                                    />
+                                                    <div style={{ position: 'absolute', right: 10, bottom: 10, display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <button
+                                                                onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
+                                                                style={{
+                                                                    background: 'transparent', border: 'none',
+                                                                    cursor: 'pointer', color: 'var(--text-dim)',
+                                                                    padding: 4, display: 'flex'
+                                                                }}
+                                                            >
+                                                                <Smile size={18} />
+                                                            </button>
+                                                            {emojiPickerOpen && (
+                                                                <div style={{
+                                                                    position: 'absolute', bottom: '100%', right: 0,
+                                                                    display: 'flex', gap: 4, padding: '6px 8px',
+                                                                    background: 'var(--bg-card)',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: 12, marginBottom: 6,
+                                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                                }}>
+                                                                    {['❤️', '👍', '💡', '👏', '😂', '😮', '🔥', '🚀'].map(emoji => (
+                                                                        <span
+                                                                            key={emoji}
+                                                                            onClick={() => insertEmoji(emoji)}
+                                                                            style={{ cursor: 'pointer', fontSize: 18, padding: 2 }}
+                                                                        >
+                                                                            {emoji}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => { handleAddComment(); setInputExpanded(false); setEmojiPickerOpen(false); }}
+                                                            disabled={saving || !newText.trim()}
+                                                            className="publish-btn"
+                                                            style={{
+                                                                border: 'none', borderRadius: 10, padding: '8px 20px',
+                                                                color: '#fff', fontSize: 12, fontWeight: 700,
+                                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7,
+                                                                opacity: newText.trim() ? 1 : 0.5
+                                                            }}
+                                                        >
+                                                            {saving ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <MessageSquare size={15} />}
+                                                            {t('publicar')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    </div>
+                )}
+
+                {!showAnalyzeWithVagas && !c.hideBankButton && c.status !== 'talent_bank' && (currentJobContext?.id || c.applications[0]?.jobId ? (
+                    <div style={{ padding: '0 24px 32px' }}>
+                        <button
+                            onClick={() => setTransferringToBank(true)}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                background: '#10b981',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                color: '#fff',
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.3)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                            }}
+                        >
+                            <UserPlus size={18} />
+                            {t('moverBancoTalentos')}
+                        </button>
+                    </div>
+                ) : null
+                )}
+
+                {showAnalyzeWithVagas && c.resume_url && (
+                    <div style={{ padding: '0 24px 32px' }}>
+                        <button
+                            onClick={() => onAnalyzeWithVagas?.(c.id)}
+                            style={{
+                                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                background: 'var(--primary)',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '16px',
+                                color: '#fff',
+                                fontSize: '15px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.3)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.2)';
+                            }}
+                        >
+                            <FileText size={18} />
+                            {t('analisarParaVaga')}
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {transferringToBank && (
+                <TalentTransferModal
+                    candidate={{
+                        id: c.id,
+                        name: c.name,
+                        email: c.email,
+                        phone: localC.phone,
+                        location: localC.location,
+                        linkedin: localC.linkedin,
+                        age: localC.age,
+                        gender: localC.gender,
+                        address: localC.address,
+                        portfolio: localC.portfolio,
+                        cep: localC.cep,
+                        address_number: localC.address_number,
+                        complement: localC.complement,
+                        resume_url: c.resume_url,
+                        match_score: c.score || 0,
+                        notes: c.notes,
+                        answers: { _ai_analysis: c.analysis }
+                    }}
+                    job={{
+                        id: currentJobContext?.id || c.applications[0]?.jobId,
+                        title: currentJobContext?.title || c.applications[0]?.jobName || 'Banco de Talentos',
+                        organization_id: profile.organization_id
+                    }}
+                    onClose={() => setTransferringToBank(false)}
+                    onSuccess={() => {
+                        setTransferringToBank(false);
+                        if (onTransferSuccess) onTransferSuccess();
+                    }}
+                />
+            )}
+        </>
+    );
+}

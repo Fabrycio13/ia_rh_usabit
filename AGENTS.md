@@ -50,10 +50,15 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 - Edge Functions: `checkRateLimit()`, `stripHtml()`, `sanitizeText()` em toda input
 
 ## Agentes OpenCode
-- `@revisor` — subagent read-only para análise de código em 6 categorias
-- `@designer` — subagent especialista em design system e componentes UI
-- `@testador` — subagent especialista em criar testes seguindo os padrões do projeto (Vitest + Testing Library + mocks)
-- `@orquestrador` — primary agent que coordena, revisa, implementa e **auto-melhora os agentes**: refina prompts, instruções e padrões no `AGENTS.md` com base em lições aprendidas durante o desenvolvimento
+- `@revisor` — subagent read-only para análise de código em 6 categorias (corretude, segurança, padrões, SQL/RLS, testes, performance)
+- `@designer` — subagent especialista em design system e componentes UI (tokens CSS, lucide-react, export const)
+- `@content-designer` — subagent UX writer (PT-BR) para escrever, revisar ou auditar copy de UI (botões, erros, estados vazios, placeholders, modais, tooltips). Glossário oficial do IA RH embutido. Use `/content-designer <tarefa>` ou `@content-designer <tarefa>`.
+- `@frontend` — subagent engenheiro frontend sênior (React 19, TypeScript strict, perf, a11y WCAG 2.2, async/await, code splitting). Foco em produção, não prototipação.
+- `@backend` — subagent engenheiro backend sênior (Supabase, PostgreSQL, RLS, Edge Functions Deno, Storage, LGPD). Migrations idempotentes, RLS em camadas, audit trail.
+- `@security` — subagent engenheiro de segurança (pentest end-to-end, LGPD/GDPR, threat modeling, OWASP Top 10, MITRE ATT&CK). Read-only, reporta vulnerabilidades. Mentalidade Google/Amazon.
+- `@testador` — subagent especialista em criar testes seguindo os padrões do projeto (Vitest + Testing Library + mocks). Único com bash: allow para rodar validações (tsc/lint/test/build).
+- `@reproduce-bug` — subagent framework de reprodução de bugs (adaptado do n8n). Recebe contexto de ticket (Linear/GitHub/log), produz teste de regressão falhando + Reproduction Report. NÃO corrige o bug — só reproduz com evidência. Integra com `@orquestrador`: report acionável dispara delegação para `@frontend` ou `@backend`. Mesma skill também disponível no Hermes (`~/AppData/Local/hermes/skills/reproduce-bug/SKILL.md`) para reprodução interativa.
+- `@orquestrador` — **delegador puro** (primary agent). NÃO implementa código. Decide qual subagent chamar e em que ordem, coordena o pipeline, compila UM relatório final agregado, pede autorização de commit. Pipeline: planejamento → @designer/@content-designer (paralelos) → @frontend/@backend (paralelos) → @revisor + @security → @testador → relatório final.
 
 ## Referências
 - `.agent/` — Antigravity Kit (framework separado, NÃO integrado ao opencode)

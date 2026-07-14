@@ -21,6 +21,21 @@ dist-ssr
 *.sln
 *.sw?
 
+# Empty/legacy root files
+errors.txt
+schema.sql
+
+# Frameworks de agents/skills não integrados ao projeto
+.agent/
+openspec/
+
+# Test sprite MCP (config + logs ficam só locais — contém credenciais)
+testsprite_tests/
+.testsprite/
+
+# Scratch files (one-off debug scripts e outputs temporários)
+scratch/
+
 # Project structure - Track these folders
 !docs/
 !scripts/
