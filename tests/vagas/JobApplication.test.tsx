@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { JobApplication } from '../src/pages/vagas/JobApplication';
+import { JobApplication } from '../../src/pages/vagas/JobApplication';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 
 vi.stubGlobal('import.meta', {

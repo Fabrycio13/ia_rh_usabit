@@ -35,7 +35,7 @@ vi.mock('react-hot-toast', () => ({
     default: mocks.mockToast,
 }));
 
-import { SetPassword } from '../src/pages/auth/SetPassword';
+import { SetPassword } from '../../src/pages/auth/SetPassword';
 
 const renderSetPassword = () => render(<MemoryRouter><SetPassword /></MemoryRouter>);
 

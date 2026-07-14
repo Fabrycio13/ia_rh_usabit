@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { LangProvider, useLang } from '../src/core/contexts/LangContext';
-import { ThemeProvider, useTheme } from '../src/core/contexts/ThemeContext';
+import { LangProvider, useLang } from '../../src/core/contexts/LangContext';
+import { ThemeProvider, useTheme } from '../../src/core/contexts/ThemeContext';
 
 const store: Record<string, string> = {};
 const mockStorage = {

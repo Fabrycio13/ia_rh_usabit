@@ -21,7 +21,7 @@ vi.mock('../src/core/services/supabase', () => ({
   },
 }));
 
-import { Login } from '../src/pages/auth/Login';
+import { Login } from '../../src/pages/auth/Login';
 
 const renderLogin = () => render(<MemoryRouter><Login /></MemoryRouter>);
 

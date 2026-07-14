@@ -34,7 +34,7 @@ vi.mock('../src/core/contexts/UserContext', () => ({
     }),
 }));
 
-import { logActivity, logScreening } from '../src/core/services/logger';
+import { logActivity, logScreening } from '../../src/core/services/logger';
 
 describe('logger - logActivity', () => {
     beforeEach(() => { vi.clearAllMocks(); });

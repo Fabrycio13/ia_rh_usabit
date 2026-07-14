@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { VagaForm } from '../src/pages/vagas/VagaForm';
-import { vagaColor, extractVagaName } from '../src/pages/candidates/CandidateBank';
+import { VagaForm } from '../../src/pages/vagas/VagaForm';
+import { vagaColor, extractVagaName } from '../../src/pages/candidates/CandidateBank';
 
 const store: Record<string, string> = {};
 vi.stubGlobal('localStorage', {

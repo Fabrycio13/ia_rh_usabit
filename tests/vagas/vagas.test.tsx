@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { Vagas } from '../src/pages/vagas/Vagas';
+import { Vagas } from '../../src/pages/vagas/Vagas';
 
 const mockVagas = [
     { id: 'vaga-1', title: 'Dev Frontend', public_hash: 'abc123', status: 'aberta', is_active: true, is_accepting_applications: true, location: 'Remoto', contract_type: 'clt', application_count: 5, created_at: '2025-01-15T10:00:00Z', organization_id: 'org-456', is_pcd: 'no', is_third_party: false, company_name: null, company_logo: null, show_company_name: true, job_code: 'DEV-001', pipeline_id: null },

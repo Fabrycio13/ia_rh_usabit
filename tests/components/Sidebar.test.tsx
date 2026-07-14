@@ -26,7 +26,7 @@ vi.mock('../src/core/contexts/LangContext', () => ({ useLang: () => mocks.mockLa
 vi.mock('../src/core/contexts/AnalysisContext', () => ({ useAnalysis: () => mocks.mockAnalysis }));
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
-import { Sidebar } from '../src/layouts/Sidebar';
+import { Sidebar } from '../../src/layouts/Sidebar';
 
 const renderSidebar = () => render(<MemoryRouter><Sidebar onToggleChat={vi.fn()} /></MemoryRouter>);
 

@@ -57,7 +57,7 @@ vi.mock('../src/core/services/supabase', () => ({
 vi.mock('../src/core/contexts/UserContext', () => ({ useUser: () => ({ profile: mockProfile }) }));
 vi.mock('../src/core/contexts/ThemeContext', () => ({ useTheme: () => ({ bgTheme: 'spatial', theme: 'dark' }) }));
 
-import { Dashboard } from '../src/pages/dashboard/Dashboard';
+import { Dashboard } from '../../src/pages/dashboard/Dashboard';
 
 describe('Dashboard', () => {
     beforeEach(() => {

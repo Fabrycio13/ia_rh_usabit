@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
-import { Ajuda } from '../src/pages/support/Ajuda';
+import { Ajuda } from '../../src/pages/support/Ajuda';
 
 describe('Ajuda - Central de Ajuda', () => {
     it('renderiza título e descrição', () => {

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { parseComments, relativeTime } from '../src/features/analysis/CandidatePanelUtils';
+import { parseComments, relativeTime } from '../../src/features/analysis/CandidatePanelUtils';
 
 const store: Record<string, string> = {};
 vi.stubGlobal('localStorage', {

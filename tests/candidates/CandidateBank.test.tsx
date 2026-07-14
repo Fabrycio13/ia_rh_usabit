@@ -77,7 +77,7 @@ vi.mock('../src/features/candidates/components/ReanalyzeCandidateModal', () => (
   ReanalyzeCandidateModal: () => null,
 }));
 
-import { CandidateBank } from '../src/pages/candidates/CandidateBank';
+import { CandidateBank } from '../../src/pages/candidates/CandidateBank';
 
 const renderBank = () => render(<MemoryRouter><CandidateBank /></MemoryRouter>);
 

@@ -27,7 +27,7 @@ vi.mock('../src/core/constants/disposableEmails', () => ({
   isDisposableEmail: vi.fn(() => false),
 }));
 
-import { Register } from '../src/pages/auth/Register';
+import { Register } from '../../src/pages/auth/Register';
 
 const renderRegister = () => render(<MemoryRouter><Register /></MemoryRouter>);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { PoolAddCandidate } from '../src/features/candidates/components/PoolAddCandidate';
+import { PoolAddCandidate } from '../../src/features/candidates/components/PoolAddCandidate';
 
 vi.mock('../src/core/contexts/UserContext', () => ({
     useUser: () => ({
