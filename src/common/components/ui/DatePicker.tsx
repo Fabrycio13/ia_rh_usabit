@@ -92,10 +92,11 @@ const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, placeholder = 
             {/* Dropdown Calendar */}
             {isOpen && (
                 <div style={{
-                    position: 'fixed',
-                    top: '50%',
+                    position: 'absolute',
+                    top: '100%',
                     left: '50%',
-                    transform: 'translate(-50%, -50%)',
+                    transform: 'translateX(-50%)',
+                    marginTop: '6px',
                     zIndex: 2000,
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',

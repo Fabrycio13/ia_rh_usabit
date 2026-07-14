@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye } from 'lucide-react';
+import { Plus, X, Edit2, Check, Trash2, ChevronDown, ChevronRight, ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Ban, LayoutDashboard, List, BarChart2, Flag, Calendar, Target, ClipboardList, AlertCircle, Phone, Kanban, MoreHorizontal, MoreVertical, Eye, Link as LinkIcon, Unlink } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { logScreening, logActivity } from '../../core/services/logger';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
-import { type CandidateDetail, type Application, toStr } from '../../features/analysis/CandidatePanelUtils';
+import { type CandidateDetail, type Application } from '../../features/analysis/CandidatePanelUtils';
+import { toStr, initials, scoreColor } from '../../core/utils/format';
 import toast from 'react-hot-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,7 +54,7 @@ interface CandidateQueryRow {
     is_blacklisted?: boolean;
     phone?: string | null;
     conversations?: unknown[];
-    job_candidates?: { jobs?: { name?: string }; vagas_white_label?: { title?: string } }[];
+    vagas_candidaturas?: { vagas_white_label?: { title?: string } }[];
 }
 
 interface PipeQueryRow {
@@ -73,8 +75,7 @@ interface RawCardRow {
         is_blacklisted: boolean;
         phone: string | null;
         conversations: unknown[];
-        job_candidates: Array<{
-            jobs: { name: string } | null;
+        vagas_candidaturas: Array<{
             vagas_white_label: { title: string } | null;
         }>;
     } | null;
@@ -126,19 +127,11 @@ const DEFAULT_COLUMNS = [
 
 const COLUMN_COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#22c55e', '#ef4444', '#a78bfa', '#ec4899', '#14b8a6'];
 
-function initials(name: string) {
-    return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase();
-}
-function scoreColor(s: number | null) {
-    if (!s) return '#64748b';
-    return s >= 70 ? '#22c55e' : s >= 40 ? '#f59e0b' : '#ef4444';
-}
-
 // ─── CSS ──────────────────────────────────────────────────────────────────────
-const css = `
+const getCss = (bgTheme: string) => `
 @keyframes pipelineFadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-.pipe-col { display:flex; flex-direction:column; min-width:280px; max-width:280px; max-height:calc(100vh - 260px); border-radius:16px; padding:0; background:var(--bg-main); border:1px solid var(--border); transition:border-color 0.2s; }
-.pipe-col.drag-over { border-color:var(--primary); background:rgba(99,102,241,0.04); }
+.pipe-col { display:flex; flex-direction:column; min-width:280px; max-width:280px; max-height:calc(100vh - 260px); border-radius:16px; padding:0; background:${bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)'}; border:${bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.12)' : '1px solid var(--border)'}; transition:border-color 0.2s; }
+.pipe-col.drag-over { border-color:var(--primary); background:${bgTheme === 'frequence' ? 'rgba(34,197,94,0.06)' : 'rgba(99,102,241,0.04)'}; }
 .pipe-col.dragging { opacity:0.1; }
 .pipe-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px 24px; cursor:grab; user-select:none; position:relative; }
 .pipe-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.25); border-color:rgba(99,102,241,0.3); }
@@ -353,6 +346,7 @@ function AddCandidateModal({ columnId, eligibles, onAdd, onClose }: {
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const Pipeline = () => {
     const { profile } = useUser();
+    const { bgTheme } = useTheme();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const vagaIdParam = searchParams.get('vagaId');
@@ -952,7 +946,7 @@ export const Pipeline = () => {
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -980,7 +974,7 @@ export const Pipeline = () => {
                     pipeline_id: pipelineId,
                     candidate_name: c.candidates?.name ?? 'Sem nome',
                     candidate_score: c.candidates?.score ?? null,
-                    candidate_vagas: (c.candidates?.job_candidates ?? []).map((jc) => jc.vagas_white_label?.title || jc.jobs?.name).filter((s): s is string => !!s),
+                    candidate_vagas: (c.candidates?.vagas_candidaturas ?? []).map((vc) => vc.vagas_white_label?.title).filter((s): s is string => !!s),
                     display_job_name: displayJobName,
                     display_job_score: displayJobScore,
                     job_id: jobId,
@@ -998,7 +992,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: PipelineCard[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), job_candidates(jobs(name), vagas_white_label(title))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -1009,7 +1003,7 @@ export const Pipeline = () => {
             id: c.id,
             name: c.name,
             score: c.score,
-            vagas: (c.job_candidates ?? []).map((jc) => jc.jobs?.name || jc.vagas_white_label?.title).filter((s): s is string => !!s),
+            vagas: (c.vagas_candidaturas ?? []).map((vc) => vc.vagas_white_label?.title).filter((s): s is string => !!s),
             already_in_pipeline: inPipeline.has(c.id),
             is_blacklisted: c.is_blacklisted,
             phone: c.phone,
@@ -1021,7 +1015,7 @@ export const Pipeline = () => {
     async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
             supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
-            supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
+            supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
             supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
@@ -1030,8 +1024,7 @@ export const Pipeline = () => {
 
         const analysis = cand.analysis ?? {};
         const validJobIds = new Set<string>();
-        (jcData ?? []).forEach((jc: { job_id?: string; vaga_id?: string }) => {
-            if (jc.job_id) validJobIds.add(jc.job_id);
+        (jcData ?? []).forEach((jc: { vaga_id?: string }) => {
             if (jc.vaga_id) validJobIds.add(jc.vaga_id);
         });
         const rawHistory: HistoryItem[] = analysis?.history ?? [];
@@ -1405,7 +1398,7 @@ export const Pipeline = () => {
 
     return (
         <>
-            <style>{css}</style>
+            <style>{getCss(bgTheme)}</style>
 
             <div style={{ marginBottom: isMobile ? 12 : 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: isMobile ? 10 : 16 }}>
@@ -1558,7 +1551,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingRight: 28 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                                                <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                 <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                                             </div>
                                             <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-main)', color: 'var(--text-dim)', textTransform: 'uppercase', flexShrink: 0 }}>
@@ -1602,23 +1595,23 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
             </div>
 
             {/* Tabs and Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'nowrap', gap: isMobile ? 6 : 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 10 : 16 }}>
                 {/* Tabs à esquerda */}
                 <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 4, flexShrink: 0 }}>
-                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'board' ? ' active' : ''}`} onClick={() => setActiveTab('board')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <LayoutDashboard size={14} />{isMobile ? '' : ' Board'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'lista' ? ' active' : ''}`} onClick={() => setActiveTab('lista')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <List size={14} />{isMobile ? '' : ' Lista'}
                     </button>
-                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '8px 10px' : undefined }}>
+                    <button className={`tab-btn${activeTab === 'metricas' ? ' active' : ''}`} onClick={() => setActiveTab('metricas')} style={{ padding: isMobile ? '6px 8px' : undefined }}>
                         <BarChart2 size={14} />{isMobile ? '' : ' Métricas'}
                     </button>
                 </div>
 
                 {/* Ações da Aba (Nova Coluna, Vincular Vaga, Filtros) à direita */}
                 {/* Actions row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, flexShrink: 0, flexWrap: isMobile ? 'nowrap' : 'nowrap', justifyContent: isMobile ? 'flex-end' : 'flex-end', minWidth: 0 }}>
                     {!isConvidado && selectedPipelineId && !pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
                         <button
                             onClick={() => { const p = pipelines.find(x => x.id === selectedPipelineId); if (p) { setLinkVagaPipeline(p); loadAvailableVagas(); } }}
@@ -1626,13 +1619,13 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
-                                borderRadius: 10, padding: '8px 14px', color: '#2C58FD',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: '#2C58FD',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(44,88,253,0.08)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            Vincular a vaga
+                            {isMobile ? <><LinkIcon size={14} /> Vincular</> : 'Vincular a vaga'}
                         </button>
                     )}
                     {!isConvidado && selectedPipelineId && pipelines.find(p => p.id === selectedPipelineId)?.vaga_id && (
@@ -1642,29 +1635,29 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'transparent', border: '1px solid var(--border)',
-                                borderRadius: 10, padding: '8px 14px', color: '#ef4444',
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s'
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: '#ef4444',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            Desvincular vaga
+                            {isMobile ? <><Unlink size={14} /> Desvincular</> : 'Desvincular vaga'}
                         </button>
                     )}
                     {!isConvidado && activeTab === 'board' && selectedPipelineId && (
-                        <button 
-                            onClick={() => setAddColModal(true)} 
+                        <button
+                            onClick={() => setAddColModal(true)}
                             title="Nova Coluna"
-                            style={{ 
-                                display: 'flex', alignItems: 'center', gap: 6, 
-                                background: 'transparent', border: '1px solid var(--border)', 
-                                borderRadius: 10, padding: '8px 14px', color: 'var(--text-main)', 
-                                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' 
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'transparent', border: '1px solid var(--border)',
+                                borderRadius: 10, padding: isMobile ? '10px 12px' : '8px 14px', color: 'var(--text-main)',
+                                fontSize: isMobile ? 13 : 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--row-hover)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                            <Plus size={14} /> Nova Coluna
+                            <Plus size={isMobile ? 14 : 14} /> {isMobile ? 'Coluna' : 'Nova Coluna'}
                         </button>
                     )}
                 </div>
@@ -2016,59 +2009,59 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                 <div style={{ paddingBottom: 20 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 16 }}>
                         {/* Card 1: Total */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Total de Candidatos</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Total de Candidatos</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Em todas as etapas do processo</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
-                                <Calendar size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Em todas as etapas do processo</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                                <Calendar size={isMobile ? 14 : 18} />
                             </div>
                         </div>
                         
                         {/* Card 2: Em Andamento (Triagem, Entrevista, Proposta) */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Candidatos Ativos</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Candidatos Ativos</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && !col.name.toLowerCase().includes('reprovado') && !col.name.toLowerCase().includes('aprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Em avaliação ativa</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
-                                <Target size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Em avaliação ativa</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+                                <Target size={isMobile ? 14 : 18} />
                             </div>
                         </div>
 
                         {/* Card 3: Aprovados */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Aprovados</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Aprovados</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && col.name.toLowerCase().includes('aprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Aguardando contratação</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
-                                <ClipboardList size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Aguardando contratação</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                                <ClipboardList size={isMobile ? 14 : 18} />
                             </div>
                         </div>
 
                         {/* Card 4: Reprovados/Descartados */}
-                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Descartados</div>
-                            <div style={{ color: 'var(--text-main)', fontSize: 28, fontWeight: 800 }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: isMobile ? 12 : 20, position: 'relative', overflow: 'hidden', minHeight: isMobile ? 110 : 'auto' }}>
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: isMobile ? 4 : 8 }}>Descartados</div>
+                            <div style={{ color: 'var(--text-main)', fontSize: isMobile ? 22 : 28, fontWeight: 800 }}>
                                 {cards.filter(c => {
                                     const col = columns.find(col => col.id === c.column_id);
                                     return col && col.name.toLowerCase().includes('reprovado');
                                 }).length}
                             </div>
-                            <div style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 8 }}>Historico finalizado</div>
-                            <div style={{ position: 'absolute', bottom: 20, right: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                                <AlertCircle size={18} />
+                            <div style={{ color: 'var(--text-dim)', fontSize: isMobile ? 10 : 11, marginTop: isMobile ? 4 : 8, paddingRight: isMobile ? 28 : 0 }}>Historico finalizado</div>
+                            <div style={{ position: 'absolute', bottom: isMobile ? 10 : 20, right: isMobile ? 10 : 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: isMobile ? 26 : 32, height: isMobile ? 26 : 32, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                                <AlertCircle size={isMobile ? 14 : 18} />
                             </div>
                         </div>
                     </div>
@@ -2077,9 +2070,9 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
 
             {/* Add Column Modal */}
             {addColModal && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 12 : 0 }}>
                     <div onClick={() => setAddColModal(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: 340, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+                    <div style={{ position: 'relative', zIndex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 16 : 20, padding: isMobile ? 20 : 28, width: isMobile ? '100%' : 340, maxWidth: 340, boxSizing: 'border-box', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                             <p style={{ color: 'var(--text-main)', fontWeight: 700, fontSize: 16 }}>Nova Coluna</p>
                             <button className="pipe-btn" onClick={() => setAddColModal(false)}><X size={16} /></button>
@@ -2193,7 +2186,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                     <span style={{ fontWeight: 600 }}>{v.title}</span>
                                                     {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>{v.job_code}</span>}
                                                 </div>
@@ -2287,7 +2280,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                                 style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <div className="cs-dot" style={{ background: '#3b82f6', flexShrink: 0 }} />
+                                                    <div className="cs-dot" style={{ background: 'var(--primary)', flexShrink: 0 }} />
                                                     <span style={{ fontWeight: 600 }}>{v.title}</span>
                                                 </div>
                                                 {v.job_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700, paddingLeft: 20 }}>{v.job_code}</span>}
@@ -2423,7 +2416,7 @@ style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' 
                                     <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                                     <button
                                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontSize: 13, fontWeight: 600, color: '#ef4444', borderRadius: 12, textAlign: 'left' }}
-                                        onClick={() => { removeCard(mobileSheet.card.id); setMobileSheet(null); }}>
+                                        onClick={() => { removeCard(mobileSheet.card.id, mobileSheet.card.candidate_id); setMobileSheet(null); }}>
                                         <Trash2 size={14} />
                                         Remover deste pipeline
                                     </button>

@@ -1,17 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
 import { Eye, EyeOff } from 'lucide-react';
-
-const loadFont = () => {
-    if (document.querySelector('#poppins-font')) return;
-    const link = document.createElement('link');
-    link.id = 'poppins-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap';
-    document.head.appendChild(link);
-};
 
 export const Login = () => {
     const navigate = useNavigate();
@@ -20,8 +11,6 @@ export const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-    useEffect(() => { loadFont(); }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,7 +47,7 @@ export const Login = () => {
             {/* Imagem de Fundo Borrada sob o card */}
             <div className="absolute inset-0 z-0 pointer-events-none select-none">
                 <img
-                    src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                    src={`${import.meta.env.BASE_URL}stock-photos/Professional.webp`}
                     alt="Background Blur"
                     className="w-full h-full object-cover blur-[40px] opacity-30 scale-105"
                 />
@@ -186,7 +175,7 @@ export const Login = () => {
                 {/* PAINEL DIREITO: Imagem de Fundo (Recrutador) */}
                 <div className="flex-1 h-full relative hidden md:block select-none overflow-hidden">
                     <img
-                        src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                        src={`${import.meta.env.BASE_URL}stock-photos/Professional.webp`}
                         alt="Usabit people Recrutamento"
                         className="w-full h-full object-cover object-[55%_center]"
                     />

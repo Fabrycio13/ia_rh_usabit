@@ -1,12 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { Users, UserX, UserCheck, Search, Loader2, BarChart2, X, ShieldCheck, Database, ChevronDown, ChevronRight, Mail, Plus, Briefcase, Building2, User as UserIcon } from 'lucide-react';
 import DatePicker from '../../common/components/ui/DatePicker';
 import toast from 'react-hot-toast';
 import { logActivity } from '../../core/services/logger';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
-import { 
+import { initials } from '../../core/utils/format';
+import { inputStyle, labelStyle } from '../../core/utils/formatUtils';
+import {
     ResponsiveContainer, Tooltip as RechartsTooltip,
     AreaChart, Area, XAxis, YAxis, CartesianGrid
 } from 'recharts';
@@ -48,33 +51,10 @@ const css = `
     font-size: 13px; cursor: pointer; transition: all 0.15s;
 }
 .cs-item:hover { background: var(--row-hover); color: var(--text-main); }
-.cs-item.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; }
+                .cs-item.active { background: var(--primary-light-bg); color: var(--primary); font-weight: 600; }
 .cs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 @keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
-
-const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '11px 14px 11px 42px',
-    color: 'var(--text-main)',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s, background 0.2s',
-};
-
-const labelStyle: React.CSSProperties = {
-    display: 'block',
-    color: 'var(--text-muted)',
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: '6px',
-};
 
 const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
 
@@ -89,8 +69,8 @@ const iconFieldStyle: React.CSSProperties = {
     pointerEvents: 'none',
 };
 
-const initials = (name: string) =>
-    name?.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
+// ─── Helpers importados de core/utils/format ──────────────────────────────────
+// (initials vem do import acima)
 
 interface UserProfile {
     id: string;
@@ -117,8 +97,16 @@ interface ChartData {
     value: number;
 }
 
+const ROLE_BG: Record<string, string> = { owner: 'rgba(239,68,68,0.1)', administrador: 'rgba(245,158,11,0.1)', supervisor: 'rgba(139,92,246,0.1)', rh: 'rgba(99,102,241,0.1)' };
+const ROLE_COLOR: Record<string, string> = { owner: '#ef4444', administrador: '#f59e0b', supervisor: '#8b5cf6', rh: '#6366f1' };
+const STATUS_DOT: Record<string, string> = { active: '#10b981', pending: '#f59e0b' };
+const STATUS_LABEL: Record<string, string> = { active: 'Ativo', pending: 'Pendente' };
+const STATUS_ACTION_COLOR: Record<string, string> = { active: '#ef4444', pending: '#f59e0b' };
+const STATUS_ACTION_LABEL: Record<string, string> = { active: 'Desativar', pending: 'Ativar' };
+
 export const AdminDashboard = () => {
     const { profile } = useUser();
+    const { bgTheme } = useTheme();
     const userRole = profile.user_role;
     const userOrgId = profile.organization_id;
 
@@ -202,7 +190,7 @@ export const AdminDashboard = () => {
             
             // Extrair organizações únicas para o filtro (Apenas usuários ativos)
             const orgs = userData
-                .filter(u => u.organization_id && u.status === 'active')
+                .filter(u => u.organization_id && u.status !== 'inactive')
                 .reduce((acc: {id: string, name: string}[], u) => {
                     if (!acc.find(o => o.id === u.organization_id)) {
                         acc.push({ 
@@ -399,6 +387,7 @@ export const AdminDashboard = () => {
             logActivity(profile.userId, 'Criou novo usuário', { tipo: newUser.user_role, email: newUser.email });
             setShowCreateModal(false);
             setNewUser({ name: '', email: '', user_role: 'rh' });
+            fetchDashboardData();
         } catch (err) {
             toast.error(`Ocorreu um erro inesperado: ${(err as Error).message}`);
         }
@@ -524,7 +513,7 @@ export const AdminDashboard = () => {
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? '12px' : '20px', marginBottom: isMobile ? '20px' : '32px' }}>
                 {[
-                    { label: 'Total de Usuários', value: stats.total, icon: Users, color: '#3b82f6' },
+                    { label: 'Total de Usuários', value: stats.total, icon: Users, color: 'var(--primary)' },
                     { label: 'Usuários Ativos', value: stats.active, icon: UserCheck, color: '#10b981' },
                     { label: 'Usuários Inativos', value: stats.inactive, icon: UserX, color: '#ef4444' },
                 ].map((s, i) => (
@@ -571,7 +560,7 @@ export const AdminDashboard = () => {
                 <div style={{ background: 'var(--bg-card)', padding: isMobile ? '14px' : '24px', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: '#3b82f6' }}>
+                            <div style={{ padding: '8px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', color: 'var(--primary)' }}>
                                 <BarChart2 size={20} />
                             </div>
                             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
@@ -705,7 +694,7 @@ export const AdminDashboard = () => {
             </div>
 
             {/* Filter Bar */}
-            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ position: 'relative', width: isMobile ? '100%' : '240px' }}>
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
                     <input 
@@ -745,7 +734,7 @@ export const AdminDashboard = () => {
                         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Status:</span>
                         <div className="cs-container" ref={statusRef} style={{ width: isMobile ? '100%' : '160px' }}>
                             <div className="cs-trigger" onClick={() => setIsStatusOpen(!isStatusOpen)}>
-                                <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : 'Inativo'}</span>
+                                <span>{statusFilter === '' ? 'Todos' : statusFilter === 'active' ? 'Ativo' : statusFilter === 'pending' ? 'Pendente' : 'Inativo'}</span>
                                 <ChevronDown size={14} style={{ transition: 'transform 0.2s', transform: isStatusOpen ? 'rotate(180deg)' : 'none' }} />
                             </div>
                             {isStatusOpen && (
@@ -753,6 +742,9 @@ export const AdminDashboard = () => {
                                     <div className={`cs-item ${statusFilter === '' ? 'active' : ''}`} onClick={() => { setStatusFilter(''); setIsStatusOpen(false); }}>Todos</div>
                                     <div className={`cs-item ${statusFilter === 'active' ? 'active' : ''}`} onClick={() => { setStatusFilter('active'); setIsStatusOpen(false); }}>
                                         <div className="cs-dot" style={{ background: '#10b981' }} /> Ativo
+                                    </div>
+                                    <div className={`cs-item ${statusFilter === 'pending' ? 'active' : ''}`} onClick={() => { setStatusFilter('pending'); setIsStatusOpen(false); }}>
+                                        <div className="cs-dot" style={{ background: '#f59e0b' }} /> Pendente
                                     </div>
                                     <div className={`cs-item ${statusFilter === 'inactive' ? 'active' : ''}`} onClick={() => { setStatusFilter('inactive'); setIsStatusOpen(false); }}>
                                         <div className="cs-dot" style={{ background: '#ef4444' }} /> Inativo
@@ -836,7 +828,7 @@ export const AdminDashboard = () => {
                                     {orgEntries.map(org => {
                                         const adminUser = org.users.find(u => u.user_role === 'administrador');
                                         const totalMembros = org.users.length;
-                                        const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : 'inactive';
+                                        const orgStatus = org.users.some(u => u.status === 'active') ? 'active' : org.users.some(u => u.status === 'pending') ? 'pending' : 'inactive';
                                         const isOpen = expandedOrgs.has(org.id);
                                         return (
                                             <div key={org.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -852,8 +844,8 @@ export const AdminDashboard = () => {
                                                 >
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                                                         {isOpen ? <ChevronDown size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} /> : <ChevronRight size={16} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />}
-                                                        <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                            <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : '#ef4444'} />
+                                                        <div style={{ width: isMobile ? 32 : 36, height: isMobile ? 32 : 36, borderRadius: '10px', background: orgStatus === 'active' ? 'rgba(16, 185, 129, 0.1)' : orgStatus === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            <Building2 size={isMobile ? 16 : 18} color={orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444'} />
                                                         </div>
                                                         <div style={{ minWidth: 0 }}>
                                                             <p style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px', margin: 0 }}>{org.name}</p>
@@ -863,14 +855,14 @@ export const AdminDashboard = () => {
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : '#ef4444' }} />
-                                                        <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                            {orgStatus === 'active' ? 'Ativa' : 'Inativa'}
+                                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444' }} />
+                                                        <span style={{ fontSize: 12, color: orgStatus === 'active' ? '#10b981' : orgStatus === 'pending' ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
+                                                            {orgStatus === 'active' ? 'Ativa' : orgStatus === 'pending' ? 'Pendente' : 'Inativa'}
                                                         </span>
                                                         {org.id !== 'sem-org' && (
                                                             <button
                                                                 onClick={() => handleToggleOrgStatus(org.id, orgStatus)}
-                                                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: orgStatus === 'active' ? '#ef4444' : orgStatus === 'pending' ? '#f59e0b' : '#10b981', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                                             >
                                                                 {orgStatus === 'active' ? <UserX size={12} /> : <UserCheck size={12} />}
                                                                 {orgStatus === 'active' ? 'Desativar' : 'Ativar'}
@@ -902,7 +894,7 @@ export const AdminDashboard = () => {
                                                                     <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: 10, fontWeight: 700, background: u.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : u.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : u.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: u.user_role === 'rh' ? '#6366f1' : u.user_role === 'supervisor' ? '#8b5cf6' : u.user_role === 'administrador' ? '#f59e0b' : '#10b981' }}>
                                                                         {u.user_role?.toUpperCase()}
                                                                     </span>
-                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: u.status === 'active' ? '#10b981' : '#ef4444' }} />
+                                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[u.status] ?? '#ef4444' }} />
                                                                 </div>
                                                             </div>
                                                         ))}
@@ -955,7 +947,7 @@ export const AdminDashboard = () => {
                                                 height: 32, 
                                                 borderRadius: '50%', 
                                                 background: isOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
-                                                color: isOwner ? '#ef4444' : '#3b82f6', 
+                                                color: isOwner ? '#ef4444' : 'var(--primary)', 
                                                 display: 'flex', 
                                                 alignItems: 'center', 
                                                 justifyContent: 'center', 
@@ -972,7 +964,7 @@ export const AdminDashboard = () => {
                                                         {(() => { const n = user.name || user.email.split('@')[0] || 'Usuário'; const m = isMobile ? 12 : 999; return n.length > m ? n.substring(0, m) + '…' : n; })()}
                                                     </p>
                                                     {isMobile && (
-                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444', flexShrink: 0 }} />
+                                                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[user.status] ?? '#ef4444', flexShrink: 0 }} />
                                                     )}
                                                 </div>
                                             </div>
@@ -989,8 +981,8 @@ export const AdminDashboard = () => {
                                             borderRadius: '6px',
                                             fontSize: isMobile ? '10px' : '11px',
                                             fontWeight: 700,
-                                            background: user.user_role === 'owner' ? 'rgba(239, 68, 68, 0.1)' : user.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : user.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : user.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                            color: user.user_role === 'owner' ? '#ef4444' : user.user_role === 'administrador' ? '#f59e0b' : user.user_role === 'supervisor' ? '#8b5cf6' : user.user_role === 'rh' ? '#6366f1' : '#10b981',
+                                            background: ROLE_BG[user.user_role] ?? 'rgba(16, 185, 129, 0.1)',
+                                            color: ROLE_COLOR[user.user_role] ?? '#10b981',
                                             textTransform: 'uppercase',
                                             whiteSpace: 'nowrap',
                                         }}>
@@ -999,9 +991,9 @@ export const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: isMobile ? '10px 8px' : '16px', display: isMobile ? 'none' : 'table-cell' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: user.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                            <span style={{ fontSize: '13px', color: user.status === 'active' ? '#10b981' : '#ef4444' }}>
-                                                {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: STATUS_DOT[user.status] ?? '#ef4444' }} />
+                                            <span style={{ fontSize: '13px', color: STATUS_DOT[user.status] ?? '#ef4444' }}>
+                                                {STATUS_LABEL[user.status] ?? 'Inativo'}
                                             </span>
                                         </div>
                                     </td>
@@ -1010,13 +1002,13 @@ export const AdminDashboard = () => {
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); toggleStatus(user.id, user.status); }}
                                                 disabled={updatingId === user.id}
-                                                title={user.status === 'active' ? 'Desativar' : 'Ativar'}
+                                                title={STATUS_ACTION_LABEL[user.status] ?? 'Ativar'}
                                                 style={{
                                                     padding: isMobile ? '6px' : '6px 12px',
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
-                                                    color: user.status === 'active' ? '#ef4444' : '#10b981',
+                                                    color: STATUS_ACTION_COLOR[user.status] ?? '#10b981',
                                                     fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: 'pointer',
@@ -1030,7 +1022,7 @@ export const AdminDashboard = () => {
                                                 }}
                                             >
                                                 {updatingId === user.id ? <Loader2 className="animate-spin" size={12} /> : (user.status === 'active' ? <UserX size={12} /> : <UserCheck size={12} />)}
-                                                {isMobile ? '' : (user.status === 'active' ? 'Desativar' : 'Ativar')}
+                                                {isMobile ? '' : (STATUS_ACTION_LABEL[user.status] ?? 'Ativar')}
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleResendInvite({ id: user.id, name: user.name, email: user.email }); }}
@@ -1040,7 +1032,7 @@ export const AdminDashboard = () => {
                                                     borderRadius: '8px',
                                                     border: '1px solid var(--border)',
                                                     background: 'var(--bg-main)',
-                                                    color: '#3b82f6',
+                                                    color: 'var(--primary)',
                                                     fontSize: isMobile ? '10px' : '11px',
                                                     fontWeight: 600,
                                                     cursor: user.user_role === 'owner' ? 'default' : 'pointer',
@@ -1282,7 +1274,7 @@ export const AdminDashboard = () => {
 
                             {/* Avatar + Nome */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: detailIsOwner ? '#ef4444' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: detailIsOwner ? '#ef4444' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
                                     {initials(du.name)}
                                 </div>
                                 <div>
@@ -1295,16 +1287,16 @@ export const AdminDashboard = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
                                     <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Cargo</span>
-                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: detailIsOwner ? 'rgba(239, 68, 68, 0.1)' : du.user_role === 'administrador' ? 'rgba(245, 158, 11, 0.1)' : du.user_role === 'supervisor' ? 'rgba(139, 92, 246, 0.1)' : du.user_role === 'rh' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: detailIsOwner ? '#ef4444' : du.user_role === 'administrador' ? '#f59e0b' : du.user_role === 'supervisor' ? '#8b5cf6' : du.user_role === 'rh' ? '#6366f1' : '#10b981', textTransform: 'uppercase' }}>
+                                    <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: detailIsOwner || du.user_role === 'owner' ? 'rgba(239, 68, 68, 0.1)' : ROLE_BG[du.user_role] ?? 'rgba(16, 185, 129, 0.1)', color: detailIsOwner || du.user_role === 'owner' ? '#ef4444' : ROLE_COLOR[du.user_role] ?? '#10b981', textTransform: 'uppercase' }}>
                                         {du.user_role?.toUpperCase()}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-main)', borderRadius: '10px' }}>
                                     <span style={{ color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600 }}>Status</span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: du.status === 'active' ? '#10b981' : '#ef4444' }} />
-                                        <span style={{ fontSize: '13px', fontWeight: 500, color: du.status === 'active' ? '#10b981' : '#ef4444' }}>
-                                            {du.status === 'active' ? 'Ativo' : 'Inativo'}
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[du.status] ?? '#ef4444' }} />
+                                        <span style={{ fontSize: '13px', fontWeight: 500, color: STATUS_DOT[du.status] ?? '#ef4444' }}>
+                                            {STATUS_LABEL[du.status] ?? 'Inativo'}
                                         </span>
                                     </div>
                                 </div>
@@ -1348,14 +1340,14 @@ export const AdminDashboard = () => {
                                 <button
                                     onClick={() => { toggleStatus(du.id, du.status); setDetailUserId(null); }}
                                     disabled={updatingId === du.id}
-                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: du.status === 'active' ? '#ef4444' : '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
-                                >
-                                    {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
-                                    {du.status === 'active' ? 'Desativar' : 'Ativar'}
+style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: STATUS_ACTION_COLOR[du.status] ?? '#10b981', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+                                                                >
+                                                                    {updatingId === du.id ? <Loader2 className="animate-spin" size={14} /> : (du.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />)}
+                                                                    {STATUS_ACTION_LABEL[du.status] ?? 'Ativar'}
                                 </button>
                                 <button
                                     onClick={() => { handleResendInvite({ id: du.id, name: du.name, email: du.email }); setDetailUserId(null); }}
-                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#3b82f6', fontSize: '12px', fontWeight: 600, cursor: du.user_role === 'owner' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', visibility: du.user_role === 'owner' ? 'hidden' : 'visible', pointerEvents: du.user_role === 'owner' ? 'none' : 'auto' }}
+                                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', fontSize: '12px', fontWeight: 600, cursor: du.user_role === 'owner' ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', visibility: du.user_role === 'owner' ? 'hidden' : 'visible', pointerEvents: du.user_role === 'owner' ? 'none' : 'auto' }}
                                 >
                                     <Mail size={14} />
                                     Reenviar

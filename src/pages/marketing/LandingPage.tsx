@@ -45,9 +45,9 @@ export const LandingPage = () => {
       metricLabel1: 'Poupados em triagem manual',
       metricValue2: '15 Min',
       metricLabel2: 'Configuração do portal de vagas',
-      image: `${import.meta.env.BASE_URL}logos/Professional.jpeg`,
+      image: `${import.meta.env.BASE_URL}stock-photos/Professional.webp`,
       imagePosition: '55% center',
-      avatar: `${import.meta.env.BASE_URL}logos/mulher%202.png`,
+      avatar: `${import.meta.env.BASE_URL}stock-photos/mulher-2.webp`,
       avatarPosition: 'center top'
     },
     {
@@ -60,9 +60,9 @@ export const LandingPage = () => {
       metricLabel1: 'Isolamento de dados por vaga',
       metricValue2: '1 Click',
       metricLabel2: 'Importação em lote de currículos',
-      image: `${import.meta.env.BASE_URL}logos/Close-up_of_hands.jpeg`,
+      image: `${import.meta.env.BASE_URL}stock-photos/Close-up_of_hands.webp`,
       imagePosition: 'center',
-      avatar: `${import.meta.env.BASE_URL}logos/homem.jpg`,
+      avatar: `${import.meta.env.BASE_URL}stock-photos/homem.jpg`,
       avatarPosition: 'center top'
     },
     {
@@ -75,9 +75,9 @@ export const LandingPage = () => {
       metricLabel1: 'Satisfação dos gestores de área',
       metricValue2: '10x',
       metricLabel2: 'Triagem de PDFs mais rápida',
-      image: `${import.meta.env.BASE_URL}illustrations/hr-illustration.png`,
+      image: `${import.meta.env.BASE_URL}illustrations/hr-illustration.webp`,
       imagePosition: 'center',
-      avatar: `${import.meta.env.BASE_URL}logos/mulher.jpg`,
+      avatar: `${import.meta.env.BASE_URL}stock-photos/mulher.jpg`,
       avatarPosition: 'center top'
     }
   ];
@@ -930,7 +930,7 @@ export const LandingPage = () => {
             <div className="lp-hero-right">
               <div className="lp-hero-illustration overflow-hidden relative border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                 <video
-                  src={`${import.meta.env.BASE_URL}logos/Person_interacting_holographic.mp4`}
+                  src={`${import.meta.env.BASE_URL}videos/Person_interacting_holographic.mp4`}
                   autoPlay
                   loop
                   muted
@@ -969,7 +969,7 @@ export const LandingPage = () => {
           <div className="lp-features-layout">
             <div className="lp-features-image">
               <img
-                src={`${import.meta.env.BASE_URL}logos/A_group_of_diverse_professionals_202606161746.jpeg`}
+                src={`${import.meta.env.BASE_URL}stock-photos/A_group_of_diverse_professionals.webp`}
                 alt="Equipe de RH usando o Usabit people"
                 className="lp-features-photo"
               />
@@ -1017,7 +1017,7 @@ export const LandingPage = () => {
             <div className="lp-carousel-container">
               <div className="lp-carousel-left">
                 <img
-                  src={`${import.meta.env.BASE_URL}logos/Diverse_female_HR_professional_in_202606161745.jpeg`}
+                  src={`${import.meta.env.BASE_URL}stock-photos/Diverse_female_HR_professional.webp`}
                   alt="Recrutadores Usabit people"
                   className="lp-carousel-image"
                   style={{ objectPosition: 'center' }}

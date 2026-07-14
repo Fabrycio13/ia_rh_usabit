@@ -64,7 +64,15 @@ export function PipelineLinkSection({
     const [removingId, setRemovingId] = useState<string | null>(null);
     const [lastRemovedPipeline, setLastRemovedPipeline] = useState<string | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width:767px)');
+        const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     useEffect(() => {
         const style = document.createElement('style');
@@ -256,7 +264,7 @@ export function PipelineLinkSection({
         <section style={{
             border: '1px solid rgba(99, 102, 241, 0.2)',
             borderRadius: 20,
-            padding: 24,
+            padding: isMobile ? 16 : 24,
             background: 'rgba(99, 102, 241, 0.03)',
             display: 'flex',
             flexDirection: 'column',
@@ -311,8 +319,8 @@ export function PipelineLinkSection({
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div className="pls-container" ref={dropdownRef}>
+            <div style={{ display: 'flex', gap: 10, alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', width: '100%' }}>
+                <div className="pls-container" ref={dropdownRef} style={{ width: isMobile ? '100%' : 'auto' }}>
                     <div
                         className={`pls-trigger ${dropdownOpen ? 'open' : ''}`}
                         onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -364,8 +372,10 @@ export function PipelineLinkSection({
                         cursor: !selectedId || linking ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: 6,
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        width: isMobile ? '100%' : 'auto'
                     }}
                 >
                     {linking ? <Loader size={16} className="spin" /> : <GitBranch size={16} />}

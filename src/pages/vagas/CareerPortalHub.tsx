@@ -6,14 +6,12 @@ import {
     ExternalLink,
     Briefcase,
     User,
-    Users,
-    Activity
+    Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Vagas } from './Vagas';
 import { PoolTalentos } from './PoolTalentos';
-import { Analises } from '../analysis/Analises';
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -22,12 +20,11 @@ const tabCss = `
 .tab-btn:hover .tab-ico { animation: tabIconBounce 0.4s ease forwards; }
 `;
 
-type TabId = 'vagas' | 'pool' | 'analises';
+type TabId = 'vagas' | 'pool';
 
 const tabConfig: { id: TabId; label: string; icon: typeof Briefcase }[] = [
     { id: 'vagas', label: 'Gestão de Vagas', icon: Briefcase },
     { id: 'pool', label: 'Pool de Talentos', icon: Users },
-    { id: 'analises', label: 'Análises', icon: Activity },
 ];
 
 export const CareerPortalHub = () => {
@@ -41,6 +38,15 @@ export const CareerPortalHub = () => {
     const [activeTab, setActiveTab] = useState<TabId>(
         tabFromUrl && tabConfig.some(t => t.id === tabFromUrl) && (!isConvidado || tabFromUrl === 'vagas') ? tabFromUrl : 'vagas'
     );
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const check = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        check(mq);
+        mq.addEventListener('change', check);
+        return () => mq.removeEventListener('change', check);
+    }, []);
 
     useEffect(() => {
         const current = searchParams.get('tab') as TabId | null;
@@ -68,38 +74,36 @@ export const CareerPortalHub = () => {
                 const subtitles: Record<TabId, string> = {
                     vagas: 'Gerencie suas oportunidades e personalize seu portal de carreiras.',
                     pool: 'Currículos recebidos sem vaga específica',
-                    analises: 'Acompanhe e gerencie as análises de currículos realizadas.',
                 };
                 const iconMap: Record<TabId, JSX.Element> = {
                     vagas: <Briefcase size={32} />,
                     pool: <User size={32} />,
-                    analises: <Activity size={32} />,
                 };
 
                 return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? '16px' : '0', marginBottom: isMobile ? '20px' : '32px' }}>
                         <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: '8px' }}>
                                 <span style={{ color: 'var(--primary)' }}>{iconMap[activeTab]}</span>
-                                <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{title}</h1>
+                                <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{title}</h1>
                             </div>
-                            <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginTop: '6px' }}>{subtitles[activeTab]}</p>
+                            <p style={{ color: 'var(--text-dim)', fontSize: isMobile ? '13px' : '14px', marginTop: '6px' }}>{subtitles[activeTab]}</p>
                         </div>
                         {showPortalActions && (
-                            <div style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '10px', flexDirection: 'row', flexWrap: 'wrap' }}>
                                 <button
                                     onClick={copyPortalLink}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 20px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', fontSize: '14px', fontWeight: 600, minHeight: isMobile ? '44px' : 'auto', flex: isMobile ? '1 1 calc(50% - 5px)' : 'auto' }}
                                 >
-                                    <Copy size={16} /> Link do Portal
+                                    <Copy size={16} /> {isMobile ? 'Copiar' : 'Link do Portal'}
                                 </button>
                                 <a
                                     href={`#/carreiras/${profile.organization_id}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 20px', borderRadius: '10px', border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 600, textDecoration: 'none', minHeight: isMobile ? '44px' : 'auto', flex: isMobile ? '1 1 calc(50% - 5px)' : 'auto' }}
                                 >
-                                    <ExternalLink size={16} /> Ver Portal Público
+                                    <ExternalLink size={16} /> {isMobile ? 'Portal Público' : 'Ver Portal Público'}
                                 </a>
                             </div>
                         )}
@@ -108,7 +112,7 @@ export const CareerPortalHub = () => {
             })()}
 
             {/* Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: isMobile ? '20px' : '32px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
                 {visibleTabs.map(tab => {
                     const active = activeTab === tab.id;
                     const Icon = tab.icon;
@@ -121,8 +125,8 @@ export const CareerPortalHub = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 10,
-                                padding: '12px 24px',
-                                fontSize: '14px',
+                                padding: isMobile ? '10px 16px' : '12px 24px',
+                                fontSize: isMobile ? '13px' : '14px',
                                 fontWeight: 600,
                                 color: active ? 'var(--primary)' : 'var(--text-dim)',
                                 borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
@@ -133,11 +137,13 @@ export const CareerPortalHub = () => {
                                 borderLeft: 'none',
                                 borderRight: 'none',
                                 outline: 'none',
-                                position: 'relative'
+                                position: 'relative',
+                                whiteSpace: 'nowrap',
+                                minHeight: isMobile ? '44px' : 'auto'
                             }}
                         >
-                            <Icon className="tab-ico" size={18} style={{ flexShrink: 0 }} />
-                            {tab.label}
+                            <Icon className="tab-ico" size={isMobile ? 16 : 18} style={{ flexShrink: 0 }} />
+                            {isMobile && tab.id === 'vagas' ? 'Vagas' : isMobile && tab.id === 'pool' ? 'Talentos' : tab.label}
                         </button>
                     );
                 })}
@@ -147,13 +153,9 @@ export const CareerPortalHub = () => {
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
                     <Vagas hideHeader={true} />
                 </div>
-            ) : activeTab === 'pool' ? (
-                <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                    <PoolTalentos />
-                </div>
             ) : (
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                    <Analises hideHeader={true} />
+                    <PoolTalentos />
                 </div>
             )}
         </div>

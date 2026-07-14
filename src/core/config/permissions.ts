@@ -108,13 +108,3 @@ export const rolePermissions: Record<string, RolePermissions> = {
 export const hasPermission = (role: string, permission: keyof RolePermissions): boolean => {
     return rolePermissions[role]?.[permission] ?? false;
 };
-
-// Helper para verificar se é modo apenas visual
-export const isViewOnly = (role: string, module: 'vagas' | 'analises' | 'candidatos' | 'pipeline'): boolean => {
-    const editPermission = `${module}_edit` as keyof RolePermissions;
-    return rolePermissions[role]?.[module] === true && rolePermissions[role]?.[editPermission] === false;
-};
-
-// Helper: owner vê tudo; administrador/supervisor/rh veem sua org; convidado acesso minimal
-export const isGlobalViewer = (role: string): boolean => role === 'owner';
-export const isOrgMember = (role: string): boolean => ['administrador', 'supervisor', 'rh'].includes(role);

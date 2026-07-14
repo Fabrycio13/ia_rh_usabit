@@ -1,4 +1,4 @@
-import heroIllustration from '/illustrations/hero-illustration.png';
+import heroIllustration from '/illustrations/hero-illustration.webp';
 
 interface HeroSectionProps {
   orgName: string;

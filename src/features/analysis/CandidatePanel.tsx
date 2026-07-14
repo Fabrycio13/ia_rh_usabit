@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
     Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
@@ -10,11 +10,14 @@ import { logActivity } from '../../core/services/logger';
 import { handleViewResume } from '../../core/utils/storage';
 import { TalentTransferModal } from '../candidates/components/TalentTransferModal';
 import { PipelineLinkSection } from '../candidates/components/PipelineLinkSection';
+import { TagInput } from '../../common/components/TagInput';
 
 import {
     initials, scoreColor, formatDate, parseSkills, parseComments, relativeTime,
     type CandidateDetail, type Comment
 } from './CandidatePanelUtils';
+
+const EXCLUDED_KEYS = new Set(['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age']);
 
 interface ScreeningLog {
     id: string;
@@ -31,7 +34,6 @@ interface ScreeningLogGroup {
 }
 
 // ─── Candidate Panel Component ────────────────────────────────────────────────
-void Zap; // reserved for future feature
 export function CandidatePanel({
     c,
     onClose,
@@ -46,7 +48,8 @@ export function CandidatePanel({
     showAnalyzeWithVagas,
     onAnalyzeWithVagas,
     onCardRemoved,
-    hideFeedbackDaIA
+    hideFeedbackDaIA,
+    onEnrich,
 }: {
     c: CandidateDetail;
     onClose: () => void;
@@ -62,10 +65,10 @@ export function CandidatePanel({
     onAnalyzeWithVagas?: (id: string) => void;
     onCardRemoved?: (cardId: string) => void;
     hideFeedbackDaIA?: boolean;
+    onEnrich?: (candidateId: string) => Promise<void>;
 }) {
     const skillsList = parseSkills(c.skills);
     const hasAnalysis = c.analysis && Object.keys(c.analysis).length > 0;
-    void onDeleteFromBank;
 
     const [comments, setComments] = useState<Comment[]>(() => parseComments(c.notes));
     const [newText, setNewText] = useState('');
@@ -75,7 +78,15 @@ export function CandidatePanel({
     const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
     const [inputExpanded, setInputExpanded] = useState(false);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width:767px)');
+        const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     useEffect(() => {
         if (inputExpanded && textareaRef.current) {
@@ -89,6 +100,33 @@ export function CandidatePanel({
     const [savingField, setSavingField] = useState(false);
     const { profile } = useUser();
     const isConvidado = profile.user_role === 'convidado';
+
+    // ─── Tags ───────────────────────────────────────
+    const [editableTags, setEditableTags] = useState<string[]>(c.tags ?? []);
+    const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+    useEffect(() => {
+        if (!profile?.organization_id) return;
+        supabase.from('tags').select('name')
+            .eq('organization_id', profile.organization_id)
+            .then(({ data }) => {
+                setTagSuggestions((data ?? []).map(r => r.name));
+            }, () => {});
+    }, [profile?.organization_id]);
+    const saveTags = useCallback((newTags: string[]) => {
+        setEditableTags(newTags);
+        // Salvar no candidato
+        supabase.from('candidates').update({ tags: newTags }).eq('id', c.id).then(({ error }) => {
+            if (error) console.error('Erro ao salvar tags:', error);
+            else onFieldChange(c.id, 'tags', newTags);
+        });
+        // Garantir que existam na tabela global de tags
+        if (profile?.organization_id && newTags.length > 0) {
+            for (const tag of newTags) {
+                supabase.from('tags').upsert({ name: tag, organization_id: profile.organization_id }, { onConflict: 'name,organization_id' }).then(() => {}, () => {});
+            }
+        }
+    }, [c.id, onFieldChange, profile?.organization_id]);
+
     const [localC, setLocalC] = useState({ 
         email: c.email, 
         phone: c.phone, 
@@ -375,31 +413,35 @@ export function CandidatePanel({
       `}</style>
             <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
             <div style={{
-                position: 'fixed', top: 0, right: 0, bottom: 0,
-                zIndex: 301, width: 'clamp(320px, 50vw, 100vw)',
-                background: 'var(--bg-card)', borderLeft: '1px solid var(--border)',
+                position: 'fixed', top: 0, right: 0, bottom: 0, left: isMobile ? 0 : 'auto',
+                zIndex: 301, width: isMobile ? '100vw' : 'clamp(320px, 50vw, 100vw)',
+                background: 'var(--bg-card)', borderLeft: isMobile ? 'none' : '1px solid var(--border)',
                 display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif',
                 boxShadow: '-20px 0 60px rgba(0,0,0,0.5)', animation: 'slideInRight 0.28s cubic-bezier(0.16,1,0.3,1)',
                 overflowY: 'auto'
             }}>
-                <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                <div style={{ padding: isMobile ? '68px 18px 16px' : '24px 24px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
                             <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{initials(c.name)}</div>
-                            <div style={{ minWidth: 0 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                    <button 
-                                        onClick={onClose}
-                                        style={{ 
-                                            background: 'none', border: 'none', padding: 0, 
-                                            color: 'var(--primary)', fontSize: 13, fontWeight: 600, 
-                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 
-                                        }}
-                                    >
-                                        <ChevronLeft size={14} /> Voltar
-                                    </button>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>|</span>
-                                    <h2 style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontSize: 18, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    {!isMobile && (
+                                        <>
+                                            <button
+                                                onClick={onClose}
+                                                style={{
+                                                    background: 'none', border: 'none', padding: 0,
+                                                    color: 'var(--primary)', fontSize: 13, fontWeight: 600,
+                                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
+                                                }}
+                                            >
+                                                <ChevronLeft size={14} /> Voltar
+                                            </button>
+                                            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>|</span>
+                                        </>
+                                    )}
+                                    <h2 style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontSize: isMobile ? 16 : 18, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                                         {c.name}
                                         {c.is_blacklisted && <Ban size={16} />}
                                     </h2>
@@ -411,6 +453,7 @@ export function CandidatePanel({
                                 </div>
                             </div>
                         </div>
+                        {!isMobile && (
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                             {c.resume_url && (
                                 <button
@@ -419,18 +462,18 @@ export function CandidatePanel({
                                     style={{
                                         background: 'rgba(99,102,241,0.1)',
                                         border: '1px solid rgba(99,102,241,0.2)',
-                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        borderRadius: 10, padding: isMobile ? 8 : '8px 14px', cursor: 'pointer',
                                         color: 'var(--primary)',
                                         fontSize: 13, fontWeight: 700,
                                         transition: 'all 0.2s',
                                         display: 'flex', alignItems: 'center', gap: 6,
-                                        marginRight: 4
+                                        marginRight: isMobile ? 0 : 4
                                     }}
                                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
                                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'; }}
                                 >
                                     <FileText size={16} />
-                                    Currículo
+                                    {!isMobile && 'Currículo'}
                                 </button>
                             )}
 
@@ -454,7 +497,57 @@ export function CandidatePanel({
                             )}
                             <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', flexShrink: 0 }}><X size={16} /></button>
                         </div>
+                        )}
+                        {isMobile && (
+                            <button onClick={onClose} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text-dim)', flexShrink: 0 }}><X size={16} /></button>
+                        )}
                     </div>
+                    {isMobile && (c.resume_url || onDeleteFromBank) && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                            {c.resume_url && (
+                                <button
+                                    onClick={() => handleViewResume(c.resume_url)}
+                                    title="Ver currículo"
+                                    style={{
+                                        background: 'rgba(99,102,241,0.1)',
+                                        border: '1px solid rgba(99,102,241,0.2)',
+                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        color: 'var(--primary)',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        flex: 1, justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'; }}
+                                >
+                                    <FileText size={16} />
+                                    Currículo
+                                </button>
+                            )}
+                            {onDeleteFromBank && (
+                                <button
+                                    onClick={() => onDeleteFromBank(c.id)}
+                                    title="Excluir candidato"
+                                    style={{
+                                        background: 'rgba(239,68,68,0.1)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        borderRadius: 10, padding: '8px 14px', cursor: 'pointer',
+                                        color: '#ef4444',
+                                        fontSize: 13, fontWeight: 700,
+                                        transition: 'all 0.2s',
+                                        display: 'flex', alignItems: 'center', gap: 6,
+                                        flex: 1, justifyContent: 'center'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)'; }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                    Excluir
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {!c.enriched ? (
@@ -463,11 +556,17 @@ export function CandidatePanel({
                         <span style={{ fontSize: 14 }}>Carregando detalhes…</span>
                     </div>
                 ) : (
-                    <div style={{ padding: '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+                    <div style={{ padding: isMobile ? '20px 18px 32px' : '20px 24px 32px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+                        {/* ─── Tags ─────── */}
+                        <section>
+                            <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Tags</p>
+                            <TagInput value={editableTags} onChange={saveTags} suggestions={tagSuggestions} placeholder="Adicionar tag..." />
+                        </section>
 
                         <section>
                             <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Contato</p>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                                 {([
                                     { key: 'email', label: 'Email', icon: <Mail size={14} />, value: localC.email },
                                     { key: 'phone', label: 'Telefone', icon: <Phone size={14} />, value: localC.phone },
@@ -484,7 +583,7 @@ export function CandidatePanel({
                                     { key: 'gender', label: 'Gênero', icon: <UserRound size={14} />, value: localC.gender },
                                     { key: 'age', label: 'Idade', icon: <Calendar size={14} />, value: (localC.age && !['Não informado', 'não informado', '—'].includes(localC.age ?? '')) ? localC.age : null },
                                     { key: 'portfolio', label: 'Portfólio', icon: <Briefcase size={14} />, value: localC.portfolio },
-                                ] as { key: string; label: string; icon: React.ReactNode; value: string | null | undefined }[]).map(({ key, label, icon, value }) => (
+                                ] as { key: string; label: string; icon: React.ReactNode; value: string | null | undefined }[]                                ).map(({ key, label, icon, value }) => (
                                     <div key={key} style={{
                                         background: 'var(--bg-main)',
                                         border: `1px solid ${editField === key ? 'var(--primary)' : 'var(--border)'}`,
@@ -497,7 +596,7 @@ export function CandidatePanel({
                                         position: 'relative',
                                         minHeight: 64,
                                         justifyContent: 'center',
-                                        boxSizing: 'border-box'
+                                        boxSizing: 'border-box',
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{icon}{label}</span>
@@ -514,14 +613,14 @@ export function CandidatePanel({
                                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                                 <input autoFocus value={editFieldVal} onChange={e => setEditFieldVal(e.target.value)}
                                                     onKeyDown={e => { if (e.key === 'Enter') handleFieldSave(key); if (e.key === 'Escape') setEditField(null); }}
-                                                    style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--primary)', borderRadius: 7, padding: '5px 9px', color: 'var(--text-main)', fontSize: 13, outline: 'none', fontFamily: 'Inter, sans-serif', minWidth: 0 }}
+                                                    style={{ flex: 1, background: 'var(--bg-main)', border: '1px solid var(--primary)', borderRadius: 7, padding: isMobile ? '8px 10px' : '5px 9px', color: 'var(--text-main)', fontSize: 13, outline: 'none', fontFamily: 'Inter, sans-serif', minWidth: 0, height: isMobile ? 36 : 'auto' }}
                                                 />
                                                 <button onClick={() => handleFieldSave(key)} disabled={savingField}
-                                                    style={{ background: 'var(--primary)', border: 'none', borderRadius: 7, padding: '5px 10px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                                    style={{ background: 'var(--primary)', border: 'none', borderRadius: 7, padding: isMobile ? '8px 12px' : '5px 10px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0, height: isMobile ? 36 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>
                                                     {savingField ? '…' : '✓'}
                                                 </button>
                                                 <button onClick={() => setEditField(null)}
-                                                    style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-dim)', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>✕</button>
+                                                    style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 7, padding: isMobile ? '8px 10px' : '5px 8px', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', flexShrink: 0, height: isMobile ? 36 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>✕</button>
                                             </div>
                                         ) : (
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -540,34 +639,83 @@ export function CandidatePanel({
                                 ))}
                             </div>
                         </section>
-                        
+
+                        {skillsList.length > 0 ? (
+                            <section>
+                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                                    {[...skillsList].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((s, i) => (
+                                        <span key={i} style={{
+                                            background: 'rgba(99, 102, 241, 0.15)',
+                                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                                            borderRadius: 8,
+                                            padding: '8px 12px',
+                                            fontSize: 12,
+                                            color: 'var(--text-main)',
+                                            fontWeight: 600,
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                            textAlign: 'center',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                        }} title={s}>{s}</span>
+                                    ))}
+                                </div>
+                            </section>
+                        ) : c.resume_url && (
+                            <section>
+                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
+                                <button
+                                    onClick={() => onEnrich?.(c.id)}
+                                    disabled={c.id === 'loading'}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        background: 'var(--primary-light-bg)', border: '1px solid var(--primary-border)',
+                                        borderRadius: 10, padding: '10px 16px',
+                                        color: 'var(--primary)', fontSize: 13, fontWeight: 600,
+                                        cursor: 'pointer', transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; e.currentTarget.style.borderColor = 'var(--primary)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-light-bg)'; e.currentTarget.style.borderColor = 'var(--primary-border)' }}
+                                >
+                                    <Zap size={16} />
+                                    Analisar currículo com IA
+                                </button>
+                            </section>
+                        )}
+
                         {c.isVagaView && (
                             <>
-                                {skillsList.length > 0 && (
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
+                                ).length > 0 && (
                                     <section>
-                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                            {skillsList.map((s, i) => (
-                                                <span key={i} style={{
-                                                    background: 'rgba(99, 102, 241, 0.15)',
-                                                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                                                    borderRadius: 8,
-                                                    padding: '5px 14px',
-                                                    fontSize: 12,
-                                                    color: 'var(--text-main)',
-                                                    fontWeight: 600,
-                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                                }}>{s}</span>
-                                            ))}
+                                        <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Respostas Personalizadas</p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            {Object.entries(c.answers).filter(([key]) =>
+                                                !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
+                                            ).map(([key, value]) => {
+                                                const label = c.questionLabels?.[key] || key;
+                                                const display = typeof value === 'string' ? value : JSON.stringify(value);
+                                                return (
+                                                    <div key={key} style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+                                                        <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>{label}</p>
+                                                        <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{display}</p>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </section>
                                 )}
+                            </>
+                        )}
 
-                                {c.answers && Object.entries(c.answers).filter(([key]) => 
-                                    !key.startsWith('_') && 
-                                    !['address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key)
+                        {c.isVagaView && (
+                            <>
+                                {c.answers && Object.entries(c.answers).filter(([key]) =>
+                                    !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
                                 ).length > 0 && (
-                                    <section style={{ 
+                                    <section style={{
                                         border: '1px solid var(--border)', 
                                         borderRadius: 20, 
                                         padding: 24, 
@@ -581,7 +729,7 @@ export function CandidatePanel({
                                         </p>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                             {Object.entries(c.answers)
-                                                .filter(([key]) => !['_ai_analysis', 'address', 'portfolio', 'cep', 'address_number', 'complement', 'linkedin', 'phone', 'email', 'name', 'location', 'gender', 'age'].includes(key))
+                                                .filter(([key]) => !['_ai_analysis', ...EXCLUDED_KEYS].includes(key))
                                                 .map(([key, value]) => {
                                                     const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
                                                     return (
@@ -687,14 +835,14 @@ export function CandidatePanel({
                         {!c.isVagaView && !hidePipelineAndBlacklist && hasAnalysis && <PipelineLinkSection candidateId={c.id} candidateName={c.name} isBlacklisted={c.is_blacklisted} onCardRemoved={onCardRemoved} />}
 
                         {!c.isVagaView && !hidePipelineAndBlacklist && (
-                            <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+                            <section style={{ border: '1px solid var(--border)', borderRadius: 16, padding: 20, background: 'rgba(239,68,68,0.02)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 14 }}>
                                 <div>
                                     <p style={{ fontSize: 13, fontWeight: 700, color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <Ban size={14} /> Lista de Restrição (Blacklist)
                                     </p>
                                     <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, maxWidth: '300px' }}>
-                                        {c.is_blacklisted 
-                                            ? 'Candidato restrito. Remova da lista para voltar a considerá-lo.' 
+                                        {c.is_blacklisted
+                                            ? 'Candidato restrito. Remova da lista para voltar a considerá-lo.'
                                             : 'Sinalize candidatos que não devem ser considerados para futuras oportunidades.'
                                         }
                                     </p>
@@ -703,7 +851,7 @@ export function CandidatePanel({
                                     onClick={toggleBlacklist}
                                     disabled={togglingBlacklist}
                                     style={{
-                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                                         background: c.is_blacklisted ? 'rgba(239,68,68,0.1)' : 'transparent',
                                         border: `1px solid ${c.is_blacklisted ? '#ef4444' : 'var(--border)'}`,
                                         borderRadius: 12, padding: '10px 20px',
@@ -711,6 +859,7 @@ export function CandidatePanel({
                                         fontSize: 13, fontWeight: 700,
                                         cursor: togglingBlacklist ? 'not-allowed' : 'pointer',
                                         transition: 'all 0.2s', whiteSpace: 'nowrap',
+                                        width: isMobile ? '100%' : 'auto',
                                     }}
                                     onMouseEnter={e => {
                                         if (!c.is_blacklisted) {
@@ -734,26 +883,6 @@ export function CandidatePanel({
                         )}
 
 
-
-                        {!c.isVagaView && skillsList.length > 0 && (
-                            <section>
-                                <p style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Habilidades</p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {skillsList.map((s, i) => (
-                                        <span key={i} style={{
-                                            background: 'rgba(99, 102, 241, 0.15)',
-                                            border: '1px solid rgba(99, 102, 241, 0.25)',
-                                            borderRadius: 8,
-                                            padding: '5px 14px',
-                                            fontSize: 12,
-                                            color: 'var(--text-main)',
-                                            fontWeight: 600,
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                        }}>{s}</span>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
 
                         <section style={{ borderTop: '1px solid var(--border)', paddingTop: 20 }}>
                             {!c.isVagaView ? (

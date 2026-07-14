@@ -1,5 +1,5 @@
 import type { OpenAIMessage } from '../types';
-import { getTextGuardrails } from './guardrails';
+import { TEXT_GUARDRAILS } from './guardrails';
 
 export function buildExtractionMessages(
   fileText?: string,
@@ -16,7 +16,7 @@ NÃO faça scoring, análise ou avaliação do candidato.
 
 ---
 
-${getTextGuardrails()}
+${TEXT_GUARDRAILS}
 
 ---
 

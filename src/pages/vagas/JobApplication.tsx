@@ -7,8 +7,9 @@ import {
     AlertCircle, ArrowRight, Link,
     UserRound, Calendar, ChevronDown, Check
 } from 'lucide-react';
-import { analyzeJobApplication, type JobMatchResult } from '../../core/services/jobAnalyzer';
 import { sanitizeHtml } from '../../core/utils/security';
+import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
+import { uploadViaSignedUrl } from '../../core/utils/storage';
 
 interface Job {
     id: string;
@@ -249,7 +250,7 @@ const BotAvatar = () => (
         border: '1px solid rgba(255,255,255,0.15)'
     }}>
         <img 
-            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.png`}
+            src={`${import.meta.env.BASE_URL}illustrations/avatar-recrutador.webp`}
             alt="Assistant"
             style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', objectPosition: 'center 15%', transform: 'scale(1.2)' }}
         />
@@ -386,70 +387,7 @@ const ProgressBar = ({ step, total, labels }: { step: number; total: number; lab
     );
 };
 
-const maskPhone = (val: string, country: { code: string; iso: string }) => {
-    const v = val;
-    if (!v) return country.code + ' ';
 
-    // Remove tudo que não é dígito, exceto o + inicial
-    const clean = v.startsWith('+') ? '+' + v.replace(/\D/g, '') : '+' + v.replace(/\D/g, '');
-    const digits = clean.replace(/\D/g, '');
-    const codeDigits = country.code.replace(/\D/g, '');
-    
-    // Extrai a parte local do número
-    let localDigits = '';
-    if (digits.startsWith(codeDigits)) {
-        localDigits = digits.substring(codeDigits.length);
-    } else {
-        localDigits = digits;
-    }
-
-    // Limita a 12 dígitos locais (padrão internacional seguro)
-    localDigits = localDigits.substring(0, 12);
-
-    // Máscara Brasil (+55)
-    if (country.code === '+55') {
-        let res = '+55 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 2);
-            if (localDigits.length > 2) {
-                res += ') ' + localDigits.substring(2, 7);
-                if (localDigits.length > 7) {
-                    res += '-' + localDigits.substring(7, 11);
-                }
-            }
-        }
-        return res.trim();
-    }
-
-    // Máscara NANP (+1) - EUA, Canadá e Caribe (que não tem prefixo maior)
-    if (country.code === '+1') {
-        let res = '+1 ';
-        if (localDigits.length > 0) {
-            res += '(' + localDigits.substring(0, 3);
-            if (localDigits.length > 3) {
-                res += ') ' + localDigits.substring(3, 6);
-                if (localDigits.length > 6) {
-                    res += '-' + localDigits.substring(6, 10);
-                }
-            }
-        }
-        return res.trim();
-    }
-
-    // Máscara Genérica (Europa e outros) - Agrupa de 3 em 3 ou 4 em 4
-    let res = country.code + ' ';
-    for (let i = 0; i < localDigits.length; i++) {
-        if (i > 0 && i % 3 === 0 && i < 9) res += ' ';
-        res += localDigits[i];
-    }
-    return res.trim();
-};
-
-const maskCep = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length > 5) v = v.replace(/^(\d{5})(\d)/, '$1-$2');
-    return v.substring(0, 9);
-};
 
 interface AutoResizeEffectProps {
     step: number;
@@ -611,9 +549,6 @@ export const JobApplication = () => {
     const [selectedCountry, setSelectedCountry] = useState(countries[0]);
     const [countrySearch, setCountrySearch] = useState('');
 
-    const normalizeText = (text: string) => 
-        text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
     const filteredCountries = countries.filter(c => {
         const search = normalizeText(countrySearch);
         const name = normalizeText(c.name);
@@ -768,21 +703,16 @@ export const JobApplication = () => {
 
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !job) return null;
-        
-        // PROTEÇÃO [RED TEAM]: Hacker pode tentar usar Burp Suite pra enviar um .exe fraudulento.
-        // Forçamos a extensão a ser .pdf para matar a execução e o contentType para application/pdf.
-        const safeExtensionsOnly = 'pdf';
-        const filePath = `resumes/${job.id}/${Date.now()}_secure.${safeExtensionsOnly}`;
-        
-        const { error: uploadError } = await supabase.storage.from('job-applications').upload(filePath, resumeFile, { 
-            cacheControl: '3600', 
-            upsert: false,
-            contentType: 'application/pdf'
-        });
-        
-        if (uploadError) { toast.error('Erro ao enviar currículo.'); return null; }
-        const { data: { publicUrl } } = supabase.storage.from('job-applications').getPublicUrl(filePath);
-        return publicUrl;
+
+        // ponytail: extensão e tipo forçados server-side pelo path fixo
+        const filePath = `resumes/${job.id}/${Date.now()}_secure.pdf`;
+
+        try {
+            return await uploadViaSignedUrl('job-applications', filePath, resumeFile);
+        } catch {
+            toast.error('Erro ao enviar currículo.');
+            return null;
+        }
     };
 
     const handleSubmit = async () => {
@@ -806,28 +736,9 @@ export const JobApplication = () => {
                 })
             );
 
-            // Análise com IA local (TypeScript no browser, igual ao AnaliseNova)
-            let aiResult: JobMatchResult | null = null;
-            try {
-                const combinedJobDesc = `
-${job!.description ? `Descrição:\n${job!.description}\n\n` : ''}
-${job!.responsibilities ? `Responsabilidades:\n${job!.responsibilities}\n\n` : ''}
-${job!.requirements ? `Requisitos:\n${job!.requirements}\n\n` : ''}
-${job!.differentials ? `Diferenciais:\n${job!.differentials}\n\n` : ''}
-${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n` : ''}
-`.trim();
+            // Análise de IA removida do fluxo público (proxy exige auth).
+            // O recrutador pode executar análise posteriormente pelo painel.
 
-                aiResult = await analyzeJobApplication(
-                    resumeFile,
-                    job!.title,
-                    combinedJobDesc,
-                    filteredAnswers
-                );
-            } catch (aiErr) {
-                console.error("Erro na análise via IA, prosseguindo com cadastro...", aiErr);
-            }
-
-            // Unir resultados da IA com as respostas do usuário caso a IA tenha funcionado
             const finalAnswers = {
                 ...filteredAnswers,
                 portfolio: formData.portfolio,
@@ -835,23 +746,9 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                 address: formData.address,
                 address_number: formData.addressNumber,
                 complement: formData.complement,
-                _ai_analysis: aiResult ? {
-                    classification: aiResult.classification,
-                    summary: aiResult.summary,
-                    skills: aiResult.skills,
-                    strengths: aiResult.strengths,
-                    gaps: aiResult.gaps,
-                } : null
             };
 
             // 1. Salvar na tabela de candidaturas (vínculo com a vaga)
-            console.log('[DEBUG] Saving analysis to vagas_candidaturas:', {
-                hasAiResult: !!aiResult,
-                match_score: aiResult?.score,
-                hasAiAnalysis: !!finalAnswers._ai_analysis,
-                aiKeys: finalAnswers._ai_analysis ? Object.keys(finalAnswers._ai_analysis as object) : 'n/a'
-            });
-
             const submitRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-application`, {
                 method: 'POST',
                 headers: {
@@ -871,8 +768,8 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
                     candidate_age: formData.age || null,
                     resume_url: resumeUrl,
                     resume_file_name: resumeFile.name,
-                    status: aiResult ? 'reviewed' : 'pending',
-                    match_score: aiResult ? aiResult.score : 0,
+                    status: 'pending',
+                    match_score: 0,
                     source: 'public_link',
                     answers: finalAnswers,
                 })
@@ -1020,7 +917,7 @@ ${job!.additional_info ? `Informações Adicionais:\n${job!.additional_info}\n\n
     const msg = stepMessages[step];
 
     const canAdvanceStep0 = formData.name.trim().length >= 3;
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+    const isValidEmail = EMAIL_REGEX.test(formData.email.trim());
     const isEmailInvalid = formData.email.trim().length > 0 && !isValidEmail;
     const canAdvanceStep1 = 
         isValidEmail &&

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Search, X, Loader, FileText, Check, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../../core/services/supabase';
-import { analyzeJobApplication } from '../../../core/services/jobAnalyzer';
+import { analyzeJobApplication, analyzeJobApplicationText } from '../../../core/services/jobAnalyzer';
 import { type CandidateDetail } from '../../analysis/CandidatePanelUtils';
 import type { JobMatchResult } from '../../../core/services/ai/types';
+import { downloadResume } from '../../../core/utils/storage';
 
 interface VagaRow {
     id: string;
@@ -22,29 +23,6 @@ interface Props {
     userId: string;
     onClose: () => void;
     onSuccess: () => Promise<void>;
-}
-
-async function downloadResume(url: string, fileName: string): Promise<File> {
-    let path = url;
-    let bucket = 'job-applications';
-    if (url.includes('/storage/v1/object/public/')) {
-        const afterPublic = url.split('/storage/v1/object/public/')[1];
-        const parts = afterPublic.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.includes('/storage/v1/object/')) {
-        const afterObject = url.split('/storage/v1/object/')[1];
-        const parts = afterObject.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.startsWith('job-applications/')) {
-        path = url.replace('job-applications/', '');
-    }
-    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-    if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
-    const response = await fetch(data.signedUrl);
-    const blob = await response.blob();
-    return new File([blob], fileName, { type: blob.type });
 }
 
 export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onClose, onSuccess }: Props) {
@@ -107,7 +85,9 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
             });
 
             let result: JobMatchResult | null = null;
-            if (candidate.resume_url) {
+            if (candidate.raw_text) {
+                result = await analyzeJobApplicationText(candidate.raw_text, vaga.title, jobDesc, formAnswers);
+            } else if (candidate.resume_url) {
                 const resumeFile = await downloadResume(
                     candidate.resume_url,
                     'curriculo.pdf'
@@ -144,6 +124,7 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
             await supabase.from('vagas_candidaturas').insert({
                 vaga_id: vaga.id,
                 organization_id: organizationId,
+                candidate_id: candidate.id,
                 candidate_name: candidate.name,
                 candidate_email: candidate.email,
                 candidate_phone: candidate.phone,
@@ -155,16 +136,9 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
                 status: 'reviewed',
                 match_score: aiResult.score ?? 0,
                 source: 'talent_bank_reanalysis',
-                answers: { _ai_analysis: aiData }
+                answers: { _ai_analysis: aiData },
+                analysis_vs_vaga: aiData
             });
-
-            await supabase.from('job_candidates').upsert({
-                candidate_id: candidate.id,
-                vaga_id: vaga.id,
-                user_id: userId,
-                score: aiResult.score ?? 0,
-                status: 'reviewed'
-            }, { onConflict: 'candidate_id,vaga_id' });
 
             const oldAnalysis = (candidate.analysis || {}) as Record<string, unknown>;
             const oldHistory = (oldAnalysis.history || []) as unknown as Record<string, unknown>[];

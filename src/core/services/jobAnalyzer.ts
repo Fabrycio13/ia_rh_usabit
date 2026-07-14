@@ -1,13 +1,41 @@
 import { sanitizeAIInput } from './sanitizer';
 import { extractTextFromPDF, pdfToImages } from './pdfExtractor';
 import { callOpenAI } from './ai/client';
-import { buildJobMatchingMessages } from './ai/prompts/job-matching';
 import { parseJSON } from './ai/parsers';
 import { normalizeJobMatchResult } from './ai/parsers/validators';
 import { logAI } from './ai/logger';
 import type { JobMatchResult } from './ai/types';
 
 export type { JobMatchResult };
+
+/**
+ * Analisa texto de currículo contra uma vaga (usando cache raw_text).
+ * Pula extração de PDF — espera raw_text já extraído.
+ */
+export async function analyzeJobApplicationText(
+  rawText: string,
+  jobTitle: string,
+  jobDescription: string,
+  formAnswers: Record<string, string>
+): Promise<JobMatchResult> {
+  const startTime = Date.now();
+  try {
+    const sanitizedText = sanitizeAIInput(rawText);
+    const sanitizedAnswers = Object.fromEntries(
+      Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
+    );
+    const data = await callOpenAI(
+      { type: 'job-matching', data: { jobTitle, jobDescription, formAnswers: sanitizedAnswers, fileText: sanitizedText } },
+      { retries: 3, timeout: 30000, operation: 'job-matching' }
+    );
+    const parsed = parseJSON<JobMatchResult>(data.content);
+    const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
+    return normalized;
+  } catch (err: unknown) {
+    logAI({ operation: 'job-matching', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
+    throw new Error(`Erro na IA: ${(err as Error).message}`);
+  }
+}
 
 /**
  * Função principal de Análise que processa o PDF (Texto ou Visão) e cruza os dados
@@ -29,12 +57,15 @@ export async function analyzeJobApplication(
         }
 
         const sanitizedText = text ? sanitizeAIInput(text) : undefined;
-        const messages = buildJobMatchingMessages(jobTitle, jobDescription, formAnswers, sanitizedText, images);
-        const data = await callOpenAI(messages, { retries: 3, timeout: 30000 });
+        const sanitizedAnswers = Object.fromEntries(
+            Object.entries(formAnswers).map(([k, v]) => [k, sanitizeAIInput(v)])
+        );
+        const data = await callOpenAI(
+          { type: 'job-matching', data: { jobTitle, jobDescription, formAnswers: sanitizedAnswers, fileText: sanitizedText, images: images.length > 0 ? images : undefined } },
+          { retries: 3, timeout: 30000, operation: 'job-matching' }
+        );
         const parsed = parseJSON<JobMatchResult>(data.content);
         const normalized = normalizeJobMatchResult(parsed as unknown as Record<string, unknown>);
-
-        logAI({ operation: 'job-matching', success: true, latencyMs: Date.now() - startTime });
         console.log("[Job Analyzer] Resumo do Match:", normalized);
 
         return normalized;

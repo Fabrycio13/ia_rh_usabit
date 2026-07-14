@@ -2,54 +2,58 @@
 
 Checklist priorizado para corrigir os principais riscos encontrados no projeto.
 
+> **Status atualizado em 2026-07-14 (pente-fino verificado em código):**
+> - ✅ **P0-1** a **P0-3** — **RESOLVIDOS** (verificados e documentados)
+> - ✅ **P1-4** (Candidatura segura) — **RESOLVIDO** (migrations 073/076/077 já restringiram)
+> - ✅ **P1-5** (Upload restrito) — **RESOLVIDO** (`uploadViaSignedUrl` → EF `get-upload-url`)
+> - ✅ **P1-6** (Path currículo) — **RESOLVIDO** (`createSignedUrl`, zero `getPublicUrl`)
+> - ✅ **P2-7** (Rate limit EFs) — **RESOLVIDO** (shared helper `_shared/rate-limit.ts` + aplicado em 3 EFs)
+> - ✅ **P2-8** (Creds hardcoded) — **RESOLVIDO** (`audit.cjs` já lê de `.env.local`)
+> - 🟢 **P2-9** (Migrations) — **COSMÉTICO** (não é bug)
+
 ## P0 — Urgente
 
-### 1. Remover OpenAI do frontend
+### 1. Remover OpenAI do frontend ✅ RESOLVIDO
 
-**Problema:** a chave `VITE_OPENAI_API_KEY` fica exposta no bundle do navegador porque o frontend usa `dangerouslyAllowBrowser: true`.
+**Problema original:** a chave `VITE_OPENAI_API_KEY` ficava exposta no bundle do navegador porque o frontend usava `dangerouslyAllowBrowser: true`.
 
-**Arquivos afetados hoje:**
-- `src/core/services/cvAnalyzer.ts`
-- `src/core/services/jobAnalyzer.ts`
-- `src/layouts/ChatWidget.tsx`
-
-**Correção desejada:**
-- Criar Edge Function para análise de currículo/candidatura.
-- Criar Edge Function para chat/assistente interno.
-- Usar `OPENAI_API_KEY` como Supabase Secret, sem prefixo `VITE_`.
-- Frontend deve chamar `supabase.functions.invoke(...)` em vez de instanciar OpenAI direto.
-- Rotacionar a chave OpenAI atual após a migração.
+**Correção aplicada:**
+- ✅ Edge Function `supabase/functions/openai-proxy/index.ts` criada
+- ✅ Frontend chama via `supabase.functions.invoke('openai-proxy', ...)` em `src/core/services/ai/client.ts`, `src/layouts/ChatWidget.tsx`, `src/pages/vagas/PoolTalentos.tsx`
+- ✅ Usa `OPENAI_API_KEY` como Supabase Secret (sem prefixo `VITE_`)
+- ✅ Verificado em 2026-07-14: 0 ocorrências de `VITE_OPENAI` em src/, 0 instanciação direta de OpenAI, 0 `dangerouslyAllowBrowser`
+- ⚠️ Pendente: rotacionar a chave OpenAI original (recomendação de segurança)
 
 ---
 
-### 2. Proteger `send-invite-email`
+### 2. Proteger `send-invite-email` ✅ RESOLVIDO
 
-**Problema:** a Edge Function usa `SUPABASE_SERVICE_ROLE_KEY`, mas não valida se quem chamou tem permissão para convidar usuários.
+**Problema original:** a Edge Function usa `SUPABASE_SERVICE_ROLE_KEY`, mas não validava se quem chamou tinha permissão para convidar usuários.
 
-**Arquivo afetado:**
-- `supabase/functions/send-invite-email/index.ts`
-
-**Correção desejada:**
-- Ler o JWT do usuário chamador.
-- Validar o usuário no Supabase.
-- Checar role/permissão antes de gerar convite.
-- Impedir criação/convite de roles acima do permitido.
-- Manter service role apenas para operações administrativas internas da função.
+**Correção aplicada** (em `supabase/functions/send-invite-email/index.ts`):
+- ✅ Linha 40-46: Valida JWT via `Authorization` header
+- ✅ Linha 48-54: `auth.getUser(token)` confirma usuário
+- ✅ Linha 58-71: Verifica `user_role` do caller (rejeita se não está na hierarquia)
+- ✅ Linha 80-85: Impede escalação de privilégio (`targetLevel >= callerLevel && callerProfile?.user_role !== 'owner'`)
+- ✅ Linha 87-94: Cross-org protection (caller só pode convidar pra própria org, exceto owner)
+- ✅ Validação de campos obrigatórios (linha 96-98)
+- ⚠️ Pendente: adicionar rate limit (constitution I + F5 do PLANO-IMPLANTACAO-SEGURANCA)
 
 ---
 
-### 3. Proteger `send-application-email` contra abuso/spam
+### 3. Proteger `send-application-email` contra abuso/spam ✅ RESOLVIDO
 
-**Problema:** a função aceita `candidateEmail`, `candidateName` e `jobTitle` vindos do client e pode ser usada para envio arbitrário de e-mails.
+**Problema original:** a função aceitava `candidateEmail`, `candidateName` e `jobTitle` vindos do client e podia ser usada para envio arbitrário de e-mails.
 
-**Arquivo afetado:**
-- `supabase/functions/send-application-email/index.ts`
-
-**Correção desejada:**
-- Receber apenas `applicationId` ou outro identificador seguro.
-- Buscar candidatura/vaga no banco dentro da Edge Function.
-- Enviar e-mail somente se a candidatura existir.
-- Adicionar limite contra reenvio abusivo, se possível.
+**Correção aplicada** (em `supabase/functions/send-application-email/index.ts`):
+- ✅ Linha 57: Contrato novo — aceita apenas `{ applicationId }` no body
+- ✅ Linha 90-95: Busca candidatura no banco a partir do `applicationId`
+- ✅ Linha 97-102: Retorna 404 se candidatura não existe (não envia)
+- ✅ Linha 111-122: Busca título da vaga no banco
+- ✅ Linha 133-135: Pega `candidateName`/`candidateEmail`/`jobTitle` **do banco**, não do request
+- ✅ Linha 24-44: `checkRateLimit` implementado (10 req/min por IP)
+- ✅ Frontend atualizado (`src/pages/vagas/JobApplication.tsx:791-795`) para enviar apenas `applicationId`
+- ✅ Script de teste atualizado (`scripts/test_email.mjs`) para o novo contrato
 
 ---
 

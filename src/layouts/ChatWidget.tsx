@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { AI_SYSTEM_PROMPT } from '../core/config/aiPrompt';
 import { useUser } from '../core/contexts/UserContext';
 import { get_assistant_tools, openAiToolDefinitions } from '../core/services/aiTools';
 import { type OpenAIMessage } from '../core/services/ai/types';
 import { supabase } from '../core/services/supabase';
+import { sanitizeAIInput } from '../core/services/sanitizer';
+import { sanitizeHtml } from '../core/utils/security';
 
 const OPENAI_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-proxy`;
 const CHAT_MODEL = 'gpt-4o-mini';
@@ -17,7 +18,9 @@ type ChatCompletionMessage = {
 };
 
 async function callOpenAIProxy(
-    messages: OpenAIMessage[]
+    messages: OpenAIMessage[],
+    tools?: unknown[],
+    tool_choice?: string
 ): Promise<ChatCompletionMessage> {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -28,10 +31,11 @@ async function callOpenAIProxy(
             'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify({
-            messages,
+            type: 'chat',
+            data: { messages },
             model: CHAT_MODEL,
-            tools: openAiToolDefinitions,
-            tool_choice: 'auto',
+            tools,
+            tool_choice,
         }),
     });
 
@@ -63,7 +67,7 @@ const typingDotsStyle = `
 `;
 
 export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; onClose: () => void; fullScreen?: boolean }) => {
-    const { profile } = useUser();
+    useUser(); // needed for context initialization
     const [messages, setMessages] = useState<ChatMessage[]>([
         {
             id: '1',
@@ -77,9 +81,6 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const assistantTools = get_assistant_tools();
-    const orgContext = profile.organization_name
-        ? `\n## ORGANIZAÇÃO ATUAL\nVocê está prestando serviços para a organização "${profile.organization_name}" (ID: ${profile.organization_id}).\nTodas as consultas ao banco de dados são automaticamente filtradas para os dados desta organização. Nunca acesse dados de fora dela.\n`
-        : '';
 
     useEffect(() => {
         const style = document.createElement('style');
@@ -111,15 +112,14 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
 
         try {
             const apiMessages: OpenAIMessage[] = [
-                { role: 'system', content: AI_SYSTEM_PROMPT + orgContext },
                 ...messages.map(m => ({
                     role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
                     content: m.text
                 })),
-                { role: 'user', content: currentInput }
+                { role: 'user', content: sanitizeAIInput(currentInput) }
             ];
 
-            let assistantMessage = await callOpenAIProxy(apiMessages);
+            let assistantMessage = await callOpenAIProxy(apiMessages, openAiToolDefinitions, 'auto');
 
             while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
                 apiMessages.push({
@@ -147,11 +147,11 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                     apiMessages.push({
                         role: 'tool',
                         tool_call_id: toolCall.id,
-                        content: JSON.stringify(result)
+                        content: sanitizeAIInput(JSON.stringify(result))
                     });
                 }
 
-                assistantMessage = await callOpenAIProxy(apiMessages);
+                assistantMessage = await callOpenAIProxy(apiMessages, openAiToolDefinitions, 'auto');
             }
 
             const text = assistantMessage.content || "";
@@ -164,7 +164,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
             };
             setMessages(prev => [...prev, botMsg]);
         } catch (error: unknown) {
-            console.error('OpenAI Error:', error);
+            console.error('OpenAI proxy falhou');
             const errorMsg: ChatMessage = {
                 id: Date.now().toString(),
                 text: `Ops! Ocorreu um erro: ${(error as Error).message || 'Erro desconhecido'}.`,
@@ -263,7 +263,7 @@ export const ChatWidget = ({ isOpen, onClose, fullScreen }: { isOpen: boolean; o
                                     strong: ({ children }) => <strong style={{ fontWeight: 700, color: msg.sender === 'ia' ? 'var(--primary)' : 'inherit' }}>{children}</strong>
                                 }}
                             >
-                                {msg.text}
+                                {msg.sender === 'ia' ? sanitizeHtml(msg.text) : msg.text}
                             </ReactMarkdown>
                         </div>
                         <span style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>

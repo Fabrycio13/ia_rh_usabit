@@ -5,12 +5,13 @@ interface ToggleFieldProps {
     description?: string;
     value: boolean;
     onChange: (value: boolean) => void;
+    isMobile?: boolean;
 }
 
-export const ToggleField = ({ label, description, value, onChange }: ToggleFieldProps) => {
+export const ToggleField = ({ label, description, value, onChange, isMobile }: ToggleFieldProps) => {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border)', transition: 'all 0.2s' }}>
-            <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--bg-main)', borderRadius: '10px', border: '1px solid var(--border)', transition: 'all 0.2s', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : 0 }}>
+            <div style={{ flex: 1, width: isMobile ? '100%' : 'auto' }}>
                 <p style={{ color: 'var(--text-main)', fontSize: '14px', fontWeight: 600, margin: 0 }}>{label}</p>
                 {description && (
                     <p style={{ color: 'var(--text-muted)', fontSize: '12px', margin: '4px 0 0' }}>{description}</p>

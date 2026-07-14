@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { isDisposableEmail } from '../../core/constants/disposableEmails';
 import { Eye, EyeOff } from 'lucide-react';
 
-const loadFont = () => {
-    if (document.querySelector('#poppins-font')) return;
-    const link = document.createElement('link');
-    link.id = 'poppins-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap';
-    document.head.appendChild(link);
-};
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com','guerrillamail.com','tempmail.com','10minutemail.com',
+  'throwaway.email','yopmail.com','mailnator.com','temp-mail.org',
+  'fakeinbox.com','trashmail.com','dispostable.com','sharklasers.com',
+  'getairmail.com','maildrop.cc','mailcatch.com','tempr.email',
+  'tempinbox.com','spamgourmet.com','mohmal.com','getnada.com',
+  'tempail.com','burnermail.io','mintemail.com','discard.email',
+  'mytemp.email','mailnesia.com','emailondeck.com','mailpoof.com',
+  'filzmail.com','tempemail.com','mailtemp.info','tempmailaddress.com',
+]);
+const isDisposableEmail = (email: string) => { const d = email.split('@')[1]?.toLowerCase().trim(); return !!d && DISPOSABLE_DOMAINS.has(d); };
 
 export const Register = () => {
     const navigate = useNavigate();
@@ -25,8 +27,6 @@ export const Register = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [honeypot, setHoneypot] = useState('');
     const [cooldown, setCooldown] = useState(0);
-
-    useEffect(() => { loadFont(); }, []);
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -54,7 +54,7 @@ export const Register = () => {
         setLoading(true);
         setMessage(null);
 
-        const { error } = await supabase.auth.signUp({
+        const { error, data: signUpData } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -70,6 +70,10 @@ export const Register = () => {
         if (error) {
             setMessage({ type: 'error', text: `Erro: ${error.message}` });
         } else {
+            // Se já veio sessão (confirm email OFF), ativar imediatamente
+            if (signUpData?.session?.user?.id) {
+                await supabase.from('profiles').update({ status: 'active' }).eq('id', signUpData.session.user.id);
+            }
             setMessage({ 
                 type: 'success', 
                 text: 'Cadastro realizado! Verifique seu e-mail para confirmar a conta e liberar o acesso.' 
@@ -88,7 +92,7 @@ export const Register = () => {
             {/* Imagem de Fundo Borrada sob o card */}
             <div className="absolute inset-0 z-0 pointer-events-none select-none">
                 <img
-                    src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                    src={`${import.meta.env.BASE_URL}stock-photos/Professional.webp`}
                     alt="Background Blur"
                     className="w-full h-full object-cover blur-[40px] opacity-30 scale-105"
                 />
@@ -259,7 +263,7 @@ export const Register = () => {
                 {/* PAINEL DIREITO: Imagem de Fundo (Recrutador) */}
                 <div className="flex-1 h-full relative hidden md:block select-none overflow-hidden">
                     <img
-                        src={`${import.meta.env.BASE_URL}logos/Professional.jpeg`}
+                        src={`${import.meta.env.BASE_URL}stock-photos/Professional.webp`}
                         alt="Usabit People Recrutamento"
                         className="w-full h-full object-cover object-[55%_center]"
                     />

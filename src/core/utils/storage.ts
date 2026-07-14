@@ -25,7 +25,7 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
         let path = url;
         let bucket = 'resumes'; // Default for analyzed candidates
 
-        // Detect bucket and path from full Supabase URLs
+        // Detect bucket and path from full Supabase URLs or bucket/path format
         if (url.includes('/storage/v1/object/public/')) {
             const afterPublic = url.split('/storage/v1/object/public/')[1];
             const parts = afterPublic.split('/');
@@ -36,21 +36,19 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
             const parts = afterObject.split('/');
             bucket = parts[0];
             path = parts.slice(1).join('/');
-        } else if (url.includes('/job-applications/')) {
+        } else if (url.startsWith('job-applications/')) {
+            // ponytail: checa prefixo completo antes de substring
             bucket = 'job-applications';
-            path = url.split('/job-applications/')[1];
-        } else if (url.includes('/resumes/')) {
-            bucket = 'resumes';
-            path = url.split('/resumes/')[1];
+            path = url.replace('job-applications/', '');
         } else if (url.startsWith('resumes/')) {
             bucket = 'resumes';
             path = url.replace('resumes/', '');
-        } else if (url.startsWith('job-applications/')) {
-            bucket = 'job-applications';
-            path = url.replace('job-applications/', '');
+        } else if (url.startsWith('resume-uploads/')) {
+            bucket = 'resume-uploads';
+            path = url.replace('resume-uploads/', '');
         }
         
-        console.log('[Storage] Opening resume:', { bucket, path });
+
 
         const { data, error } = await supabase.storage
             .from(bucket)
@@ -70,3 +68,71 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
         toast.error('Erro ao abrir currículo. Verifique suas permissões.');
     }
 };
+
+/**
+ * Upload seguro via presigned URL (chamada Edge Function + PUT direto ao Storage).
+ * Substitui upload client-side com anon key (vulnerável a JWT inválido em buckets privados).
+ * @returns path completo no formato "bucket/caminho" (ex: "job-applications/resumes/123/timestamp.pdf")
+ */
+export async function uploadViaSignedUrl(
+  bucket: string,
+  path: string,
+  file: File
+): Promise<string> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+  // 1. Obter signed upload URL da Edge Function
+  const res = await fetch(`${supabaseUrl}/functions/v1/get-upload-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ bucket, path }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Falha ao obter URL de upload (${res.status}): ${errBody}`);
+  }
+
+  const { signedUrl, path: resultPath } = await res.json() as { signedUrl: string; path: string };
+
+  // 2. Upload direto ao Storage (PUT binário, sem JWT)
+  const uploadRes = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/pdf' },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`Falha no upload do arquivo (${uploadRes.status})`);
+  }
+
+  return `${bucket}/${resultPath}`;
+}
+
+export async function downloadResume(url: string, fileName: string): Promise<File> {
+    let path = url;
+    let bucket = 'job-applications';
+    if (url.includes('/storage/v1/object/public/')) {
+        const afterPublic = url.split('/storage/v1/object/public/')[1];
+        const parts = afterPublic.split('/');
+        bucket = parts[0];
+        path = parts.slice(1).join('/');
+    } else if (url.includes('/storage/v1/object/')) {
+        const afterObject = url.split('/storage/v1/object/')[1];
+        const parts = afterObject.split('/');
+        bucket = parts[0];
+        path = parts.slice(1).join('/');
+    } else if (url.startsWith('job-applications/')) {
+        path = url.replace('job-applications/', '');
+    }
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
+    if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
+    const response = await fetch(data.signedUrl);
+    const blob = await response.blob();
+    return new File([blob], fileName, { type: blob.type });
+}

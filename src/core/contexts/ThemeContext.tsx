@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';
-type BgTheme = 'simple' | 'planets' | 'spatial';
+type BgTheme = 'simple' | 'planets' | 'spatial' | 'frequence';
 
 interface ThemeContextType {
     theme: Theme;
@@ -127,16 +127,44 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     useEffect(() => {
         localStorage.setItem('app-bg-theme', bgTheme);
-        document.body.classList.remove('bg-theme-simple', 'bg-theme-planets', 'bg-theme-spatial');
+        document.body.classList.remove('bg-theme-simple', 'bg-theme-planets', 'bg-theme-spatial', 'bg-theme-frequence');
         document.body.classList.add(`bg-theme-${bgTheme}`);
     }, [bgTheme]);
 
     useEffect(() => { applyPrimary(customPrimaryColor); }, [customPrimaryColor]);
     useEffect(() => { applyText(customTextColor); }, [customTextColor]);
 
+    // Auto-apply green primary when Frequence theme is active (unless custom set)
+    useEffect(() => {
+        if (bgTheme === 'frequence' && !customPrimaryColor) {
+            const freqGreen = '#22c55e';
+            document.documentElement.style.setProperty('--primary', freqGreen);
+            document.documentElement.style.setProperty('--primary-hover', '#16a34a');
+            document.documentElement.style.setProperty('--primary-light-bg', 'rgba(34, 197, 94, 0.1)');
+            document.documentElement.style.setProperty('--primary-border', 'rgba(34, 197, 94, 0.2)');
+            document.documentElement.style.setProperty('--primary-text-light', '#86efac');
+            document.documentElement.style.setProperty('--secondary', '#16a34a');
+            document.documentElement.style.setProperty('--bg-sidebar', '#060d08');
+            document.documentElement.style.setProperty('--sidebar-active', 'rgba(34, 197, 94, 0.12)');
+            document.documentElement.style.setProperty('--sidebar-active-text', freqGreen);
+            document.documentElement.style.setProperty('--primary-rgb', '34, 197, 94');
+        } else if (bgTheme !== 'frequence' && !customPrimaryColor) {
+            document.documentElement.style.removeProperty('--primary');
+            document.documentElement.style.removeProperty('--primary-hover');
+            document.documentElement.style.removeProperty('--primary-light-bg');
+            document.documentElement.style.removeProperty('--primary-border');
+            document.documentElement.style.removeProperty('--primary-text-light');
+            document.documentElement.style.removeProperty('--secondary');
+            document.documentElement.style.removeProperty('--bg-sidebar');
+            document.documentElement.style.removeProperty('--sidebar-active');
+            document.documentElement.style.removeProperty('--sidebar-active-text');
+            document.documentElement.style.removeProperty('--primary-rgb');
+        }
+    }, [bgTheme, customPrimaryColor]);
+
     const setBgTheme = (newTheme: BgTheme) => {
         setBgThemeState(newTheme);
-        if (newTheme === 'planets' || newTheme === 'spatial') {
+        if (newTheme === 'planets' || newTheme === 'spatial' || newTheme === 'frequence') {
             if (theme !== 'dark') setTheme('dark');
         }
     };

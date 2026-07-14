@@ -8,7 +8,7 @@ const css = `
 `;
 
 // ─── Planet Details ───────────────────────────────────────────────────────────
-const PlanetOverlay = ({ type }: { type: string }) => {
+export const PlanetOverlay = ({ type }: { type: string }) => {
   switch (type) {
     case 'Jupiter':
       return (

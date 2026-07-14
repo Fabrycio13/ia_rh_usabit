@@ -1,5 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { buildScoringMessages } from './prompts/scoring.ts'
+import { buildJobMatchingMessages } from './prompts/job-matching.ts'
+import { buildExtractionMessages } from './prompts/extraction.ts'
+import { buildResumeMessages } from './prompts/resume.ts'
+import { AI_SYSTEM_PROMPT } from './prompts/chat-system.ts'
+import { TEXT_GUARDRAILS } from './prompts/guardrails.ts'
+import type { OpenAIMessage } from './prompts/types.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -10,62 +18,55 @@ const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'gestor', 'owner']
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400',
+const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
 }
 
-function jsonResponse(status: number, body: Record<string, unknown>) {
+function jsonResponse(status: number, body: Record<string, unknown>, origin: string | null) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 }
 
-async function checkRateLimit(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  key: string,
-  endpoint: string,
-  maxRequests: number,
-  windowMs: number,
-): Promise<boolean> {
-  const windowStart = new Date(Date.now() - windowMs).toISOString()
 
-  const { count } = await supabaseAdmin
-    .from('rate_limits')
-    .select('id', { count: 'exact', head: true })
-    .eq('key', key)
-    .eq('endpoint', endpoint)
-    .gte('window_start', windowStart)
-
-  if ((count ?? 0) >= maxRequests) return false
-
-  await supabaseAdmin.from('rate_limits').insert({ key, endpoint })
-  return true
+// ponytail: map operation type to default model
+const DEFAULT_MODELS: Record<string, string> = {
+  chat: 'gpt-4o-mini',
+  scoring: 'gpt-4o',
+  'job-matching': 'gpt-4o',
+  extraction: 'gpt-4o',
+  resume: 'gpt-4o',
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+    return new Response(null, { status: 204, headers: getCorsHeaders(origin) })
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse(405, { error: 'Método não permitido' })
+    return jsonResponse(405, { error: 'Método não permitido' }, origin)
   }
 
   // 1. Validar JWT
   const authHeader = req.headers.get('Authorization') || ''
   const token = authHeader.replace('Bearer ', '').trim()
   if (!token) {
-    return jsonResponse(401, { error: 'Token não fornecido' })
+    return jsonResponse(401, { error: 'Token não fornecido' }, origin)
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   const { data: { user }, error: userError } = await supabase.auth.getUser(token)
   if (userError || !user) {
-    return jsonResponse(401, { error: 'Token inválido' })
+    return jsonResponse(401, { error: 'Token inválido' }, origin)
   }
 
   // 2. Verificar role
@@ -77,7 +78,7 @@ serve(async (req) => {
     .single()
 
   if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-    return jsonResponse(403, { error: 'Permissão insuficiente' })
+    return jsonResponse(403, { error: 'Permissão insuficiente' }, origin)
   }
 
   // 3. Rate limit por usuário
@@ -89,12 +90,14 @@ serve(async (req) => {
     RATE_LIMIT_WINDOW_MS,
   )
   if (!allowed) {
-    return jsonResponse(429, { error: 'Muitas requisições. Tente novamente em 1 minuto.' })
+    return jsonResponse(429, { error: 'Muitas requisições. Tente novamente em 1 minuto.' }, origin)
   }
 
   // 4. Processar requisição OpenAI
   let body: {
-    messages?: unknown
+    messages?: unknown          // formato antigo (compatibilidade)
+    type?: string               // formato novo: 'scoring'|'job-matching'|'extraction'|'chat'|'resume'
+    data?: Record<string, unknown>
     model?: string
     max_tokens?: number
     tools?: unknown
@@ -103,14 +106,125 @@ serve(async (req) => {
   try {
     body = await req.json()
   } catch {
-    return jsonResponse(400, { error: 'Body JSON inválido' })
+    return jsonResponse(400, { error: 'Body JSON inválido' }, origin)
   }
 
-  if (!body.messages || !Array.isArray(body.messages)) {
-    return jsonResponse(400, { error: 'Campo "messages" é obrigatório e deve ser um array' })
+  let messages: OpenAIMessage[]
+
+  // Detectar formato: novo (type) vs antigo (messages)
+  if (body.type && body.data) {
+    // ── Formato novo: monta prompt server-side ──
+    const d = body.data
+    try {
+      switch (body.type) {
+        case 'chat': {
+          const conversation = (d.messages as OpenAIMessage[]) || []
+          messages = [
+            { role: 'system', content: AI_SYSTEM_PROMPT },
+            ...conversation,
+          ]
+          break
+        }
+        case 'scoring':
+          messages = buildScoringMessages(
+            d.jobTitle as string,
+            d.jobDescription as string,
+            (d.currentIndex as number) ?? 1,
+            (d.totalCount as number) ?? 1,
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'job-matching':
+          messages = buildJobMatchingMessages(
+            d.jobTitle as string,
+            d.jobDescription as string,
+            (d.formAnswers as Record<string, string>) || {},
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'extraction':
+          messages = buildExtractionMessages(
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'resume':
+          messages = buildResumeMessages(
+            d.fileText as string | undefined,
+            d.images as string[] | undefined,
+          )
+          break
+        case 'batch-scoring': {
+          const candidates = (d.candidates as Array<{ id: string; name: string; rawText: string }>) || []
+          const jobTitle = d.jobTitle as string
+          const jobDescription = d.jobDescription as string
+          const now = new Date().toLocaleString('pt-BR')
+
+          const candidateSection = candidates.map((c, i) => {
+            return `## CANDIDATO ${i + 1}: ${c.name}\nID: ${c.id}\nCURRÍCULO:\n${c.rawText}`
+          }).join('\n\n---\n\n')
+
+          const prompt = `Você é um recrutador sênior especializado em avaliar candidatos para vagas.
+
+## VAGA
+Título: ${jobTitle}
+Descrição: ${jobDescription}
+
+## INSTRUÇÕES
+Abaixo estão ${candidates.length} candidato(s). Para cada um:
+
+1. Leia o currículo.
+2. Avalie a aderência à vaga (0-100).
+3. Extraia skills, experiência, formação.
+4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
+
+HOJE É: ${now}
+
+## CANDIDATOS
+${candidateSection}
+
+${TEXT_GUARDRAILS}
+
+## FORMATO DE SAÍDA (JSON ESTRITO)
+Retorne APENAS um array JSON, sem texto adicional:
+[
+  {
+    "candidateId": "ID do candidato",
+    "score": número 0-100,
+    "classification": "FORTE | MÉDIO | NÃO ADERENTE",
+    "skills": ["Skill1", "Skill2"],
+    "experience": "X anos e Y meses",
+    "education": "Formação1 | Formação2",
+    "summary": "2-3 linhas explicando o score",
+    "strengths": ["ponto forte 1", "ponto forte 2"],
+    "gaps": ["gap 1", "gap 2"],
+    "recommendation": "Avançar | Manter em banco | Não recomendado",
+    "status": "PROCESSADO | CURRICULO_INCOMPLETO"
+  }
+]
+Mantenha a ORDEM dos candidatos.`;
+          messages = [{ role: 'user', content: prompt }]
+          break
+        }
+        default:
+          return jsonResponse(400, { error: `Tipo desconhecido: ${body.type}` }, origin)
+      }
+    } catch (err) {
+      return jsonResponse(400, { error: `Erro ao montar prompt: ${(err as Error).message}` }, origin)
+    }
+  } else if (body.messages && Array.isArray(body.messages)) {
+    // ── Formato antigo: compatibilidade ──
+    messages = body.messages as OpenAIMessage[]
+  } else {
+    return jsonResponse(400, { error: 'Envie "messages" (formato antigo) ou "type"+"data" (formato novo)' }, origin)
   }
 
-  const { messages, model = 'gpt-4o', max_tokens = 8192, tools, tool_choice } = body
+  const model = body.model || DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
+  const max_tokens = body.max_tokens ?? 8192
+  const { tools, tool_choice } = body
+
   const openaiBody: Record<string, unknown> = { model, messages, max_tokens }
   if (tools) openaiBody.tools = tools
   if (tool_choice) openaiBody.tool_choice = tool_choice
@@ -128,6 +242,6 @@ serve(async (req) => {
 
   return new Response(JSON.stringify(data), {
     status: response.status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 })

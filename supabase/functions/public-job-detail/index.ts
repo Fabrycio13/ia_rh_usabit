@@ -1,16 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import { checkRateLimit } from '../_shared/rate-limit.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  };
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
   // Tratar requisições OPTIONS (CORS)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: getCorsHeaders(origin) })
   }
 
   try {
@@ -19,7 +28,7 @@ serve(async (req) => {
 
     if (!hash) {
       return new Response(JSON.stringify({ error: 'Parâmetro hash é obrigatório' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 400
       });
     }
@@ -32,6 +41,17 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+    // Rate limit por IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || req.headers.get('cf-connecting-ip')
+      || 'unknown';
+    const allowed = await checkRateLimit(supabaseAdmin, `ip:${clientIp}`, 'public-job-detail', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
+        status: 429, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
+      });
+    }
 
     // AUDITORIA DE SEGURANÇA: Nunca usar select('*') com a Service Role Key em uma API pública.
     // Selecionamos de forma estrita apenas os dados visíveis da Vaga para evitar vazar anotações internas do RH ou orçamentos.
@@ -48,21 +68,21 @@ serve(async (req) => {
 
     if (jobError || !jobData) {
       return new Response(JSON.stringify({ error: 'Vaga não encontrada, pausada ou inválida.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 404
       });
     }
 
     // Retorna todos os dados para montar a View gigante da vaga
     return new Response(JSON.stringify({ job: jobData }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 200
     });
 
   } catch (error) {
     console.error('Erro na API public-job-detail:', error.message);
     return new Response(JSON.stringify({ error: 'Erro interno ao processar a requisição' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 500
     });
   }

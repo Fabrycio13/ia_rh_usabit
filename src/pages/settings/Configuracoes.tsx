@@ -1,13 +1,16 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
-import { User, Building2, Phone, Mail, Briefcase, Camera, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Key, CreditCard, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout } from 'lucide-react';
+import { User, Building2, Phone, Mail, Briefcase, Camera, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Key, CreditCard, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout, Activity } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
 import { logActivity } from '../../core/services/logger';
 import toast from 'react-hot-toast';
 import { OwnerAdminApiPanel, OwnerAdminPlanPanel, type AdminUser } from './OwnerPanels';
 import { roleDefinitions } from '../../common/constants/roleDefinitions';
+import { initials } from '../../core/utils/format';
+import { inputStyle, labelStyle } from '../../core/utils/formatUtils';
 
 type TabKey = 'perfil' | 'seguranca' | 'aparencia' | 'api' | 'plano';
 
@@ -100,6 +103,99 @@ function FontSelect({ value, onChange }: { value: string; onChange: (v: string) 
     );
 }
 
+const BG_THEME_OPTIONS = [
+    { value: 'simple' as const, label: 'Simples', icon: Layout },
+    { value: 'planets' as const, label: 'Planetário', icon: Star },
+    { value: 'spatial' as const, label: 'Espacial', icon: Sparkles },
+    { value: 'frequence' as const, label: 'Frequência', icon: Activity },
+];
+
+function BgThemeSelect({ current }: { current: string }) {
+    const { setBgTheme } = useTheme();
+    const [isOpen, setIsOpen] = useState(false);
+    const [openUp, setOpenUp] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const selected = BG_THEME_OPTIONS.find(o => o.value === current) || BG_THEME_OPTIONS[0];
+    const SelectedIcon = selected.icon;
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (ref.current && !ref.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen && triggerRef.current) {
+            triggerRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const rect = triggerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            setOpenUp(spaceBelow < 280);
+        }
+    }, [isOpen]);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <div
+                ref={triggerRef}
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'var(--bg-input)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '10px 12px', color: 'var(--text-main)',
+                    fontSize: '14px', cursor: 'pointer', minHeight: '44px', gap: '8px',
+                    transition: 'all 0.2s'
+                }}
+            >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <SelectedIcon size={16} style={{ color: 'var(--primary)' }} />
+                    <span style={{ fontWeight: 600 }}>{selected.label}</span>
+                </span>
+                <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none', flexShrink: 0, opacity: 0.7 }} />
+            </div>
+            {isOpen && (
+                <div style={{
+                    position: 'absolute', top: openUp ? 'auto' : 'calc(100% + 4px)', bottom: openUp ? 'calc(100% + 4px)' : 'auto', left: 0, right: 0,
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    borderRadius: '10px', padding: '6px', zIndex: 1000,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                }}>
+                    {BG_THEME_OPTIONS.map(opt => {
+                        const Icon = opt.icon;
+                        const isActive = current === opt.value;
+                        return (
+                            <div
+                                key={opt.value}
+                                onClick={() => { setBgTheme(opt.value); setIsOpen(false); }}
+                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--row-hover)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = isActive ? 'var(--primary-light-bg)' : 'transparent'; }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '11px 12px', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', transition: 'all 0.15s',
+                                    color: isActive ? 'var(--primary)' : 'var(--text-main)',
+                                    background: isActive ? 'var(--primary-light-bg)' : 'transparent',
+                                    fontWeight: isActive ? 600 : 400,
+                                    gap: '10px'
+                                }}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Icon size={16} style={{ color: isActive ? 'var(--primary)' : 'var(--text-dim)' }} />
+                                    {opt.label}
+                                </span>
+                                {isActive && <Check size={14} style={{ color: 'var(--primary)' }} />}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 interface TabItem {
     key: TabKey;
     label: string;
@@ -115,7 +211,7 @@ const allTabs: TabItem[] = [
 ];
 
 // Abas visíveis para cada perfil
-const getVisibleTabs = (userRole: string): TabItem[] => {
+export const getVisibleTabs = (userRole: string): TabItem[] => {
     const baseTabs = allTabs.filter(tab => ['perfil', 'seguranca', 'aparencia'].includes(tab.key));
     // Apenas Owner veem API e Plano
     if (userRole === 'owner') {
@@ -123,6 +219,13 @@ const getVisibleTabs = (userRole: string): TabItem[] => {
     }
     return baseTabs;
 };
+
+export function validatePassword(newPass: string, confirmPass: string): string | null {
+    if (!newPass) return 'Digite a nova senha.';
+    if (newPass !== confirmPass) return 'As senhas não coincidem.';
+    if (newPass.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    return null;
+}
 
 const themeBtnCss = `
     .theme-switch-container {
@@ -172,29 +275,6 @@ const themeBtnCss = `
         transform: rotate(15deg) scale(1.1);
     }
 `;
-
-const inputStyle: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--bg-input)',
-    border: '1px solid var(--border)',
-    borderRadius: '10px',
-    padding: '11px 14px 11px 42px',
-    color: 'var(--text-main)',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s, background 0.2s',
-};
-
-const labelStyle: React.CSSProperties = {
-    display: 'block',
-    color: 'var(--text-muted)',
-    fontSize: '11px',
-    fontWeight: 600,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-    marginBottom: '6px',
-};
 
 const fieldWrapStyle: React.CSSProperties = { position: 'relative' };
 
@@ -470,16 +550,9 @@ export const Configuracoes = () => {
     };
 
     const handleChangePassword = async () => {
-        if (!newPassword) {
-            showToast('error', 'Digite a nova senha.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            showToast('error', 'As senhas não coincidem.');
-            return;
-        }
-        if (newPassword.length < 6) {
-            showToast('error', 'A senha deve ter pelo menos 6 caracteres.');
+        const validationError = validatePassword(newPassword, confirmPassword);
+        if (validationError) {
+            showToast('error', validationError);
             return;
         }
 
@@ -524,7 +597,7 @@ export const Configuracoes = () => {
         );
     }
 
-    const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+    const computedInitials = initials(name) || '?';
 
     return (
         <div className="cfg-root">
@@ -645,7 +718,7 @@ export const Configuracoes = () => {
                                 {avatarPreview ? (
                                     <img src={avatarPreview} alt="Avatar" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)' }} />
                                 ) : (
-                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{initials}</div>
+                                    <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, color: '#fff', border: '3px solid var(--border)' }}>{computedInitials}</div>
                                 )}
                                 <div className="photo-overlay" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {uploadingPhoto ? <Loader2 style={{ width: 24, height: 24, color: '#fff', animation: 'spin 1s linear infinite' }} /> : <Camera style={{ width: 24, height: 24, color: '#fff' }} />}
@@ -962,7 +1035,7 @@ export const Configuracoes = () => {
             {activeTab === 'aparencia' && (
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                     {/* Aparência */}
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px 28px', display: 'flex', flexDirection: 'column', position: 'relative', overflow: isMobile ? 'visible' : 'hidden' }}>
                         <style>{themeBtnCss}</style>
 
                         <div style={{ marginBottom: '20px' }}>
@@ -1007,44 +1080,63 @@ export const Configuracoes = () => {
                             <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: '4px 0 0' }}>Escolha o estilo visual do seu painel</p>
                         </div>
 
-                        <div className="theme-switch-container" style={{ width: '100%', maxWidth: '480px', height: isMobile ? '48px' : '44px' }}>
-                            <div className="theme-switch-slider" style={{
-                                width: 'calc(33.33% - 8px)',
-                                transform: bgTheme === 'simple' ? 'translateX(0)' : bgTheme === 'planets' ? 'translateX(calc(100% + 4px))' : 'translateX(calc(200% + 8px))',
-                                height: '32px',
-                                top: '6px',
-                                background: 'var(--primary)',
-                                borderRadius: '10px',
-                                boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.3)'
-                            }} />
+                        {isMobile ? (
+                            <BgThemeSelect current={bgTheme} />
+                        ) : (
+                            <div className="theme-switch-container" style={{
+                                width: '100%', maxWidth: '640px',
+                                height: '44px',
+                                gap: '4px',
+                                padding: '6px',
+                            }}>
+                                <div className="theme-switch-slider" style={{
+                                    width: 'calc(25% - 8px)',
+                                    transform: bgTheme === 'simple' ? 'translateX(0)' : bgTheme === 'planets' ? 'translateX(calc(100% + 4px))' : bgTheme === 'spatial' ? 'translateX(calc(200% + 8px))' : 'translateX(calc(300% + 12px))',
+                                    height: '32px',
+                                    top: '6px',
+                                    background: 'var(--primary)',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 4px 12px rgba(var(--primary-rgb), 0.3)',
+                                    transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                }} />
 
-                            <button
-                                className={`theme-switch-option ${bgTheme === 'simple' ? 'active' : ''}`}
-                                onClick={() => setBgTheme('simple')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
-                            >
-                                <Layout size={15} />
-                                Simples
-                            </button>
+                                <button
+                                    className={`theme-switch-option ${bgTheme === 'simple' ? 'active' : ''}`}
+                                    onClick={() => setBgTheme('simple')}
+                                    style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap', padding: '8px 18px' }}
+                                >
+                                    <Layout size={15} />
+                                    Simples
+                                </button>
 
-                            <button
-                                className={`theme-switch-option ${bgTheme === 'planets' ? 'active' : ''}`}
-                                onClick={() => setBgTheme('planets')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
-                            >
-                                <Star size={15} />
-                                Planetário
-                            </button>
+                                <button
+                                    className={`theme-switch-option ${bgTheme === 'planets' ? 'active' : ''}`}
+                                    onClick={() => setBgTheme('planets')}
+                                    style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap', padding: '8px 18px' }}
+                                >
+                                    <Star size={15} />
+                                    Planetário
+                                </button>
 
-                            <button
-                                className={`theme-switch-option ${bgTheme === 'spatial' ? 'active' : ''}`}
-                                onClick={() => setBgTheme('spatial')}
-                                style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: isMobile ? '4px' : '8px', whiteSpace: 'nowrap', padding: isMobile ? '6px 10px' : undefined }}
-                            >
-                                <Sparkles size={15} />
-                                Espacial
-                            </button>
-                        </div>
+                                <button
+                                    className={`theme-switch-option ${bgTheme === 'spatial' ? 'active' : ''}`}
+                                    onClick={() => setBgTheme('spatial')}
+                                    style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap', padding: '8px 18px' }}
+                                >
+                                    <Sparkles size={15} />
+                                    Espacial
+                                </button>
+
+                                <button
+                                    className={`theme-switch-option ${bgTheme === 'frequence' ? 'active' : ''}`}
+                                    onClick={() => setBgTheme('frequence')}
+                                    style={{ flex: 1, height: '100%', zIndex: 1, fontSize: '12px', fontWeight: 600, gap: '8px', whiteSpace: 'nowrap', padding: '8px 18px' }}
+                                >
+                                    <Activity size={15} />
+                                    Frequência
+                                </button>
+                            </div>
+                        )}
 
                         <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', opacity: 0.8 }}>
                             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', animation: 'pulse 2s infinite' }} />

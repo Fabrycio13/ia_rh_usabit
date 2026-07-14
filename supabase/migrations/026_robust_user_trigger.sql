@@ -49,7 +49,7 @@ BEGIN
         new.email, 
         COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
         target_role,
-        'active',
+        'pending',
         'trial',
         target_org_name,
         target_org_id,
@@ -63,7 +63,7 @@ EXCEPTION WHEN OTHERS THEN
     -- Fallback final: Log mínimo para não impedir o login/signup do usuário
     -- Mas evita gerar organização aleatória se possível
     INSERT INTO public.profiles (id, email, name, user_role, status)
-    VALUES (new.id, new.email, '', COALESCE(target_role, 'owner'), 'active');
+    VALUES (new.id, new.email, '', COALESCE(target_role, 'owner'), 'pending');
     RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

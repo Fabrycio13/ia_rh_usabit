@@ -9,6 +9,8 @@ import { TrendingUp, Users, Briefcase, Award, ArrowUpRight, ChevronRight, Settin
 import DatePicker from '../../common/components/ui/DatePicker';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../core/contexts/ThemeContext';
+import { PlanetOverlay } from '../../common/components/ui/SpaceBackground';
+import { HeartbeatBackground } from '../../common/components/ui/HeartbeatBackground';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Job {
@@ -18,7 +20,7 @@ interface Job {
   created_at: string;
 }
 interface JobWithStats extends Job {
-  type: 'analysis' | 'job';
+  type: 'job';
   totalCandidates: number;
   topCandidates: number;
 }
@@ -100,80 +102,6 @@ input[type="date"] { color-scheme:dark; }
 input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1) brightness(1.5); cursor:pointer; }
 `;
 
-// ─── Planet Overlay Component ─────────────────────────────────────────────────
-const PlanetOverlay = ({ type }: { type: string }) => {
-  switch (type) {
-    case 'Jupiter':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 12px, rgba(124,45,18,0.25) 12px, rgba(124,45,18,0.25) 24px)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 18px, rgba(254,243,199,0.15) 18px, rgba(254,243,199,0.15) 36px)' }} />
-          <div style={{ position: 'absolute', top: '65%', left: '15%', width: '25%', height: '12%', borderRadius: '50%', background: 'rgba(124,45,18,0.45)', filter: 'blur(2px)', transform: 'rotate(-3deg)' }} />
-          <div style={{ position: 'absolute', top: '30%', left: '55%', width: '28%', height: '6%', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', filter: 'blur(1px)' }} />
-        </div>
-      );
-    case 'Earth':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0,
-            backgroundImage: `
-              radial-gradient(ellipse 22px 18px at 25% 30%, #166534 0%, transparent 100%),
-              radial-gradient(ellipse 30px 22px at 65% 55%, #15803d 0%, transparent 100%),
-              radial-gradient(ellipse 18px 12px at 45% 45%, #3f6212 0%, transparent 100%),
-              radial-gradient(ellipse 12px 08px at 80% 20%, #14532d 0%, transparent 100%),
-              radial-gradient(circle 7px at 22% 72%, #166534 0%, transparent 100%)
-            `,
-            opacity: 0.85, filter: 'blur(1px)'
-          }} />
-          <div style={{ position: 'absolute', top: '22%', left: '22%', width: '18%', height: '18%', background: 'rgba(255,255,255,0.3)', borderRadius: '50%', filter: 'blur(5px)' }} />
-          <div style={{ position: 'absolute', inset: 0,
-            backgroundImage: 'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, transparent 45deg, rgba(255,255,255,0.08) 90deg)',
-            filter: 'blur(2px)', animation: 'float 30s linear infinite'
-          }} />
-        </div>
-      );
-    case 'Moon':
-      return (
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.7 }}>
-          <div style={{ position: 'absolute', top: '15%', left: '25%', width: '18%', height: '18%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'absolute', top: '45%', left: '60%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(0,0,0,0.2)', boxShadow: 'inset 2px 2px 3px rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'absolute', top: '70%', left: '30%', width: '22%', height: '22%', borderRadius: '50%', background: 'rgba(0,0,0,0.15)', boxShadow: 'inset 3px 3px 6px rgba(0,0,0,0.25)' }} />
-        </div>
-      );
-    case 'Mars':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '15%', left: '15%', width: '35%', height: '15%', background: 'rgba(69,10,10,0.35)', filter: 'blur(4px)', transform: 'rotate(-5deg)' }} />
-          <div style={{ position: 'absolute', top: '65%', left: '50%', width: '25%', height: '15%', background: 'rgba(69,10,10,0.3)', filter: 'blur(3px)', transform: 'rotate(10deg)' }} />
-          <div style={{ position: 'absolute', top: '35%', left: '55%', width: '15%', height: '15%', borderRadius: '50%', background: 'rgba(69,10,10,0.2)', boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.3)' }} />
-        </div>
-      );
-    case 'Neptune':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(160deg, transparent, transparent 8px, rgba(255,255,255,0.08) 8px, rgba(255,255,255,0.08) 16px)', filter: 'blur(1.5px)', animation: 'float 45s linear infinite' }} />
-          <div style={{ position: 'absolute', top: '40%', left: '10%', width: '80%', height: '4%', background: 'rgba(255,255,255,0.15)', filter: 'blur(3px)' }} />
-        </div>
-      );
-    case 'Venus':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 70% 30%, rgba(255,255,255,0.12) 0%, transparent 60%)', filter: 'blur(2px)' }} />
-          <div style={{ position: 'absolute', inset: -10, background: 'repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(0,0,0,0.05) 12px, rgba(0,0,0,0.05) 24px)', filter: 'blur(4px)', opacity: 0.4 }} />
-        </div>
-      );
-    case 'Saturn':
-      return (
-        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.1) 50%, transparent)' }} />
-          <div style={{ position: 'absolute', top: '25%', left: '10%', width: '80%', height: '10%', background: 'rgba(255,255,255,0.05)', filter: 'blur(1px)' }} />
-        </div>
-      );
-    default:
-      return null;
-  }
-};
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard = () => {
   const { profile } = useUser();
@@ -210,6 +138,16 @@ export const Dashboard = () => {
     return () => clearTimeout(t);
   }, []);
 
+  // ── Frequence heartbeat sequencial: 0→1→2→3→0, 3s cada ──
+  const [activeFreqCard, setActiveFreqCard] = useState(0);
+  useEffect(() => {
+    if (bgTheme !== 'frequence') return;
+    const interval = setInterval(() => {
+      setActiveFreqCard(prev => (prev + 1) % 4);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [bgTheme]);
+
   const saveLayout = useCallback((newLayout: typeof layout) => {
     setLayout(newLayout);
     localStorage.setItem(`dash-layout-${profile.userId}`, JSON.stringify(newLayout));
@@ -223,35 +161,27 @@ export const Dashboard = () => {
     : 0;
 
    
-  const fetchDataRef = useRef<(userId: string) => Promise<void>>(() => Promise.resolve());
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(() => {
     if (!profile.loaded) return;
     if (!profile.userId) { setLoading(false); return; }
     const t = setTimeout(() => setLoading(false), 8000);
     fetchDataRef.current = fetchData;
-    fetchDataRef.current!(profile.userId).finally(() => clearTimeout(t));
+    fetchDataRef.current!().finally(() => clearTimeout(t));
     const ch = supabase.channel('dash-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_candidates' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchDataRef.current?.(profile.userId))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchDataRef.current?.(profile.userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_white_label' }, () => fetchDataRef.current?.())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas_candidaturas' }, () => fetchDataRef.current?.())
       .subscribe();
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.userId, profile.loaded]);
 
-  async function fetchData(userId: string) {
+  async function fetchData() {
     try {
       setLoading(true); setError(null);
-      
-      // 1. Buscar Análises (jobs)
-      const { data: analysesData, error: ae } = await supabase
-        .from('jobs').select('id,name,filters,created_at')
-        .eq('user_id', userId).order('created_at', { ascending: false });
-      if (ae) throw ae;
 
-      // 2. Buscar Vagas do Portal (vagas_white_label)
+      // 1. Buscar Vagas do Portal (vagas_white_label)
       let query = supabase
         .from('vagas_white_label')
         .select('id, title, created_at, organization_id');
@@ -268,26 +198,7 @@ export const Dashboard = () => {
       
       if (we) throw we;
 
-      // 3. Buscar estatísticas para Análises
-      let analysisStats: JobWithStats[] = [];
-      if (analysesData?.length) {
-        const ids = analysesData.map(j => j.id);
-        const { data: jcData } = await supabase.from('job_candidates').select('job_id, score').in('job_id', ids);
-        const cnt: Record<string, number> = {};
-        const top: Record<string, number> = {};
-        (jcData ?? []).forEach(row => {
-          cnt[row.job_id] = (cnt[row.job_id] ?? 0) + 1;
-          if ((row.score || 0) >= 70) top[row.job_id] = (top[row.job_id] ?? 0) + 1;
-        });
-        analysisStats = analysesData.map(j => ({
-          ...j,
-          type: 'analysis',
-          totalCandidates: cnt[j.id] ?? 0,
-          topCandidates: top[j.id] ?? 0
-        }));
-      }
-
-      // 4. Buscar estatísticas para Vagas Criadas
+      // 2. Buscar estatísticas para Vagas Criadas
       let whiteLabelStats: JobWithStats[] = [];
       if (whiteLabelData?.length) {
         const ids = whiteLabelData.map(j => j.id);
@@ -309,8 +220,8 @@ export const Dashboard = () => {
         }));
       }
 
-      // Mesclar e ordenar por data
-      const merged = [...analysisStats, ...whiteLabelStats].sort((a, b) => 
+      // Ordenar por data
+      const merged = whiteLabelStats.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
@@ -349,16 +260,15 @@ export const Dashboard = () => {
     : jobs;
 
   // Group data by date for Area Chart (Volume Histórico)
-  const groupedByDate: Record<string, { name: string, Vagas: number, Analises: number, Match: number }> = {};
+  const groupedByDate: Record<string, { name: string, Vagas: number, Match: number }> = {};
   
   filteredJobs.slice().reverse().forEach(j => {
     const date = j.created_at.slice(0, 10);
     const dayMonth = `${date.slice(8, 10)}/${date.slice(5, 7)}`;
     if (!groupedByDate[date]) {
-      groupedByDate[date] = { name: dayMonth, Vagas: 0, Analises: 0, Match: 0 };
+      groupedByDate[date] = { name: dayMonth, Vagas: 0, Match: 0 };
     }
-    if (j.type === 'job') groupedByDate[date].Vagas += j.totalCandidates;
-    else groupedByDate[date].Analises += j.totalCandidates;
+    groupedByDate[date].Vagas += j.totalCandidates;
     groupedByDate[date].Match += j.topCandidates;
   });
 
@@ -409,7 +319,7 @@ export const Dashboard = () => {
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 40, textAlign: 'center', maxWidth: 400 }}>
         <p style={{ color: '#ef4444', fontWeight: 600, marginBottom: 8 }}>Erro ao carregar</p>
         <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>{error}</p>
-        <button onClick={() => fetchData(profile.userId)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Tentar novamente</button>
+        <button onClick={() => fetchData()} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Tentar novamente</button>
       </div>
     </div>
   );
@@ -425,13 +335,13 @@ export const Dashboard = () => {
           <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
             Dashboard
           </h1>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-            <button 
+          <div style={{ marginLeft: isMobile ? 'auto' : 'auto', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, flexShrink: 0, marginRight: isMobile ? '100px' : '0' }}>
+            <button
               onClick={() => setIsCustomizing(!isCustomizing)}
-              style={{ 
-                display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, 
-                background: 'var(--primary)', 
-                border: 'none', 
+              style={{
+                display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8,
+                background: 'var(--primary)',
+                border: 'none',
                 borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 12px' : '8px 16px',
                 color: '#fff',
                 fontSize: isMobile ? 11 : 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
@@ -442,7 +352,7 @@ export const Dashboard = () => {
               {isCustomizing ? <Check style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} /> : <Settings2 style={{ width: isMobile ? 13 : 15, height: isMobile ? 13 : 15 }} />}
               {isCustomizing ? 'Concluir' : 'Customizar'}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 10px' : '8px 14px', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: isMobile ? 10 : 12, padding: isMobile ? '6px 8px' : '8px 14px', whiteSpace: 'nowrap' }}>
               <div className="live-dot" style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8 }} />
               <span style={{ color: '#22c55e', fontSize: isMobile ? 11 : 12, fontWeight: 600 }}>Tempo real</span>
             </div>
@@ -500,10 +410,11 @@ export const Dashboard = () => {
           const Icon = k.icon;
           return (
             <div key={k.label} 
-              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
+              className={`kpi-card d-card ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
               style={{ position: 'relative', overflow: 'hidden', '--card-idx': idx } as React.CSSProperties}
             >
               {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+              {bgTheme === 'frequence' && <div className="card-frequence-glow" />}
               <div className="kpi-orb" style={{ background: k.orb }} />
               
               {/* Theme-based backgrounds */}
@@ -566,6 +477,23 @@ export const Dashboard = () => {
                   zIndex: 1
                 }} />
               )}
+              {bgTheme === 'frequence' && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 60%)',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }} />
+              )}
+              {bgTheme === 'frequence' && idx === activeFreqCard && (
+                <HeartbeatBackground
+                  color="#22c55e"
+                  opacity={0.2}
+                  speed={3}
+                  overlayColor="var(--bg-card)"
+                />
+              )}
 
               <div style={{ position: 'relative', zIndex: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -598,9 +526,8 @@ export const Dashboard = () => {
             <Briefcase style={{ width: 28, height: 28, color: 'var(--primary)' }} />
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Nenhuma vaga encontrada</p>
-          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova análise ou vaga para começar a ver os dados aqui.</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Crie uma nova vaga para começar a ver os dados aqui.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24 }}>
-            <button onClick={() => navigate('/analise/nova')} style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Nova Análise</button>
             <button onClick={() => navigate('/vagas/nova')} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 12, padding: '10px 28px', cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>Criar Vaga</button>
           </div>
         </div>
@@ -653,10 +580,6 @@ export const Dashboard = () => {
                           <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
                           <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="gAnalise" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                        </linearGradient>
                         <linearGradient id="gMatch" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#22c55e" stopOpacity={0.3} />
                           <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
@@ -685,7 +608,6 @@ export const Dashboard = () => {
                         }}
                       />
                       <Area type="monotone" dataKey="Vagas" stroke="#6366f1" strokeWidth={2.5} fill="url(#gVaga)" dot={false} activeDot={{ r: 5, fill: '#6366f1' }} />
-                      <Area type="monotone" dataKey="Analises" stroke="#a78bfa" strokeWidth={2.5} fill="url(#gAnalise)" dot={false} activeDot={{ r: 5, fill: '#a78bfa' }} />
                       <Area type="monotone" dataKey="Match" stroke="#22c55e" strokeWidth={2.5} fill="url(#gMatch)" dot={false} activeDot={{ r: 5, fill: '#22c55e' }} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -883,7 +805,7 @@ export const Dashboard = () => {
                   return (
                     <div key={j.id} 
                       className="top-row" 
-                      onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')}
+                      onClick={() => navigate(`/vagas/${j.id}/candidatos`)}
                       style={{ padding: '10px 8px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderRadius: 8, transition: 'all 0.2s' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -938,24 +860,25 @@ export const Dashboard = () => {
                 const p = planetVariants[j.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % planetVariants.length];
 
                 return (
-                  <div key={j.id} onClick={() => navigate(j.type === 'job' ? `/vagas/${j.id}/candidatos` : '/analises')} 
-                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : ''}`}
-                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                  <div key={j.id} onClick={() => navigate(`/vagas/${j.id}/candidatos`)} 
+                    className={`d-card ${bgTheme === 'spatial' ? 'card-spatial' : bgTheme === 'frequence' ? 'card-frequence' : ''}`}
+                    style={{ position: 'relative', overflow: 'hidden', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', border: bgTheme === 'spatial' || bgTheme === 'frequence' ? 'none' : '1px solid var(--border)', minHeight: 145, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                     onMouseEnter={e => { 
-                      if (bgTheme !== 'spatial') {
+                      if (bgTheme !== 'spatial' && bgTheme !== 'frequence') {
                         (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.35)'; 
                       }
                       (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; 
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 20px 40px rgba(44, 88, 253, 0.15)' : bgTheme === 'frequence' ? '0 20px 40px rgba(16, 185, 129, 0.15)' : '0 12px 40px rgba(0,0,0,0.35)'; 
                     }}
                     onMouseLeave={e => { 
-                      if (bgTheme !== 'spatial') {
+                      if (bgTheme !== 'spatial' && bgTheme !== 'frequence') {
                         (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; 
                       }
                       (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; 
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = bgTheme === 'spatial' || bgTheme === 'frequence' ? '0 10px 30px rgba(0, 0, 0, 0.5)' : 'none'; 
                     }}>
                     {bgTheme === 'spatial' && <div className="card-spatial-glow" />}
+                    {bgTheme === 'frequence' && <div className="card-frequence-glow" />}
                     
                     {/* Theme-based backgrounds */}
                     {bgTheme === 'planets' && (
@@ -1024,6 +947,18 @@ export const Dashboard = () => {
                         width: 80,
                         height: 80,
                         background: 'radial-gradient(circle at center, rgba(44, 88, 253, 0.12) 0%, transparent 70%)',
+                        filter: 'blur(20px)',
+                        zIndex: 1
+                      }} />
+                    )}
+                    {bgTheme === 'frequence' && (
+                      <div style={{
+                        position: 'absolute',
+                        right: -10,
+                        bottom: -10,
+                        width: 80,
+                        height: 80,
+                        background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.12) 0%, transparent 70%)',
                         filter: 'blur(20px)',
                         zIndex: 1
                       }} />

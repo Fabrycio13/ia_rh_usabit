@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -6,39 +7,30 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import { useTheme } from '../../core/contexts/ThemeContext';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
+import { initials, toStr } from '../../core/utils/format';
 import { ReanalyzeCandidateModal } from '../../features/candidates/components/ReanalyzeCandidateModal';
 
 const PAGE_SIZE = 10;
 
-function initials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
-}
-
-function toStr(v: unknown): string | null {
-  if (!v) return null;
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v)) return v.join(', ');
-  return String(v);
-}
-
 const VAGA_PALETTE = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
-function vagaColor(name: string): string {
+export function vagaColor(name: string): string {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return VAGA_PALETTE[Math.abs(h) % VAGA_PALETTE.length];
 }
 
-function extractVagaName(field: unknown): string | undefined {
+export function extractVagaName(field: unknown): string | undefined {
   if (Array.isArray(field)) return (field[0] as { title?: string; name?: string } | undefined)?.title ?? (field[0] as { title?: string; name?: string } | undefined)?.name;
   if (field && typeof field === 'object') return (field as { title?: string; name?: string }).title ?? (field as { title?: string; name?: string }).name;
   return undefined;
 }
 
 // â”€â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface JCDataRow { job_id?: string; vaga_id?: string }
+interface JCDataRow { vaga_id?: string }
 interface PipeDataRow { id: string; notes?: string; pipelines?: { name?: string }[] }
 interface CandidateRow { id: string; analysis?: { history?: HistoryEntry[] }; skills?: string; experience?: string; education?: string }
 interface HistoryEntry { job_id: string; job_name?: string; job_title?: string; score?: number; match_score?: number; analyzed_at?: string; date?: string; created_at?: string; skills?: string; habilidades?: string; summary?: string; experience?: string; experiencia?: string; strengths?: string; positivePoints?: string; pontos_positivos?: string; positive_points?: string; education?: string; formacao?: string; gaps?: string; redFlags?: string; pontos_atencao?: string; attention_points?: string; job_code?: string; code?: string; resume_url?: string | null }
@@ -89,7 +81,7 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
   }, []);
 
   return (
-    <div ref={ref} style={{ width: '160px', position: 'relative' }}>
+    <div ref={ref} style={{ flex: 1, minWidth: '140px', position: 'relative' }}>
       <div onClick={() => setIsOpen(!isOpen)} style={{ 
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -111,11 +103,11 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
           }}>
              <div
                  onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
-                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                 onMouseLeave={e => e.currentTarget.style.background = value === '' ? 'var(--primary-light-bg)' : 'transparent'}
                  style={{ 
                      padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-                     color: value === '' ? '#3b82f6' : 'var(--text-dim)',
-                     background: value === '' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                     color: value === '' ? 'var(--primary)' : 'var(--text-dim)',
+                     background: value === '' ? 'var(--primary-light-bg)' : 'transparent',
                      fontWeight: value === '' ? 600 : 400
                  }} onClick={() => { onChange(''); setIsOpen(false); }}>
                  {placeholder}
@@ -123,11 +115,11 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
              {options.map(o => (
                 <div key={o}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+                    onMouseLeave={e => e.currentTarget.style.background = value === o ? 'var(--primary-light-bg)' : 'transparent'}
                     style={{ 
                         padding: '8px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-                        color: value === o ? '#3b82f6' : 'var(--text-dim)',
-                        background: value === o ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                        color: value === o ? 'var(--primary)' : 'var(--text-dim)',
+                        background: value === o ? 'var(--primary-light-bg)' : 'transparent',
                         fontWeight: value === o ? 600 : 400
                     }} onClick={() => { onChange(o); setIsOpen(false); }}>
                     {o}
@@ -143,6 +135,7 @@ function SelectFilter({ value, onChange, options, placeholder }: { value: string
 export const CandidateBank = () => {
   const navigate = useNavigate();
   const { profile } = useUser();
+  const { bgTheme } = useTheme();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
@@ -150,6 +143,7 @@ export const CandidateBank = () => {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
   const [reanalysingCandId, setReanalysingCandId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // â”€ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -160,6 +154,14 @@ export const CandidateBank = () => {
   const [filterVaga, setFilterVaga] = useState('');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [activeTab, setActiveTab] = useState<'todos' | 'candidatos' | 'blacklist'>('todos');
+
+  // Mobile detection
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Load favorites from localStorage (per user)
   useEffect(() => {
@@ -184,7 +186,7 @@ export const CandidateBank = () => {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
@@ -200,7 +202,7 @@ export const CandidateBank = () => {
       if (error) {
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), job_candidates(job_id, vaga_id, jobs(name), vagas_white_label(title)), source')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -213,7 +215,7 @@ export const CandidateBank = () => {
         setCandidates(((fallback ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
           ...c,
           vagas: [...new Set(
-            (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+            (c.vagas_candidaturas ?? []).map((vc) => extractVagaName(vc.vagas_white_label)).filter((s: unknown): s is string => !!s)
           )]
         }))) as unknown as Candidate[]);
         return;
@@ -222,7 +224,7 @@ export const CandidateBank = () => {
       setCandidates(((data ?? []).filter(c => c.source !== 'spontaneous' && c.source !== 'manual_add' && c.source !== null).map(c => ({
         ...c,
         vagas: [...new Set(
-          (c.job_candidates ?? []).map((jc) => extractVagaName(jc.vagas_white_label) || extractVagaName(jc.jobs)).filter((s: unknown): s is string => !!s)
+          (c.vagas_candidaturas ?? []).map((vc) => extractVagaName(vc.vagas_white_label)).filter((s: unknown): s is string => !!s)
         )]
       }))) as unknown as Candidate[]);
     } finally {
@@ -313,14 +315,13 @@ export const CandidateBank = () => {
     try {
       const [{ data: cd }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
-        supabase.from('job_candidates').select('job_id, vaga_id').eq('candidate_id', id),
+        supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
         supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
       const validJobIds = new Set();
       (jcData ?? []).forEach((jc: JCDataRow) => {
-        if (jc.job_id) validJobIds.add(jc.job_id);
         if (jc.vaga_id) validJobIds.add(jc.vaga_id);
       });
       console.log('[enrichCandidate] validJobIds:', Array.from(validJobIds));
@@ -414,49 +415,55 @@ export const CandidateBank = () => {
 
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 12 : 32, flexWrap: 'wrap' }}>
         <div style={{ marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-            <Users size={32} style={{ color: 'var(--primary)' }} />
-            <h1 style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+            <Users size={isMobile ? 24 : 32} style={{ color: 'var(--primary)' }} />
+            <h1 style={{ fontSize: isMobile ? '22px' : '32px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
               Banco de Talentos
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', margin: 0 }}>
             {processed.length} candidato{processed.length !== 1 ? 's' : ''}
             {activeTab === 'blacklist' ? ' na blacklist' : activeTab === 'candidatos' ? ' ativos' : ' encontrado'}{processed.length !== 1 && activeTab === 'todos' ? 's' : ''}
-            {search && <> Â· <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
+            {search && <> · <span style={{ color: 'var(--text-muted)' }}>"{search}"</span></>}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ position: 'relative', width: isMobile ? '100%' : 'auto' }}>
             <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', width: 15, height: 15 }} />
             <input type="text" placeholder="Buscar candidatos…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: 240 }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, color: 'var(--text-main)', fontSize: 13, outline: 'none', width: isMobile ? '100%' : 240, boxSizing: 'border-box' }}
             />
           </div>
         </div>
       </div>
 
-      <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ 
+        background: bgTheme === 'frequence' ? '#060d08' : 'var(--bg-main)', 
+        border: bgTheme === 'frequence' ? '1px solid rgba(34,197,94,0.15)' : '1px solid var(--border)', 
+        borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center' 
+      }}>
         <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginRight: 4 }}>Filtrar por:</span>
-        <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />
-        <SelectFilter value={filterVaga} onChange={v => { setFilterVaga(v); setPage(1); }} options={vagaOptions} placeholder="Vaga aplicada" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <SelectFilter value={filterGender} onChange={v => { setFilterGender(v); setPage(1); }} options={genderOptions} placeholder="Gênero" />
+          <SelectFilter value={filterVaga} onChange={v => { setFilterVaga(v); setPage(1); }} options={vagaOptions} placeholder="Vaga aplicada" />
+        </div>
         <button onClick={() => { setOnlyFavorites(f => !f); setPage(1); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: onlyFavorites ? 'var(--favorite-bg)' : 'transparent', border: `1px solid ${onlyFavorites ? 'var(--favorite)' : 'var(--border)'}`, borderRadius: 8, padding: '7px 12px', color: onlyFavorites ? 'var(--favorite)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: onlyFavorites ? 'var(--favorite-bg)' : 'transparent', border: `1px solid ${onlyFavorites ? 'var(--favorite)' : 'var(--border)'}`, borderRadius: 8, padding: isMobile ? '10px 14px' : '7px 12px', color: onlyFavorites ? 'var(--favorite)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', justifyContent: isMobile ? 'center' : 'flex-start', width: isMobile ? '100%' : 'auto' }}>
           <Star style={{ width: 13, height: 13, fill: onlyFavorites ? 'var(--favorite)' : 'none' }} />
           Apenas favoritos
         </button>
         {activeFilters > 0 && (
           <button onClick={() => { setFilterGender(''); setFilterVaga(''); setOnlyFavorites(false); setActiveTab('todos'); setPage(1); }}
-            style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            style={{ background: 'transparent', border: '1px solid var(--error-border)', borderRadius: 8, padding: isMobile ? '10px 14px' : '7px 12px', color: 'var(--text-error)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, justifyContent: isMobile ? 'center' : 'flex-start', width: isMobile ? '100%' : 'auto' }}>
             <X style={{ width: 12, height: 12 }} /> Limpar
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: 0, flexWrap: 'nowrap' }}>
         {([
           { key: 'todos' as const, label: 'Todos', icon: Users, color: 'var(--primary)' },
           { key: 'candidatos' as const, label: 'Candidatos', icon: UserCheck, color: '#10b981' },
@@ -476,19 +483,21 @@ export const CandidateBank = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
+                gap: isMobile ? '4px' : '8px',
+                padding: isMobile ? '8px 9px' : '10px 20px',
                 background: isActive ? 'var(--bg-card)' : 'transparent',
                 border: 'none',
                 borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                 borderRadius: '8px 8px 0 0',
                 color: isActive ? statusColor : 'var(--text-muted)',
-                fontSize: '13px',
+                fontSize: isMobile ? '13px' : '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 marginBottom: '-1px',
-                opacity: isActive ? 1 : 0.8
+                opacity: isActive ? 1 : 0.8,
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
               onMouseEnter={e => {
                 if (!isActive) {
@@ -503,21 +512,21 @@ export const CandidateBank = () => {
                 }
               }}
             >
-              <Icon size={16} />
+              <Icon size={isMobile ? 14 : 16} />
               {tab.label}
               <span style={{ 
                   fontSize: '10px', 
                   background: isActive ? `${statusColor}25` : `${statusColor}15`,
                   color: statusColor,
-                  padding: '1px 7px',
+                  padding: '1px 6px',
                   borderRadius: '20px',
                   fontWeight: 700,
-                  marginLeft: '8px',
+                    marginLeft: isMobile ? '2px' : '8px',
                   border: `1px solid ${statusColor}30`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: '20px',
+                  minWidth: '18px',
                   transition: 'all 0.2s'
               }}>
                   {count}
@@ -527,189 +536,272 @@ export const CandidateBank = () => {
         })}
       </div>
 
-      <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '7%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
-            <col style={{ width: '8%' }} />
-          </colgroup>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-              {([
-                ['name', 'Nome'],
-                ['location', 'Localização'],
-                ['age', 'Idade'],
-                [null, 'Gênero'],
-                [null, 'Vagas Aplicadas'],
-                [null, 'Favoritos'],
-                [null, 'Blacklist'],
-                ...(hasPermission(profile.user_role, 'chat') ? [[null, 'Chat'] as [SortKey, string]] : []),
-                [null, 'Visualizar'],
-              ] as [SortKey, string][]).map(([col, label]) => (
-                <th key={label}
-                  onClick={col ? () => handleSort(col) : undefined}
-                  style={{ padding: '14px 16px', textAlign: (['Favoritos', 'Blacklist', 'Chat', 'Visualizar'].includes(label)) ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    {label}
-                    {col && <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
-                {activeTab === 'blacklist'
-                  ? 'Nenhum candidato na blacklist.'
-                  : activeTab === 'candidatos'
-                    ? 'Nenhum candidato ativo encontrado.'
-                    : search || activeFilters > 0
-                      ? 'Nenhum candidato encontrado com os filtros aplicados.'
-                      : 'Nenhum candidato cadastrado ainda.'}
-              </td></tr>
-            ) : paginated.map(c => (
-              <tr key={c.id} onClick={() => openCandidate(c)}
-                style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--row-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <td style={{ padding: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{initials(c.name)}</div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <p style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
-                        {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.email}</p>
-                      </div>
-                    </div>
+      {paginated.length === 0 ? (
+        <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', padding: '60px 20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14 }}>
+          {activeTab === 'blacklist'
+            ? 'Nenhum candidato na blacklist.'
+            : activeTab === 'candidatos'
+              ? 'Nenhum candidato ativo encontrado.'
+              : search || activeFilters > 0
+                ? 'Nenhum candidato encontrado com os filtros aplicados.'
+                : 'Nenhum candidato cadastrado ainda.'}
+        </div>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {paginated.map(c => (
+            <div key={c.id} onClick={() => openCandidate(c)}
+              style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', padding: '12px 14px', cursor: 'pointer', transition: 'background 0.1s' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff' }}>{initials(c.name)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
                   </div>
-                </td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
-                <td style={{ padding: '16px' }}>
-                  {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
-                    <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-                      {(c.vagas || []).slice(0, 3).map(v => {
-                        const color = vagaColor(v);
-                        return (
-                          <span key={v} style={{ background: `${color}18`, border: `1px solid ${color}44`, color, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
-                            {v.toUpperCase()}
-                          </span>
-                        );
-                      })}
-                      {c.vagas.length > 3 && <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap' }}>+{c.vagas.length - 3}</span>}
+                  <div style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 1 }}>{c.email}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: favorites[c.id] ? '#fbbf24' : '#475569' }}>
+                    <Star style={{ width: 18, height: 18, fill: favorites[c.id] ? '#fbbf24' : 'none', strokeWidth: 1.5 }} />
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); handleToggleBlacklistRow(c); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.is_blacklisted ? 'var(--text-error)' : '#475569' }}>
+                    <Ban style={{ width: 18, height: 18 }} />
+                  </button>
+                  {hasPermission(profile.user_role, 'chat') && (
+                    <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.conversations?.length ? '#22c55e' : '#475569' }}>
+                      <Phone style={{ width: 18, height: 18, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
                     </div>
                   )}
-                </td>
-                <td style={{ padding: '0 16px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: favorites[c.id] ? '#fbbf24' : '#475569', transition: 'color 0.15s' }}>
-                      <Star style={{ width: 16, height: 16, fill: favorites[c.id] ? '#fbbf24' : 'none', strokeWidth: 1.5 }} />
-                    </button>
-                  </div>
-                </td>
-                <td style={{ padding: '0 16px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <button onClick={e => { e.stopPropagation(); handleToggleBlacklistRow(c); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.is_blacklisted ? 'var(--text-error)' : '#475569', transition: 'color 0.15s' }}>
-                      <Ban style={{ width: 16, height: 16 }} />
-                    </button>
-                  </div>
-                </td>
-                {hasPermission(profile.user_role, 'chat') && (
-                  <td style={{ padding: '0 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div
-                        title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
-                        style={{ 
-                          width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                          color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
-                        }}>
-                        <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                  <button onClick={e => { e.stopPropagation(); openCandidate(c); }}
+                    style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', cursor: 'pointer' }}>
+                    <Eye size={18} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {c.location && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>📍 {c.location}</span>}
+                {(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>· {String(c.age).replace(/\s*anos?/i, '').trim()} anos</span>}
+                {c.gender && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>· {c.gender}</span>}
+              </div>
+              {(c.vagas || []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                  {c.vagas.slice(0, 3).map(v => {
+                    const color = vagaColor(v);
+                    return (
+                      <span key={v} style={{ background: `${color}18`, border: `1px solid ${color}44`, color, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600 }}>
+                        {v.toUpperCase()}
+                      </span>
+                    );
+                  })}
+                  {c.vagas.length > 3 && <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>+{c.vagas.length - 3}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+          {totalPages > 1 && (
+            <div style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{page} de {totalPages}</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: isMobile ? '10px 14px' : '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                  <ChevronLeft style={{ width: 15, height: 15 }} /> {!isMobile && 'Anterior'}
+                </button>
+                {!isMobile && Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                    if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
+                    acc.push(p); return acc;
+                  }, [])
+                  .map((p, i) => p === '...' ? (
+                    <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
+                  ) : (
+                    <button key={p} onClick={() => goTo(p as number)}
+                      style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
+                  ))}
+                <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: isMobile ? '10px 14px' : '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                  {!isMobile && 'Próximo'} <ChevronRight style={{ width: 15, height: 15 }} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '8%' }} />
+              {hasPermission(profile.user_role, 'chat') && <col style={{ width: '8%' }} />}
+              <col style={{ width: '8%' }} />
+            </colgroup>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                {([
+                  ['name', 'Nome'],
+                  ['location', 'Localização'],
+                  ['age', 'Idade'],
+                  [null, 'Gênero'],
+                  [null, 'Vagas Aplicadas'],
+                  [null, 'Favoritos'],
+                  [null, 'Blacklist'],
+                  ...(hasPermission(profile.user_role, 'chat') ? [[null, 'Chat'] as [SortKey, string]] : []),
+                  [null, 'Visualizar'],
+                ] as [SortKey, string][]).map(([col, label]) => (
+                  <th key={label}
+                    onClick={col ? () => handleSort(col) : undefined}
+                    style={{ padding: '14px 16px', textAlign: (['Favoritos', 'Blacklist', 'Chat', 'Visualizar'].includes(label)) ? 'center' : 'left', fontSize: 11, fontWeight: 600, color: (col && sortKey === col) ? 'var(--primary)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: col ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {label}
+                      {col && <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map(c => (
+                <tr key={c.id} onClick={() => openCandidate(c)}
+                  style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--row-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{initials(c.name)}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <p style={{ color: c.is_blacklisted ? '#ef4444' : 'var(--text-main)', fontWeight: 600, fontSize: 13, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                          {c.interview_eligible && <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', borderRadius: 4, padding: '1px 5px', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>⚡ PIPELINE</span>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.email}</p>
+                        </div>
                       </div>
                     </div>
                   </td>
-                )}
-                <td style={{ padding: '0 16px', height: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <button 
-                          title="Visualizar Card"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openCandidate(c);
-                          }}
-                          style={{
-                            padding: '6px',
-                            background: 'transparent',
-                            border: '1px solid var(--border)',
-                            borderRadius: '6px',
-                            color: 'var(--primary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = 'var(--primary-light-bg)';
-                            e.currentTarget.style.borderColor = 'var(--primary)';
-                            e.currentTarget.style.transform = 'scale(1.05)';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                            e.currentTarget.style.transform = 'scale(1)';
-                          }}
-                        >
-                          <Eye size={16} />
-                        </button>
+                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{c.location ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(c.age && !/(não|nao)\s*informado|—/i.test(c.age)) ? `${String(c.age).replace(/\s*anos?/i, '').trim()} anos` : <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap' }}>{c.gender ?? <span style={{ color: 'var(--text-muted)' }}>Não informado</span>}</td>
+                  <td style={{ padding: '16px' }}>
+                    {(c.vagas || []).length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Não informado</span> : (
+                      <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                        {(c.vagas || []).slice(0, 3).map(v => {
+                          const color = vagaColor(v);
+                          return (
+                            <span key={v} style={{ background: `${color}18`, border: `1px solid ${color}44`, color, padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
+                              {v.toUpperCase()}
+                            </span>
+                          );
+                        })}
+                        {c.vagas.length > 3 && <span style={{ color: 'var(--text-dim)', fontSize: 11, whiteSpace: 'nowrap' }}>+{c.vagas.length - 3}</span>}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '0 16px', height: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: favorites[c.id] ? '#fbbf24' : '#475569', transition: 'color 0.15s' }}>
+                        <Star style={{ width: 16, height: 16, fill: favorites[c.id] ? '#fbbf24' : 'none', strokeWidth: 1.5 }} />
+                      </button>
                     </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {processed.length} candidatos</span>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button onClick={() => goTo(page - 1)} disabled={page === 1}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                <ChevronLeft style={{ width: 15, height: 15 }} /> Anterior
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                .reduce<(number | '...')[]>((acc, p, i, arr) => {
-                  if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
-                  acc.push(p); return acc;
-                }, [])
-                .map((p, i) => p === '...' ? (
-                  <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
-                ) : (
-                  <button key={p} onClick={() => goTo(p as number)}
-                    style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
-                ))}
-              <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                Próximo <ChevronRight style={{ width: 15, height: 15 }} />
-              </button>
+                  </td>
+                  <td style={{ padding: '0 16px', height: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <button onClick={e => { e.stopPropagation(); handleToggleBlacklistRow(c); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.is_blacklisted ? 'var(--text-error)' : '#475569', transition: 'color 0.15s' }}>
+                        <Ban style={{ width: 16, height: 16 }} />
+                      </button>
+                    </div>
+                  </td>
+                  {hasPermission(profile.user_role, 'chat') && (
+                    <td style={{ padding: '0 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div
+                          title={c.conversations?.length ? "Chat Ativo" : "Chat Inativo"}
+                          style={{ 
+                            width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            color: c.conversations?.length ? '#22c55e' : '#475569', transition: 'all 0.15s' 
+                          }}>
+                          <Phone style={{ width: 16, height: 16, fill: c.conversations?.length ? '#22c55e22' : 'none' }} />
+                        </div>
+                      </div>
+                    </td>
+                  )}
+                  <td style={{ padding: '0 16px', height: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <button 
+                            title="Visualizar Card"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCandidate(c);
+                            }}
+                            style={{
+                              padding: '6px',
+                              background: 'transparent',
+                              border: '1px solid var(--border)',
+                              borderRadius: '6px',
+                              color: 'var(--primary)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = 'var(--primary-light-bg)';
+                              e.currentTarget.style.borderColor = 'var(--primary)';
+                              e.currentTarget.style.transform = 'scale(1.05)';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.borderColor = 'var(--border)';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            <Eye size={16} />
+                          </button>
+                      </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 13, color: '#64748b' }}>Página {page} de {totalPages} · {processed.length} candidatos</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button onClick={() => goTo(page - 1)} disabled={page === 1}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === 1 ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                  <ChevronLeft style={{ width: 15, height: 15 }} /> Anterior
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                    if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
+                    acc.push(p); return acc;
+                  }, [])
+                  .map((p, i) => p === '...' ? (
+                    <span key={`d${i}`} style={{ padding: '7px 4px', color: '#475569', fontSize: 13 }}>…</span>
+                  ) : (
+                    <button key={p} onClick={() => goTo(p as number)}
+                      style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid', borderColor: p === page ? 'var(--primary)' : 'var(--border)', background: p === page ? 'var(--primary)' : 'transparent', color: p === page ? '#fff' : 'var(--text-dim)', cursor: 'pointer', fontSize: 13, fontWeight: p === page ? 600 : 400 }}>{p}</button>
+                  ))}
+                <button onClick={() => goTo(page + 1)} disabled={page === totalPages}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 14px', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-dim)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                  Próximo <ChevronRight style={{ width: 15, height: 15 }} />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {selected && (
         <CandidatePanel
@@ -736,16 +828,14 @@ export const CandidateBank = () => {
           onAnalyzeWithVagas={(cid) => setReanalysingCandId(cid)}
           onDeleteFromBank={async (id) => {
             const cand = candidates.find(c => c.id === id);
-            await Promise.all([
-              supabase.from('candidates').delete().eq('id', id),
-              supabase.from('job_candidates').delete().eq('candidate_id', id),
-              cand?.email
-                ? supabase.from('vagas_candidaturas')
+            await supabase.from('vagas_candidaturas').delete().eq('candidate_id', id);
+            await supabase.from('candidates').delete().eq('id', id);
+            if (cand?.email) {
+                await supabase.from('vagas_candidaturas')
                     .update({ status: 'pending' })
                     .eq('candidate_email', cand.email)
-                    .eq('status', 'talent_bank')
-                : Promise.resolve(),
-            ]);
+                    .eq('status', 'talent_bank');
+            }
             setSelected(null);
             if (profile.userId) fetchCandidatesRef.current(profile.userId, profile.user_role);
           }}
