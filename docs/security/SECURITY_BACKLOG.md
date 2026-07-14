@@ -2,6 +2,15 @@
 
 Checklist priorizado para corrigir os principais riscos encontrados no projeto.
 
+> **Status atualizado em 2026-07-14 (pente-fino verificado em código):**
+> - ✅ **P0-1** a **P0-3** — **RESOLVIDOS** (verificados e documentados)
+> - ✅ **P1-4** (Candidatura segura) — **RESOLVIDO** (migrations 073/076/077 já restringiram)
+> - ✅ **P1-5** (Upload restrito) — **RESOLVIDO** (`uploadViaSignedUrl` → EF `get-upload-url`)
+> - ✅ **P1-6** (Path currículo) — **RESOLVIDO** (`createSignedUrl`, zero `getPublicUrl`)
+> - ✅ **P2-7** (Rate limit EFs) — **RESOLVIDO** (shared helper `_shared/rate-limit.ts` + aplicado em 3 EFs)
+> - ✅ **P2-8** (Creds hardcoded) — **RESOLVIDO** (`audit.cjs` já lê de `.env.local`)
+> - 🟢 **P2-9** (Migrations) — **COSMÉTICO** (não é bug)
+
 ## P0 — Urgente
 
 ### 1. Remover OpenAI do frontend ✅ RESOLVIDO
