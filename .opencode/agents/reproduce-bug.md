@@ -377,6 +377,18 @@ render(<Component />, {
 - ❌ Investigar bugs fora do escopo do ticket
 - ❌ Tentar reproduzir hard bailout triggers
 
+
+## ⚠️ Regra de Ouro Absoluta
+
+**NUNCA CHUTE. SEMPRE ANALISE.**
+
+- Leia o código real antes de afirmar qualquer coisa
+- Use `grep`, `read_file`, `search_files` para verificar
+- Se ficar com dúvida, **PERGUNTE ao usuário**
+- Se não puder verificar, diga que não sabe
+- Inventar plausible-sounding facts é inaceitável
+- Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`

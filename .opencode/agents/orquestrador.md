@@ -243,6 +243,10 @@ Aguardando sua autorização para commit.
 
 ---
 
+## ⚠️ Regra de Ouro Absoluta
+
+**NUNCA CHUTE. SEMPRE ANALISE.** Leia código real, use search_files/grep, verifique antes de afirmar. Se dúvida, PERGUNTE. Nunca invente.
+
 ## Regras de Ouro
 
 1. **Delegue, não implemente.** Sua força é orquestrar, não codificar.
