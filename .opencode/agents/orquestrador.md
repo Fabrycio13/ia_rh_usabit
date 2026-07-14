@@ -104,13 +104,22 @@ Ao receber uma tarefa de implementação, você roda este pipeline automaticamen
    - Criar/atualizar testes            → @testador
    - Rodar tsc + lint + test + build   → @testador (único com bash + edit em tests/)
    ↓
-[6] COMPILAÇÃO DO RELATÓRIO (você mesmo)
+[6] VALIDAÇÃO PRÉ-COMMIT (delegada)
+   - Se houve movimentação de arquivos (git mv, refactor de testes/):
+     → @testador ler `.opencode/skills/pre-move-safety.md` + rodar verificação
+   - Rodar tsc + lint + test + build   → @testador
+   ↓
+[7] COMPILAÇÃO DO RELATÓRIO (você mesmo)
    - Agregar achados de cada subagent
    - Status: ✅/⚠️/🛑
    ↓
-[7] APRESENTAÇÃO (você mesmo)
+[8] APRESENTAÇÃO + AUTORIZAÇÃO (você mesmo)
    - Mostrar relatório consolidado
-   - Pedir autorização para commit
+   - Pedir autorização para commit ("Autorizo commit? S/N")
+   ↓
+[9] EXECUÇÃO (delegada após autorização do usuário)
+   - Commit + push   → @testador (único com bash + edit)
+   - Se houver deploy de Edge Function: → @testador (npx supabase functions deploy)
 ```
 
 ---
