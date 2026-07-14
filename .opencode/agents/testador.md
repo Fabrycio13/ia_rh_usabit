@@ -4,7 +4,7 @@ mode: subagent
 temperature: 0.0
 permission:
   edit: allow
-  bash: deny
+  bash: allow
   webfetch: deny
 ---
 
