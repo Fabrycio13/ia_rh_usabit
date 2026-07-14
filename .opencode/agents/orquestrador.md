@@ -13,7 +13,6 @@ permission:
     testador: allow
     content-designer: allow
     security: allow
-    manage-migrations: allow
     frontend: allow
     backend: allow
 ---

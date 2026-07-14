@@ -58,7 +58,6 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 - `@security` — subagent engenheiro de segurança (pentest end-to-end, LGPD/GDPR, threat modeling, OWASP Top 10, MITRE ATT&CK). Read-only, reporta vulnerabilidades. Mentalidade Google/Amazon.
 - `@testador` — subagent especialista em criar testes seguindo os padrões do projeto (Vitest + Testing Library + mocks). Único com bash: allow para rodar validações (tsc/lint/test/build).
 - `@reproduce-bug` — subagent framework de reprodução de bugs. Recebe contexto de ticket (Linear/GitHub/log), produz teste de regressão falhando + Reproduction Report. NÃO corrige o bug — só reproduz com evidência. Integra com `@orquestrador`: report acionável dispara delegação para `@frontend` ou `@backend`. Mesma skill também disponível no Hermes (`~/AppData/Local/hermes/skills/reproduce-bug/SKILL.md`) para reprodução interativa.
-- `@manage-migrations` — subagent especialista em migrations SQL (Supabase/PostgreSQL). Cria migrations seguindo constitution IV (idempotente, RLS, 5 roles), consulta histórico em `docs/architecture/migration-history.md`, mantém documentação atualizada. Use `/manage-migrations criar migration <descrição>`.
 - `@orquestrador` — **delegador puro** (primary agent). NÃO implementa código. Decide qual subagent chamar e em que ordem, coordena o pipeline, compila UM relatório final agregado, pede autorização de commit. Pipeline: planejamento → @designer/@content-designer (paralelos) → @frontend/@backend (paralelos) → @revisor + @security → @testador → relatório final.
 
 ## Referências

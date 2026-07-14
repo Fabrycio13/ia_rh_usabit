@@ -574,6 +574,14 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - Inventar plausible-sounding facts é inaceitável
 - Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
 
+## 🗄️ Migrations (skill auxiliar)
+
+Para criar/modificar migrations SQL, consulte a skill **manage-migrations**:
+- `docs/architecture/migration-history.md` — histórico completo com 81 migrations
+- `~/AppData/Local/hermes/skills/manage-migrations/SKILL.md` — instruções detalhadas
+- Regras: `DO $$` idempotente, `IS NOT DISTINCT FROM`, 5 roles, `IF EXISTS`
+- Última migration: `081_fix_increment_trigger_updates.sql`
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`
