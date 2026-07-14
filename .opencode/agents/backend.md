@@ -574,12 +574,25 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - Inventar plausible-sounding facts é inaceitável
 - Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
 
-## 🗄️ Migrations SQL
+## 🗄️ Migrations SQL — OBRIGATÓRIO
 
-Consulte a skill **`.opencode/skills/manage-migrations.md`** para:
-- Template completo de migration
-- Regras constitution IV
-- Como criar e aplicar
+**SEMPRE que for criar, modificar ou revisar uma migration, você DEVE:**
+
+1. **Ler** `.opencode/skills/manage-migrations.md` (skill oficial) — contém template, regras constitution IV e boas práticas
+2. **Consultar** `docs/architecture/migration-history.md` — para saber o próximo número disponível e não duplicar
+3. **Seguir as regras:**
+
+   | Regra | Obrigatório |
+   |---|---|
+   | **Idempotente** (`DO $$` + `IF NOT EXISTS` / `IF EXISTS`) | 🔴 SEMPRE |
+   | **`IS NOT DISTINCT FROM`** para `org_id` (nunca `=`) | 🔴 SEMPRE |
+   | **Cobrir 5 roles** (owner, admin, supervisor, rh, convidado) | 🔴 SEMPRE |
+   | **`SECURITY DEFINER SET search_path`** em helpers | 🔴 SEMPRE |
+   | **`activity_logs` imutável** (sem UPDATE/DELETE) | 🔴 SEMPRE |
+   | **Consultar histórico antes de criar** | 🔴 SEMPRE |
+   | **NUNCA editar migration já aplicada** | 🔴 NUNCA |
+
+4. **Após criar:** atualizar `docs/architecture/migration-history.md` com a nova linha
 
 ## Referências
 
