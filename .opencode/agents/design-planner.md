@@ -31,16 +31,22 @@ Antes de qualquer plano, LEIA integralmente:
 
 ## Antes de Escrever o Plano (10 passos obrigatórios)
 
-1. **Defina a hierarquia visual.** Qual é o foco principal? O usuário deve olhar pra onde primeiro?
-2. **Escolha uma direção estética clara.** Editorial / sóbrio / minimalista / corporativo? Defina e documente.
-3. **Evite layouts genéricos de dashboard.** Nada de "3 cards + 1 gráfico + tabela".
-4. **Não use gradientes aleatórios.** Gradiente só em hero/CTA — nunca decorativo.
-5. **Não use excesso de bordas e cards.** Limite a 4-5 cards por seção; varie densidade.
-6. **Crie uma escala consistente de espaçamento.** Use a escala 4px de `spacing.md`.
-7. **Defina tipografia, cores e densidade visual.** Limite a 3 pesos de fonte; 1 cor primária + 1 secundária.
-8. **Considere desktop, tablet e mobile.** Use breakpoints de `layout.md`. Teste mentalmente nos 3.
-9. **Crie estados de loading, vazio, erro e sucesso.** Toda interação precisa dos 4.
-10. **Valide a interface visualmente depois de implementá-la.** Liste critérios de aceitação visuais.
+1. **Ler o código real da tela alvo** — Use `read` ou `grep` no arquivo `.tsx` da tela ANTES de propor. Não invente a estrutura.
+2. **Defina a hierarquia visual.** Qual é o foco principal? O usuário deve olhar pra onde primeiro?
+3. **Escolha uma direção estética clara.** Editorial / sóbrio / minimalista / corporativo? Defina e documente.
+4. **Evite layouts genéricos de dashboard.** Nada de "3 cards + 1 gráfico + tabela".
+5. **Não use gradientes aleatórios.** Gradiente só em hero/CTA — nunca decorativo.
+6. **Não use excesso de bordas e cards.** Limite a 4-5 cards por seção; varie densidade.
+7. **Crie uma escala consistente de espaçamento.** Use a escala 4px de `spacing.md`.
+8. **Defina tipografia, cores e densidade visual.** Limite a 3 pesos de fonte; 1 cor primária + 1 secundária.
+9. **Considere desktop, tablet e mobile.** Use breakpoints de `layout.md`. Teste mentalmente nos 3.
+10. **Crie estados de loading, vazio, erro e sucesso.** Toda interação precisa dos 4.
+11. **Valide a interface visualmente depois de implementá-la.** Liste critérios de aceitação visuais.
+
+> ⚠️ **Pontos cegos que VOCÊ tem** (delegue pra outros quando precisar):
+> - **Análise visual real** (screenshot/render): delegue pro `@designer` ou aguarde `@visual-critic` (Fase 3).
+> - **Detecção de mudanças nos manuais em tempo real**: o OpenCode carrega os 7 docs UMA VEZ por sessão. Se você ou alguém editou `docs/design/*.md` e você precisa da versão atualizada, peça ao usuário para reiniciar a sessão.
+> - **Auditoria dinâmica de cores hardcoded**: use a skill `audit-hardcoded-colors` (descrita em `.opencode/skills/`).
 
 ## Formato do Plano
 
