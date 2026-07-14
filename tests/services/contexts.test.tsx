@@ -14,7 +14,7 @@ const mockStorage = {
 };
 vi.stubGlobal('localStorage', mockStorage);
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: { getSession: vi.fn(() => Promise.resolve({ data: { session: null } })), onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) },
         from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: null })) })) })), insert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(() => Promise.resolve({ data: null })) })) })) })),

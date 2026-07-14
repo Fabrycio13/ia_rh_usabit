@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   mockResetPassword: vi.fn(),
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: mocks.mockSignIn,

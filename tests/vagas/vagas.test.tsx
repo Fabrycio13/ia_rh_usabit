@@ -40,7 +40,7 @@ const mockFromProfiles = vi.fn(() => ({
 
 let mockFromVagas: ReturnType<typeof vi.fn>;
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: {
             getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'user-123' } }, error: null })),
@@ -62,11 +62,11 @@ vi.mock('react-hot-toast', () => ({
     default: { error: vi.fn(), success: vi.fn() }
 }));
 
-vi.mock('../src/core/services/logger', () => ({
+vi.mock('../../src/core/services/logger', () => ({
     logActivity: vi.fn(() => Promise.resolve())
 }));
 
-vi.mock('../src/core/contexts/LangContext', () => ({
+vi.mock('../../src/core/contexts/LangContext', () => ({
     useLang: () => ({ lang: 'pt', setLang: vi.fn(), t: (s: string) => s }),
 }));
 

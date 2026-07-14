@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockEq = vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn(() => Promise.resolve({ data: [], error: null })) })) }));
 const mockOrder = vi.fn(() => ({ limit: vi.fn(() => Promise.resolve({ data: [], error: null })) }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: { getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })), onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) },
         from: vi.fn(() => ({
@@ -19,7 +19,7 @@ vi.mock('react-hot-toast', () => ({ default: { error: vi.fn(), success: vi.fn() 
 
 const mockRole = 'owner';
 const mockOrgId = 'org-1';
-vi.mock('../src/core/contexts/UserContext', () => ({
+vi.mock('../../src/core/contexts/UserContext', () => ({
     useUser: () => ({
         profile: {
             userId: 'user-1', userName: 'Admin', firstName: 'Admin',

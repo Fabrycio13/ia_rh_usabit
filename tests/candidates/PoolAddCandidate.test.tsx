@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PoolAddCandidate } from '../../src/features/candidates/components/PoolAddCandidate';
 
-vi.mock('../src/core/contexts/UserContext', () => ({
+vi.mock('../../src/core/contexts/UserContext', () => ({
     useUser: () => ({
         profile: {
             userId: 'user-1',
@@ -17,7 +17,7 @@ const mockUpload = vi.fn().mockResolvedValue({ error: null });
 
 const mockPromise = (data: unknown) => Promise.resolve({ data, error: null });
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         storage: {
             from: vi.fn(() => ({
@@ -41,12 +41,12 @@ vi.mock('react-hot-toast', () => ({
     default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
 
-vi.mock('../src/core/services/pdfExtractor', () => ({
+vi.mock('../../src/core/services/pdfExtractor', () => ({
     extractTextFromPDF: vi.fn(() => Promise.resolve('Currículo texto fictício')),
     pdfToImages: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock('../src/core/services/cvAnalyzer', () => ({
+vi.mock('../../src/core/services/cvAnalyzer', () => ({
     extractTextAndData: vi.fn(() => Promise.resolve({
         rawText: 'Currículo texto fictício',
         extractedData: {

@@ -14,7 +14,7 @@ vi.stubGlobal('localStorage', {
     key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
 });
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: { signOut: vi.fn(() => Promise.resolve({ error: null })), getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })), onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) },
         from: vi.fn(() => ({
@@ -33,7 +33,7 @@ vi.mock('../src/core/services/supabase', () => ({
 
 vi.mock('react-hot-toast', () => ({ default: { error: vi.fn(), success: vi.fn() } }));
 
-vi.mock('../src/core/contexts/UserContext', () => ({
+vi.mock('../../src/core/contexts/UserContext', () => ({
     useUser: () => ({
         profile: {
             userId: 'u1', userName: 'Admin', firstName: 'Admin', avatarUrl: '', initials: 'A',
@@ -47,16 +47,16 @@ vi.mock('../src/core/contexts/UserContext', () => ({
     }),
 }));
 
-vi.mock('../src/core/contexts/LangContext', () => ({
+vi.mock('../../src/core/contexts/LangContext', () => ({
     useLang: () => ({ lang: 'pt', setLang: vi.fn(), t: (k: string) => k === 'dashboard' ? 'Dashboard' : k === 'vagas' ? 'Vagas' : k === 'candidateBank' ? 'Banco de Talentos' : k }),
     LangProvider: ({ children }: any) => children,
 }));
 
-vi.mock('../src/core/contexts/AnalysisContext', () => ({
+vi.mock('../../src/core/contexts/AnalysisContext', () => ({
     useAnalysis: () => ({ analyzing: false, result: null, error: null, jobName: '', jobDescription: '', setJobDescription: vi.fn(), startAnalysis: vi.fn(), clearAnalysis: vi.fn(), setError: vi.fn(), progress: { current: 0, total: 0 } }),
 }));
 
-vi.mock('../src/core/config/permissions', () => ({
+vi.mock('../../src/core/config/permissions', () => ({
     hasPermission: () => true,
 }));
 

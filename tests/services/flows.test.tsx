@@ -19,7 +19,7 @@ vi.stubGlobal('localStorage', {
 const mockSelect = vi.fn();
 const mockInsert = vi.fn(() => ({ error: null }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: {
             getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'user-123' } }, error: null })),
@@ -37,11 +37,11 @@ vi.mock('react-hot-toast', () => ({
     default: { error: vi.fn(), success: vi.fn() }
 }));
 
-vi.mock('../src/core/services/logger', () => ({
+vi.mock('../../src/core/services/logger', () => ({
     logActivity: vi.fn(() => Promise.resolve())
 }));
 
-vi.mock('../src/core/contexts/ThemeContext', () => ({
+vi.mock('../../src/core/contexts/ThemeContext', () => ({
     useTheme: () => ({ bgTheme: 'spatial', theme: 'dark', toggleTheme: vi.fn(), planetMode: false, setBgTheme: vi.fn(), togglePlanetMode: vi.fn(), customPrimaryColor: null, setCustomPrimaryColor: vi.fn(), customTextColor: null, setCustomTextColor: vi.fn() }),
     ThemeProvider: ({ children }: any) => children,
 }));

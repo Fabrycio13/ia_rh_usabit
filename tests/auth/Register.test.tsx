@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   mockProfileUpdate: vi.fn(),
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
   supabase: {
     auth: {
       signUp: mocks.mockSignUp,
@@ -23,7 +23,7 @@ vi.mock('../src/core/services/supabase', () => ({
   },
 }));
 
-vi.mock('../src/core/constants/disposableEmails', () => ({
+vi.mock('../../src/core/constants/disposableEmails', () => ({
   isDisposableEmail: vi.fn(() => false),
 }));
 
