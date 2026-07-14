@@ -86,7 +86,7 @@ describe('Configuracoes - Profile', () => {
     });
 
     it('renderiza aba perfil com campos', async () => {
-        const { Configuracoes } = await import('../src/pages/settings/Configuracoes');
+        const { Configuracoes } = await import('../../src/pages/settings/Configuracoes');
         render(<MemoryRouter><Configuracoes /></MemoryRouter>);
         expect(await screen.findByText('Informações Pessoais')).toBeInTheDocument();
         expect(screen.getByText('Nome completo')).toBeInTheDocument();

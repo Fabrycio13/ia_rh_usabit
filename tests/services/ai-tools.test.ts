@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         from: vi.fn(() => ({
             select: vi.fn(() => ({
@@ -26,7 +26,7 @@ vi.mock('../src/core/services/supabase', () => ({
 
 describe('aiTools - tool definitions', () => {
     it('openAiToolDefinitions tem 4 tools com formato OpenAI function calling', async () => {
-        const { openAiToolDefinitions } = await import('../src/core/services/aiTools');
+        const { openAiToolDefinitions } = await import('../../src/core/services/aiTools');
         expect(openAiToolDefinitions).toHaveLength(4);
         openAiToolDefinitions.forEach(t => {
             expect(t.type).toBe('function');
@@ -37,7 +37,7 @@ describe('aiTools - tool definitions', () => {
     });
 
     it('search_candidates precisa de candidateId em get_candidate_details', async () => {
-        const { openAiToolDefinitions } = await import('../src/core/services/aiTools');
+        const { openAiToolDefinitions } = await import('../../src/core/services/aiTools');
         const getDetails = openAiToolDefinitions.find(t => t.function.name === 'get_candidate_details')!;
         expect(getDetails.function.parameters.required).toContain('candidateId');
     });
@@ -45,7 +45,7 @@ describe('aiTools - tool definitions', () => {
 
 describe('aiTools - assistant functions', () => {
     it('search_candidates filtra por query', async () => {
-        const { get_assistant_tools } = await import('../src/core/services/aiTools');
+        const { get_assistant_tools } = await import('../../src/core/services/aiTools');
         const tools = get_assistant_tools();
         const result = await tools.search_candidates({ query: 'João' });
         expect(result).toHaveLength(1);
@@ -53,7 +53,7 @@ describe('aiTools - assistant functions', () => {
     });
 
     it('get_candidate_details retorna dados do candidato', async () => {
-        const { get_assistant_tools } = await import('../src/core/services/aiTools');
+        const { get_assistant_tools } = await import('../../src/core/services/aiTools');
         const tools = get_assistant_tools();
         const result = await tools.get_candidate_details({ candidateId: 'c1' });
         expect(result.name).toBe('João');

@@ -64,7 +64,7 @@ describe('Sidebar', () => {
     beforeEach(() => { vi.clearAllMocks(); for (const k in store) delete store[k]; });
 
     it('renderiza links de navegação', async () => {
-        const { Sidebar } = await import('../src/layouts/Sidebar');
+        const { Sidebar } = await import('../../src/layouts/Sidebar');
         render(<MemoryRouter><Sidebar /></MemoryRouter>);
         expect(await screen.findByText('Dashboard')).toBeInTheDocument();
         expect(screen.getByText('Vagas')).toBeInTheDocument();

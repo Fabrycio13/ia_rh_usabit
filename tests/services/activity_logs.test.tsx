@@ -43,7 +43,7 @@ describe('logger - logActivity', () => {
         const mockFrom = vi.fn(() => ({
             insert: vi.fn(() => Promise.resolve({ error: null })),
         }));
-        const supabaseModule = await import('../src/core/services/supabase');
+        const supabaseModule = await import('../../src/core/services/supabase');
         (supabaseModule.supabase as any).from = mockFrom;
 
         await logActivity('user-1', 'Fez alterações no perfil', { field: 'nome' }, null, 'org-1');
@@ -55,7 +55,7 @@ describe('logger - logActivity', () => {
         const mockFrom = vi.fn(() => ({
             insert: vi.fn(() => Promise.resolve({ error: null })),
         }));
-        const supabaseModule = await import('../src/core/services/supabase');
+        const supabaseModule = await import('../../src/core/services/supabase');
         (supabaseModule.supabase as any).from = mockFrom;
 
         await logScreening('user-1', 'candidate-1', 'move');
