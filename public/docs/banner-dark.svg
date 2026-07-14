@@ -1,16 +1,19 @@
-<svg width="1280" height="320" viewBox="0 0 1280 320" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <!-- Background: dark gradient (deep blue subtle) -->
+<svg width="1280" height="320" viewBox="0 0 1280 320" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bgDark" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1e40af" />
-      <stop offset="100%" stop-color="#3b82f6" />
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#1e40af" />
     </linearGradient>
     <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#14b8a6" />
       <stop offset="100%" stop-color="#ffffff" />
     </linearGradient>
+    <linearGradient id="bGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#14b8a6" />
+      <stop offset="100%" stop-color="#60a5fa" />
+    </linearGradient>
     <radialGradient id="glowDark" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06" />
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
     </radialGradient>
   </defs>
@@ -18,28 +21,27 @@
   <rect width="1280" height="320" fill="url(#bgDark)" />
   <circle cx="640" cy="160" r="320" fill="url(#glowDark)" />
 
-  <g transform="translate(540, 110)">
-    <g transform="translate(0, 0)">
-      <rect x="0" y="0" width="48" height="48" rx="14" fill="#ffffff" />
-      <path d="M14 14 L14 24 Q14 32 22 32 L26 32 Q34 32 34 24 L34 14"
-            stroke="#3b82f6" stroke-width="3.5" fill="none" stroke-linecap="round" />
-      <circle cx="20" cy="42" r="2.5" fill="#3b82f6" />
-      <circle cx="28" cy="42" r="2.5" fill="#3b82f6" />
-      <path d="M40 8 L41.5 11 L44.5 12.5 L41.5 14 L40 17 L38.5 14 L35.5 12.5 L38.5 11 Z"
-            fill="#14b8a6" />
-    </g>
+  <!-- Logo -->
+  <g transform="translate(520, 110)">
+    <rect x="0" y="0" width="48" height="48" rx="14" fill="#ffffff" />
+    <path d="M15 16 L15 24 Q15 30 22 30 L26 30 Q33 30 33 24 L33 16"
+          stroke="#3b82f6" stroke-width="3" fill="none" stroke-linecap="round" />
+    <circle cx="21" cy="39" r="2" fill="#3b82f6" />
+    <circle cx="27" cy="39" r="2" fill="#3b82f6" />
+    <path d="M39 7 L40.5 10 L43.5 11.5 L40.5 13 L39 16 L37.5 13 L34.5 11.5 L37.5 10 Z"
+          fill="#14b8a6" />
 
-    <g transform="translate(64, 0)">
-      <text x="0" y="22" font-family="system-ui, -apple-system, sans-serif"
-            font-size="28" font-weight="700" fill="#ffffff"
-            letter-spacing="-0.02em">usabit</text>
-      <text x="92" y="22" font-family="system-ui, -apple-system, sans-serif"
-            font-size="28" font-weight="400" fill="url(#logoGrad)"
-            letter-spacing="-0.02em">people</text>
-
-      <text x="0" y="50" font-family="system-ui, -apple-system, sans-serif"
-            font-size="15" font-weight="500" fill="rgba(255,255,255,0.85)"
-            letter-spacing="0">Recrutamento e Seleção com IA</text>
+    <g transform="translate(64, 4) scale(0.8)">
+      <path d="M92.8023 6.20517C91.0181 6.20517 89.5391 5.03172 89.5391 3.01847C89.5391 1.11832 91.0181 0 92.8023 0C94.6374 0 96.0656 1.11832 96.0656 3.07502C96.0656 5.03172 94.6388 6.20517 92.8023 6.20517Z" fill="#ffffff"/>
+      <path d="M95.6064 10.0323V31.3609H89.9982V10.0323H95.6064Z" fill="#ffffff"/>
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M65.5931 28.0759C66.3042 28.6717 69.7545 31.5627 75.8005 31.5627C82.9372 31.5627 86.8121 26.7148 86.8135 20.5407C86.8135 14.2649 83.4486 9.57106 77.6369 9.57106C73.762 9.57106 71.8747 12.123 71.0596 13.9086L71.0483 3.43092C71.0483 3.43092 68.788 1.45159 65.5389 0.461933C65.5389 2.01711 65.553 28.0424 65.553 28.0424L65.5931 28.0759ZM71.0596 22.2755C71.0596 17.2749 73.0472 14.214 76.3613 14.214C79.7771 14.214 81.2038 16.8677 81.2053 20.3866C81.2053 23.8561 79.3194 26.9693 75.6479 26.9693C73.1286 26.9693 71.8068 26.187 71.1565 25.8021C71.1224 25.7819 71.0901 25.7628 71.0596 25.7449V22.2755Z" fill="url(#bGrad)"/>
+      <path d="M28.5265 15.8757C28.5265 14.804 29.545 14.0901 31.0749 14.0901C32.9608 14.0901 35.409 14.9058 37.042 16.0284L37.9094 11.6908C36.1238 10.516 33.1671 9.70022 30.8221 9.70022C26.1306 9.70022 23.1231 12.0471 23.1231 15.8234C23.1231 20.2116 26.6992 21.3865 29.6676 22.3618C31.7737 23.0537 33.5739 23.6452 33.5739 25.2124C33.5739 26.54 32.2997 27.3049 30.5155 27.3049C28.7822 27.3049 26.6406 26.4368 24.9073 25.2633L22.154 29.0905C24.7024 30.8252 27.8131 31.7951 30.8715 31.7951C35.9189 31.7951 39.233 29.1414 39.233 25.1107C39.233 20.7557 35.4718 19.5378 32.4079 18.5456C30.3025 17.8639 28.5265 17.2888 28.5265 15.8757Z" fill="#ffffff"/>
+      <path d="M9.58487 27.255C6.52647 27.255 3.98259 25.7905 2.43061 23.8102L5.74542 19.7705C6.71614 20.9546 8.82991 22.3362 10.9289 22.3362C11.8489 22.3362 12.5629 21.846 12.5629 20.898C12.5629 19.1749 9.26854 18.5369 7.0307 17.8291C4.07401 16.8988 1.98946 14.6024 1.98946 10.8541C1.98946 6.70043 5.20184 3.6471 10.2495 3.6471C13.0009 3.6471 15.4706 4.9127 16.9496 6.62653L13.6856 10.4132C12.8687 9.38068 11.4672 8.23395 9.33011 8.23395C8.10472 8.23395 7.23731 9.02511 7.23731 10.0241C7.23731 11.385 9.65618 11.9331 12.0974 12.6956C15.3606 13.7211 17.6888 15.9176 17.6888 19.941C17.6888 23.1436 15.6944 27.255 9.58487 27.255Z" fill="#ffffff"/>
     </g>
   </g>
+
+  <text x="640" y="280" text-anchor="middle" font-family="Inter, system-ui, sans-serif"
+        font-size="16" font-weight="500" fill="rgba(255,255,255,0.85)" letter-spacing="0.02em">
+    Recrutamento e Seleção com IA
+  </text>
 </svg>

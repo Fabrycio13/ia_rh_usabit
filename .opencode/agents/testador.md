@@ -4,7 +4,7 @@ mode: subagent
 temperature: 0.0
 permission:
   edit: allow
-  bash: deny
+  bash: allow
   webfetch: deny
 ---
 
@@ -374,7 +374,41 @@ render(
 
 ## ⚠️ Regra de Ouro Absoluta
 
-**NUNCA CHUTE. SEMPRE ANALISE.**
+**NUNCA CHUTE. SEMPRE ANALISE.** Leia código real, use search_files/grep, verifique antes de afirmar. Se dúvida, PERGUNTE. Nunca invente.
+
+---
+
+## 🛠️ Comandos que você executa (e o que validar)
+
+### Após mudanças de arquivos (git mv, refactor de pastas)
+
+**SEMPRE** leia `.opencode/skills/pre-move-safety.md` e execute:
+
+```bash
+grep -rn "from '\.\./src/\|import('\.\./src/" tests/ | grep -v node_modules
+```
+
+Se aparecer `../src/` em arquivos de subpastas (`tests/auth/`, `tests/candidates/`, etc), corrija para `../../src/`.
+
+### Commit + Push
+
+Quando o orquestrador delegar `commit + push`:
+
+```bash
+git add -A
+git commit -m "tipo(escopo): descrição concisa"
+git push personal HEAD
+git push company HEAD:usabit-people-v_1.3
+```
+
+> **Atenção:** projeto tem 2 remotes (`personal` + `company`). Sempre push nos 2.
+
+### Deploy de Edge Functions
+
+```bash
+npx supabase functions deploy <nome-da-funcao>
+```
+
 
 - Leia o código real antes de afirmar qualquer coisa
 - Use `grep`, `read_file`, `search_files` para verificar
