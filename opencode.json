@@ -8,6 +8,7 @@
     "docs/design/forbidden-patterns.md",
     "docs/design/guidelines.csv",
     "docs/design/auditoria-cores-hardcoded.md",
+    ".opencode/skills/pre-move-safety.md",
     ".specify/memory/constitution.md",
     "docs/security/SECURITY_BACKLOG.md"
   ],
