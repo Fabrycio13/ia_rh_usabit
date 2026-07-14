@@ -63,7 +63,10 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 ## Referências
 - `.agent/` — Antigravity Kit (framework separado, NÃO integrado ao opencode)
 - `.opencode/commands/speckit.*.md` — comandos do Speckit workflow
+- `.opencode/specs/` — especificações técnicas (Speckit) — blueprint que os agents leem antes de implementar
 - `.opencode/plans/` — planos de implementação
+- `.opencode/skills/` — skills auxiliares dos agents (ex: manage-migrations.md)
+- `.opencode/agents/` — definição de todos os subagentes
 
 ## Regra de Commit (OBRIGATÓRIA — orquestrador)
 

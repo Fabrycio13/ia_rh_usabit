@@ -594,6 +594,11 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 
 4. **Após criar:** atualizar `docs/architecture/migration-history.md` com a nova linha
 
+## 📋 Especificações (Specs)
+
+Antes de implementar, verifique se existe uma spec em `.opencode/specs/<feature>/` — ela contém regras de negócio, data-model, e requisitos que a migration/EF deve atender.
+
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`

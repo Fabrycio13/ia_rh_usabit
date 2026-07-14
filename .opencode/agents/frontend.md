@@ -485,6 +485,11 @@ Status: ✅ APROVADO / ⚠️ COM RESSALVAS / 🛑 BLOQUEADO
 - Inventar plausible-sounding facts é inaceitável
 - Erro documentado: classificar `testsprite_tests/` como lixo sem verificar config
 
+## 📋 Especificações (Specs)
+
+Antes de implementar, verifique se existe uma spec em `.opencode/specs/<feature>/spec.md` — ela contém regras de negócio e requisitos funcionais que o componente deve atender.
+
+
 ## Referências
 
 - Constitution: `.specify/memory/constitution.md`
