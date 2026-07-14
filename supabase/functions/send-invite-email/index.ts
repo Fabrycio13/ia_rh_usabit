@@ -1,5 +1,9 @@
 ﻿import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { checkRateLimit } from '../_shared/rate-limit.ts';
+
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -61,6 +65,17 @@ serve(async (req) => {
       .select('user_role, organization_id')
       .eq('id', user.id)
       .single();
+
+    // Rate limit por organização
+    const rateLimitKey = callerProfile?.organization_id
+      ? `org:${callerProfile.organization_id}`
+      : `user:${user.id}`;
+    const allowed = await checkRateLimit(supabaseAdmin, rateLimitKey, 'send-invite-email', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
+        status: 429, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
+      });
+    }
 
     const hierarchy: Record<string, number> = { owner: 5, administrador: 4, supervisor: 3, rh: 2, convidado: 1 };
     const callerLevel = hierarchy[callerProfile?.user_role as keyof typeof hierarchy] || 0;
