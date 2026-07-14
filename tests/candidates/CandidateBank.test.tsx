@@ -27,7 +27,7 @@ const queryBuilder = vi.hoisted(() => () => {
   return builder;
 });
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
   supabase: {
     auth: {
       getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
@@ -39,7 +39,7 @@ vi.mock('../src/core/services/supabase', () => ({
   },
 }));
 
-vi.mock('../src/core/contexts/ThemeContext', () => ({
+vi.mock('../../src/core/contexts/ThemeContext', () => ({
   useTheme: () => ({
     theme: 'dark',
     bgTheme: 'simple',
@@ -54,7 +54,7 @@ vi.mock('../src/core/contexts/ThemeContext', () => ({
   }),
 }));
 
-vi.mock('../src/core/contexts/UserContext', () => ({
+vi.mock('../../src/core/contexts/UserContext', () => ({
   useUser: () => ({
     profile: {
       userId: 'user-1', userName: 'Admin', firstName: 'Admin',
@@ -69,11 +69,11 @@ vi.mock('../src/core/contexts/UserContext', () => ({
   }),
 }));
 
-vi.mock('../src/features/analysis/CandidatePanel', () => ({
+vi.mock('../../src/features/analysis/CandidatePanel', () => ({
   CandidatePanel: () => null,
 }));
 
-vi.mock('../src/features/candidates/components/ReanalyzeCandidateModal', () => ({
+vi.mock('../../src/features/candidates/components/ReanalyzeCandidateModal', () => ({
   ReanalyzeCandidateModal: () => null,
 }));
 

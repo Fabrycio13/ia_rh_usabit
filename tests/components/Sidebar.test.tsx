@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     mockSignOut: vi.fn(),
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: { signOut: mocks.mockSignOut, getSession: vi.fn(), onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) },
         channel: vi.fn(() => ({ on: vi.fn(() => ({ subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) })) })),
@@ -21,9 +21,9 @@ vi.mock('../src/core/services/supabase', () => ({
     },
 }));
 
-vi.mock('../src/core/contexts/UserContext', () => ({ useUser: () => ({ profile: mocks.mockProfile }) }));
-vi.mock('../src/core/contexts/LangContext', () => ({ useLang: () => mocks.mockLang }));
-vi.mock('../src/core/contexts/AnalysisContext', () => ({ useAnalysis: () => mocks.mockAnalysis }));
+vi.mock('../../src/core/contexts/UserContext', () => ({ useUser: () => ({ profile: mocks.mockProfile }) }));
+vi.mock('../../src/core/contexts/LangContext', () => ({ useLang: () => mocks.mockLang }));
+vi.mock('../../src/core/contexts/AnalysisContext', () => ({ useAnalysis: () => mocks.mockAnalysis }));
 vi.mock('react-hot-toast', () => ({ default: { success: vi.fn(), error: vi.fn() } }));
 
 import { Sidebar } from '../../src/layouts/Sidebar';

@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     mockToast: { success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: {
             getSession: mocks.mockGetSession,

@@ -18,7 +18,7 @@ const { mockInvoke } = vi.hoisted(() => ({
     mockInvoke: vi.fn().mockResolvedValue({ data: {}, error: null }),
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         functions: { invoke: mockInvoke },
         from: vi.fn(() => ({
@@ -31,11 +31,11 @@ vi.mock('../src/core/services/supabase', () => ({
     }
 }));
 
-vi.mock('../src/core/utils/security', () => ({
+vi.mock('../../src/core/utils/security', () => ({
     sanitizeHtml: vi.fn((s: string) => s)
 }));
 
-vi.mock('../src/core/services/analyzers/resumeAnalyzer', () => ({
+vi.mock('../../src/core/services/analyzers/resumeAnalyzer', () => ({
     analyzeResume: vi.fn(() => Promise.resolve({
         score: 85,
         skills: ['JavaScript', 'React', 'Node.js'],

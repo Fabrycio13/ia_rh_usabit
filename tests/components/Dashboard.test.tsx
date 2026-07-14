@@ -30,7 +30,7 @@ const mockData = vi.hoisted(() => ({
     vagas_candidaturas: [] as any[],
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
         auth: { signOut: vi.fn(), getSession: vi.fn(), onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) },
         from: vi.fn((table: string) => {
@@ -54,8 +54,8 @@ vi.mock('../src/core/services/supabase', () => ({
     },
 }));
 
-vi.mock('../src/core/contexts/UserContext', () => ({ useUser: () => ({ profile: mockProfile }) }));
-vi.mock('../src/core/contexts/ThemeContext', () => ({ useTheme: () => ({ bgTheme: 'spatial', theme: 'dark' }) }));
+vi.mock('../../src/core/contexts/UserContext', () => ({ useUser: () => ({ profile: mockProfile }) }));
+vi.mock('../../src/core/contexts/ThemeContext', () => ({ useTheme: () => ({ bgTheme: 'spatial', theme: 'dark' }) }));
 
 import { Dashboard } from '../../src/pages/dashboard/Dashboard';
 

@@ -8,7 +8,7 @@ const { mockFrom } = vi.hoisted(() => {
     return { mockFrom: mockFromImpl };
 });
 
-vi.mock('../src/core/contexts/UserContext', () => ({
+vi.mock('../../src/core/contexts/UserContext', () => ({
     useUser: () => ({
         profile: {
             userId: 'user-1',
@@ -21,7 +21,7 @@ vi.mock('../src/core/contexts/UserContext', () => ({
     }),
 }));
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
     supabase: { from: mockFrom },
 }));
 
@@ -29,7 +29,7 @@ vi.mock('react-hot-toast', () => ({
     default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
 
-vi.mock('../src/core/services/logger', () => ({
+vi.mock('../../src/core/services/logger', () => ({
     logScreening: vi.fn(() => Promise.resolve()),
 }));
 

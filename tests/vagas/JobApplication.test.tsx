@@ -11,7 +11,7 @@ vi.stubGlobal('import.meta', {
   }
 });
 
-vi.mock('../src/core/services/supabase', () => ({
+vi.mock('../../src/core/services/supabase', () => ({
   supabase: {
     storage: {
       from: vi.fn(() => ({
@@ -24,12 +24,12 @@ vi.mock('../src/core/services/supabase', () => ({
   }
 }));
 
-vi.mock('../src/core/services/jobAnalyzer', () => ({
+vi.mock('../../src/core/services/jobAnalyzer', () => ({
   analyzeJobApplication: vi.fn(),
   type: {}
 }));
 
-vi.mock('../src/core/utils/security', () => ({
+vi.mock('../../src/core/utils/security', () => ({
   sanitizeHtml: vi.fn((s: string) => s)
 }));
 
