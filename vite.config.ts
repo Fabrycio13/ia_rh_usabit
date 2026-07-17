@@ -5,7 +5,7 @@ import path from "node:path"
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/rh-ia-v2/' : '/',
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
