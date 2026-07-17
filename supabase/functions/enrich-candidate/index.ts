@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { sanitizeAIInput } from '../_shared/sanitize-ai-input.ts'
+import { sanitizeText } from '../_shared/validation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,18 +68,14 @@ async function extractTextFromPdfBytes(buffer: Uint8Array): Promise<string> {
   }
 }
 
-// Remove caracteres de controle que quebram JSON no PostgreSQL
-function sanitizeText(s: string): string {
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/g, '').trim()
-}
-
 serve(async (req) => {
   console.log('[enrich-candidate] request received')
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
   // Auth: aceita service_role (chamadas internas) OU JWT de usuário logado
   const authHeader = req.headers.get('Authorization') || ''
@@ -97,7 +94,7 @@ serve(async (req) => {
       console.error('[enrich-candidate] Token inválido')
       return json({ error: 'Não autorizado' }, 401)
     }
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    // Reusa supabaseAdmin do escopo superior
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('user_role')
@@ -109,8 +106,6 @@ serve(async (req) => {
     }
     console.log('[enrich-candidate] auth via JWT, role:', profile.user_role)
   }
-
-  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
   // Rate limit por IP
   const ip = req.headers.get('x-forwarded-for') || 'unknown'

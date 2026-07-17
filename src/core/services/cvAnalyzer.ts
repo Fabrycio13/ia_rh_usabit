@@ -74,24 +74,30 @@ export async function batchMatchToJob(
 
   const allResults: BatchMatchResult[] = [];
 
-  for (const batch of batches) {
-    const sanitizedBatch = batch.map(c => ({
-      id: c.id,
-      name: sanitizeAIInput(c.name),
-      rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
-    }));
+  const batchResults = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const sanitizedBatch = batch.map(c => ({
+        id: c.id,
+        name: sanitizeAIInput(c.name),
+        rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
+      }));
+      const data = await callOpenAI(
+        { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
+        { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
+      );
+      const parsed = parseJSON<BatchMatchResult[]>(data.content);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Erro ao processar lote de candidatos. Tente novamente.');
+      }
+      return parsed;
+    })
+  );
 
-    const data = await callOpenAI(
-      { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
-      { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
-    );
-    const parsed = parseJSON<BatchMatchResult[]>(data.content);
-
-    if (!Array.isArray(parsed)) {
+  for (const result of batchResults) {
+    if (result.status === 'rejected') {
       throw new Error('Erro ao processar lote de candidatos. Tente novamente.');
     }
-
-    for (const r of parsed) {
+    for (const r of result.value) {
       allResults.push({
         candidateId: r.candidateId,
         score: typeof r.score === 'number' ? r.score : 0,
