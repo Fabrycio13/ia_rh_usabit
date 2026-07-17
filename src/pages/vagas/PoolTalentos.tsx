@@ -15,7 +15,7 @@ import { analyzeJobApplication, analyzeJobApplicationText } from '../../core/ser
 import { batchMatchToJob } from '../../core/services/cvAnalyzer';
 import { formatDate } from '../../core/utils/format';
 
-const VAGAS_CANDIDATURAS_COLS = 'id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, created_at, status, candidate_gender, candidate_age, address, portfolio, cep, address_number, complement, skills, experience, education, analysis, viewed_at, raw_text, tags, source, candidate_id';
+const VAGAS_CANDIDATURAS_COLS = 'id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, source, organization_id, candidate_id, analysis, viewed_at, raw_text, tags';
 
 interface Candidate {
     id: string;

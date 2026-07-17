@@ -378,17 +378,13 @@ export const Configuracoes = () => {
         if (!profile.loaded || dataLoaded) return;
         if (!userId) { setLoading(false); return; }
         const load = async () => {
-            const { data: profileData } = await supabase.from('profiles').select('id, name, role, organization_name, phone, address, brand_name, brand_color, brand_font, notifications_enabled, avatar_url, evolution_api_url, evolution_api_key, evolution_instance').eq('id', userId).single();
+            const { data: profileData } = await supabase.from('profiles').select('id, name, organization_name, brand_name, brand_color, brand_font, avatar_url, evolution_api_url, evolution_api_key, evolution_instance').eq('id', userId).single();
             if (profileData) {
                 setName(profileData.name ?? '');
-                setRole(profileData.role ?? '');
                 setOrgName(profileData.organization_name ?? '');
-                setPhone(profileData.phone ?? '');
-                setAddress(profileData.address ?? '');
                 setBrandName(profileData.brand_name ?? '');
                 setBrandColor(profileData.brand_color ?? '');
                 setBrandFont(profileData.brand_font ?? '');
-                setNotificationsEnabled(profileData.notifications_enabled ?? false);
                 setAvatarUrl(profileData.avatar_url ?? '');
                 setEvoUrl(profileData.evolution_api_url ?? '');
                 setEvoKey(profileData.evolution_api_key ?? '');
