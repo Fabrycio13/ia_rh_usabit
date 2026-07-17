@@ -11,16 +11,16 @@ export async function logActivity(userId: string, action: string, details?: stri
         });
         
         if (error) {
-            console.error('Supabase logging error:', error);
+            console.error('Supabase logging error:', error?.message || 'erro desconhecido');
         }
     } catch (err) {
-        console.error('Error logging activity:', err);
+        console.error('Error logging activity:', err instanceof Error ? err.message : err);
     }
 }
 
 export async function logScreening(userId: string, candidateId: string, action: string, fromStage?: string | null, toStage?: string | null, details?: object) {
     if (!userId || !candidateId) {
-        console.error('logScreening: userId or candidateId missing', { userId, candidateId });
+        console.error('logScreening: userId or candidateId missing');
         return;
     }
     try {
@@ -34,9 +34,9 @@ export async function logScreening(userId: string, candidateId: string, action: 
         });
         
         if (error) {
-            console.error('Screening log error (Supabase):', error.message, error.details);
+            console.error('Screening log error (Supabase):', error.message);
         }
     } catch (err) {
-        console.error('Error logging screening (Exception):', err);
+        console.error('Error logging screening (Exception):', err instanceof Error ? err.message : err);
     }
 }

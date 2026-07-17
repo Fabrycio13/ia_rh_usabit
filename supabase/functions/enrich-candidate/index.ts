@@ -4,6 +4,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
+import { checkRateLimit } from '../_shared/rate-limit.ts'
+import { sanitizeAIInput } from '../_shared/sanitize-ai-input.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,6 +110,13 @@ serve(async (req) => {
     console.log('[enrich-candidate] auth via JWT, role:', profile.user_role)
   }
 
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+  // Rate limit por IP
+  const ip = req.headers.get('x-forwarded-for') || 'unknown'
+  const allowed = await checkRateLimit(supabaseAdmin, `enrich:${ip}`, 'enrich-candidate', 30, 60000)
+  if (!allowed) return json({ error: 'Muitas requisições. Tente novamente mais tarde.' }, 429)
+
   try {
     const body = await req.json()
     const candidateId = body.candidateId
@@ -119,10 +128,9 @@ serve(async (req) => {
       return json({ error: 'candidateId obrigatório' }, 400)
     }
     if (!OPENAI_API_KEY) {
-      return json({ error: 'OPENAI_API_KEY não configurada' }, 500)
+      console.error('[enrich-candidate] OPENAI_API_KEY não configurada')
+      return json({ error: 'Erro de configuração do servidor' }, 500)
     }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     // source='pool' → lê de vagas_candidaturas (campos candidate_*)
     // source='candidates' (default) → lê de candidates (Banco de Talentos)
@@ -158,6 +166,7 @@ serve(async (req) => {
     // Usar texto extraído do frontend (rawTextFromClient) ou raw_text já salvo no banco
     // NÃO tentar extrair PDF no Deno — pdfjs-dist não funciona aqui
     let extractedText = rawTextFromClient || (candidate.raw_text as string | undefined) || ''
+    extractedText = sanitizeAIInput(extractedText)
 
     // Se ainda não tem texto, tentar baixar e extrair no Deno (fallback — pode não funcionar)
     if (!extractedText) {
@@ -227,7 +236,7 @@ Use string vazia ("") se um campo não for identificável.`
     }
     if (!aiRes.ok) {
       const errBody = await aiRes.text().catch(() => '')
-      console.error('[enrich-candidate] OpenAI erro:', aiRes.status, errBody.slice(0, 200))
+      console.error('[enrich-candidate] OpenAI erro:', aiRes.status)
       return json({ error: `OpenAI erro ${aiRes.status}` }, 500)
     }
 
@@ -239,7 +248,7 @@ Use string vazia ("") se um campo não for identificável.`
       const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
       parsed = JSON.parse(cleanContent)
     } catch (e) {
-      console.error('[enrich-candidate] Erro parse:', (e as Error).message, '| content:', content.slice(0, 200))
+      console.error('[enrich-candidate] Erro parse:', (e as Error).message)
       return json({ error: 'Resposta IA inválida' }, 500)
     }
 
@@ -277,14 +286,14 @@ Use string vazia ("") se um campo não for identificável.`
     const { error: updateErr } = await supabaseAdmin.from(tableName).update(updates).eq('id', candidateId)
     if (updateErr) {
       console.error('[enrich-candidate] Erro update:', updateErr.message)
-      return json({ error: updateErr.message }, 500)
+      return json({ error: 'Erro ao processar candidato' }, 500)
     }
 
     console.log('[enrich-candidate] Sucesso:', candidateId, '| skills:', skillsArr.length)
     return json({ success: true, candidateId })
 
   } catch (err) {
-    console.error('[enrich-candidate] Erro geral:', (err as Error).message, (err as Error).stack)
-    return json({ error: 'Erro interno', detail: (err as Error).message }, 500)
+    console.error('[enrich-candidate] Erro geral:', (err as Error).message)
+    return json({ error: 'Erro interno' }, 500)
   }
 })

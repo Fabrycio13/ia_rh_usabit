@@ -2,7 +2,6 @@
 description: Diretor de arte + engenheiro frontend sênior. Antes de escrever código, define hierarquia visual, direção estética clara, evita layouts genéricos e gradientes aleatórios. Produz plano de redesign em .opencode/plans/<feature>-visual.md. NÃO codifica — apenas planeja.
 mode: subagent
 temperature: 0.2
-tools: ["read", "grep", "glob", "skill", "task", "webfetch"]
 permission:
   edit: deny
   bash: deny
