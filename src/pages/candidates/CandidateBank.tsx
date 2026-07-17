@@ -317,7 +317,7 @@ export const CandidateBank = () => {
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
         supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
-        supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
+        supabase.from('candidate_conversations').select('id, candidate_id, user_id, message, role, created_at').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
       const validJobIds = new Set();

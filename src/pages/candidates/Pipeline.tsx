@@ -679,7 +679,7 @@ export const Pipeline = () => {
         setFetchingPipelines(true);
         try {
             let query = supabase.from('pipelines')
-                .select('*')
+                .select('id, name, user_id, vaga_id, is_active')
                 .eq('is_active', true)
                 .order('name');
 
@@ -941,7 +941,7 @@ export const Pipeline = () => {
         setLoading(true);
         try {
             const { data: cols } = await supabase
-                .from('pipeline_columns').select('*').eq('pipeline_id', pipelineId).order('position');
+                .from('pipeline_columns').select('id, name, color, position, pipeline_id').eq('pipeline_id', pipelineId).order('position');
             setColumns(cols || []);
 
             const { data: cardData } = await supabase
@@ -1014,10 +1014,10 @@ export const Pipeline = () => {
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
     async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
-            supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
+            supabase.from('candidates').select('id, email, phone, location, address, linkedin, age, gender, portfolio, cep, address_number, complement, skills, experience, education, red_flags, notes, is_blacklisted, status, resume_url, analysis').eq('id', id).maybeSingle(),
             supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
-            supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
+            supabase.from('candidate_conversations').select('id, candidate_id, user_id, message, role, created_at').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
 
         if (!cand) return { enriched: true };

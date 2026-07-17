@@ -15,6 +15,8 @@ import { analyzeJobApplication, analyzeJobApplicationText } from '../../core/ser
 import { batchMatchToJob } from '../../core/services/cvAnalyzer';
 import { formatDate } from '../../core/utils/format';
 
+const VAGAS_CANDIDATURAS_COLS = 'id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, created_at, status, candidate_gender, candidate_age, address, portfolio, cep, address_number, complement, skills, experience, education, analysis, viewed_at, raw_text, tags, source, candidate_id';
+
 interface Candidate {
     id: string;
     name: string;
@@ -169,7 +171,7 @@ export const PoolTalentos = () => {
                 // Pool de Talentos: vagas_candidaturas SEM vaga (vaga_id IS NULL)
                 const { data, error } = await supabase
                     .from('vagas_candidaturas')
-                    .select('*')
+                    .select(VAGAS_CANDIDATURAS_COLS)
                     .is('vaga_id', null)
                     .eq('organization_id', profile.organization_id)
                     .order('applied_at', { ascending: false });
@@ -477,7 +479,7 @@ export const PoolTalentos = () => {
             setSelectedCandDetail(null);
             const { data: updated } = await supabase
                 .from('vagas_candidaturas')
-                .select('*')
+                .select(VAGAS_CANDIDATURAS_COLS)
                 .eq('id', aiCandidate.id)
                 .single();
             if (updated) {
@@ -573,7 +575,7 @@ export const PoolTalentos = () => {
             if (profile.organization_id) {
                 const { data } = await supabase
                     .from('vagas_candidaturas')
-                    .select('*')
+                    .select(VAGAS_CANDIDATURAS_COLS)
                     .is('vaga_id', null)
                     .eq('organization_id', profile.organization_id)
                     .order('applied_at', { ascending: false });
@@ -966,7 +968,7 @@ export const PoolTalentos = () => {
                                 if (profile.organization_id) {
                                     supabase
                                         .from('vagas_candidaturas')
-                                        .select('*')
+                                        .select(VAGAS_CANDIDATURAS_COLS)
                                         .is('vaga_id', null)
                                         .eq('organization_id', profile.organization_id)
                                         .order('applied_at', { ascending: false })
@@ -991,7 +993,7 @@ export const PoolTalentos = () => {
                                 if (profile.organization_id) {
                                     const { data } = await supabase
                                         .from('vagas_candidaturas')
-                                        .select('*')
+                                        .select(VAGAS_CANDIDATURAS_COLS)
                                         .is('vaga_id', null)
                                         .eq('organization_id', profile.organization_id)
                                         .order('applied_at', { ascending: false });
@@ -1017,7 +1019,7 @@ export const PoolTalentos = () => {
                         if (profile.organization_id) {
                             supabase
                                 .from('vagas_candidaturas')
-                                .select('*')
+                                .select(VAGAS_CANDIDATURAS_COLS)
                                 .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
                                 .order('applied_at', { ascending: false })
@@ -1042,7 +1044,7 @@ export const PoolTalentos = () => {
                         if (profile.organization_id) {
                             const { data } = await supabase
                                 .from('vagas_candidaturas')
-                                .select('*')
+                                .select(VAGAS_CANDIDATURAS_COLS)
                                 .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
                                 .order('applied_at', { ascending: false });
@@ -1247,7 +1249,7 @@ export const PoolTalentos = () => {
                         if (profile.organization_id) {
                             supabase
                                 .from('vagas_candidaturas')
-                                .select('*')
+                                .select(VAGAS_CANDIDATURAS_COLS)
                                 .is('vaga_id', null)
                                 .eq('organization_id', profile.organization_id)
                                 .order('applied_at', { ascending: false })

@@ -107,7 +107,7 @@ export const VagaCandidatos = () => {
 
                 const { data: candData, error: candError } = await supabase
                     .from('vagas_candidaturas')
-                    .select('*')
+                    .select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, ai_analysis')
                     .eq('vaga_id', id)
                     .order('match_score', { ascending: false });
                 
@@ -166,7 +166,7 @@ export const VagaCandidatos = () => {
     const handleTransferSuccess = () => {
         if (id) {
             supabase.from('vagas_candidaturas')
-                .select('*')
+                .select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, ai_analysis')
                 .eq('vaga_id', id)
                 .order('match_score', { ascending: false })
                 .then(({ data }) => {

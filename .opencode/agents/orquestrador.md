@@ -100,9 +100,12 @@ Ao receber uma tarefa de implementação, você roda este pipeline automaticamen
    - Code review geral                 → @revisor
    - Pentest + LGPD                    → @security
    ↓
-[5] TESTES + VALIDAÇÃO FINAL (delegada)
+[5] TESTES + VALIDAÇÃO FINAL + DEPLOY (delegada)
    - Criar/atualizar testes            → @testador
    - Rodar tsc + lint + test + build   → @testador (único com bash + edit em tests/)
+   - Se houver Edge Function modificada (git diff --name-only HEAD):
+     → @testador listar EFs modificadas e fazer deploy de cada uma
+     → `npx supabase functions deploy <nome>` para cada EF
    ↓
 [6] VALIDAÇÃO PRÉ-COMMIT (delegada)
    - Se houve movimentação de arquivos (git mv, refactor de testes/):
@@ -119,7 +122,6 @@ Ao receber uma tarefa de implementação, você roda este pipeline automaticamen
    ↓
 [9] EXECUÇÃO (delegada após autorização do usuário)
    - Commit + push   → @testador (único com bash + edit)
-   - Se houver deploy de Edge Function: → @testador (npx supabase functions deploy)
 ```
 
 ---
@@ -266,6 +268,7 @@ Aguardando sua autorização para commit.
 | Testes `npm test` | `@testador` |
 | Build `npm run build` | `@testador` |
 | Deploy Edge Function `npx supabase functions deploy X` | `@testador` (com confirmação do usuário) |
+| Deploy Edge Function automático `npx supabase functions deploy <nome>` | `@testador` (automático após validação se detectar EFs modificadas) |
 | Dev server `npm run dev` | Usuário |
 
 ---
