@@ -186,7 +186,7 @@ export const CandidateBank = () => {
       setLoading(true);
       let query = supabase
         .from('candidates')
-        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
+        .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, interview_eligible, is_blacklisted, resume_url, resume_file_name, phone, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
         .order('name', { ascending: true });
 
       if (!isGlobalViewer) {
@@ -202,7 +202,7 @@ export const CandidateBank = () => {
       if (error) {
         let fallbackQuery = supabase
           .from('candidates')
-          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
+          .select('id, name, email, location, address, age, gender, linkedin, portfolio, cep, address_number, complement, score, phone, resume_url, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title)), source')
           .order('name', { ascending: true });
         if (!isGlobalViewer) {
           if (isOrgMember && profile.organization_id) {
@@ -317,7 +317,7 @@ export const CandidateBank = () => {
         supabase.from('candidates').select('phone, address, analysis, notes, is_blacklisted').eq('id', id).maybeSingle(),
         supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
         supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
-        supabase.from('candidate_conversations').select('id, candidate_id, user_id, message, role, created_at').eq('candidate_id', id).eq('user_id', profile.userId)
+        supabase.from('candidate_conversations').select('id, candidate_id, user_id, messages, updated_at').eq('candidate_id', id).eq('user_id', profile.userId)
       ]);
 
       const validJobIds = new Set();

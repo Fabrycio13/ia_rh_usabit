@@ -946,7 +946,7 @@ export const Pipeline = () => {
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -992,7 +992,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: PipelineCard[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -1017,7 +1017,7 @@ export const Pipeline = () => {
             supabase.from('candidates').select('id, email, phone, location, address, linkedin, age, gender, portfolio, cep, address_number, complement, skills, experience, education, red_flags, notes, is_blacklisted, status, resume_url, analysis').eq('id', id).maybeSingle(),
             supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
-            supabase.from('candidate_conversations').select('id, candidate_id, user_id, message, role, created_at').eq('candidate_id', id).eq('user_id', profile.userId)
+            supabase.from('candidate_conversations').select('id, candidate_id, user_id, messages, updated_at').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
 
         if (!cand) return { enriched: true };
