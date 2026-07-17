@@ -576,7 +576,7 @@ export const Configuracoes = () => {
     const loadUsers = async () => {
         const role = profile.user_role;
         if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
-        let query = supabase.from('profiles').select('id, name, email, user_role, status, organization_id, organization_name, account_type, evo_url, evo_key, evo_instance, created_at').order('created_at', { ascending: false });
+        let query = supabase.from('profiles').select('id, name, email, user_role, status, organization_id, organization_name, account_type, evolution_api_url, evolution_api_key, evolution_instance, created_at').order('created_at', { ascending: false });
         // Admin/Supervisor só vê usuários da sua organização
         if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
             query = query.eq('organization_id', profile.organization_id);

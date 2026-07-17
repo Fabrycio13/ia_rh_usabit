@@ -1014,7 +1014,7 @@ export const Pipeline = () => {
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
     async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
-            supabase.from('candidates').select('id, email, phone, location, address, linkedin, age, gender, portfolio, cep, address_number, complement, skills, experience, education, red_flags, notes, is_blacklisted, status, resume_url, analysis').eq('id', id).maybeSingle(),
+            supabase.from('candidates').select('id, email, phone, location, address, linkedin, age, gender, portfolio, cep, address_number, complement, skills, experience, education, notes, is_blacklisted, status, resume_url, analysis').eq('id', id).maybeSingle(),
             supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
             supabase.from('candidate_conversations').select('id, candidate_id, user_id, messages, updated_at').eq('candidate_id', id).eq('user_id', profile.userId)
@@ -1106,7 +1106,7 @@ export const Pipeline = () => {
             skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
             experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
             education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
-            redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
+            redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
             notes: cand.notes || null,
             is_blacklisted: cand.is_blacklisted ?? false,
             analysis: cand.analysis ?? {},

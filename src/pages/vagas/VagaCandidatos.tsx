@@ -107,9 +107,9 @@ export const VagaCandidatos = () => {
 
                 const { data: candData, error: candError } = await supabase
                     .from('vagas_candidaturas')
-.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, answers, internal_notes, analysis')
+.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, analysis')
     .eq('vaga_id', id)
-    .order('applied_at', { ascending: false });
+    .order('match_score', { ascending: false });
 
 if (candError) throw candError;
 setCandidatos(candData || []);
@@ -166,9 +166,9 @@ setCandidatos(candData || []);
     const handleTransferSuccess = () => {
         if (id) {
             supabase.from('vagas_candidaturas')
-.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, answers, internal_notes, analysis')
+.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, analysis')
     .eq('vaga_id', id)
-    .order('applied_at', { ascending: false })
+    .order('match_score', { ascending: false })
     .then(({ data }) => {
                     if (data) setCandidatos(data);
                 });
