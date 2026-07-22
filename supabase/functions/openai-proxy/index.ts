@@ -259,7 +259,7 @@ Mantenha a ORDEM dos candidatos.`;
     const zenModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-v4-flash' : String(openaiBody.model)
     const zenBody = { ...openaiBody, model: zenModel }
 
-    const zenResp = await fetch(`${ZEN_BASE_URL}/v1/chat/completions`, {
+    const zenResp = await fetch(`${ZEN_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
