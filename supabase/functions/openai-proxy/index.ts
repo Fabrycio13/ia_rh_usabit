@@ -256,10 +256,10 @@ Mantenha a ORDEM dos candidatos.`;
     console.warn(`[openai-proxy] OpenAI ${openaiResp.status}, fallback para Zen (deepseek-v4-flash)`)
 
     // Mapeia modelo OpenAI para Zen equivalente
-    const zenModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-v4-flash' : String(openaiBody.model)
+    const zenModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-v4-flash-free' : String(openaiBody.model)
     const zenBody = { ...openaiBody, model: zenModel }
 
-    const zenResp = await fetch(`${ZEN_BASE_URL}/v1/chat/completions`, {
+    const zenResp = await fetch(`${ZEN_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
