@@ -5,7 +5,7 @@ import { checkRateLimit } from '../_shared/rate-limit.ts';
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
-const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
+const ALLOWED_ORIGINS = ['https://rh.usabitspace.com', 'http://localhost:5173', 'http://localhost:4173'];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
   return {

@@ -18,7 +18,7 @@ const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'gestor', 'owner']
 const RATE_LIMIT_MAX = 60
 const RATE_LIMIT_WINDOW_MS = 60_000
 
-const ALLOWED_ORIGINS = ['https://usabit.github.io', 'http://localhost:5173', 'http://localhost:4173'];
+const ALLOWED_ORIGINS = ['https://rh.usabitspace.com', 'http://localhost:5173', 'http://localhost:4173'];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
   return {
