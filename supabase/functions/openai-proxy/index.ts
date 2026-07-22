@@ -10,6 +10,8 @@ import { TEXT_GUARDRAILS } from './prompts/guardrails.ts'
 import type { OpenAIMessage } from './prompts/types.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
+const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') || ''
+const DEEPSEEK_BASE_URL = Deno.env.get('DEEPSEEK_BASE_URL') || 'https://api.deepseek.com'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -229,19 +231,54 @@ Mantenha a ORDEM dos candidatos.`;
   if (tools) openaiBody.tools = tools
   if (tool_choice) openaiBody.tool_choice = tool_choice
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(openaiBody),
-  })
+  // ponytail: fallback chain — tenta OpenAI primeiro, se der 429/5xx tenta DeepSeek.
+  // DeepSeek usa API compatível com OpenAI, só muda a URL base e o modelo.
+  async function callProvider(openaiBody: Record<string, unknown>): Promise<{ response: Response; provider: string; model: string }> {
+    // 1. Tenta OpenAI
+    const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(openaiBody),
+    })
+    if (openaiResp.ok) {
+      return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
+    }
 
-  const data = await response.json()
+    // 2. Fallback DeepSeek se OpenAI retornar 429 (rate limit) ou 5xx (server error)
+    const shouldFallback = openaiResp.status === 429 || openaiResp.status >= 500
+    if (!shouldFallback || !DEEPSEEK_API_KEY) {
+      return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
+    }
+
+    console.warn(`[openai-proxy] OpenAI ${openaiResp.status}, fallback para DeepSeek`)
+
+    // Mapeia modelo OpenAI para DeepSeek equivalente
+    const deepseekModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-chat' : String(openaiBody.model)
+    const deepseekBody = { ...openaiBody, model: deepseekModel }
+
+    const deepseekResp = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      },
+      body: JSON.stringify(deepseekBody),
+    })
+    return { response: deepseekResp, provider: 'deepseek', model: deepseekModel }
+  }
+
+  const response = await callProvider(openaiBody)
+
+  const data = await response.response.json()
+  // Marca no response qual provider respondeu (útil pra debug)
+  ;(data as Record<string, unknown>)._provider = response.provider
+  ;(data as Record<string, unknown>)._model = response.model
 
   return new Response(JSON.stringify(data), {
-    status: response.status,
+    status: response.response.status,
     headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 })
