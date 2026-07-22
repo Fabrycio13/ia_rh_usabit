@@ -37,12 +37,12 @@ interface Candidato {
     resume_file_name: string | null;
     applied_at: string;
     status: string;
-    match_score: number;
-    candidate_gender: string | null;
-    candidate_age: string | null;
+    match_score?: number | null;
+    candidate_gender?: string | null;
+    candidate_age?: string | null;
     answers?: Record<string, unknown> | null;
     internal_notes?: string | null;
-    ai_analysis?: AIAnalysis;
+    analysis?: AIAnalysis;
 }
 
 const getMatchColor = (score: number) => {
@@ -107,12 +107,12 @@ export const VagaCandidatos = () => {
 
                 const { data: candData, error: candError } = await supabase
                     .from('vagas_candidaturas')
-                    .select('*')
-                    .eq('vaga_id', id)
-                    .order('match_score', { ascending: false });
-                
-                if (candError) throw candError;
-                setCandidatos(candData || []);
+.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, analysis')
+    .eq('vaga_id', id)
+    .order('match_score', { ascending: false });
+
+if (candError) throw candError;
+setCandidatos(candData || []);
             } catch (err) {
                 console.error('Erro ao carregar dados:', err);
                 toast.error('Erro ao carregar dados da vaga');
@@ -143,7 +143,7 @@ export const VagaCandidatos = () => {
                         if (prev.find(c => c.id === newCand.id)) return prev;
                         
                         // Adicionar e reordenar por score (ou o que preferir)
-                        const updated = [newCand, ...prev].sort((a, b) => b.match_score - a.match_score);
+                        const updated = [newCand, ...prev].sort((a, b) => (b.match_score ?? 0) - (a.match_score ?? 0));
                         return updated;
                     });
                     
@@ -166,10 +166,10 @@ export const VagaCandidatos = () => {
     const handleTransferSuccess = () => {
         if (id) {
             supabase.from('vagas_candidaturas')
-                .select('*')
-                .eq('vaga_id', id)
-                .order('match_score', { ascending: false })
-                .then(({ data }) => {
+.select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, analysis')
+    .eq('vaga_id', id)
+    .order('match_score', { ascending: false })
+    .then(({ data }) => {
                     if (data) setCandidatos(data);
                 });
         }
@@ -182,7 +182,7 @@ export const VagaCandidatos = () => {
     const fetchCandidateDetail = async (c: Candidato) => {
         try {
             const answersRaw = (typeof c.answers === 'string' ? JSON.parse(c.answers) : c.answers) ?? {};
-            const aiRaw = (c.ai_analysis ?? {}) as Record<string, unknown>;
+            const aiRaw = (c.analysis ?? {}) as Record<string, unknown>;
             const aiFromAnswersRaw = answersRaw['_ai_analysis'];
             const aiFromAnswers = (typeof aiFromAnswersRaw === 'string' ? JSON.parse(aiFromAnswersRaw) : aiFromAnswersRaw) as Record<string, unknown> | undefined;
 
@@ -204,9 +204,9 @@ export const VagaCandidatos = () => {
                 location: c.candidate_location,
                 address: String(answersRaw.address ?? ''),
                 linkedin: c.candidate_linkedin,
-                age: c.candidate_age,
-                gender: c.candidate_gender,
-                score: c.match_score,
+                age: c.candidate_age ?? null,
+                gender: c.candidate_gender ?? null,
+                score: c.match_score ?? null,
                 portfolio: optStr(answersRaw['portfolio']),
                 cep: optStr(answersRaw['cep']),
                 address_number: optStr(answersRaw['address_number']),
@@ -308,7 +308,7 @@ export const VagaCandidatos = () => {
                         </div>
                     ) : (
                         candidatos.map((candidato, index) => {
-                            const matchColors = getMatchColor(candidato.match_score);
+                            const matchColors = getMatchColor(candidato.match_score ?? 0);
                             const statusColors = getStatusColor(candidato.status);
                             return (
                                 <div key={candidato.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px' }}>
@@ -382,7 +382,7 @@ export const VagaCandidatos = () => {
                     ) : (
                         <div>
                             {candidatos.map((candidato, index) => {
-                                const matchColors = getMatchColor(candidato.match_score);
+                                const matchColors = getMatchColor(candidato.match_score ?? 0);
                                 const statusColors = getStatusColor(candidato.status);
 
                                 return (
@@ -564,7 +564,7 @@ export const VagaCandidatos = () => {
                         cep: (transferringCand.answers as Record<string, string | null | undefined>)?.cep ?? null,
                         address_number: (transferringCand.answers as Record<string, string | null | undefined>)?.address_number ?? null,
                         complement: (transferringCand.answers as Record<string, string | null | undefined>)?.complement ?? null,
-                        match_score: transferringCand.match_score,
+                        match_score: transferringCand.match_score ?? undefined,
                         answers: (transferringCand.answers as Record<string, string>) ?? null
                     }}
                     job={{

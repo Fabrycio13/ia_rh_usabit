@@ -44,3 +44,5 @@ scratch/
 # But ignore general logs inside logs folder if any
 logs/*.log
 # (Specific known logs like ts_errors.txt will be tracked because they are added)
+
+testsprite_tests\tmp\config.json

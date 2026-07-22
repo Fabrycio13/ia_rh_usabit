@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { stripHtml, sanitizeText, validateField } from "../_shared/validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,22 +32,6 @@ const RATE_LIMIT_WINDOW_MS = 60_000
 const TEXT_MAX = 1000
 const EMAIL_MAX = 320
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function stripHtml(v: string): string {
-  return v.replace(/<[^>]*>/g, '').trim()
-}
-
-function sanitizeText(v: string): string {
-  // eslint-disable-next-line no-control-regex
-  return v.normalize('NFKC').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200F\uFEFF]/g, '').trim()
-}
-
-function validateField(label: string, value: unknown, maxLen: number): string | null {
-  if (value == null || String(value).trim() === '') return null
-  const s = String(value)
-  if (s.length > maxLen) return `Campo '${label}' excede ${maxLen} caracteres`
-  return null
-}
 
 
 serve(async (req) => {

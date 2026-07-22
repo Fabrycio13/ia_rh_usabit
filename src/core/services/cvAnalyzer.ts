@@ -36,7 +36,7 @@ export async function extractTextAndData(file: File): Promise<{ rawText: string;
     return { rawText: rawText || '', extractedData: normalized };
   } catch (err: unknown) {
     logAI({ operation: 'extraction', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
-    throw new Error(`Erro na extração: ${(err as Error).message}`);
+    throw new Error('Erro ao processar o currículo. Tente novamente.');
   }
 }
 
@@ -74,24 +74,30 @@ export async function batchMatchToJob(
 
   const allResults: BatchMatchResult[] = [];
 
-  for (const batch of batches) {
-    const sanitizedBatch = batch.map(c => ({
-      id: c.id,
-      name: sanitizeAIInput(c.name),
-      rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
-    }));
+  const batchResults = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const sanitizedBatch = batch.map(c => ({
+        id: c.id,
+        name: sanitizeAIInput(c.name),
+        rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
+      }));
+      const data = await callOpenAI(
+        { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
+        { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
+      );
+      const parsed = parseJSON<BatchMatchResult[]>(data.content);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Erro ao processar lote de candidatos. Tente novamente.');
+      }
+      return parsed;
+    })
+  );
 
-    const data = await callOpenAI(
-      { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
-      { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
-    );
-    const parsed = parseJSON<BatchMatchResult[]>(data.content);
-
-    if (!Array.isArray(parsed)) {
-      throw new Error('batchMatchToJob: resposta não é um array');
+  for (const result of batchResults) {
+    if (result.status === 'rejected') {
+      throw new Error('Erro ao processar lote de candidatos. Tente novamente.');
     }
-
-    for (const r of parsed) {
+    for (const r of result.value) {
       allResults.push({
         candidateId: r.candidateId,
         score: typeof r.score === 'number' ? r.score : 0,
@@ -133,7 +139,7 @@ export async function extractCandidateData(
     } catch (err: unknown) {
         logAI({ operation: 'extraction', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
         console.error('Erro na extração de dados do candidato:', err);
-        throw new Error(`Erro na extração: ${(err as Error).message}`);
+        throw new Error('Erro ao processar o currículo. Tente novamente.');
     }
 }
 
@@ -163,7 +169,7 @@ export async function analyzeCV(
     } catch (err: unknown) {
         logAI({ operation: 'scoring', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
         console.error('Erro na chamada da OpenAI:', err);
-        throw new Error(`Erro na IA: ${(err as Error).message}`);
+        throw new Error('Erro ao analisar currículo. Tente novamente.');
     }
 }
 
@@ -210,13 +216,13 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
                     }
                 } catch (e: unknown) {
                     const msg = (e as Error).message || 'Erro desconhecido';
-                    errors.push(`Linha ${i + 1}: ${msg}`);
+                    errors.push(`Linha ${i + 1}: Erro ao processar candidato`);
                     if (onCandidateError) onCandidateError(msg, i);
                 }
                 if (onProgress) onProgress(i + 1, total);
             }
-        } catch (err: unknown) {
-            throw new Error(`Erro ao ler arquivo Excel: ${(err as Error).message}`);
+        } catch {
+            throw new Error('Erro ao ler arquivo Excel. Verifique o formato.');
         }
     } else {
         const total = files.length;
@@ -232,7 +238,7 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
                         res = await analyzeCV(jobTitle, jobDescription, i + 1, total, undefined, images);
                     } catch (visionErr) {
                         console.warn(`[cvAnalyzer] Visão falhou para "${files[i].name}", sem fallback de texto disponível:`, (visionErr as Error).message);
-                        throw new Error(`PDF "${files[i].name}" não possui texto extraível e a análise por imagem falhou: ${(visionErr as Error).message}`);
+                        throw new Error(`Não foi possível analisar o arquivo "${files[i].name}". Tente outro formato.`);
                     }
                 } else {
                     res = await analyzeCV(jobTitle, jobDescription, i + 1, total, text);
@@ -242,11 +248,10 @@ FORMAÇÃO/EDUCAÇÃO: ${row['Formação/Educação'] || row['Formação'] || ro
                 if (onCandidateProcessed) {
                     await onCandidateProcessed(res, i);
                 }
-            } catch (err: unknown) {
-                console.error(`Erro no arquivo ${files[i].name}:`, err);
-                const msg = (err as Error).message || 'Erro desconhecido';
-                errors.push(`${files[i].name}: ${msg}`);
-                if (onCandidateError) onCandidateError(msg, i);
+        } catch (e: unknown) {
+                console.error(`Erro no arquivo índice ${i}:`, (e as Error).message);
+                errors.push(`${files[i].name}: Erro ao processar arquivo`);
+                if (onCandidateError) onCandidateError('Erro ao processar arquivo', i);
             }
             if (onProgress) onProgress(i + 1, total);
         }

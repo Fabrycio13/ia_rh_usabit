@@ -378,17 +378,13 @@ export const Configuracoes = () => {
         if (!profile.loaded || dataLoaded) return;
         if (!userId) { setLoading(false); return; }
         const load = async () => {
-            const { data: profileData } = await supabase.from('profiles').select('*').eq('id', userId).single();
+            const { data: profileData } = await supabase.from('profiles').select('id, name, organization_name, brand_name, brand_color, brand_font, avatar_url, evolution_api_url, evolution_api_key, evolution_instance').eq('id', userId).single();
             if (profileData) {
                 setName(profileData.name ?? '');
-                setRole(profileData.role ?? '');
                 setOrgName(profileData.organization_name ?? '');
-                setPhone(profileData.phone ?? '');
-                setAddress(profileData.address ?? '');
                 setBrandName(profileData.brand_name ?? '');
                 setBrandColor(profileData.brand_color ?? '');
                 setBrandFont(profileData.brand_font ?? '');
-                setNotificationsEnabled(profileData.notifications_enabled ?? false);
                 setAvatarUrl(profileData.avatar_url ?? '');
                 setEvoUrl(profileData.evolution_api_url ?? '');
                 setEvoKey(profileData.evolution_api_key ?? '');
@@ -580,7 +576,7 @@ export const Configuracoes = () => {
     const loadUsers = async () => {
         const role = profile.user_role;
         if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
-        let query = supabase.from('profiles').select('*').order('created_at', { ascending: false });
+        let query = supabase.from('profiles').select('id, name, email, user_role, status, organization_id, organization_name, account_type, evolution_api_url, evolution_api_key, evolution_instance, created_at').order('created_at', { ascending: false });
         // Admin/Supervisor só vê usuários da sua organização
         if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
             query = query.eq('organization_id', profile.organization_id);

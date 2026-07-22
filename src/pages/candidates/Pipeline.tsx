@@ -679,7 +679,7 @@ export const Pipeline = () => {
         setFetchingPipelines(true);
         try {
             let query = supabase.from('pipelines')
-                .select('*')
+                .select('id, name, user_id, vaga_id, is_active')
                 .eq('is_active', true)
                 .order('name');
 
@@ -941,12 +941,12 @@ export const Pipeline = () => {
         setLoading(true);
         try {
             const { data: cols } = await supabase
-                .from('pipeline_columns').select('*').eq('pipeline_id', pipelineId).order('position');
+                .from('pipeline_columns').select('id, name, color, position, pipeline_id').eq('pipeline_id', pipelineId).order('position');
             setColumns(cols || []);
 
             const { data: cardData } = await supabase
                 .from('pipeline_cards')
-                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
+                .select('id, column_id, candidate_id, position, notes, candidates(name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title)))')
                 .eq('pipeline_id', pipelineId)
                 .order('position');
 
@@ -992,7 +992,7 @@ export const Pipeline = () => {
     async function loadEligibles(userId: string, currentCards: PipelineCard[]) {
         const { data } = await supabase
             .from('candidates')
-            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id), vagas_candidaturas(vaga_id, vagas_white_label(title))')
+            .select('id, name, score, is_blacklisted, phone, conversations:candidate_conversations(candidate_id, messages, updated_at), vagas_candidaturas(vaga_id, vagas_white_label(title))')
             .eq('user_id', userId)
             .eq('interview_eligible', true)
             .order('name');
@@ -1014,10 +1014,10 @@ export const Pipeline = () => {
     // ─── Candidate Detail Logic ──────────────────────────────────────────────
     async function enrichCandidate(id: string, firstJob?: { jobId: string; jobName: string; score: number | null }, candidateVagas?: string[]): Promise<Partial<CandidateDetail>> {
         const [{ data: cand }, { data: jcData }, { data: pipeData }, { data: convData }] = await Promise.all([
-            supabase.from('candidates').select('*').eq('id', id).maybeSingle(),
+            supabase.from('candidates').select('id, email, phone, location, address, linkedin, age, gender, portfolio, cep, address_number, complement, skills, experience, education, notes, is_blacklisted, status, resume_url, analysis').eq('id', id).maybeSingle(),
             supabase.from('vagas_candidaturas').select('vaga_id').eq('candidate_id', id),
             supabase.from('pipeline_cards').select('id, notes, pipelines(name)').eq('candidate_id', id),
-            supabase.from('candidate_conversations').select('*').eq('candidate_id', id).eq('user_id', profile.userId)
+            supabase.from('candidate_conversations').select('id, candidate_id, user_id, messages, updated_at').eq('candidate_id', id).eq('user_id', profile.userId)
         ]);
 
         if (!cand) return { enriched: true };
@@ -1106,7 +1106,7 @@ export const Pipeline = () => {
             skills: toStr(analysis?.skills ?? analysis?.Skills ?? analysis?.habilidades ?? analysis?.Habilidades ?? cand.skills),
             experience: toStr(analysis?.experience ?? analysis?.Experience ?? analysis?.experiencia ?? analysis?.Experiencia ?? cand.experience),
             education: toStr(analysis?.education ?? analysis?.Education ?? analysis?.formacao ?? analysis?.Formacao ?? cand.education),
-            redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao'] ?? cand.red_flags),
+            redFlags: toStr(analysis?.redFlags ?? analysis?.['RedFlags(Pontos de atenção)'] ?? analysis?.['Pontos de atenção'] ?? analysis?.['pontos_de_atencao']),
             notes: cand.notes || null,
             is_blacklisted: cand.is_blacklisted ?? false,
             analysis: cand.analysis ?? {},

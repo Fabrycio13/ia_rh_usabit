@@ -151,7 +151,7 @@ export const VagaForm = () => {
                 
                 const { data, error } = await supabase
                     .from('vagas_white_label')
-                    .select('*')
+                    .select('id, title, description, has_salary_range, salary_min, salary_max, contract_type, has_location, location, work_model, work_regime, is_pcd, responsibilities, requirements, differentials, additional_info, category, status, is_third_party, company_name, company_logo, show_company_name, vaga_primary_color, vaga_gradient_end, vaga_bg_color, vaga_bg_image, custom_questions, job_code')
                     .eq('id', id)
                     .single();
 

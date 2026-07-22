@@ -200,8 +200,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
             <svg width="0" height="0" style={{ position: 'absolute' }}>
                 <defs>
                     <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#14b8a6" />
-                        <stop offset="100%" stopColor="#0891b2" />
+                        <stop offset="0%" stopColor="var(--primary)" />
+                        <stop offset="100%" stopColor="var(--secondary)" />
                     </linearGradient>
                     <linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" style={{ stopColor: 'var(--primary)' }} />
@@ -262,7 +262,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                             cursor: 'pointer', 
                             color: 'var(--primary)', 
                             padding: '10px', 
-                            borderRadius: '12px', 
+                            borderRadius: 'var(--radius-md, 12px)', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center', 
@@ -344,10 +344,10 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                                 opacity: 1
                             }}
                         >
-                            <Bot className="sbico" size={18} style={{ flexShrink: 0, color: '#22c55e' }} />
+                            <Bot className="sbico" size={18} style={{ flexShrink: 0, color: 'var(--success)' }} />
                             {!collapsed && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                                    <span style={{ color: '#22c55e', fontWeight: 600 }}>Assistente IA</span>
+                                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>Assistente IA</span>
                                 </div>
                             )}
                         </button>
@@ -388,7 +388,7 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                                 {profile.avatarUrl ? (
                                     <img src={profile.avatarUrl} alt="avatar" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0, display: 'block' }} />
                                 ) : (
-                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0, border: '2px solid var(--border)' }}>
+                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', flexShrink: 0, border: '2px solid var(--border)' }}>
                                         {profile.initials || '?'}
                                     </div>
                                 )}
@@ -438,8 +438,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
                                         position: 'absolute', 
                                         top: '4px', 
                                         right: '4px', 
-                                        background: '#ef4444', 
-                                        color: 'white', 
+                                        background: 'var(--text-error)', 
+                                        color: 'var(--text-main)', 
                                         fontSize: '8px', 
                                         fontWeight: 700, 
                                         minWidth: '12px', 
@@ -503,8 +503,8 @@ export const Sidebar = ({ onToggleChat, hideToggle }: { onToggleChat: () => void
 
                     <div style={{ height: '1px', background: 'var(--border)', margin: '6px 0' }} />
 
-                    <div className="dd-row" onMouseEnter={() => setLangSub(false)} onClick={handleLogout} style={{ color: '#ef4444' }}>
-                        <LogOut style={{ width: 15, height: 15, flexShrink: 0, color: '#ef4444' }} />
+                    <div className="dd-row" onMouseEnter={() => setLangSub(false)} onClick={handleLogout} style={{ color: 'var(--text-error)' }}>
+                        <LogOut style={{ width: 15, height: 15, flexShrink: 0, color: 'var(--text-error)' }} />
                         <span>{t('logout')}</span>
                     </div>
                 </div>

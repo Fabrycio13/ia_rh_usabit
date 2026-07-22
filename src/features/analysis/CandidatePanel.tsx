@@ -264,7 +264,7 @@ export function CandidatePanel({
         setLoadingLogs(true);
         supabase
             .from('candidate_screening_logs')
-            .select('*')
+            .select('id, action, to_stage, from_stage, created_at, details')
             .eq('candidate_id', candidateId)
             .order('created_at', { ascending: true })
             .then(({ data, error }) => {

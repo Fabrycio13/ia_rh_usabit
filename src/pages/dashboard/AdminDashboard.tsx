@@ -175,7 +175,7 @@ export const AdminDashboard = () => {
         
         let userQuery = supabase
             .from('profiles')
-            .select('*')
+            .select('id, email, name, user_role, status, organization_id, organization_name, created_at')
             .order('created_at', { ascending: false });
         
         // ISOLAMENTO: Apenas Owner vê tudo. Outros perfis (Gestor) veem apenas sua org.

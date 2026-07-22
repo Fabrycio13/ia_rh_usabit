@@ -1,6 +1,34 @@
 import { supabase } from '../services/supabase';
 import toast from 'react-hot-toast';
 
+function parseStorageUrl(url: string): { bucket: string; path: string } {
+  let bucket = 'job-applications'
+  let path = url
+
+  if (url.includes('/storage/v1/object/public/')) {
+    const afterPublic = url.split('/storage/v1/object/public/')[1]
+    const parts = afterPublic.split('/')
+    bucket = parts[0]
+    path = parts.slice(1).join('/')
+  } else if (url.includes('/storage/v1/object/')) {
+    const afterObject = url.split('/storage/v1/object/')[1]
+    const parts = afterObject.split('/')
+    bucket = parts[0]
+    path = parts.slice(1).join('/')
+  } else if (url.startsWith('job-applications/')) {
+    bucket = 'job-applications'
+    path = url.replace('job-applications/', '')
+  } else if (url.startsWith('resumes/')) {
+    bucket = 'resumes'
+    path = url.replace('resumes/', '')
+  } else if (url.startsWith('resume-uploads/')) {
+    bucket = 'resume-uploads'
+    path = url.replace('resume-uploads/', '')
+  }
+
+  return { bucket, path }
+}
+
 /**
  * Opens a candidate resume in a new tab using a signed URL.
  * Opens the blank tab first (in user-gesture context) to avoid popup blockers,
@@ -22,31 +50,7 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
     }
 
     try {
-        let path = url;
-        let bucket = 'resumes'; // Default for analyzed candidates
-
-        // Detect bucket and path from full Supabase URLs or bucket/path format
-        if (url.includes('/storage/v1/object/public/')) {
-            const afterPublic = url.split('/storage/v1/object/public/')[1];
-            const parts = afterPublic.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.includes('/storage/v1/object/')) {
-            const afterObject = url.split('/storage/v1/object/')[1];
-            const parts = afterObject.split('/');
-            bucket = parts[0];
-            path = parts.slice(1).join('/');
-        } else if (url.startsWith('job-applications/')) {
-            // ponytail: checa prefixo completo antes de substring
-            bucket = 'job-applications';
-            path = url.replace('job-applications/', '');
-        } else if (url.startsWith('resumes/')) {
-            bucket = 'resumes';
-            path = url.replace('resumes/', '');
-        } else if (url.startsWith('resume-uploads/')) {
-            bucket = 'resume-uploads';
-            path = url.replace('resume-uploads/', '');
-        }
+        const { bucket, path } = parseStorageUrl(url)
         
 
 
@@ -115,21 +119,7 @@ export async function uploadViaSignedUrl(
 }
 
 export async function downloadResume(url: string, fileName: string): Promise<File> {
-    let path = url;
-    let bucket = 'job-applications';
-    if (url.includes('/storage/v1/object/public/')) {
-        const afterPublic = url.split('/storage/v1/object/public/')[1];
-        const parts = afterPublic.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.includes('/storage/v1/object/')) {
-        const afterObject = url.split('/storage/v1/object/')[1];
-        const parts = afterObject.split('/');
-        bucket = parts[0];
-        path = parts.slice(1).join('/');
-    } else if (url.startsWith('job-applications/')) {
-        path = url.replace('job-applications/', '');
-    }
+    const { bucket, path } = parseStorageUrl(url);
     const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
     if (!data?.signedUrl) throw new Error('Falha ao gerar link de download');
     const response = await fetch(data.signedUrl);
