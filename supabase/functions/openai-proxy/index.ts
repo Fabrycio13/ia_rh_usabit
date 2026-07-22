@@ -247,8 +247,8 @@ Mantenha a ORDEM dos candidatos.`;
       return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
     }
 
-    // 2. Fallback DeepSeek se OpenAI retornar 429 (rate limit) ou 5xx (server error)
-    const shouldFallback = openaiResp.status === 429 || openaiResp.status >= 500
+    // 2. Fallback DeepSeek se OpenAI retornar 402 (sem credito), 429 (rate limit) ou 5xx (server error)
+    const shouldFallback = openaiResp.status === 402 || openaiResp.status === 429 || openaiResp.status >= 500
     if (!shouldFallback || !DEEPSEEK_API_KEY) {
       return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
     }
