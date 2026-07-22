@@ -8,6 +8,9 @@ import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { sanitizeAIInput } from '../_shared/sanitize-ai-input.ts'
 import { sanitizeText } from '../_shared/validation.ts'
 
+// Esta função é chamada internamente (service_role) ou por usuários logados (JWT) —
+// ver validação abaixo. CORS permissivo é aceitável aqui porque o JWT é a barreira
+// de segurança. Ver PLANO-IMPLANTACAO-SEGURANCA.md.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
