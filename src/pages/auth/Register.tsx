@@ -242,16 +242,7 @@ export const Register = () => {
                                     Fazer login
                                 </button>
                             </p>
-
-                            {/* Voltar */}
-                            <button
-                                type="button"
-                                onClick={() => navigate('/')}
-                                className="mt-6 text-center text-[13px] text-[#6b6e79] hover:text-white bg-transparent border-none cursor-pointer transition-colors flex items-center justify-center gap-1 mx-auto outline-none"
-                            >
-                                ← Voltar para a página inicial
-                            </button>
-                        </form>
+                            </form>
                     </div>
 
                     {/* Footer Copyright */}

@@ -31,11 +31,14 @@ export const Login = () => {
         }
         setLoading(true);
         setMessage(null);
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/configuracoes`,
+
+        const { error: fnError } = await supabase.functions.invoke('send-password-reset-email', {
+            body: { email },
         });
-        if (error) {
-            setMessage({ type: 'error', text: `Erro: ${error.message}` });
+
+        if (fnError) {
+            setMessage({ type: 'error', text: `Erro ao enviar email de recuperação.` });
+            console.error('send-password-reset-email error:', fnError);
         } else {
             setMessage({ type: 'success', text: 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' });
         }
@@ -141,27 +144,6 @@ export const Login = () => {
                                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-none rounded-xl text-[14px] font-semibold cursor-pointer tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-lg shadow-blue-900/20 mt-2"
                             >
                                 {loading ? 'Entrando...' : 'ENTRAR'}
-                            </button>
-
-                            {/* Link para Registro */}
-                            <p className="text-center text-[13px] text-[#8e929e] mt-1.5 mb-1">
-                                Não tem uma conta?{' '}
-                                <button
-                                    type="button"
-                                    onClick={() => navigate('/registro')}
-                                    className="text-blue-400 hover:text-blue-300 font-semibold bg-transparent border-none cursor-pointer underline transition-colors outline-none inline-block p-0"
-                                >
-                                    Crie sua conta
-                                </button>
-                            </p>
-
-                            {/* Voltar */}
-                            <button
-                                type="button"
-                                onClick={() => navigate('/')}
-                                className="mt-2 text-center text-[13px] text-[#6b6e79] hover:text-white bg-transparent border-none cursor-pointer transition-colors flex items-center justify-center gap-1 mx-auto outline-none"
-                            >
-                                ← Voltar para a página inicial
                             </button>
                         </form>
                     </div>

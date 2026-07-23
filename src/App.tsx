@@ -9,7 +9,6 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { Toaster } from 'react-hot-toast';
 
 const Login = React.lazy(() => import('./pages/auth/Login').then(m => ({ default: m.Login })));
-const LandingPage = React.lazy(() => import('./pages/marketing/LandingPage').then(m => ({ default: m.LandingPage })));
 const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard').then(m => ({ default: m.Dashboard })));
 const CandidateBank = React.lazy(() => import('./pages/candidates/CandidateBank').then(m => ({ default: m.CandidateBank })));
 const Configuracoes = React.lazy(() => import('./pages/settings/Configuracoes').then(m => ({ default: m.Configuracoes })));
@@ -56,7 +55,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
             />
             <Suspense fallback={<LoadingFallback />}>
                 <Routes>
-                    <Route path="/" element={!session ? <LandingPage /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
+                    <Route path="/" element={!session ? <Login /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
                     <Route path="/login" element={!session ? <Login /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
                     <Route path="/registro" element={!session ? <Register /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
                     
@@ -102,7 +101,7 @@ export const App = () => {
 
     useEffect(() => {
         const hash = window.location.hash;
-        const isSetPasswordFlow = hash.includes('type=signup') || hash.includes('type=invite');
+        const isSetPasswordFlow = hash.includes('type=signup') || hash.includes('type=invite') || hash.includes('type=recovery');
 
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
