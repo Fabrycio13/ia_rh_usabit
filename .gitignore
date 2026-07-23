@@ -21,6 +21,17 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Local agent/skill directories (not part of the repo)
+.agent/
+.agents/
+.idea/
+.vscode/
+
 # Empty/legacy root files
 errors.txt
 schema.sql

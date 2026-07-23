@@ -5,16 +5,18 @@ import { MemoryRouter } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => ({
   mockSignIn: vi.fn(),
-  mockResetPassword: vi.fn(),
+  mockInvoke: vi.fn(),
 }));
 
 vi.mock('../../src/core/services/supabase', () => ({
   supabase: {
     auth: {
       signInWithPassword: mocks.mockSignIn,
-      resetPasswordForEmail: mocks.mockResetPassword,
       getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    },
+    functions: {
+      invoke: mocks.mockInvoke,
     },
     channel: vi.fn(() => ({ on: vi.fn(() => ({ subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) })) })),
     removeChannel: vi.fn(),
@@ -55,13 +57,13 @@ describe('Login', () => {
     expect(await screen.findByText(/invalid credentials/i)).toBeInTheDocument();
   });
 
-  it('chama resetPasswordForEmail ao clicar Recuperar senha', async () => {
-    mocks.mockResetPassword.mockResolvedValue({ error: null });
+  it('chama send-password-reset-email ao clicar Recuperar senha', async () => {
+    mocks.mockInvoke.mockResolvedValue({ error: null });
     const user = userEvent.setup();
     renderLogin();
     await user.type(screen.getByLabelText('E-mail'), 'test@test.com');
     await user.click(screen.getByRole('button', { name: /recuperar senha/i }));
-    expect(mocks.mockResetPassword).toHaveBeenCalledWith('test@test.com', expect.objectContaining({ redirectTo: expect.any(String) }));
+    expect(mocks.mockInvoke).toHaveBeenCalledWith('send-password-reset-email', { body: { email: 'test@test.com' } });
   });
 
   it('mostra erro se Recuperar senha sem email', async () => {
