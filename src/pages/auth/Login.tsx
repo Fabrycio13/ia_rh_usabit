@@ -18,8 +18,8 @@ export const Login = () => {
         setMessage(null);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            console.error('Auth error:', error);
-            setMessage({ type: 'error', text: `Erro: ${error.message}` });
+            console.error('Auth error:', error.message);
+            setMessage({ type: 'error', text: 'Email ou senha inválidos.' });
         }
         setLoading(false);
     };
@@ -37,8 +37,8 @@ export const Login = () => {
         });
 
         if (fnError) {
-            setMessage({ type: 'error', text: `Erro ao enviar email de recuperação.` });
-            console.error('send-password-reset-email error:', fnError);
+            setMessage({ type: 'error', text: 'Erro ao enviar email de recuperação.' });
+            console.error('send-password-reset-email error:', fnError.message);
         } else {
             setMessage({ type: 'success', text: 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' });
         }

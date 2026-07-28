@@ -401,7 +401,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
    * Normaliza dados extraídos pela IA para formato consistente
    * O prompt da IA já garante formatos rígidos, isso é apenas cleanup extra
    */
-  const normalizeAIResult = (raw: string | undefined | null, type: 'skills' | 'experience' | 'education'): string => {
+  function normalizeAIResult(raw: string | undefined | null, type: 'skills' | 'experience' | 'education'): string {
     if (!raw || raw === 'não informado' || raw === 'Não informado') return '';
 
     if (type === 'skills') {

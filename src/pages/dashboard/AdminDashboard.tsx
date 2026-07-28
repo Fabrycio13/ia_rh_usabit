@@ -605,7 +605,7 @@ export const AdminDashboard = () => {
                                     }}
                                     itemStyle={{ color: '#6366f1', fontWeight: 600 }}
                                     labelStyle={{ color: 'var(--text-dim)', fontSize: '11px', marginBottom: '4px' }}
-                                    formatter={(value: number | undefined) => [value || 0, 'Atividades']}
+                                    formatter={(value) => [value ?? 0, 'Atividades']}
                                     labelFormatter={(label, payload) => payload[0]?.payload?.fullName || label}
                                 />
                                 <Area 

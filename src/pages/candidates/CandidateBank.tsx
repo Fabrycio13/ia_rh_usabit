@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Star, Search, ChevronLeft, ChevronRight,
@@ -168,7 +168,7 @@ export const CandidateBank = () => {
     if (!profile.userId) return;
     try {
       const stored = localStorage.getItem(`fav-${profile.userId}`);
-      if (stored) setFavorites(JSON.parse(stored));
+      if (stored) startTransition(() => setFavorites(JSON.parse(stored)));
     } catch { /* ignore */ }
   }, [profile.userId]);
 
@@ -179,7 +179,8 @@ export const CandidateBank = () => {
   });
 
   const fetchCandidatesRef = useRef<(userId: string, userRole?: string) => Promise<void>>(() => Promise.resolve());
-  fetchCandidatesRef.current = async function fetchCandidates(userId: string, userRole?: string) {
+  useEffect(() => {
+    fetchCandidatesRef.current = async function fetchCandidates(userId: string, userRole?: string) {
     const isGlobalViewer = userRole === 'owner';
     const isOrgMember = userRole === 'administrador' || userRole === 'supervisor' || userRole === 'rh';
     try {
@@ -230,7 +231,8 @@ export const CandidateBank = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
+  });
 
   useEffect(() => {
     if (!profile.loaded) return;
