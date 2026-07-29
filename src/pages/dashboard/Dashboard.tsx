@@ -595,7 +595,7 @@ export const Dashboard = () => {
                               <div style={{ ...TT, padding: '10px 14px' }}>
                                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>{payload[0].payload.name || payload[0].payload.fullName}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  {payload.map((p: Record<string, unknown>) => (
+                                  {payload.map((p) => (
                                     <p key={p.dataKey as string} style={{ color: p.color as string, fontSize: 12, fontWeight: 600 }}>
                                       {p.name as string}: {String(p.value)}
                                     </p>

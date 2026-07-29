@@ -54,7 +54,7 @@ describe('Login', () => {
     await user.type(screen.getByLabelText('E-mail'), 'test@test.com');
     await user.type(screen.getByLabelText('Senha'), 'wrong');
     await user.click(screen.getByRole('button', { name: /entrar/i }));
-    expect(await screen.findByText(/invalid credentials/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Email ou senha inválidos/i)).toBeInTheDocument();
   });
 
   it('chama send-password-reset-email ao clicar Recuperar senha', async () => {

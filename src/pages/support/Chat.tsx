@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Search, Phone, MoreVertical, FileText, Send, MessageSquare, Loader, Zap, Plus, X } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
@@ -35,14 +35,16 @@ export function Chat() {
     const activeConv = convs.find(c => c.id === activeId);
 
     const hasCredentials = profile?.evolution_api_url && profile?.evolution_api_key && profile?.evolution_instance;
-    const api = hasCredentials ? new EvolutionApiService(
+    const api = useMemo(() => hasCredentials ? new EvolutionApiService(
         profile.evolution_api_url!,
         profile.evolution_api_key!,
         profile.evolution_instance!
-    ) : null;
+    ) : null, [hasCredentials, profile?.evolution_api_url, profile?.evolution_api_key, profile?.evolution_instance]);
 
     const loadConversationsRef = useRef<() => Promise<void> | null>(null);
-    loadConversationsRef.current = loadConversations;
+    useEffect(() => {
+        loadConversationsRef.current = loadConversations;
+    });
 
     useEffect(() => {
         if (profile?.userId) loadConversationsRef.current?.();
@@ -106,7 +108,7 @@ export function Chat() {
         }
     }
 
-    const handleSend = async () => {
+    const handleSend = useCallback(async () => {
         if (!inputText.trim() || !activeId || !api || sending) return;
         if (!activeConv?.phone) {
             alert('Candidato sem telefone cadastrado.');
@@ -142,7 +144,7 @@ export function Chat() {
         } finally {
             setSending(false);
         }
-    };
+    }, [inputText, activeId, api, activeConv, profile.userId, sending]);
 
     async function loadAvailableCandidates() {
         if (!profile?.userId) return;

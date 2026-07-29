@@ -96,7 +96,8 @@ describe('SetPassword', () => {
         await user.type(screen.getByPlaceholderText('Mínimo 6 caracteres'), '123456');
         await user.type(screen.getByPlaceholderText('Repita a nova senha'), '123456');
         await user.click(screen.getByRole('button', { name: /definir senha/i }));
-        expect(await screen.findByText(/token expirado/i)).toBeInTheDocument();
+        // Mensagem genérica (segura) — testa só que o erro aparece
+        expect(await screen.findByText(/não foi possível definir a senha/i)).toBeInTheDocument();
     });
 
     it('redireciona se não há sessão', async () => {

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { buildEmailHtml } from '../_shared/email-templates.ts';
+import { safeEdgeError } from '../_shared/safe-logger.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
@@ -185,7 +186,7 @@ serve(async (req) => {
 
     if (!res.ok) {
       const error = await res.json();
-      console.error('Resend error:', error);
+      safeEdgeError('Resend error:', error);
       return new Response(
         JSON.stringify({ error: 'Erro ao enviar email' }),
         { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }
@@ -198,7 +199,7 @@ serve(async (req) => {
     );
 
   } catch (error: unknown) {
-    console.error('[send-candidate-congratulations-email] Error:', error);
+    safeEdgeError('[send-candidate-congratulations-email] Error:', 'Error:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno' }),
       { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } }

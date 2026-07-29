@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
 import { UsabitPeopleLogo } from '../../components/UsabitPeopleLogo';
+import { safeAuthError } from '../../core/services/safeLogger';
 import { Eye, EyeOff } from 'lucide-react';
 
 export const Login = () => {
@@ -18,8 +19,8 @@ export const Login = () => {
         setMessage(null);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            console.error('Auth error:', error);
-            setMessage({ type: 'error', text: `Erro: ${error.message}` });
+            safeAuthError('[Login] signInWithPassword', error);
+            setMessage({ type: 'error', text: 'Email ou senha inválidos.' });
         }
         setLoading(false);
     };
@@ -37,8 +38,8 @@ export const Login = () => {
         });
 
         if (fnError) {
-            setMessage({ type: 'error', text: `Erro ao enviar email de recuperação.` });
-            console.error('send-password-reset-email error:', fnError);
+            setMessage({ type: 'error', text: 'Erro ao enviar email de recuperação.' });
+            safeAuthError('[Login] send-password-reset-email', fnError);
         } else {
             setMessage({ type: 'success', text: 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' });
         }

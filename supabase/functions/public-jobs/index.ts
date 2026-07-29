@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { safeEdgeError } from '../_shared/safe-logger.ts'
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -93,7 +94,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erro na API public-jobs:', error.message);
+    safeEdgeError('Erro na API public-jobs:', error.message);
     return new Response(JSON.stringify({ error: 'Erro interno ao processar vagas' }), {
       headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 500

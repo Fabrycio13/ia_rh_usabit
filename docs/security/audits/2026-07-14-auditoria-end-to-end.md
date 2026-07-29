@@ -41,7 +41,7 @@ Edge Functions públicas ou internas que não implementam `checkRateLimit()`:
 |--------|---------|
 | `enrich-candidate` | `supabase/functions/enrich-candidate/index.ts` |
 | `get-upload-url` | `supabase/functions/get-upload-url/index.ts` |
-| `match-analysis` | `supabase/functions/match-analysis/index.ts` |
+| `match-analysis` ❌ | `supabase/functions/match-analysis/index.ts` — **REMOVIDA em 2026-07-29** (dead code, substitúıda por `jobAnalyzer.ts` + `openai-proxy`) |
 | `public-job-detail` | `supabase/functions/public-job-detail/index.ts` |
 | `public-jobs` | `supabase/functions/public-jobs/index.ts` |
 | `send-invite-email` | `supabase/functions/send-invite-email/index.ts` |

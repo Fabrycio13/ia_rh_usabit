@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { safeAuthError } from '../../core/services/safeLogger';
 import { Eye, EyeOff } from 'lucide-react';
 
 const DISPOSABLE_DOMAINS = new Set([
@@ -68,7 +69,10 @@ export const Register = () => {
         });
 
         if (error) {
-            setMessage({ type: 'error', text: `Erro: ${error.message}` });
+            safeAuthError('[Register] signUp', error);
+            // UX seguro: mensagem genérica para não vazar info do servidor
+            // (ex.: "User already registered" revela enumeração).
+            setMessage({ type: 'error', text: 'Não foi possível concluir o cadastro. Verifique os dados e tente novamente.' });
         } else {
             // Se já veio sessão (confirm email OFF), ativar imediatamente
             if (signUpData?.session?.user?.id) {

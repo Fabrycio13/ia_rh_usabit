@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, startTransition } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
     Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
@@ -112,6 +112,7 @@ export function CandidatePanel({
                 setTagSuggestions((data ?? []).map(r => r.name));
             }, () => {});
     }, [profile?.organization_id]);
+    const orgId = profile?.organization_id;
     const saveTags = useCallback((newTags: string[]) => {
         setEditableTags(newTags);
         // Salvar no candidato
@@ -120,12 +121,12 @@ export function CandidatePanel({
             else onFieldChange(c.id, 'tags', newTags);
         });
         // Garantir que existam na tabela global de tags
-        if (profile?.organization_id && newTags.length > 0) {
+        if (orgId && newTags.length > 0) {
             for (const tag of newTags) {
-                supabase.from('tags').upsert({ name: tag, organization_id: profile.organization_id }, { onConflict: 'name,organization_id' }).then(() => {}, () => {});
+                supabase.from('tags').upsert({ name: tag, organization_id: orgId }, { onConflict: 'name,organization_id' }).then(() => {}, () => {});
             }
         }
-    }, [c.id, onFieldChange, profile?.organization_id]);
+    }, [c.id, onFieldChange, orgId]);
 
     const [localC, setLocalC] = useState({ 
         email: c.email, 
@@ -142,12 +143,12 @@ export function CandidatePanel({
     });
     const prevIdRef = useRef(c.id);
     useEffect(() => {
-        setLocalC({
+        startTransition(() => setLocalC({
             email: c.email, phone: c.phone, location: c.location,
             address: c.address, linkedin: c.linkedin, age: c.age,
             gender: c.gender, portfolio: c.portfolio, cep: c.cep,
             address_number: c.address_number, complement: c.complement
-        });
+        }));
         prevIdRef.current = c.id;
     }, [c.id, c.email, c.phone, c.location, c.address, c.linkedin, c.age, c.gender, c.portfolio, c.cep, c.address_number, c.complement]);
     const [transferringToBank, setTransferringToBank] = useState(false);
@@ -275,7 +276,7 @@ export function CandidatePanel({
     }, [activeTab, c.id]);
 
     useEffect(() => {
-        setComments(parseComments(c.notes));
+        startTransition(() => setComments(parseComments(c.notes)));
     }, [c.notes]);
 
     async function persistComments(updated: Comment[]) {

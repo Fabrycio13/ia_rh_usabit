@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { safeAuthError } from '../../core/services/safeLogger';
 import { User, Building2, Phone, Mail, Briefcase, Camera, Loader2, Zap, Star, Building, Check, Lock, ShieldCheck, Moon, Sun, MapPin, Bell, Settings, Key, CreditCard, ChevronDown, ChevronUp, Palette, RefreshCcw, Sparkles, Layout, Activity } from 'lucide-react';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
@@ -389,7 +390,22 @@ export const Configuracoes = () => {
                 setEvoUrl(profileData.evolution_api_url ?? '');
                 setEvoKey(profileData.evolution_api_key ?? '');
                 setEvoInstance(profileData.evolution_instance ?? '');
-                if (profileData.avatar_url) setAvatarPreview(profileData.avatar_url);
+                if (profileData.avatar_url) {
+                    // avatar_url armazena um PATH (não URL). Gera signed URL fresca.
+                    const isOldPublicUrl = profileData.avatar_url.startsWith('http');
+                    if (isOldPublicUrl) {
+                        // Migração: registros antigos com URL pública direta ainda exibem
+                        // (mas não funcionam em bucket privado — esses avatars vão sumir)
+                        setAvatarPreview(profileData.avatar_url);
+                        setAvatarUrl(profileData.avatar_url);
+                    } else {
+                        const { data: signedData } = await supabase.storage
+                            .from('avatars')
+                            .createSignedUrl(profileData.avatar_url, 3600);
+                        setAvatarPreview(signedData?.signedUrl ?? '');
+                        setAvatarUrl(profileData.avatar_url);
+                    }
+                }
             }
             setDataLoaded(true);
             setLoading(false);
@@ -413,6 +429,19 @@ export const Configuracoes = () => {
         }, 800);
         return () => { if (brandSaveTimer.current) clearTimeout(brandSaveTimer.current); };
     }, [brandName, brandColor, brandFont, dataLoaded, userId, refetch]);
+
+    // Carregar usuários (owner vê todos; admin/supervisor vê sua org)
+    const loadUsers = async () => {
+        const role = profile.user_role;
+        if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
+        let query = supabase.from('profiles').select('id, name, email, user_role, status, organization_id, organization_name, account_type, evolution_api_url, evolution_api_key, evolution_instance, created_at').order('created_at', { ascending: false });
+        // Admin/Supervisor só vê usuários da sua organização
+        if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
+            query = query.eq('organization_id', profile.organization_id);
+        }
+        const { data } = await query;
+        if (data) setAllUsers(data);
+    };
 
     // Carregar usuários quando entrar nas abas que dependem da lista de usuários
     const loadUsersRef = useRef<() => Promise<void> | null>(null);
@@ -453,14 +482,14 @@ export const Configuracoes = () => {
             logActivity(userId, 'Fez alterações na foto', { filename: file.name }, uploadError.message);
             return;
         }
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-        const urlWithCache = `${publicUrl}?t=${Date.now()}`;
+        // Salvar path no banco (não URL), gerar signed URL toda vez que precisar
+        const urlWithCache = `signed:${path}?t=${Date.now()}`;
         setAvatarPreview(urlWithCache);
         setAvatarUrl(urlWithCache);
 
         const { error: saveError } = await supabase
             .from('profiles')
-            .update({ avatar_url: urlWithCache, updated_at: new Date().toISOString() })
+            .update({ avatar_url: path, updated_at: new Date().toISOString() })
             .eq('id', userId);
 
         if (saveError) {
@@ -557,7 +586,8 @@ export const Configuracoes = () => {
         setSavingPassword(false);
 
         if (error) {
-            toast.error(`Erro: ${error.message}`);
+            safeAuthError('[Configuracoes] updateUser password', error);
+            toast.error('Não foi possível alterar a senha. Tente novamente.');
         } else {
             toast.success('Senha alterada com sucesso!');
             setNewPassword('');
@@ -570,19 +600,6 @@ export const Configuracoes = () => {
         if (nums.length <= 2) return nums;
         if (nums.length <= 7) return `(${nums.slice(0, 2)}) ${nums.slice(2)}`;
         return `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
-    };
-
-    // Carregar usuários (owner vê todos; admin/supervisor vê sua org)
-    const loadUsers = async () => {
-        const role = profile.user_role;
-        if (role !== 'owner' && role !== 'administrador' && role !== 'supervisor') return;
-        let query = supabase.from('profiles').select('id, name, email, user_role, status, organization_id, organization_name, account_type, evolution_api_url, evolution_api_key, evolution_instance, created_at').order('created_at', { ascending: false });
-        // Admin/Supervisor só vê usuários da sua organização
-        if ((role === 'administrador' || role === 'supervisor') && profile.organization_id) {
-            query = query.eq('organization_id', profile.organization_id);
-        }
-        const { data } = await query;
-        if (data) setAllUsers(data);
     };
 
     if (loading) {

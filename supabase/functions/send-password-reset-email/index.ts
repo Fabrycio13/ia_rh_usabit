@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { buildEmailHtml } from '../_shared/email-templates.ts';
+import { safeEdgeError } from '../_shared/safe-logger.ts';
 
 const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -72,7 +73,7 @@ serve(async (req) => {
 
     if (!gotrueRes.ok) {
       const errText = await gotrueRes.text();
-      console.error('Erro ao gerar link de recuperação:', errText);
+      safeEdgeError('send-password-reset-email', 'GoTrue generate_link falhou', errText);
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
       });
@@ -82,7 +83,7 @@ serve(async (req) => {
     const recoveryLink = gotrueJson?.action_link || '';
 
     if (!recoveryLink) {
-      console.error('generate_link success mas sem action_link:', JSON.stringify(gotrueJson).slice(0, 300));
+      safeEdgeError('send-password-reset-email', 'generate_link success sem action_link', JSON.stringify(gotrueJson).slice(0, 300));
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
       });
@@ -145,7 +146,7 @@ serve(async (req) => {
 
     if (!emailRes.ok) {
       const errText = await emailRes.text();
-      console.error('Resend error:', errText);
+      safeEdgeError('send-password-reset-email', 'Resend error', errText);
     }
 
     return new Response(JSON.stringify({ success: true }), {
@@ -153,7 +154,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erro:', (error as Error).message);
+    safeEdgeError('send-password-reset-email', 'Unhandled error', error);
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
     });

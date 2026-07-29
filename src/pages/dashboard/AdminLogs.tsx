@@ -1,5 +1,5 @@
  
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
 import { useTheme } from '../../core/contexts/ThemeContext';
@@ -124,7 +124,7 @@ export const AdminLogs = () => {
         });
     };
 
-    const formatRelativeTime = (iso: string) => {
+    const formatRelativeTime = useCallback((iso: string) => {
         const now = Date.now();
         const date = new Date(iso).getTime();
         const diffMs = now - date;
@@ -140,7 +140,7 @@ export const AdminLogs = () => {
         if (logDate.toDateString() === yesterday.toDateString()) return 'ontem';
         if (logDate.getFullYear() === today.getFullYear()) return logDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         return logDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    };
+    }, []);
 
     const clearFilters = () => {
         setStartDate('');
