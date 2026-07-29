@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from "../_shared/rate-limit.ts";
+import { safeEdgeError } from '../_shared/safe-logger.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,7 +78,7 @@ serve(async (req) => {
       .createSignedUploadUrl(body.path)
 
     if (error) {
-      console.error('Erro ao gerar signed upload URL:', error.message)
+      safeEdgeError('Erro ao gerar signed upload URL:', error.message)
       return new Response(JSON.stringify({ error: 'Erro ao gerar URL de upload' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -90,7 +91,7 @@ serve(async (req) => {
     })
 
   } catch (err) {
-    console.error('Erro inesperado na função get-upload-url:', (err as Error).message)
+    safeEdgeError('Erro inesperado na função get-upload-url:', (err as Error).message)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

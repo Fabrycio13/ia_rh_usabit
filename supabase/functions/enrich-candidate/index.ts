@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { sanitizeAIInput } from '../_shared/sanitize-ai-input.ts'
 import { sanitizeText } from '../_shared/validation.ts'
+import { safeEdgeError } from '../_shared/safe-logger.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,7 +92,7 @@ serve(async (req) => {
     const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
     if (userError || !user) {
-      console.error('[enrich-candidate] Token inválido')
+      safeEdgeError('enrich-candidate', 'Token inválido')
       return json({ error: 'Não autorizado' }, 401)
     }
     // Reusa supabaseAdmin do escopo superior
@@ -101,7 +102,7 @@ serve(async (req) => {
       .eq('id', user.id)
       .single()
     if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-      console.error('[enrich-candidate] Permissão insuficiente:', profile?.user_role)
+      safeEdgeError('enrich-candidate', 'Permissão insuficiente', profile?.user_role)
       return json({ error: 'Não autorizado' }, 401)
     }
     console.log('[enrich-candidate] auth via JWT, role:', profile.user_role)
@@ -123,7 +124,7 @@ serve(async (req) => {
       return json({ error: 'candidateId obrigatório' }, 400)
     }
     if (!OPENAI_API_KEY) {
-      console.error('[enrich-candidate] OPENAI_API_KEY não configurada')
+      safeEdgeError('enrich-candidate', 'OPENAI_API_KEY não configurada')
       return json({ error: 'Erro de configuração do servidor' }, 500)
     }
 
@@ -137,7 +138,7 @@ serve(async (req) => {
         .eq('id', candidateId)
         .single()
       if (candidateErr || !data) {
-        console.error('[enrich-candidate] Candidatura não encontrada:', candidateErr?.message)
+        safeEdgeError('enrich-candidate', 'Candidatura não encontrada', candidateErr?.message)
         return json({ error: 'Candidato não encontrado' }, 404)
       }
       candidate = data as Record<string, unknown>
@@ -148,7 +149,7 @@ serve(async (req) => {
         .eq('id', candidateId)
         .single()
       if (candidateErr || !data) {
-        console.error('[enrich-candidate] Candidato não encontrado:', candidateErr?.message)
+        safeEdgeError('enrich-candidate', 'Candidato não encontrado', candidateErr?.message)
         return json({ error: 'Candidato não encontrado' }, 404)
       }
       candidate = data as Record<string, unknown>
@@ -175,7 +176,7 @@ serve(async (req) => {
       console.log('[enrich-candidate] Fallback: baixando PDF no Deno:', path)
       const { data: pdfBlob, error: downloadErr } = await supabaseAdmin.storage.from(bucket).download(path)
       if (downloadErr || !pdfBlob) {
-        console.error('[enrich-candidate] Erro ao baixar PDF:', downloadErr?.message)
+        safeEdgeError('enrich-candidate', 'Erro ao baixar PDF', downloadErr?.message)
         return json({ skipped: true, reason: 'erro ao baixar PDF' })
       }
       const pdfBuffer = new Uint8Array(await pdfBlob.arrayBuffer())
@@ -231,7 +232,7 @@ Use string vazia ("") se um campo não for identificável.`
     }
     if (!aiRes.ok) {
       const errBody = await aiRes.text().catch(() => '')
-      console.error('[enrich-candidate] OpenAI erro:', aiRes.status)
+      safeEdgeError('enrich-candidate', 'OpenAI erro', aiRes.status)
       return json({ error: `OpenAI erro ${aiRes.status}` }, 500)
     }
 
@@ -243,7 +244,7 @@ Use string vazia ("") se um campo não for identificável.`
       const cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
       parsed = JSON.parse(cleanContent)
     } catch (e) {
-      console.error('[enrich-candidate] Erro parse:', (e as Error).message)
+      safeEdgeError('enrich-candidate', 'Erro parse', (e as Error).message)
       return json({ error: 'Resposta IA inválida' }, 500)
     }
 
@@ -280,7 +281,7 @@ Use string vazia ("") se um campo não for identificável.`
     const tableName = source === 'pool' ? 'vagas_candidaturas' : 'candidates'
     const { error: updateErr } = await supabaseAdmin.from(tableName).update(updates).eq('id', candidateId)
     if (updateErr) {
-      console.error('[enrich-candidate] Erro update:', updateErr.message)
+      safeEdgeError('enrich-candidate', 'Erro update', updateErr.message)
       return json({ error: 'Erro ao processar candidato' }, 500)
     }
 
@@ -288,7 +289,7 @@ Use string vazia ("") se um campo não for identificável.`
     return json({ success: true, candidateId })
 
   } catch (err) {
-    console.error('[enrich-candidate] Erro geral:', (err as Error).message)
+    safeEdgeError('enrich-candidate', 'Erro geral', (err as Error).message)
     return json({ error: 'Erro interno' }, 500)
   }
 })

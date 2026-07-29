@@ -82,6 +82,7 @@ describe('Register', () => {
     await user.type(screen.getByLabelText('Senha'), '123456');
     await user.type(screen.getByLabelText('Confirmar senha'), '123456');
     await user.click(screen.getByRole('button', { name: /criar conta/i }));
-    expect(await screen.findByText(/email already registered/i)).toBeInTheDocument();
+    // Mensagem genérica (segura contra enumeração) — testa só que o erro aparece
+    expect(await screen.findByText(/não foi possível concluir o cadastro/i)).toBeInTheDocument();
   });
 });

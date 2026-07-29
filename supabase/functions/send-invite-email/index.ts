@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { buildEmailHtml } from '../_shared/email-templates.ts';
+import { safeEdgeError } from '../_shared/safe-logger.ts';
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -194,7 +195,7 @@ serve(async (req) => {
 
       if (!emailRes.ok) {
         const err = await emailRes.json();
-        console.error('[send-invite-email] Resend error:', err);
+        safeEdgeError('send-invite-email', 'Resend error', err);
       }
     }
 
@@ -220,7 +221,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ success: true, userId }), { status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
 
   } catch (error: unknown) {
-    console.error('[send-invite-email] Error:', error);
+    safeEdgeError('send-invite-email', 'Unhandled error', error);
     return new Response(JSON.stringify({ error: 'Erro interno' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
   }
 });

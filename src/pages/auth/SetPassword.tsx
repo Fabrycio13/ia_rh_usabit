@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../core/services/supabase';
+import { safeAuthError } from '../../core/services/safeLogger';
 import toast from 'react-hot-toast';
 
 export const SetPassword = () => {
@@ -42,7 +43,8 @@ export const SetPassword = () => {
         setSaving(false);
 
         if (error) {
-            setMessage({ type: 'error', text: `Erro ao definir senha: ${error.message}` });
+            safeAuthError('[SetPassword] updateUser', error);
+            setMessage({ type: 'error', text: 'Não foi possível definir a senha. Tente novamente ou solicite um novo convite.' });
             return;
         }
 
