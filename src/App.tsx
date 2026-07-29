@@ -17,7 +17,6 @@ const Pipeline = React.lazy(() => import('./pages/candidates/Pipeline').then(m =
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminLogs = React.lazy(() => import('./pages/dashboard/AdminLogs').then(m => ({ default: m.AdminLogs })));
 const Chat = React.lazy(() => import('./pages/support/Chat').then(m => ({ default: m.Chat })));
-const Register = React.lazy(() => import('./pages/auth/Register').then(m => ({ default: m.Register })));
 const SetPassword = React.lazy(() => import('./pages/auth/SetPassword').then(m => ({ default: m.SetPassword })));
 const VagaForm = React.lazy(() => import('./pages/vagas/VagaForm').then(m => ({ default: m.VagaForm })));
 const VagaCandidatos = React.lazy(() => import('./pages/vagas/VagaCandidatos').then(m => ({ default: m.VagaCandidatos })));
@@ -57,7 +56,7 @@ const AppContent = ({ session }: { session: Session | null }) => {
                 <Routes>
                     <Route path="/" element={!session ? <Login /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
                     <Route path="/login" element={!session ? <Login /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
-                    <Route path="/registro" element={!session ? <Register /> : <Navigate to={profile.user_role === 'convidado' ? '/vagas' : '/dashboard'} />} />
+                    <Route path="/registro" element={<Navigate to="/login" />} />
                     
                     {/* Public Routes */}
                     <Route path="/v/:hash" element={<PublicJobPage />} />

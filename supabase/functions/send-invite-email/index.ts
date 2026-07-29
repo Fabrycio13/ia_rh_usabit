@@ -95,7 +95,7 @@ serve(async (req) => {
     const organizationName = body.organizationName || body.organization_name;
 
     const targetLevel = hierarchy[role as keyof typeof hierarchy] || 0;
-    if (targetLevel >= callerLevel && callerProfile?.user_role !== 'owner') {
+    if (targetLevel >= callerLevel) {
       return new Response(JSON.stringify({ error: 'Permissão insuficiente para atribuir esta role' }), {
         status: 403, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
       });

@@ -1,5 +1,13 @@
 # Auditoria End-to-End do Projeto IA RH (Usabit people)
 
+> [!CAUTION]
+> **RELATÓRIO SUPERADO PELA REVALIDAÇÃO DO MESMO DIA.** Uma verificação independente,
+> incluindo API remota do Supabase, Deno, Gitleaks, cobertura e smoke test no domínio
+> produtivo, encontrou achados críticos que este documento não detectou. Em particular,
+> `0` achados altos, “15 Edge Functions cobertas”, “avatar privado” e “produção protegida
+> pelo safeLogger” não são conclusões válidas. Use como fonte atual:
+> [`2026-07-29-revalidacao-end-to-end.md`](./2026-07-29-revalidacao-end-to-end.md).
+
 > **Data:** 2026-07-29
 > **Versão:** 1.4 (`usabit-people-v_1.4`)
 > **Escopo:** Auditoria completa do projeto (frontend, backend, Edge Functions, migrations, copy PT-BR, build)

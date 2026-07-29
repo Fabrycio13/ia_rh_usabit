@@ -331,10 +331,13 @@ export const AdminDashboard = () => {
         }
 
         const canCreate = (creatorRole: string, targetRole: string): boolean => {
-            if (creatorRole === 'owner') return targetRole === 'administrador';
-            if (creatorRole === 'administrador') return ['supervisor', 'rh', 'convidado'].includes(targetRole);
-            if (creatorRole === 'supervisor') return ['rh', 'convidado'].includes(targetRole);
-            return false;
+            const hierarchy: Record<string, string[]> = {
+                owner:          ['administrador', 'supervisor', 'rh', 'convidado'],
+                administrador:  ['supervisor', 'rh', 'convidado'],
+                supervisor:     ['rh', 'convidado'],
+                rh:             ['convidado'],
+            };
+            return hierarchy[creatorRole]?.includes(targetRole) ?? false;
         };
 
         if (!canCreate(userRole, newUser.user_role)) {

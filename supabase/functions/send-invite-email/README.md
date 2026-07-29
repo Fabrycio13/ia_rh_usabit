@@ -7,7 +7,7 @@
 supabase link --project-ref SEU_PROJECT_REF
 
 # Set env vars
-supabase secrets set RESEND_API_KEY=re_JzAJZVnw_2HZB3KmyQQJXdzMeNs3Nm7Pi
+supabase secrets set RESEND_API_KEY=[REDACTED]
 supabase secrets set APP_URL=https://seu-dominio.com
 
 # Deploy
