@@ -48,6 +48,8 @@ const DEFAULT_MODELS: Record<string, string> = {
   resume: 'gpt-4o',
 }
 
+const ALLOWED_MODELS = new Set(['gpt-4o', 'gpt-4o-mini'])
+
 serve(async (req) => {
   const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
@@ -216,14 +218,12 @@ Mantenha a ORDEM dos candidatos.`;
     } catch (err) {
       return jsonResponse(400, { error: `Erro ao montar prompt: ${(err as Error).message}` }, origin)
     }
-  } else if (body.messages && Array.isArray(body.messages)) {
-    // ── Formato antigo: compatibilidade ──
-    messages = body.messages as OpenAIMessage[]
   } else {
-    return jsonResponse(400, { error: 'Envie "messages" (formato antigo) ou "type"+"data" (formato novo)' }, origin)
+    return jsonResponse(400, { error: 'Envie "type"+"data" (formato novo) — formato antigo removido' }, origin)
   }
 
-  const model = body.model || DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
+  const requestedModel = body.model || DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
+  const model = ALLOWED_MODELS.has(requestedModel) ? requestedModel : DEFAULT_MODELS[body.type || ''] || 'gpt-4o'
   const max_tokens = body.max_tokens ?? 8192
   const { tools, tool_choice } = body
 
@@ -241,6 +241,7 @@ Mantenha a ORDEM dos candidatos.`;
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify(openaiBody),
     })
     if (openaiResp.ok) {
@@ -265,6 +266,7 @@ Mantenha a ORDEM dos candidatos.`;
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${ZEN_API_KEY}`,
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify(zenBody),
     })
     return { response: zenResp, provider: 'zen', model: zenModel }
