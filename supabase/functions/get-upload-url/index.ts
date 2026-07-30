@@ -30,30 +30,6 @@ serve(async (req) => {
     || 'unknown'
 
   try {
-    const body: { bucket: string; path: string } = await req.json()
-
-    if (!body.bucket || !body.path) {
-      return new Response(JSON.stringify({ error: 'bucket e path são obrigatórios' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
-    }
-
-    if (body.bucket !== ALLOWED_BUCKET) {
-      return new Response(JSON.stringify({ error: 'Bucket não permitido' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
-    }
-
-    // Anti path traversal + formato esperado: resumes/<...>/<timestamp>_secure.pdf
-    if (!body.path.startsWith('resumes/') || body.path.includes('..')) {
-      return new Response(JSON.stringify({ error: 'Formato de path inválido' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 
@@ -72,26 +48,101 @@ serve(async (req) => {
       })
     }
 
-    // Gerar signed upload URL (60s de expiração)
+    const body = await req.json()
+    const bucket = body.bucket || ALLOWED_BUCKET
+
+    // Validar bucket
+    if (bucket !== ALLOWED_BUCKET) {
+      return new Response(JSON.stringify({ error: 'Bucket não permitido' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Gerar path no servidor — NUNCA aceitar path livre do cliente
+    let filePath: string
+
+    // Tentar extrair caller de requests autenticados
+    const authHeader = req.headers.get('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '').trim()
+    let callerOrgId: string | null = null
+
+    if (token && token !== 'undefined') {
+      const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') || '')
+      const { data: { user } } = await supabaseUser.auth.getUser(token)
+      if (user) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single()
+        if (profile?.organization_id) {
+          callerOrgId = profile.organization_id
+        }
+      }
+    }
+
+    if (callerOrgId) {
+      // Fluxo autenticado: path scoped pela org do caller
+      const uuid = crypto.randomUUID().substring(0, 12)
+      filePath = `resumes/${callerOrgId}/${Date.now()}_${uuid}.pdf`
+    } else if (body.jobId) {
+      // Fluxo público: candidatura a uma vaga específica
+      const { data: job } = await supabaseAdmin
+        .from('vagas_white_label')
+        .select('id')
+        .eq('id', body.jobId)
+        .maybeSingle()
+
+      if (!job) {
+        return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+      filePath = `resumes/${body.jobId}/${Date.now()}_secure.pdf`
+    } else if (body.orgId) {
+      // Fluxo público: candidatura espontânea para uma organização
+      const { data: org } = await supabaseAdmin
+        .from('organizations')
+        .select('id')
+        .eq('id', body.orgId)
+        .maybeSingle()
+
+      if (!org) {
+        return new Response(JSON.stringify({ error: 'Organização não encontrada' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+      filePath = `resumes/spontaneous/${body.orgId}/${Date.now()}_secure.pdf`
+    } else {
+      return new Response(JSON.stringify({ error: 'Informe jobId (público) ou faça autenticação' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Gerar signed upload URL (5 min de expiração para uploads grandes)
     const { data, error } = await supabaseAdmin.storage
       .from(ALLOWED_BUCKET)
-      .createSignedUploadUrl(body.path)
+      .createSignedUploadUrl(filePath, { upsert: false })
 
     if (error) {
-      safeEdgeError('Erro ao gerar signed upload URL:', error.message)
+      safeEdgeError('get-upload-url', 'Erro ao gerar signed upload URL:', error.message)
       return new Response(JSON.stringify({ error: 'Erro ao gerar URL de upload' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
-    return new Response(JSON.stringify({ signedUrl: data.signedUrl, path: body.path }), {
+    return new Response(JSON.stringify({ signedUrl: data.signedUrl, path: filePath }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (err) {
-    safeEdgeError('Erro inesperado na função get-upload-url:', (err as Error).message)
+    safeEdgeError('get-upload-url', 'Erro inesperado:', (err as Error).message)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { stripHtml, sanitizeText, validateField } from "../_shared/validation.ts";
+import { stripHtml, sanitizeText, validateField, validateUploadedFile } from "../_shared/validation.ts";
 import { safeEdgeError } from '../_shared/safe-logger.ts'
 
 const corsHeaders = {
@@ -143,7 +143,30 @@ serve(async (req) => {
       })
     }
 
-    // 3. Inserir candidatura
+    // 4. Validar arquivo enviado (magic bytes + tamanho + vínculo com a vaga)
+    if (body.resume_url) {
+      const bucket = 'job-applications'
+      const path = body.resume_url.replace(`${bucket}/`, '')
+      const fileCheck = await validateUploadedFile(supabaseAdmin, bucket, path)
+      if (!fileCheck.valid) {
+        return new Response(JSON.stringify({ error: fileCheck.error }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+
+      // Validar que o path contém o vaga_id (upload vinculado à vaga)
+      // Path format: resumes/{vaga_id}/{timestamp}.pdf
+      // Path espontâneo: resumes/spontaneous/{org_id}/{timestamp}.pdf
+      if (!path.includes(`/${body.vaga_id}/`) && !path.startsWith('resumes/spontaneous/')) {
+        return new Response(JSON.stringify({ error: 'Arquivo não vinculado a esta vaga' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+    }
+
+    // 5. Inserir candidatura
     const { data, error } = await supabaseAdmin
       .from('vagas_candidaturas')
       .insert({
@@ -167,7 +190,7 @@ serve(async (req) => {
       .single()
 
     if (error) {
-      safeEdgeError('Erro no insert de candidatura:', error.message, error.details, error.hint)
+      safeEdgeError('Erro no insert de candidatura:', error)
       return new Response(JSON.stringify({ error: 'Erro ao salvar candidatura' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,

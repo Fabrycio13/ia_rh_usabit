@@ -75,18 +75,22 @@ export const handleViewResume = async (url: string | null | undefined): Promise<
 
 /**
  * Upload seguro via presigned URL (chamada Edge Function + PUT direto ao Storage).
- * Substitui upload client-side com anon key (vulnerável a JWT inválido em buckets privados).
- * @returns path completo no formato "bucket/caminho" (ex: "job-applications/resumes/123/timestamp.pdf")
+ * O path é gerado no servidor — o cliente envia apenas o contexto (jobId ou nada).
+ * @returns path completo no formato "bucket/caminho" (ex: "job-applications/resumes/jobid/timestamp.pdf")
  */
 export async function uploadViaSignedUrl(
   bucket: string,
-  path: string,
+  context: { jobId?: string; orgId?: string },
   file: File
 ): Promise<string> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-  // 1. Obter signed upload URL da Edge Function
+  // 1. Obter signed upload URL da Edge Function (path gerado server-side)
+  const body: Record<string, unknown> = { bucket };
+  if (context.jobId) body.jobId = context.jobId;
+  if (context.orgId) body.orgId = context.orgId;
+
   const res = await fetch(`${supabaseUrl}/functions/v1/get-upload-url`, {
     method: 'POST',
     headers: {
@@ -94,7 +98,7 @@ export async function uploadViaSignedUrl(
       'apikey': anonKey,
       'Authorization': `Bearer ${anonKey}`,
     },
-    body: JSON.stringify({ bucket, path }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

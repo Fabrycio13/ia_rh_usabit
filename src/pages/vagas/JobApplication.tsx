@@ -704,11 +704,8 @@ export const JobApplication = () => {
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !job) return null;
 
-        // ponytail: extensão e tipo forçados server-side pelo path fixo
-        const filePath = `resumes/${job.id}/${Date.now()}_secure.pdf`;
-
         try {
-            return await uploadViaSignedUrl('job-applications', filePath, resumeFile);
+            return await uploadViaSignedUrl('job-applications', { jobId: job.id }, resumeFile);
         } catch {
             toast.error('Erro ao enviar currículo.');
             return null;

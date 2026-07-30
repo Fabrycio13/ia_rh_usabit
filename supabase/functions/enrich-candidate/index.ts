@@ -34,12 +34,12 @@ async function extractTextFromPdfBytes(buffer: Uint8Array): Promise<string> {
   // Tenta pdfjs-dist (funciona em Deno moderno)
   try {
     const { getDocument } = await import("npm:pdfjs-dist@4.0.379")
-    const pdf = await getDocument({ data: buffer.buffer }).promise
+    const pdf = await getDocument({ data: buffer.buffer as ArrayBuffer }).promise
     let text = ''
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i)
       const content = await page.getTextContent()
-      text += content.items.map((item: { str?: string }) => item.str || '').join(' ') + ' '
+      text += content.items.map((item: Record<string, unknown>) => String(item.str || '')).join(' ') + ' '
     }
     if (text.trim().length > 50) return text.slice(0, 8000)
   } catch {
@@ -78,35 +78,31 @@ serve(async (req) => {
 
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-  // Auth: aceita service_role (chamadas internas) OU JWT de usuário logado
+  // Auth: validar JWT e resolver caller (role + organization_id)
   const authHeader = req.headers.get('Authorization') || ''
-  if (SUPABASE_SERVICE_ROLE_KEY && authHeader.includes(SUPABASE_SERVICE_ROLE_KEY)) {
-    // service_role — chamada interna (ex: submit-candidate)
-    console.log('[enrich-candidate] auth via service_role')
-  } else {
-    // JWT de usuário — validar token e role
-    const token = authHeader.replace('Bearer ', '').trim()
-    if (!token) {
-      return json({ error: 'Não autorizado' }, 401)
-    }
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
-    if (userError || !user) {
-      safeEdgeError('enrich-candidate', 'Token inválido')
-      return json({ error: 'Não autorizado' }, 401)
-    }
-    // Reusa supabaseAdmin do escopo superior
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('user_role')
-      .eq('id', user.id)
-      .single()
-    if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-      safeEdgeError('enrich-candidate', 'Permissão insuficiente', profile?.user_role)
-      return json({ error: 'Não autorizado' }, 401)
-    }
-    console.log('[enrich-candidate] auth via JWT, role:', profile.user_role)
+  const token = authHeader.replace('Bearer ', '').trim()
+  if (!token) {
+    return json({ error: 'Não autorizado' }, 401)
   }
+  const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token)
+  if (userError || !user) {
+    safeEdgeError('enrich-candidate', 'Token inválido')
+    return json({ error: 'Não autorizado' }, 401)
+  }
+
+  // Resolver perfil do caller (role + organização)
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('user_role, organization_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
+    safeEdgeError('enrich-candidate', 'Permissão insuficiente', profile?.user_role)
+    return json({ error: 'Não autorizado' }, 401)
+  }
+  const callerOrgId = profile.organization_id
+  console.log('[enrich-candidate] auth OK, role:', profile.user_role, 'org:', callerOrgId)
 
   // Rate limit por IP
   const ip = req.headers.get('x-forwarded-for') || 'unknown'
@@ -117,7 +113,11 @@ serve(async (req) => {
     const body = await req.json()
     const candidateId = body.candidateId
     const source = body.source || 'candidates'  // 'candidates' (Banco) ou 'pool' (vagas_candidaturas)
-    const rawTextFromClient = body.rawText as string | undefined  // texto extraído no frontend (pdfjs-dist funciona lá)
+    const rawTextFromClient = body.rawText as string | undefined
+    // Limitar texto do cliente a 32k chars para evitar abuso de custo
+    if (rawTextFromClient && rawTextFromClient.length > 32000) {
+      return json({ error: 'Texto muito longo. Máximo 32000 caracteres.' }, 413)
+    }
     console.log('[enrich-candidate] Iniciando para', candidateId, '| source:', source, '| rawText:', rawTextFromClient?.length || 0, 'chars')
 
     if (!candidateId) {
@@ -136,6 +136,7 @@ serve(async (req) => {
         .from('vagas_candidaturas')
         .select('id, candidate_name, resume_url, is_analyzed, skills, experience, education, raw_text')
         .eq('id', candidateId)
+        .eq('organization_id', callerOrgId)
         .single()
       if (candidateErr || !data) {
         safeEdgeError('enrich-candidate', 'Candidatura não encontrada', candidateErr?.message)
@@ -147,6 +148,7 @@ serve(async (req) => {
         .from('candidates')
         .select('id, name, resume_url, is_analyzed, skills, experience, education, raw_text')
         .eq('id', candidateId)
+        .eq('organization_id', callerOrgId)
         .single()
       if (candidateErr || !data) {
         safeEdgeError('enrich-candidate', 'Candidato não encontrado', candidateErr?.message)
@@ -209,6 +211,7 @@ Use string vazia ("") se um campo não for identificável.`
           messages: [{ role: 'user', content: `${systemPrompt}\n\nCURRÍCULO:\n${extractedText}` }],
           max_tokens: 600, temperature: 0,
         }),
+        signal: AbortSignal.timeout(30000),
       })
     } else if (images && images.length > 0) {
       // PDF de imagem — vision (gpt-4o-mini suporta imagens)
@@ -225,6 +228,7 @@ Use string vazia ("") se um campo não for identificável.`
           messages: [{ role: 'user', content }],
           max_tokens: 800, temperature: 0,
         }),
+        signal: AbortSignal.timeout(30000),
       })
     } else {
       console.warn('[enrich-candidate] Sem texto e sem imagens')

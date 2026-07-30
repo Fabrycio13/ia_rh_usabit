@@ -94,7 +94,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    safeEdgeError('Erro na API public-jobs:', error.message);
+    safeEdgeError('Erro na API public-jobs:', error);
     return new Response(JSON.stringify({ error: 'Erro interno ao processar vagas' }), {
       headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 500

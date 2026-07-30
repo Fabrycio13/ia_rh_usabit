@@ -16,14 +16,21 @@ const SENSITIVE_PATTERNS = [
     /invite[_/-]?(?:token|link)/i,
     /magic[_/-]?link/i,
     /password["']?\s*[:=]\s*["'][^"']{6,}/i,
-    /authorization:\s*bearer\s+/i,
+    /authorization:\s*Bearer/i,
 ];
 
 const REPLACEMENT = '[REDACTED]';
 
-/**
- * Sanitiza uma string removendo tokens/api keys/links sensíveis.
- */
+/** Normaliza qualquer valor para string, sem lançar erro */
+function toString(val: unknown): string {
+    if (typeof val === 'string') return val;
+    if (val === null || val === undefined) return '';
+    if (val instanceof Error) return val.message;
+    try { return JSON.stringify(val); }
+    catch { return String(val); }
+}
+
+/** Sanitiza uma string removendo tokens/api keys/links sensíveis. */
 function sanitize(raw: string): string {
     let out = raw;
     for (const pattern of SENSITIVE_PATTERNS) {
@@ -35,27 +42,32 @@ function sanitize(raw: string): string {
 /**
  * Helper de console.error seguro para Edge Functions.
  *
+ * Aceita `message` como qualquer tipo (normaliza internamente),
+ * `detail` como unknown opcional.
+ *
  * @example
  *   safeEdgeError('send-password-reset-email', 'GoTrue falhou', errText);
+ *   safeEdgeError('enrich-candidate', 'Erro update', updateErr.message);
  */
-export function safeEdgeError(scope: string, message: string, detail?: unknown): void {
-    const detailStr = typeof detail === 'string'
-        ? detail
-        : detail instanceof Error
-            ? detail.message
-            : (() => {
-                  try { return JSON.stringify(detail); }
-                  catch { return String(detail); }
-              })();
-    const sanitizedDetail = sanitize(detailStr || '');
-    const sanitizedMessage = sanitize(message);
-    console.error(`[${scope}] ${sanitizedMessage}`, sanitizedDetail);
+export function safeEdgeError(scope: string, message: unknown, detail?: unknown): void {
+    const msg = sanitize(toString(message));
+    const det = detail !== undefined ? sanitize(toString(detail)) : undefined;
+    if (det) {
+        console.error(`[${scope}] ${msg}`, det);
+    } else {
+        console.error(`[${scope}] ${msg}`);
+    }
 }
 
 /**
  * Helper de console.warn seguro.
  */
-export function safeEdgeWarn(scope: string, message: string, detail?: unknown): void {
-    const detailStr = typeof detail === 'string' ? detail : detail instanceof Error ? detail.message : '';
-    console.warn(`[${scope}] ${sanitize(message)}`, sanitize(detailStr || ''));
+export function safeEdgeWarn(scope: string, message: unknown, detail?: unknown): void {
+    const msg = sanitize(toString(message));
+    const det = detail !== undefined ? sanitize(toString(detail)) : undefined;
+    if (det) {
+        console.warn(`[${scope}] ${msg}`, det);
+    } else {
+        console.warn(`[${scope}] ${msg}`);
+    }
 }

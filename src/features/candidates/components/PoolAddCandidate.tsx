@@ -119,9 +119,7 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
       // Upload
       setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'uploading' } : f));
       try {
-        const uuid = crypto.randomUUID().substring(0, 8);
-        const filePath = `resumes/manual/${profile.organization_id}/${Date.now()}_${uuid}.pdf`;
-        const resumeUrl = await uploadViaSignedUrl('job-applications', filePath, entry.file);
+        const resumeUrl = await uploadViaSignedUrl('job-applications', {}, entry.file);
 
         // Extraction
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'extracting' } : f));

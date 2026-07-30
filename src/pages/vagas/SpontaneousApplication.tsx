@@ -487,11 +487,8 @@ export const SpontaneousApplication = () => {
     const uploadResume = async (): Promise<string | null> => {
         if (!resumeFile || !orgId) return null;
 
-        // ponytail: extensão e tipo forçados server-side pelo path fixo
-        const filePath = `resumes/spontaneous/${orgId}/${Date.now()}_secure.pdf`;
-
         try {
-            return await uploadViaSignedUrl('job-applications', filePath, resumeFile);
+            return await uploadViaSignedUrl('job-applications', { orgId: orgId }, resumeFile);
         } catch {
             toast.error('Erro ao enviar currículo.');
             return null;

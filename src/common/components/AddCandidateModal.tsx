@@ -113,10 +113,7 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
     try {
       // Step 1: Upload file via presigned URL (seguro, com rate limit + path validation)
       setUploadProgress(20);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt.substring(1)}`;
-      const filePath = `resumes/manual/${profile.organization_id}/${fileName}`;
-
-      const resumeUrl = await uploadViaSignedUrl('job-applications', filePath, file);
+      const resumeUrl = await uploadViaSignedUrl('job-applications', {}, file);
 
       setUploadProgress(40);
 

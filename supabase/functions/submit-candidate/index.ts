@@ -198,7 +198,7 @@ serve(async (req) => {
       .single()
 
     if (error) {
-      safeEdgeError('Erro no upsert de candidato:', error.message, error.details, error.hint)
+      safeEdgeError('Erro no upsert de candidato:', error)
       return new Response(JSON.stringify({ error: 'Erro ao salvar candidato' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
