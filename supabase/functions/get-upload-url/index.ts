@@ -75,8 +75,15 @@ serve(async (req) => {
           .from('profiles')
           .select('organization_id')
           .eq('id', user.id)
+          .eq('status', 'active')
           .single()
-        if (profile?.organization_id) {
+        if (!profile) {
+          return new Response(JSON.stringify({ error: 'Conta desativada' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403,
+          })
+        }
+        if (profile.organization_id) {
           callerOrgId = profile.organization_id
         }
       }

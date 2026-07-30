@@ -99,9 +99,10 @@ serve(async (req) => {
     .from('profiles')
     .select('user_role, organization_id')
     .eq('id', user.id)
+    .eq('status', 'active')
     .single()
   if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-    safeEdgeError('enrich-candidate', 'Permissão insuficiente', profile?.user_role)
+    safeEdgeError('enrich-candidate', 'Conta desativada ou permissão insuficiente', profile?.user_role)
     return json({ error: 'Não autorizado' }, 401)
   }
   const callerOrgId = profile.organization_id

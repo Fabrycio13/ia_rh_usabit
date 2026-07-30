@@ -73,16 +73,17 @@ serve(async (req) => {
     return jsonResponse(401, { error: 'Token inválido' }, origin)
   }
 
-  // 2. Verificar role
+  // 2. Verificar role + status
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('user_role')
     .eq('id', user.id)
+    .eq('status', 'active')
     .single()
 
   if (!profile || !ALLOWED_ROLES.includes(profile.user_role)) {
-    return jsonResponse(403, { error: 'Permissão insuficiente' }, origin)
+    return jsonResponse(403, { error: 'Conta desativada ou permissão insuficiente' }, origin)
   }
 
   // 3. Rate limit por usuário
