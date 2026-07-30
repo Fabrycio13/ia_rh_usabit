@@ -30,12 +30,16 @@ interface CandidatePayload {
   address_number?: string | null
   complement?: string | null
   vaga_id?: string | null
-  status?: string
-  source?: string | null
-  skills?: string | null
-  experience?: string | null
-  analysis?: Record<string, unknown> | null
+  // Campos internos (ignorados do cliente, definidos server-side):
+  // status, source, skills, experience, analysis
 }
+
+// Campos que o cliente pode enviar — qualquer campo fora desta lista é ignorado
+const ALLOWED_FIELDS = new Set([
+  'email', 'organization_id', 'name', 'phone', 'location', 'linkedin',
+  'resume_url', 'resume_file_name', 'gender', 'age', 'address',
+  'portfolio', 'cep', 'address_number', 'complement', 'vaga_id',
+])
 
 const RATE_LIMIT_MAX = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
@@ -83,8 +87,6 @@ serve(async (req) => {
       validateField('phone', body.phone, 50),
       validateField('location', body.location, 255),
       validateField('linkedin', body.linkedin, 500),
-      validateField('skills', body.skills, TEXT_MAX),
-      validateField('experience', body.experience, TEXT_MAX),
     ].filter(Boolean)
     if (errs.length > 0) {
       return new Response(JSON.stringify({ error: errs[0] }), {
@@ -97,8 +99,6 @@ serve(async (req) => {
     if (body.phone) body.phone = sanitizeText(stripHtml(body.phone))
     if (body.location) body.location = sanitizeText(stripHtml(body.location))
     if (body.linkedin) body.linkedin = sanitizeText(stripHtml(body.linkedin))
-    if (body.skills) body.skills = sanitizeText(stripHtml(body.skills))
-    if (body.experience) body.experience = sanitizeText(stripHtml(body.experience))
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -167,6 +167,7 @@ serve(async (req) => {
     }
 
     // 4. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
+    //    Usa apenas campos da allowlist — campos internos são setados server-side
     const candidaturaData: Record<string, unknown> = {
       vaga_id: body.vaga_id || null,
       organization_id: body.organization_id,
@@ -184,11 +185,12 @@ serve(async (req) => {
       cep: body.cep || null,
       address_number: body.address_number || null,
       complement: body.complement || null,
-      status: body.status || 'pending',
-      source: body.source || 'spontaneous',
-      skills: body.skills || null,
-      experience: body.experience || null,
-      analysis: body.analysis || null,
+      // Campos internos (definidos server-side, ignorados do cliente)
+      status: 'pending',
+      source: 'spontaneous',
+      skills: null,
+      experience: null,
+      analysis: null,
     };
 
     const { data, error } = await supabaseAdmin
