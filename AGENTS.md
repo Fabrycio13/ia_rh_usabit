@@ -1,5 +1,7 @@
 # IA RH — Usabit people (AI-Powered Recruitment & Selection Platform)
 
+> **Project Memory:** Sistema portátil de memória versionado em `memory/`. Ver `memory/README.md` para o protocolo completo.
+
 ## Stack
 - Frontend: React 19 + TypeScript 5.9 (strict) + Vite 7 + Tailwind CSS v4
 - Backend: Supabase (PostgreSQL, Auth, Storage, Edge Functions em Deno)
@@ -48,6 +50,29 @@ Owner (5) > Administrador (4) > Supervisor (3) > RH (2) / Convidado (1)
 - Anti-prompt-injection: sanitizeAIInput (regex + NFKC normalize)
 - RLS: toda tabela habilitada, `IS NOT DISTINCT FROM` para org_id
 - Edge Functions: `checkRateLimit()`, `stripHtml()`, `sanitizeText()` em toda input
+
+## Project Memory
+
+Portable project memory lives in `memory/`. Ver `memory/README.md` para o contrato completo.
+
+**Antes de tarefa não trivial:**
+
+1. Ler `memory/context.md`.
+2. Identificar domínios e termos da tarefa.
+3. Buscar termos em `memory/decisions.md` e `memory/errors.md`; ler somente as entradas relevantes.
+4. Se for continuação, ler `memory/tasks.md` e validar o `Base HEAD` como ancestral do HEAD atual.
+5. **Verificar** toda memória contra código/migrations/testes atuais antes de confiar. Repositório atual vence; memória desatualizada deve ser marcada `superseded` ou `obsolete`, nunca reescrita em silêncio.
+6. Reportar ao final: `Memórias consultadas: DEC-..., ERR-..., HANDOFF-...` (ou "nenhuma entrada específica").
+
+**Antes de commit solicitado ao usuário:**
+
+1. Classificar: trabalho concluído **ou** checkpoint.
+2. Registrar apenas decisões duráveis e erros verificados.
+3. Manter um único `HANDOFF-active` em `memory/tasks.md` quando houver trabalho incompleto; limpar quando concluído.
+4. Rodar gates do projeto: `npx tsc --noEmit`, `npm run lint`, `npm test`, e o teste de memória: `npx vitest run tests/memory/project-memory.test.ts`.
+5. Nunca gravar segredos, PII, conversa integral ou suposições.
+
+**Cross-ferramenta:** o `AGENTS.md` é carregado por Hermes Desktop (com workspace na raiz) e OpenCode/Codex/Claude Code. Memória via Git — sem MCP/banco nesta onda.
 
 ## Agentes OpenCode
 - `@revisor` — subagent read-only para análise de código em 6 categorias (corretude, segurança, padrões, SQL/RLS, testes, performance)
