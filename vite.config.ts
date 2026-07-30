@@ -4,8 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from "node:path"
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/rh-ia-v2/' : '/',
+export default defineConfig(() => ({
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),

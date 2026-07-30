@@ -4,11 +4,15 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { stripHtml, sanitizeText, validateField } from "../_shared/validation.ts";
 import { safeEdgeError } from '../_shared/safe-logger.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://rh.usabitspace.com', 'http://localhost:5173', 'http://localhost:4173'];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 
@@ -49,13 +53,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin")
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: getCorsHeaders(origin) })
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método não permitido' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 405,
     })
   }
@@ -69,14 +74,14 @@ serve(async (req) => {
 
     if (!body.email || !body.organization_id || !body.name) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 400,
       })
     }
 
     if (!EMAIL_RE.test(body.email)) {
       return new Response(JSON.stringify({ error: 'Email inválido' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -90,7 +95,7 @@ serve(async (req) => {
     ].filter(Boolean)
     if (errs.length > 0) {
       return new Response(JSON.stringify({ error: errs[0] }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 400,
       })
     }
@@ -119,7 +124,7 @@ serve(async (req) => {
     )
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em 1 minuto.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 429,
       })
     }
@@ -133,7 +138,7 @@ serve(async (req) => {
 
     if (orgError || !org) {
       return new Response(JSON.stringify({ error: 'Organização não encontrada' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 404,
       })
     }
@@ -148,19 +153,19 @@ serve(async (req) => {
 
       if (vagaError || !vaga) {
         return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
           status: 404,
         })
       }
       if (!vaga.is_active || vaga.status !== 'aberta') {
         return new Response(JSON.stringify({ error: 'Vaga não está mais disponível' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
           status: 400,
         })
       }
       if (vaga.organization_id !== body.organization_id) {
         return new Response(JSON.stringify({ error: 'Vaga não pertence à organização' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
           status: 400,
         })
       }
@@ -202,7 +207,7 @@ serve(async (req) => {
     if (error) {
       safeEdgeError('Erro no upsert de candidato:', error)
       return new Response(JSON.stringify({ error: 'Erro ao salvar candidato' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 500,
       })
     }
@@ -212,14 +217,14 @@ serve(async (req) => {
     sendConfirmationEmail(candidateFirstName, body.email);
 
     return new Response(JSON.stringify({ id: data.id, success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
     safeEdgeError('Erro na função submit-candidate:', (error as Error).message)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 500,
     })
   }

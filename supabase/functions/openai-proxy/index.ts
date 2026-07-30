@@ -10,6 +10,8 @@ import { TEXT_GUARDRAILS } from './prompts/guardrails.ts'
 import type { OpenAIMessage } from './prompts/types.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
+const ZEN_API_KEY = Deno.env.get('ZEN_API_KEY') || ''
+const ZEN_BASE_URL = Deno.env.get('ZEN_BASE_URL') || 'https://opencode.ai/zen/v1'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -229,19 +231,54 @@ Mantenha a ORDEM dos candidatos.`;
   if (tools) openaiBody.tools = tools
   if (tool_choice) openaiBody.tool_choice = tool_choice
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify(openaiBody),
-  })
+  // ponytail: fallback chain — tenta OpenAI primeiro, se der 402/429/5xx tenta Zen (OpenCode).
+  // Zen usa API compatível com OpenAI, só muda a URL base e o modelo.
+  async function callProvider(openaiBody: Record<string, unknown>): Promise<{ response: Response; provider: string; model: string }> {
+    // 1. Tenta OpenAI
+    const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(openaiBody),
+    })
+    if (openaiResp.ok) {
+      return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
+    }
 
-  const data = await response.json()
+    // 2. Fallback Zen se OpenAI retornar 402 (sem credito), 429 (rate limit) ou 5xx (server error)
+    const shouldFallback = openaiResp.status === 402 || openaiResp.status === 429 || openaiResp.status >= 500
+    if (!shouldFallback || !ZEN_API_KEY) {
+      return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
+    }
+
+    console.warn(`[openai-proxy] OpenAI ${openaiResp.status}, fallback para Zen (deepseek-v4-flash)`)
+
+    // Mapeia modelo OpenAI para Zen equivalente
+    const zenModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-v4-flash-free' : String(openaiBody.model)
+    const zenBody = { ...openaiBody, model: zenModel }
+
+    const zenResp = await fetch(`${ZEN_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ZEN_API_KEY}`,
+      },
+      body: JSON.stringify(zenBody),
+    })
+    return { response: zenResp, provider: 'zen', model: zenModel }
+  }
+
+  const response = await callProvider(openaiBody)
+
+  const data = await response.response.json()
+  // Marca no response qual provider respondeu (útil pra debug)
+  ;(data as Record<string, unknown>)._provider = response.provider
+  ;(data as Record<string, unknown>)._model = response.model
 
   return new Response(JSON.stringify(data), {
-    status: response.status,
+    status: response.response.status,
     headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 })
