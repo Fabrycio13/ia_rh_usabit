@@ -70,7 +70,10 @@ serve(async (req) => {
     || 'unknown'
 
   try {
-    const body: CandidatePayload = await req.json()
+    const raw: Record<string, unknown> = await req.json()
+    const body = Object.fromEntries(
+      Object.entries(raw).filter(([key]) => ALLOWED_FIELDS.has(key))
+    ) as CandidatePayload
 
     if (!body.email || !body.organization_id || !body.name) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name' }), {
@@ -171,7 +174,23 @@ serve(async (req) => {
       }
     }
 
-    // 4. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
+    // 4. Idempotência — evitar candidaturas duplicadas
+    const { data: existing } = await supabaseAdmin
+      .from('vagas_candidaturas')
+      .select('id')
+      .eq('candidate_email', body.email)
+      .eq('organization_id', body.organization_id)
+      .eq('vaga_id', body.vaga_id || null)
+      .maybeSingle()
+
+    if (existing) {
+      return new Response(JSON.stringify({ id: existing.id, success: true }), {
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    // 5. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
     //    Usa apenas campos da allowlist — campos internos são setados server-side
     const candidaturaData: Record<string, unknown> = {
       vaga_id: body.vaga_id || null,
@@ -212,7 +231,7 @@ serve(async (req) => {
       })
     }
 
-    // 5. Enviar email de confirmação (best-effort, não bloqueia)
+    // 6. Enviar email de confirmação (best-effort, não bloqueia)
     const candidateFirstName = body.name.split(' ')[0];
     sendConfirmationEmail(candidateFirstName, body.email);
 

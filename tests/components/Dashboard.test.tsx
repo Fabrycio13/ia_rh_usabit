@@ -2,9 +2,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
-    globalThis.ResizeObserver = vi.fn(() => ({
-        observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn(),
-    })) as unknown as typeof globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+        observe = vi.fn()
+        unobserve = vi.fn()
+        disconnect = vi.fn()
+    } as unknown as typeof globalThis.ResizeObserver;
 }
 
 const store: Record<string, string> = {};
