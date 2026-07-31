@@ -129,3 +129,23 @@
 - **Evidence:** `memory/errors.md` (ERR-2026-07-30-004). Testes: `tests/vagas/SpontaneousApplication.test.tsx` 3/3. Gates: `tsc` 0, lint local 0, `npm run build` OK, `npm test` 155/155.
 - **Supersedes:** none
 - **Verified:** 2026-07-31
+
+---
+
+## DEC-2026-07-31-002 — ERR-003 reduzido em mais 6 ocorrências (5 arquivos verdes)
+
+- **Status:** accepted
+- **Domains:** frontend, vagas, layout, candidates
+- **Keywords:** set-state-in-effect, react-hooks, side-effect, external system
+- **Decision:** Para os 5 arquivos onde o `useEffect` é genuinamente o padrão correto (sincronização com sistema externo), aplicar `eslint-disable-next-line react-hooks/set-state-in-effect` com **justificativa em comentário**. Para os outros 2 (PoolTalentos, AdminLogs), **remover** o efeito porque os handlers já faziam o reset inline.
+- **Rationale:** Nem todo `setState` em `useEffect` é errado. A regra do lint assume "estado derivado" mas erra nos casos de "reagir a eventos externos":
+  - Mudança de URL (`DashboardLayout.tsx`): `location.pathname` é um valor externo; o efeito fecha menu/chat quando a rota muda. Comportamento correto de sincronização.
+  - Mudança de prop boolean (`PipelineLinkSection.tsx`): `isBlacklisted` é prop externa; o efeito limpa `linkedPipelines` quando vira `true` para evitar leak. Idem.
+  - Combinação de fetch (`JobApplication.tsx`): gate `!loading && job` garante que a animação de reveal só dispara no caminho de sucesso — em erro o componente renderiza `<ErrorScreen>`. Mover para `finally` causaria animação espúria.
+  - Em `AdminLogs.tsx`, o `fetchLogs()` é `async` e o lint marca a chamada de função como se fosse setState. Falso positivo — setStates internos acontecem no `then`, não síncronos.
+- **Padrão aplicado:** comentário de justificativa acima do `useEffect` ou direto na linha do `setState` via `eslint-disable-next-line`. Memória do projeto (`memory/context.md` linha 53) já permite `eslint-disable` com justificativa.
+- **Trade-off:** Mantém um `eslint-disable` no repo. Aceitável porque (a) é localizado, (b) tem justificativa escrita, (c) o efeito é genuinamente o caso correto do hook. Alternativa seria desabilitar a regra global — pior, esconde problemas reais.
+- **Pitfall encontrado:** ao usar `replace_all=true` no patch, removi duas ocorrências idênticas e corrompi `JobApplication.tsx` (perdeu dois `useState` no meio do arquivo). Detectado, revertido com `git checkout -- <file>`, e refiz em 4 patches isolados. **Lição:** nunca usar `replace_all` sem conferir manualmente que cada match é seguro.
+- **Evidence:** `npm run lint` geral: 14 → 7 erros de `set-state-in-effect`. `npm test`: 155/155. `npm run build`: OK.
+- **Supersedes:** none
+- **Verified:** 2026-07-31

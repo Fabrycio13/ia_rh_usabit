@@ -214,8 +214,12 @@ export function PipelineLinkSection({
         }
     }
 
+    // Sync: when isBlacklisted prop turns true, clear linkedPipelines to
+    // avoid leaking data into the now-hidden blacklist branch. The
+    // blacklist toggle in the parent is the external system we sync with.
     useEffect(() => {
         if (isBlacklisted) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLinkedPipelines([]);
         }
     }, [isBlacklisted]);

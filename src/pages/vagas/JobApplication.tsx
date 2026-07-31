@@ -431,11 +431,6 @@ export const JobApplication = () => {
     const [showTyping, setShowTyping] = useState(false);
     const [contentVisible, setContentVisible] = useState(false);
 
-    const [formData, setFormData] = useState({ 
-        name: '', email: '', phone: '', linkedin: '', location: '', portfolio: '',
-        cep: '', address: '', addressNumber: '', complement: '',
-        gender: '', age: ''
-    });
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -549,6 +544,12 @@ export const JobApplication = () => {
     const [selectedCountry, setSelectedCountry] = useState(countries[0]);
     const [countrySearch, setCountrySearch] = useState('');
 
+    const [formData, setFormData] = useState({
+        name: '', email: '', phone: countries[0].code + ' ', linkedin: '', location: '', portfolio: '',
+        cep: '', address: '', addressNumber: '', complement: '',
+        gender: '', age: ''
+    });
+
     const filteredCountries = countries.filter(c => {
         const search = normalizeText(countrySearch);
         const name = normalizeText(c.name);
@@ -589,13 +590,6 @@ export const JobApplication = () => {
         const masked = maskPhone(val, currentCountry);
         setFormData(p => ({ ...p, phone: masked }));
     };
-
-    useEffect(() => {
-        if (!formData.phone && selectedCountry.code) {
-            setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedCountry]);
 
     const genderOptions = [
         { value: 'Masculino', label: 'Masculino', color: '#3b82f6' },
@@ -678,8 +672,15 @@ export const JobApplication = () => {
         }, delay + 900);
     }, []);
 
+    // Side effect: fire wizard reveal animation only after BOTH the fetch
+    // completes (loading=false) AND the job is set (success path). On the
+    // error path, the component renders <ErrorScreen> instead, so we must
+    // gate on `job` — not just `loading` — to avoid the animation firing
+    // before the error UI takes over. The external system we sync with is
+    // the combination of (loading, job) coming from the fetch.
     useEffect(() => {
         if (!loading && job) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             triggerStepReveal(200);
         }
     }, [loading, job, triggerStepReveal]);

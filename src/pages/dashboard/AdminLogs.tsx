@@ -105,14 +105,11 @@ export const AdminLogs = () => {
     };
 
     useEffect(() => {
-        fetchLogs();  
+        // fetchLogs is async; the setStates inside happen on resolution, not sync.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchLogs();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // Reset page when filtering
-    useEffect(() => {
-        setCurrentPage(1);  
-    }, [searchUser, selectedOrgId, startDate, endDate, statusFilter]);
 
     const formatDate = (iso: string) => {
         return new Date(iso).toLocaleString('pt-BR', {

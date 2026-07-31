@@ -26,7 +26,11 @@ export const DashboardLayout = () => {
         return () => window.removeEventListener('resize', check);
     }, []);
 
+    // Side effect: close mobile menu and chat when route changes.
+    // location.pathname is an external value (the URL), so this is the
+    // correct use of useEffect — not a derived state from props.
     React.useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMobileOpen(false);
         setIsChatOpen(false);
     }, [location]);

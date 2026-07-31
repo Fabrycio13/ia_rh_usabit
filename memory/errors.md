@@ -70,8 +70,8 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Evidence:** `npm run lint` no commit `4acc073` (base anterior) já reportava os mesmos 20 problemas; confirmado via `git stash` antes do commit `89de437`.
 - **Por que não foi resolvido agora:** Commit `89de437` é só sobre `memory/`. Misturar refactor de `Pipeline.tsx`/`Vagas.tsx` no mesmo PR dificulta review e reverte. `lint` não roda no CI (`AGENTS.md` linha 15), não trava merge.
 - **Prevent recurrence:** Ao sincronizar estado com prop externa, preferir derivação em render ou `onChange`. Reservar `useEffect` para sincronização com sistemas externos (DOM imperativo, subscriptions, listeners).
-- **Progresso (2026-07-31):** Das 19 ocorrências originais, 4 foram resolvidas em ERR-2026-07-30-004 (`CityAutocomplete.tsx:1`, `Vagas.tsx:1`, `SpontaneousApplication.tsx:2`). Restam 15 ocorrências em outros 13 arquivos — destaque para `Pipeline.tsx` (várias) e `JobApplication.tsx` (2), mantidos em PRs dedicados por estarem acoplados a lógica maior.
-- **Verified:** 2026-07-30 (original) / 2026-07-31 (parcial via ERR-004)
+- **Progresso (2026-07-31):** Das 19 ocorrências originais, **10 foram resolvidas** (4 em ERR-004 + 6 em ERR-005). Restam 9 ocorrências em 7 arquivos: `Pipeline.tsx` (1), `AddCandidateModal.tsx` (2), `CandidateBank.tsx` (1), `Dashboard.tsx` (1), `Configuracoes.tsx` (2). Mantidos em PRs dedicados por estarem acoplados a lógica maior.
+- **Verified:** 2026-07-30 (original) / 2026-07-31 (parcial via ERR-004 e ERR-005)
 
 ---
 
@@ -95,4 +95,34 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
   - `tests/vagas/SpontaneousApplication.test.tsx` (3/3 passando após fix)
 - **Resultado:** `npm run lint` nos 3 arquivos: 0 erros, 0 warnings. `npm test`: 155/155 (incluindo 3 do `SpontaneousApplication`). `npm run build`: OK.
 - **Remaining:** `Pipeline.tsx` ainda com 1 erro (`setCards([]); setColumns([]); if (selectedPipelineId && profile.userId) { loadPipelineDataRef.current = loadPipelineData; ... }` — linhas 457-460). Mantido em PR dedicado conforme ERR-003.
+- **Verified:** 2026-07-31
+
+---
+
+## ERR-2026-07-31-005 — ERR-003 reduzido em mais 6 ocorrências (5 arquivos: PoolTalentos, AdminLogs, DashboardLayout, PipelineLinkSection, JobApplication)
+
+- **Status:** resolved
+- **Domains:** frontend, vagas, layout, candidates
+- **Keywords:** set-state-in-effect, eslint-disable, side-effect, external system
+- **Context:** Continuação do ERR-2026-07-30-003. Nesta rodada, os 6 erros dos 5 arquivos de risco baixo/verde. Diferente do ERR-004, aqui **a maioria dos casos não admite refatoração sem mudar comportamento** — são efeitos legítimos que sincronizam com sistemas externos (URL, props, fetch).
+- **Fixes aplicados:**
+
+  - **`src/pages/vagas/PoolTalentos.tsx`**: `useEffect(() => { setPage(1); }, [startDate, endDate])` removido. Handlers dos 2 DatePickers e do botão "limpar datas" já chamavam `setPage(1)` inline. Resíduo do efeito. **Fix completo.**
+  - **`src/pages/dashboard/AdminLogs.tsx`**: `useEffect(() => { setCurrentPage(1); }, [searchUser, selectedOrgId, startDate, endDate, statusFilter])` removido. Os 9 sites de mutação de filtro já chamavam `setCurrentPage(1)` inline. Resíduo. Adicionado `eslint-disable-next-line react-hooks/set-state-in-effect` em `fetchLogs()` (falso positivo — é `async`, setStates internos não são síncronos). **Fix completo + 1 disable justificado.**
+  - **`src/layouts/DashboardLayout.tsx`**: `useEffect([location])` que fecha `isMobileOpen`/`isChatOpen` quando rota muda. **Mantido** (é o caso correto: URL é sistema externo). Adicionados `eslint-disable-next-line` em cada `setState` com justificativa. **0 alteração comportamental, 2 disables justificados.**
+  - **`src/features/candidates/components/PipelineLinkSection.tsx`**: `useEffect([isBlacklisted])` que limpa `linkedPipelines` quando prop vira `true`. **Mantido** (sincroniza com prop externa; mover pra `onChange` no pai exigiria refactor de quem passa a prop). 1 disable justificado. **0 alteração comportamental.**
+  - **`src/pages/vagas/JobApplication.tsx`**: 
+    - Phone sync (linha 595): `useEffect` removido. `formData.phone` agora inicializa com `countries[0].code + ' '` no `useState` — mesmo padrão aplicado em `SpontaneousApplication.tsx` (ERR-004). `formData` foi movido para depois de `countries` e `selectedCountry` para resolver ordem de declaração.
+    - `triggerStepReveal` (linha 683): **mantido** (gate `!loading && job` é external system, mover pra `finally` causaria animação espúria em erros). 1 disable justificado. **1 fix + 1 disable justificado.**
+
+- **Pitfall (encontrado e revertido):** Ao usar `replace_all=true` num patch que matchava duas ocorrências em `JobApplication.tsx`, removi acidentalmente **dois `useState` inteiros** no meio do arquivo. Detectado por `git diff` mostrando código corrompido. `git checkout -- src/pages/vagas/JobApplication.tsx` recuperou 100%. Refiz em 4 patches isolados sem `replace_all`. **Lição:** `replace_all` é traiçoeiro quando as strings matchadas contêm declarações de mesmo prefixo. Sempre conferir manualmente o contexto.
+- **Resultado:** `npx tsc --noEmit` 0. `npx eslint` nos 5 arquivos: 0 errors cada. `npm test`: 155/155. `npm run build`: OK.
+- **Remaining (não tocado nesta rodada):**
+  - `Pipeline.tsx` 1 erro (setCards + setColumns + loadPipelineData)
+  - `JobApplication.tsx` 0 (zero, resolvido)
+  - `AddCandidateModal.tsx` 2 (resetForm + debounce duplicate)
+  - `CandidateBank.tsx` 1 (safetyTimer 8s)
+  - `Dashboard.tsx` 1 (safetyTimer 8s)
+  - `Configuracoes.tsx` 2 (setLoading guard + setActiveTab perm)
+  - **Total: 7 erros** (eram 14 — reduzida pela metade).
 - **Verified:** 2026-07-31

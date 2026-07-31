@@ -162,8 +162,6 @@ export const PoolTalentos = () => {
         return () => mq.removeEventListener('change', check);
     }, []);
 
-    useEffect(() => { setPage(1); }, [startDate, endDate]);
-
     useEffect(() => {
         const fetchData = async () => {
             if (!profile.organization_id) return;
