@@ -108,3 +108,24 @@
   - `supabase/functions/openai-proxy/index.ts` linhas 234-273
 - **Supersedes:** none
 - **Verified:** 2026-07-30
+
+---
+
+## DEC-2026-07-31-001 — Remover `setState` síncrono dentro de `useEffect` em 3 arquivos
+
+- **Status:** accepted
+- **Domains:** frontend, vagas
+- **Keywords:** set-state-in-effect, react-hooks, controlled component, derived state, useEffect
+- **Decision:** Aplicar três padrões canônicos do React 19 para eliminar `setState` direto em `useEffect`:
+  1. **Componente totalmente controlado** (`CityAutocomplete`): input com `value={value}` + `onChange` que propaga via `onChange(text)`. Sem cópia interna de prop.
+  2. **Reset inline em handlers** (`Vagas.tsx`): cada onChange/onClick de filtro chama `setCurrentPage(1)` junto com o setter do filtro. Sem `useEffect` de sincronização de estado.
+  3. **Inicialização no `useState`** (`SpontaneousApplication.phone`): valor derivado de país default vai direto no initial state, não em `useEffect`.
+  4. **Side-effect colado no originador** (`SpontaneousApplication.triggerStepReveal`): chamar a função de animação dentro do `finally` do `fetchOrgData` em vez de em um efeito que observa `loading`.
+- **Rationale:** `setState` síncrono em `useEffect` força render em cascata (regra `react-hooks/set-state-in-effect` do React 19). Os três padrões removem o efeito desnecessário mantendo comportamento idêntico e reduzindo a superfície de "renders extras" no Dashboard.
+- **Trade-offs:**
+  - Componente controlado exige que o pai mantenha a string canônica (`VagaForm.tsx` já fazia isso — `formData.location`). Zero regressão.
+  - Reset inline exige que **toda** mutação de filtro esteja em um handler. Cobertura: 9 sites de mutação cobertos. Se alguém adicionar um novo filtro sem reset, paginação fica inconsistente — vale code review atento.
+  - Mover `triggerStepReveal` antes do `useEffect` que o consome evita TDZ. Adicionado às deps do efeito.
+- **Evidence:** `memory/errors.md` (ERR-2026-07-30-004). Testes: `tests/vagas/SpontaneousApplication.test.tsx` 3/3. Gates: `tsc` 0, lint local 0, `npm run build` OK, `npm test` 155/155.
+- **Supersedes:** none
+- **Verified:** 2026-07-31

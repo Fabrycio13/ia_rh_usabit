@@ -762,10 +762,8 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
         return matchesSearch && matchesOrg && matchesRole && matchesStatus && matchesStart && matchesEnd;
     });
 
-    // Reset pagination on filter change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, selectedOrgId, selectedStatusFilter, selectedRoleFilter, startDate, endDate]);
+    // Reset pagination on filter change (called inline from filter handlers)
+    // to avoid setState-in-useEffect.
 
     const totalPages = Math.ceil(filteredVagas.length / itemsPerPage);
     const paginatedVagas = filteredVagas.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -825,7 +823,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         type="text"
                         placeholder="Buscar vagas..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         style={{
                             width: '100%',
                             padding: '12px 16px 12px 40px',
@@ -855,7 +853,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                             <div className="cs-dropdown">
                                 <div 
                                     className={`cs-item ${!selectedOrgId ? 'active' : ''}`}
-                                    onClick={() => { setSelectedOrgId(''); setIsOrgSelectOpen(false); }}
+                                    onClick={() => { setSelectedOrgId(''); setIsOrgSelectOpen(false); setCurrentPage(1); }}
                                 >
                                     <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
                                     Todas Organizações
@@ -864,7 +862,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     <div 
                                         key={org.id}
                                         className={`cs-item ${selectedOrgId === org.id ? 'active' : ''}`}
-                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgSelectOpen(false); }}
+                                        onClick={() => { setSelectedOrgId(org.id); setIsOrgSelectOpen(false); setCurrentPage(1); }}
                                     >
                                         <div className="cs-dot" style={{ background: 'var(--primary)' }} />
                                         {org.name}
@@ -903,7 +901,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 </div>
                                 <div 
                                     className={`cs-item ${!selectedRoleFilter ? 'active' : ''}`}
-                                    onClick={() => { setSelectedRoleFilter(''); setRoleSearchTerm(''); setIsRoleSelectOpen(false); }}
+                                    onClick={() => { setSelectedRoleFilter(''); setRoleSearchTerm(''); setIsRoleSelectOpen(false); setCurrentPage(1); }}
                                 >
                                     <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
                                     Todos Cargos
@@ -913,7 +911,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                         <div 
                                             key={opt.id}
                                             className={`cs-item ${selectedRoleFilter === opt.id ? 'active' : ''}`}
-                                            onClick={() => { setSelectedRoleFilter(opt.id); setRoleSearchTerm(''); setIsRoleSelectOpen(false); }}
+                                            onClick={() => { setSelectedRoleFilter(opt.id); setRoleSearchTerm(''); setIsRoleSelectOpen(false); setCurrentPage(1); }}
                                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -946,7 +944,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                         <div className="cs-dropdown">
                             <div 
                                 className={`cs-item ${!selectedStatusFilter ? 'active' : ''}`}
-                                onClick={() => { setSelectedStatusFilter(''); setIsStatusSelectOpen(false); }}
+                                onClick={() => { setSelectedStatusFilter(''); setIsStatusSelectOpen(false); setCurrentPage(1); }}
                             >
                                 <div className="cs-dot" style={{ background: 'var(--text-muted)' }} />
                                 Todos Status
@@ -955,7 +953,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                 <div 
                                     key={status}
                                     className={`cs-item ${selectedStatusFilter === status ? 'active' : ''}`}
-                                    onClick={() => { setSelectedStatusFilter(status); setIsStatusSelectOpen(false); }}
+                                    onClick={() => { setSelectedStatusFilter(status); setIsStatusSelectOpen(false); setCurrentPage(1); }}
                                 >
                                     <div className="cs-dot" style={{ background: statusConfigMap[status].color }} />
                                     {statusConfigMap[status].label}
@@ -971,11 +969,11 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', flex: isMobile ? 1 : 'none', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>De:</span>
-                            <DatePicker compact value={startDate} onChange={val => setStartDate(val)} />
+                            <DatePicker compact value={startDate} onChange={val => { setStartDate(val); setCurrentPage(1); }} />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, opacity: 0.8 }}>Até:</span>
-                            <DatePicker compact value={endDate} onChange={val => setEndDate(val)} />
+                            <DatePicker compact value={endDate} onChange={val => { setEndDate(val); setCurrentPage(1); }} />
                         </div>
                         {/* Clear Filters */}
                         {(searchTerm || selectedOrgId || selectedStatusFilter || selectedRoleFilter || startDate || endDate) && (
@@ -987,6 +985,7 @@ export const Vagas = ({ hideHeader = false }: { hideHeader?: boolean }) => {
                                     setSelectedRoleFilter('');
                                     setStartDate('');
                                     setEndDate('');
+                                    setCurrentPage(1);
                                 }}
                                 style={{ 
                                     background: 'transparent', 

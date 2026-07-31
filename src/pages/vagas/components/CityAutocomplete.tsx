@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 
 interface City {
@@ -14,15 +14,11 @@ interface CityAutocompleteProps {
 }
 
 export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocompleteProps) => {
-    const [query, setQuery] = useState(value || '');
     const [suggestions, setSuggestions] = useState<City[]>([]);
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const debounceRef = useRef<number | undefined>(undefined);
     const wrapperRef = useRef<HTMLDivElement>(null);
-
-    // Sync when external value changes
-    useEffect(() => { setQuery(value || ''); }, [value]);
 
     // Close on outside click
     useEffect(() => {
@@ -38,7 +34,6 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
     const removeAccents = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
     const search = async (text: string) => {
-        setQuery(text);
         onChange(text);
         if (text.length < 2) { setSuggestions([]); setOpen(false); return; }
 
@@ -60,7 +55,7 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
                 const filtered = all.filter(c =>
                     removeAccents(c.nome.toLowerCase()).includes(safeInput)
                 ).slice(0, 8);
-                
+
                 setSuggestions(filtered);
                 setOpen(filtered.length > 0);
             } catch {
@@ -73,7 +68,6 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
 
     const select = (city: City) => {
         const formatted = `${city.nome}, ${city.microrregiao.mesorregiao.UF.sigla}`;
-        setQuery(formatted);
         onChange(formatted);
         setSuggestions([]);
         setOpen(false);
@@ -91,7 +85,7 @@ export const CityAutocomplete = ({ value, onChange, inputStyle }: CityAutocomple
                 }} />
                 <input
                     type="text"
-                    value={query}
+                    value={value}
                     onChange={(e) => search(e.target.value)}
                     onFocus={(e) => {
                         e.target.style.borderColor = 'var(--primary)';

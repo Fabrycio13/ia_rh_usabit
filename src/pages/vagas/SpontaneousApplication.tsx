@@ -328,24 +328,6 @@ export const SpontaneousApplication = () => {
     const [showTyping, setShowTyping] = useState(false);
     const [contentVisible, setContentVisible] = useState(false);
 
-    const [formData, setFormData] = useState({ 
-        name: '', email: '', phone: '', linkedin: '', location: '', portfolio: '',
-        cep: '', address: '', addressNumber: '', complement: '',
-        gender: '', age: ''
-    });
-    const [resumeFile, setResumeFile] = useState<File | null>(null);
-    const [termsAccepted, setTermsAccepted] = useState(false);
-    const [showLGPD, setShowLGPD] = useState(false);
-    const [honeypot, setHoneypot] = useState('');
-
-    const [genderOpen, setGenderOpen] = useState(false);
-    const genderRef = useRef<HTMLDivElement>(null);
-    const [countryOpen, setCountryOpen] = useState(false);
-    const countryRef = useRef<HTMLDivElement>(null);
-
-    const totalSteps = 3;
-    const stepLabels = ['Seu nome', 'Seus dados', 'Currículo'];
-
     const countries = [
         { code: '+55', iso: 'br', name: 'Brasil' },
         { code: '+54', iso: 'ar', name: 'Argentina' },
@@ -364,6 +346,24 @@ export const SpontaneousApplication = () => {
         { code: '+971', iso: 'ae', name: 'Emirados Árabes' },
     ];
 
+    const [formData, setFormData] = useState({
+        name: '', email: '', phone: countries[0].code + ' ', linkedin: '', location: '', portfolio: '',
+        cep: '', address: '', addressNumber: '', complement: '',
+        gender: '', age: ''
+    });
+    const [resumeFile, setResumeFile] = useState<File | null>(null);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [showLGPD, setShowLGPD] = useState(false);
+    const [honeypot, setHoneypot] = useState('');
+
+    const [genderOpen, setGenderOpen] = useState(false);
+    const genderRef = useRef<HTMLDivElement>(null);
+    const [countryOpen, setCountryOpen] = useState(false);
+    const countryRef = useRef<HTMLDivElement>(null);
+
+    const totalSteps = 3;
+    const stepLabels = ['Seu nome', 'Seus dados', 'Currículo'];
+
     const [selectedCountry, setSelectedCountry] = useState(countries[0]);
     const [countrySearch, setCountrySearch] = useState('');
 
@@ -373,10 +373,9 @@ export const SpontaneousApplication = () => {
     });
 
     const handlePhoneChange = (val: string) => {
-        const digits = val.replace(/\D/g, '');
-        let currentCountry: typeof selectedCountry = selectedCountry;
-        if (val.startsWith('+') || digits.length > 0) {
-            const searchVal = val.startsWith('+') ? val : '+' + digits;
+        let currentCountry = selectedCountry;
+        const searchVal = val.replace(selectedCountry.code, '').trim();
+        if (searchVal.length >= 1) {
             const cleanDigits = searchVal.replace(/\D/g, '');
             let found = null;
             for (let len = 4; len >= 1; len--) {
@@ -396,13 +395,6 @@ export const SpontaneousApplication = () => {
         const masked = maskPhone(val, currentCountry);
         setFormData(p => ({ ...p, phone: masked }));
     };
-
-    useEffect(() => {
-        if (!formData.phone && selectedCountry.code) {
-            setFormData(p => ({ ...p, phone: selectedCountry.code + ' ' }));
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedCountry]);
 
     const genderOptions = [
         { value: 'Masculino', label: 'Masculino', color: '#3b82f6' },
@@ -430,6 +422,15 @@ export const SpontaneousApplication = () => {
         }
     };
 
+    const triggerStepReveal = useCallback((delay = 300) => {
+        setContentVisible(false);
+        setShowTyping(true);
+        setTimeout(() => {
+            setShowTyping(false);
+            setContentVisible(true);
+        }, delay + 900);
+    }, []);
+
     useEffect(() => {
         const fetchOrgData = async () => {
             if (!orgId) return;
@@ -447,25 +448,11 @@ export const SpontaneousApplication = () => {
                 setError('Organização não encontrada.');
             } finally {
                 setLoading(false);
+                triggerStepReveal(200);
             }
         };
         fetchOrgData();
-    }, [orgId]);
-
-    const triggerStepReveal = useCallback((delay = 300) => {
-        setContentVisible(false);
-        setShowTyping(true);
-        setTimeout(() => {
-            setShowTyping(false);
-            setContentVisible(true);
-        }, delay + 900);
-    }, []);
-
-    useEffect(() => {
-        if (!loading) {
-            triggerStepReveal(200);
-        }
-    }, [loading, triggerStepReveal]);
+    }, [orgId, triggerStepReveal]);
 
     const goToNextStep = useCallback(() => {
         setStep(s => s + 1);
