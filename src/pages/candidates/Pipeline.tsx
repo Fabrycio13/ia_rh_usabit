@@ -454,6 +454,8 @@ export const Pipeline = () => {
     const loadPipelineDataRef = useRef<((userId: string, pipelineId: string) => Promise<void>) | null>(null);
 
     useEffect(() => {
+        // Limpa dados derivados antes de carregar o pipeline selecionado.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCards([]);
         setColumns([]);
         if (selectedPipelineId && profile.userId) {

@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { hasPdfMagicBytes } from './public-contracts.ts'
 
 export function stripHtml(v: string): string {
   if (!v) return ''
@@ -32,7 +33,7 @@ export async function validateUploadedFile(
   maxSizeBytes = 10 * 1024 * 1024,
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-    // 1. Verificar metadata do arquivo (tamanho)
+    // 1. Verificar existência do arquivo (metadata pode não ter size para uploads recentes)
     const { data: fileMeta, error: metaErr } = await supabaseAdmin
       .storage
       .from(bucket)
@@ -42,16 +43,8 @@ export async function validateUploadedFile(
       return { valid: false, error: 'Arquivo não encontrado no storage' }
     }
 
-    const fileSize = fileMeta.metadata?.size ?? 0
-    if (fileSize > maxSizeBytes) {
-      return { valid: false, error: `Arquivo excede o limite de ${maxSizeBytes / 1024 / 1024}MB` }
-    }
-
-    if (fileSize === 0) {
-      return { valid: false, error: 'Arquivo vazio' }
-    }
-
-    // 2. Baixar primeiros bytes via signed URL + Range header para verificar magic bytes
+    // 2. Baixar primeiros bytes via signed URL + Range header
+    //    Isso valida simultaneamente: existência, tamanho (via Content-Range) e magic bytes
     const { data: signedUrlData, error: urlErr } = await supabaseAdmin
       .storage
       .from(bucket)
@@ -67,11 +60,36 @@ export async function validateUploadedFile(
     })
 
     if (!headResp.ok) {
+      if (headResp.status === 416) {
+        return { valid: false, error: 'Arquivo vazio' }
+      }
       return { valid: false, error: 'Erro ao ler arquivo' }
     }
 
-    const headerBytes = await headResp.text()
-    if (headerBytes !== '%PDF') {
+    // Validar tamanho via Content-Range (ex: "bytes 0-3/12345")
+    const contentRange = headResp.headers.get('Content-Range') || headResp.headers.get('content-range')
+    if (contentRange) {
+      const totalMatch = contentRange.match(/bytes\s+\d+-\d+\/(\d+)/i)
+      if (totalMatch) {
+        const totalSize = parseInt(totalMatch[1], 10)
+        if (totalSize === 0) {
+          return { valid: false, error: 'Arquivo vazio' }
+        }
+        if (totalSize > maxSizeBytes) {
+          return { valid: false, error: `Arquivo excede o limite de ${maxSizeBytes / 1024 / 1024}MB` }
+        }
+      }
+    }
+
+    const reader = headResp.body?.getReader()
+    if (!reader) {
+      return { valid: false, error: 'Erro ao ler arquivo' }
+    }
+
+    const { value: headerBytes } = await reader.read()
+    await reader.cancel()
+
+    if (!headerBytes || !hasPdfMagicBytes(headerBytes)) {
       return { valid: false, error: 'Formato de arquivo inválido. Apenas PDF é aceito.' }
     }
 

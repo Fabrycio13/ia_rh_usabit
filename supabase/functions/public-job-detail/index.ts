@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { safeEdgeError } from '../_shared/safe-logger.ts'
+import { filterPublicJob } from '../_shared/public-contracts.ts'
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -75,7 +76,7 @@ serve(async (req) => {
     }
 
     // Retorna todos os dados para montar a View gigante da vaga
-    return new Response(JSON.stringify({ job: jobData }), {
+    return new Response(JSON.stringify({ job: filterPublicJob(jobData) }), {
       headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 200
     });

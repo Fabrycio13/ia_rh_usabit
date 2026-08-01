@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { buildEmailHtml } from '../_shared/email-templates.ts';
 import { safeEdgeError } from '../_shared/safe-logger.ts';
+import { canResendPendingInvite } from '../_shared/public-contracts.ts';
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -64,7 +65,7 @@ serve(async (req) => {
     // 2. Verificar role do caller e impedir escalação de privilégio
     const { data: callerProfile } = await supabaseAdmin
       .from('profiles')
-      .select('user_role, organization_id')
+      .select('user_role, organization_id, status')
       .eq('id', user.id)
       .single();
 
@@ -80,7 +81,9 @@ serve(async (req) => {
     }
 
     const hierarchy: Record<string, number> = { owner: 5, administrador: 4, supervisor: 3, rh: 2, convidado: 1 };
-    const callerLevel = hierarchy[callerProfile?.user_role as keyof typeof hierarchy] || 0;
+    const callerLevel = callerProfile?.status === 'active'
+      ? hierarchy[callerProfile.user_role as keyof typeof hierarchy] || 0
+      : 0;
     if (callerLevel === 0) {
       return new Response(JSON.stringify({ error: 'Permissão insuficiente' }), {
         status: 403, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
@@ -88,13 +91,21 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const email = body.email;
-    const name = body.name;
-    const role = body.role || body.user_role;
-    const organizationId = body.organizationId || body.organization_id;
-    const organizationName = body.organizationName || body.organization_name;
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const roleValue = body.role || body.user_role;
+    const organizationValue = body.organizationId || body.organization_id;
+    const organizationNameValue = body.organizationName || body.organization_name;
+    const role = typeof roleValue === 'string' ? roleValue : '';
+    const organizationId = typeof organizationValue === 'string' && organizationValue ? organizationValue : null;
+    const organizationName = typeof organizationNameValue === 'string' ? organizationNameValue.trim() : '';
 
     const targetLevel = hierarchy[role as keyof typeof hierarchy] || 0;
+    if (targetLevel === 0) {
+      return new Response(JSON.stringify({ error: 'Role inválida' }), {
+        status: 400, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
+      });
+    }
     if (targetLevel >= callerLevel) {
       return new Response(JSON.stringify({ error: 'Permissão insuficiente para atribuir esta role' }), {
         status: 403, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
@@ -110,43 +121,61 @@ serve(async (req) => {
       }
     }
 
-    if (!email || !name || !role) {
-      return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+    if (!email || !name || !role || email.length > 254 || name.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return new Response(JSON.stringify({ error: 'Dados de convite inválidos' }), { status: 400, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     }
     if (!SUPABASE_URL) return new Response(JSON.stringify({ error: 'SUPABASE_URL not set' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     if (!SUPABASE_SERVICE_ROLE_KEY) return new Response(JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY not set' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, status, organization_id, user_role')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingProfileError) {
+      safeEdgeError('send-invite-email', 'Existing profile lookup failed', existingProfileError);
+      return new Response(JSON.stringify({ error: 'Não foi possível validar o convite' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+    }
+
+    if (existingProfile && !canResendPendingInvite(existingProfile, {
+      organization_id: organizationId,
+      user_role: role,
+    })) {
+      return new Response(JSON.stringify({ error: 'Este e-mail já pertence a uma conta existente' }), { status: 409, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+    }
 
     const candidateFirstName = name.split(' ')[0];
     const redirectTo = APP_URL;
     const headers = gotrueHeaders();
 
-    // Generate invite link via GoTrue admin API
-    let linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
+    // Generate invite only for a new profile; exact pending resends use recovery.
+    const linkType = existingProfile ? 'recovery' : 'invite';
+    const linkBody = linkType === 'invite'
+      ? { type: linkType, email, data: { full_name: name, user_role: role, organization_id: organizationId, organization_name: organizationName }, redirect_to: redirectTo }
+      : { type: linkType, email, redirect_to: redirectTo };
+
+    const linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ type: 'invite', email, data: { full_name: name, user_role: role, organization_id: organizationId, organization_name: organizationName }, redirect_to: redirectTo }),
+      body: JSON.stringify(linkBody),
     });
-    let linkJson = await linkRes.json();
+    const linkJson = await linkRes.json();
 
-    // If user already exists, fall back to recovery link
     if (!linkRes.ok && linkJson?.error_code === 'email_exists') {
-      linkRes = await fetch(baseUrl() + '/auth/v1/admin/generate_link', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ type: 'recovery', email, redirect_to: redirectTo }),
-      });
-      linkJson = await linkRes.json();
+      return new Response(JSON.stringify({ error: 'Este e-mail já pertence a uma conta existente' }), { status: 409, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     }
 
     if (!linkRes.ok) {
-      return new Response(JSON.stringify({ error: 'Generate link error', code: linkJson?.error_code || linkRes.status, body: linkJson }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+      safeEdgeError('send-invite-email', 'Generate link failed', { code: linkJson?.error_code || linkRes.status });
+      return new Response(JSON.stringify({ error: 'Não foi possível gerar o link de convite' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     }
 
     const actionLink = linkJson?.action_link || '';
-    const userId = linkJson?.id;
+    const userId = linkJson?.id || existingProfile?.id;
 
     if (!actionLink) {
-      return new Response(JSON.stringify({ error: 'No action_link in response', keys: Object.keys(linkJson) }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Não foi possível gerar o link de convite' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     }
     if (!userId) {
       return new Response(JSON.stringify({ error: 'No userId' }), { status: 500, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
@@ -199,23 +228,39 @@ serve(async (req) => {
       }
     }
 
-    // Upsert profile via service_role (bypass RLS)
-    // Only set fields that were actually passed (resend may omit role/org)
-    const profilePayload: Record<string, unknown> = {
-      id: userId,
-      email,
-      name,
-      organization_id: organizationId || null,
-      organization_name: organizationName || null,
-      onboarding_completed: false,
-    };
-    if (role) profilePayload.user_role = role;
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .upsert(profilePayload, { onConflict: 'id' });
+    // New invites may initialize privileged fields once. Resends never rewrite them.
+    let profileError: unknown = null;
+    let profilePersisted = true;
 
-    if (profileError) {
-      return new Response(JSON.stringify({ error: 'Profile creation failed', details: profileError, userId }), { status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
+    if (existingProfile) {
+      const { data: updatedProfile, error } = await supabaseAdmin
+        .from('profiles')
+        .update({ name })
+        .eq('id', existingProfile.id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+      profileError = error;
+      profilePersisted = Boolean(updatedProfile);
+    } else {
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email,
+          name,
+          organization_id: organizationId,
+          organization_name: organizationName || null,
+          user_role: role,
+          status: 'pending',
+          onboarding_completed: false,
+        }, { onConflict: 'id' });
+      profileError = error;
+    }
+
+    if (profileError || !profilePersisted) {
+      if (profileError) safeEdgeError('send-invite-email', 'Profile persistence failed', profileError);
+      return new Response(JSON.stringify({ error: 'Não foi possível persistir o convite' }), { status: 409, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ success: true, userId }), { status: 200, headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' } });

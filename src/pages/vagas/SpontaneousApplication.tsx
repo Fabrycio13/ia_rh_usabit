@@ -488,6 +488,7 @@ export const SpontaneousApplication = () => {
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
+            if (!resumeUrl) return;
 
             const candidatePayload = {
                 email: formData.email,
@@ -505,12 +506,6 @@ export const SpontaneousApplication = () => {
                 cep: formData.cep || null,
                 address_number: formData.addressNumber || null,
                 complement: formData.complement || null,
-                vaga_id: null,
-                status: 'pending',
-                source: 'spontaneous',
-                skills: null,
-                experience: null,
-                analysis: null,
             };
 
             const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-candidate`, {

@@ -10,6 +10,7 @@ import {
 import { sanitizeHtml } from '../../core/utils/security';
 import { EMAIL_REGEX, maskCep, maskPhone, normalizeText } from '../../core/utils/formatUtils';
 import { uploadViaSignedUrl } from '../../core/utils/storage';
+import './JobApplication.css';
 
 interface Job {
     id: string;
@@ -40,206 +41,6 @@ interface Job {
     vaga_bg_image?: string | null;
     organization_id?: string | null;
 }
-
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeSlideDown {
-    from { opacity: 0; transform: translateY(-16px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes messagePop {
-    0%   { opacity: 0; transform: translateY(12px) scale(0.97); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.5; }
-}
-@keyframes successBounce {
-    0%   { transform: scale(0.5); opacity: 0; }
-    70%  { transform: scale(1.1); }
-    100% { transform: scale(1); opacity: 1; }
-}
-@keyframes dots {
-    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-    40%            { transform: scale(1); opacity: 1; }
-}
-.typing-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2C58FD; animation: dots 1.2s infinite ease-in-out; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-body { font-family: 'Space Grotesk', sans-serif; }
-h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif !important; }
-
-.chat-bubble-new {
-    position: relative;
-    background: rgba(255,255,255,0.07);
-    backdrop-filter: blur(12px);
-    /* O segredo: Clip path desenha o balão e a cauda como uma peça única */
-    clip-path: polygon(
-        0% 0%, 
-        0% 0%, 
-        100% 0%, 
-        100% 100%, 
-        0% 100%, 
-        0% 12px, 
-        -12px 0%
-    );
-    /* Compensação para a cauda não ser cortada */
-    margin-left: 12px;
-    padding: 16px 20px;
-    border-radius: 0 20px 20px 20px;
-    color: #e2e8f0;
-    font-size: 15px;
-    line-height: 1.65;
-    /* Sombras e borda simulada para evitar o "risco" */
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
-}
-
-.chat-bubble-typing {
-    background: rgba(255,255,255,0.07);
-    backdrop-filter: blur(12px);
-    margin-left: 12px;
-    padding: 16px 20px;
-    border-radius: 24px;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
-}
-
-.wizard-input {
-    width: 100%;
-    padding: 14px 18px;
-    background: rgba(255,255,255,0.04);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    color: #f1f5f9;
-    font-size: 16px;
-    outline: none;
-    transition: all 0.25s;
-    font-family: 'Space Grotesk', sans-serif !important;
-    line-height: 24px;
-    letter-spacing: 0.16px;
-    box-sizing: border-box;
-}
-.wizard-input:focus {
-    border-color: var(--primary-hex, #6366f1);
-    background: rgba(99,102,241,0.06);
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
-}
-.wizard-input::placeholder { color: #475569; }
-.wizard-input.error { border-color: #ef4444; background: rgba(239,68,68,0.06); }
-.wizard-input.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
-
-.wizard-btn-primary {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 13px 28px;
-    background: #2C58FD;
-    border: none; border-radius: 12px;
-    color: #fff; font-size: 15px; font-weight: 700;
-    font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: 0.3px;
-    cursor: pointer; transition: all 0.25s;
-    box-shadow: 0 10px 30px rgba(44, 88, 253, 0.3);
-}
-.wizard-btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 40px rgba(44, 88, 253, 0.4);
-}
-.wizard-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.wizard-btn-ghost {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 13px 28px;
-    background: transparent;
-    border: 1.5px solid rgba(255,255,255,0.12); border-radius: 12px;
-    color: #94a3b8; font-size: 15px; font-weight: 700;
-    font-family: 'Space Grotesk', sans-serif;
-    letter-spacing: 0.3px;
-    cursor: pointer; transition: all 0.2s;
-}
-.wizard-btn-ghost:hover { border-color: rgba(255,255,255,0.25); color: #f1f5f9; }
-
-.radio-opt {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 16px;
-    background: rgba(255,255,255,0.03);
-    border: 1.5px solid rgba(255,255,255,0.09);
-    border-radius: 10px; cursor: pointer;
-    transition: all 0.2s; font-size: 14px; color: #94a3b8;
-}
-.radio-opt.selected {
-    border-color: #6366f1;
-    background: rgba(99,102,241,0.1);
-    color: #f1f5f9;
-}
-.radio-opt:hover:not(.selected) {
-    border-color: rgba(255,255,255,0.2);
-    color: #cbd5e1;
-}
-
-/* Custom Select Wizard */
-.cs-trigger-wizard {
-    display: flex; align-items: center; justify-content: space-between;
-    width: 100%; padding: 14px 18px;
-    background: rgba(255,255,255,0.04);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 12px; color: #f1f5f9;
-    font-size: 15px; cursor: pointer; transition: all 0.25s;
-    box-sizing: border-box;
-}
-.cs-trigger-wizard:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); }
-.cs-trigger-wizard.open { border-color: var(--primary-hex, #6366f1); background: rgba(99,102,241,0.06); }
-
-.cs-dropdown-wizard {
-    position: absolute; top: calc(100% + 8px); left: 0; width: 300px;
-    background: #111827; border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 14px; padding: 6px; z-index: 1000;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-    backdrop-filter: blur(20px); animation: csSlideUp 0.2s ease-out;
-    display: flex; flex-direction: column;
-}
-.cs-dropdown-items-wrapper {
-    max-height: 250px; overflow-y: auto; overflow-x: hidden;
-    padding-right: 4px; margin-top: 4px;
-}
-.cs-dropdown-items-wrapper::-webkit-scrollbar { width: 4px; }
-.cs-dropdown-items-wrapper::-webkit-scrollbar-track { background: transparent; }
-.cs-dropdown-items-wrapper::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-.cs-dropdown-items-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-
-.cs-search-wrapper {
-    position: sticky; top: 0; z-index: 10;
-    padding: 6px 8px; background: #111827;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 4px;
-}
-.cs-search-input {
-    width: 100%; background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: 8px 12px;
-    color: #f1f5f9; font-size: 13px; outline: none;
-    transition: all 0.2s;
-}
-.cs-search-input:focus {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(99, 102, 241, 0.05);
-}
-.cs-item-wizard {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: 8px; color: #94a3b8;
-    font-size: 14px; cursor: pointer; transition: all 0.15s;
-}
-.cs-item-wizard:hover { background: rgba(255, 255, 255, 0.05); color: #f1f5f9; }
-.cs-item-wizard.active { background: rgba(99, 102, 241, 0.15); color: #818cf8; font-weight: 600; }
-.cs-dot-wizard { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-@keyframes csSlideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-`;
 
 const BotAvatar = () => (
     <div style={{
@@ -719,6 +520,7 @@ export const JobApplication = () => {
         setSubmitting(true);
         try {
             const resumeUrl = await uploadResume();
+            if (!resumeUrl) return;
             
             // Filtro das respostas
             const filteredAnswers = Object.fromEntries(
@@ -756,7 +558,6 @@ export const JobApplication = () => {
                 },
                 body: JSON.stringify({
                     vaga_id: job!.id,
-                    organization_id: job!.organization_id,
                     candidate_name: formData.name,
                     candidate_email: formData.email,
                     candidate_phone: formData.phone || null,
@@ -766,9 +567,6 @@ export const JobApplication = () => {
                     candidate_age: formData.age || null,
                     resume_url: resumeUrl,
                     resume_file_name: resumeFile.name,
-                    status: 'pending',
-                    match_score: 0,
-                    source: 'public_link',
                     answers: finalAnswers,
                 })
             });
@@ -805,7 +603,6 @@ export const JobApplication = () => {
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <style>{CSS}</style>
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ width: 48, height: 48, border: '4px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
                     <p style={{ color: '#94a3b8', fontSize: '14px' }}>Carregando...</p>
@@ -817,7 +614,6 @@ export const JobApplication = () => {
     if (error || !job) {
         return (
             <div style={{ minHeight: '100vh', background: '#0B1020', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-                <style>{CSS}</style>
                 <div style={{ textAlign: 'center', maxWidth: 500 }}>
                     <AlertCircle size={64} style={{ color: '#ef4444', margin: '0 auto 24px' }} />
                     <h1 style={{ color: '#f1f5f9', fontSize: 28, fontWeight: 700, marginBottom: 12 }}>{error || 'Vaga não encontrada'}</h1>
@@ -840,7 +636,6 @@ export const JobApplication = () => {
                 overflow: 'hidden',
                 fontFamily: "'Space Grotesk', sans-serif"
             }}>
-                <style>{CSS}</style>
 
                 {/* Background Gradient SVG - Site Panel Pattern Sync */}
                 <div style={{ 
@@ -942,7 +737,6 @@ export const JobApplication = () => {
             overflowX: 'hidden',
             fontFamily: "'Manrope', sans-serif"
         }}>
-            <style>{CSS}</style>
 
             {/* Background Gradient SVG - Site Panel Pattern */}
             <div style={{ 
@@ -1055,16 +849,18 @@ export const JobApplication = () => {
                                         onKeyDown={e => e.key === 'Enter' && canAdvanceStep0 && goToNextStep()}
                                     />
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                                    <button 
-                                        className="wizard-btn-ghost" 
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, gap: '8px' }}>
+                                    <button
+                                        className="wizard-btn-ghost"
                                         onClick={() => navigate(-1)}
-                                        style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
                                             gap: '8px',
                                             color: '#ef4444',
-                                            borderColor: 'rgba(239, 68, 68, 0.2)'
+                                            borderColor: 'rgba(239, 68, 68, 0.2)',
+                                            fontSize: isMobile ? '13px' : '15px',
+                                            padding: isMobile ? '10px 16px' : '13px 28px',
                                         }}
                                         onMouseOver={(e) => {
                                             e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
@@ -1081,6 +877,7 @@ export const JobApplication = () => {
                                         className="wizard-btn-primary"
                                         disabled={!canAdvanceStep0}
                                         onClick={goToNextStep}
+                                        style={{ flexShrink: 0 }}
                                     >
                                         Continuar <ArrowRight size={16} />
                                     </button>
@@ -1487,7 +1284,7 @@ export const JobApplication = () => {
                                     onChange={e => setHoneypot(e.target.value)}
                                 />
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, gap: '8px' }}>
                                     <button className="wizard-btn-ghost" onClick={() => { setStep(hasQuestions ? 2 : 1); triggerStepReveal(); }}>
                                         <ArrowLeft size={14} /> Voltar
                                     </button>
@@ -1497,8 +1294,6 @@ export const JobApplication = () => {
                                         onClick={handleSubmit}
                                         style={{ 
                                             background: submitting ? '#64748b' : '#2C58FD',
-                                            width: isMobile ? '100%' : 'auto',
-                                            justifyContent: 'center'
                                         }}
                                     >
                                         {submitting ? (

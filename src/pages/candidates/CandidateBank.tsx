@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState, useRef, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Star, Search, ChevronLeft, ChevronRight,
-  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye
+  X, ChevronUp, ChevronDown, Ban, Phone, Users, UserCheck, Eye, FileText, Trash2
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
 import { useUser } from '../../core/contexts/UserContext';
+import toast from 'react-hot-toast';
 import { useTheme } from '../../core/contexts/ThemeContext';
+import { handleViewResume } from '../../core/utils/storage';
 import { CandidatePanel } from '../../features/analysis/CandidatePanel';
 import { hasPermission } from '../../core/config/permissions';
 import { type CandidateDetail } from '../../features/analysis/CandidatePanelUtils';
@@ -144,6 +146,7 @@ export const CandidateBank = () => {
   const [selected, setSelected] = useState<CandidateDetail | null>(null);
   const [reanalysingCandId, setReanalysingCandId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [deleteConfirm, setDeleteConfirm] = useState<Candidate | null>(null);
 
   // â”€ Sorting
   const [sortKey, setSortKey] = useState<SortKey>(null);
@@ -236,7 +239,12 @@ export const CandidateBank = () => {
 
   useEffect(() => {
     if (!profile.loaded) return;
-    if (!profile.userId) { setLoading(false); return; }
+    if (!profile.userId) {
+      // Estado de fallback quando a sessão carregada não possui usuário.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+      return;
+    }
     const safetyTimer = setTimeout(() => setLoading(false), 8000);
     fetchCandidatesRef.current(profile.userId, profile.user_role).finally(() => clearTimeout(safetyTimer));
     return () => clearTimeout(safetyTimer);
@@ -254,6 +262,17 @@ export const CandidateBank = () => {
       }
     } catch { /* ignore */ }
   }
+
+  const confirmDeleteCandidate = async () => {
+    if (!deleteConfirm) return;
+    const c = deleteConfirm;
+    setDeleteConfirm(null);
+    await supabase.from('candidates').delete().eq('id', c.id);
+    await supabase.from('vagas_candidaturas').delete().eq('candidate_id', c.id);
+    setCandidates(prev => prev.filter(x => x.id !== c.id));
+    setSelected(null);
+    toast.success('Candidato removido');
+  };
 
   const handleSort = (col: SortKey) => {
     if (sortKey === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -736,36 +755,24 @@ export const CandidateBank = () => {
                       </div>
                     </td>
                   )}
-                  <td style={{ padding: '0 16px', height: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <td style={{ padding: '0 8px', height: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          {c.resume_url && (
+                            <button title="Ver currículo" onClick={e => { e.stopPropagation(); handleViewResume(c.resume_url!); }}
+                              style={{ width: 32, height: 32, padding: 0, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 6, color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <FileText size={14} />
+                            </button>
+                          )}
+                          <button title="Excluir candidato" onClick={e => { e.stopPropagation(); setDeleteConfirm(c); }}
+                            style={{ width: 32, height: 32, padding: 0, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Trash2 size={14} />
+                          </button>
                           <button 
                             title="Visualizar Card"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openCandidate(c);
-                            }}
-                            style={{
-                              padding: '6px',
-                              background: 'transparent',
-                              border: '1px solid var(--border)',
-                              borderRadius: '6px',
-                              color: 'var(--primary)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = 'var(--primary-light-bg)';
-                              e.currentTarget.style.borderColor = 'var(--primary)';
-                              e.currentTarget.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.borderColor = 'var(--border)';
-                              e.currentTarget.style.transform = 'scale(1)';
-                            }}
+                            onClick={(e) => { e.stopPropagation(); openCandidate(c); }}
+                            style={{ padding: '6px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-light-bg)'; e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'scale(1)'; }}
                           >
                             <Eye size={16} />
                           </button>
@@ -803,6 +810,37 @@ export const CandidateBank = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <>
+          <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            zIndex: 401, width: isMobile ? '90%' : '400px',
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 20, fontFamily: 'Inter, sans-serif',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{ padding: '24px 24px 16px' }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>Excluir candidato</h2>
+              <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                Tem certeza que deseja remover <strong style={{ color: 'var(--text-main)' }}>{deleteConfirm.name}</strong>? Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteConfirm(null)}
+                style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text-dim)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmDeleteCandidate}
+                style={{ padding: '10px 24px', background: '#ef4444', border: 'none', borderRadius: 12, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Sim, excluir
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {selected && (

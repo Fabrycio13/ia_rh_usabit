@@ -20,6 +20,7 @@ const { mockInvoke } = vi.hoisted(() => ({
 
 vi.mock('../../src/core/services/supabase', () => ({
     supabase: {
+        auth: { getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })) },
         functions: { invoke: mockInvoke },
         from: vi.fn(() => ({
             update: vi.fn(() => ({
@@ -176,6 +177,14 @@ describe('SpontaneousApplication', () => {
             (call: unknown[]) => (call[0] as string).includes('submit-candidate')
         );
         expect(submitCall).toBeTruthy();
+
+        const submitBody = JSON.parse((submitCall?.[1] as RequestInit).body as string);
+        expect(submitBody).not.toHaveProperty('vaga_id');
+        expect(submitBody).not.toHaveProperty('status');
+        expect(submitBody).not.toHaveProperty('source');
+        expect(submitBody).not.toHaveProperty('skills');
+        expect(submitBody).not.toHaveProperty('experience');
+        expect(submitBody).not.toHaveProperty('analysis');
     });
 
     it('exibe mensagem de boas-vindas com nome do candidato', async () => {

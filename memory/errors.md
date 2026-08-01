@@ -126,3 +126,23 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
   - `Configuracoes.tsx` 2 (setLoading guard + setActiveTab perm)
   - **Total: 7 erros** (eram 14 — reduzida pela metade).
 - **Verified:** 2026-07-31
+
+---
+
+## ERR-2026-07-31-006 — Portal público e autenticação mantêm brechas críticas/altas em produção
+
+- **Status:** pending
+- **Domains:** security, auth, public-portal, edge-functions, storage, rls
+- **Keywords:** privilege-escalation, mass-assignment, signed-upload, rate-limit, deploy-drift
+- **Context:** Auditoria do login, convite, recuperação, portal de vagas e candidaturas confirmou que as Edge Functions públicas implantadas ainda aceitam path de upload e campos internos controlados pelo cliente. O SQL versionado de `profiles` também permite UPDATE de qualquer coluna da própria linha, formando possível escalação para `owner`; a policy ao vivo não pôde ser consultada porque o dump remoto exige Docker Desktop.
+- **Causa raiz:** DTOs server-side confiam em campos do cliente; signer remoto aceita path completo; validação de arquivo não existe nas versões implantadas; rate limiter remoto usa `COUNT` + `INSERT` sem serialização e ignora erros; hardenings locais não foram implantados; policy `profiles: universal_self_access` é `FOR ALL` sem proteção por coluna.
+- **Evidence:**
+  - `docs/security/audits/2026-07-31-auditoria-auth-portal-publico.md`
+  - `supabase/migrations/052_fix_rls_and_multitenancy.sql:133-138`
+  - `supabase/functions/get-upload-url/index.ts`
+  - `supabase/functions/submit-application/index.ts`
+  - `supabase/functions/submit-candidate/index.ts`
+- **Falso positivo descartado:** insert anônimo direto em `vagas_candidaturas` foi bloqueado ao vivo por RLS (`HTTP 401`, PostgreSQL `42501`); nenhum registro foi criado.
+- **Bloqueios antes de deploy:** não executar `supabase db push` indiscriminado (a migration `084` mantém INSERT de Storage aplicável a `PUBLIC`) e não implantar as funções locais antes de corrigir os 3 erros do `deno check`.
+- **Verificação:** `tsc` e build OK; 155/155 testes passaram; lint com 8 erros/1 warning; Deno com 3 erros; 0 candidatos a secret privado em arquivos rastreados e bundle.
+- **Verified:** 2026-07-31

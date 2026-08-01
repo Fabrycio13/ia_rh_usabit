@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getVisibleTabs } from '../../src/pages/settings/Configuracoes';
+import { getVisibleTabs, validatePassword } from '../../src/pages/settings/Configuracoes';
 
 vi.mock('../../src/core/services/supabase', () => {
     const mockSelect = vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: { name: 'Test', email: 'test@test.com', organization_id: 'org-1', organization_name: 'Org' }, error: null })), single: vi.fn(() => Promise.resolve({ data: { id: 'user-1', name: 'Test' }, error: null })) })) }));
@@ -94,4 +94,12 @@ describe('Configuracoes - abas por role', () => {
     });
 });
 
+describe('Configuracoes - senha', () => {
+    it('rejeita senha com menos de 12 caracteres', () => {
+        expect(validatePassword('12345678901', '12345678901')).toBe('A senha deve ter pelo menos 12 caracteres.');
+    });
 
+    it('aceita senha com 12 ou mais caracteres', () => {
+        expect(validatePassword('senha-segura', 'senha-segura')).toBeNull();
+    });
+});

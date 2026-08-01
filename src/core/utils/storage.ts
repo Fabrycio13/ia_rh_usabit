@@ -85,6 +85,8 @@ export async function uploadViaSignedUrl(
 ): Promise<string> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const { data: { session } } = await supabase.auth.getSession();
+  const authToken = session?.access_token || anonKey;
 
   // 1. Obter signed upload URL da Edge Function (path gerado server-side)
   const body: Record<string, unknown> = { bucket };
@@ -96,7 +98,7 @@ export async function uploadViaSignedUrl(
     headers: {
       'Content-Type': 'application/json',
       'apikey': anonKey,
-      'Authorization': `Bearer ${anonKey}`,
+      'Authorization': `Bearer ${authToken}`,
     },
     body: JSON.stringify(body),
   });

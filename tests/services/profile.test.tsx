@@ -104,10 +104,10 @@ describe('Configuracoes - Password validation', () => {
     });
 
     it('rejeita senha muito curta', () => {
-        expect(validatePassword('12', '12')).toBe('A senha deve ter pelo menos 6 caracteres.');
+        expect(validatePassword('12', '12')).toBe('A senha deve ter pelo menos 12 caracteres.');
     });
 
     it('aceita senha válida', () => {
-        expect(validatePassword('nova@123', 'nova@123')).toBeNull();
+        expect(validatePassword('Senha@123456', 'Senha@123456')).toBeNull();
     });
 });

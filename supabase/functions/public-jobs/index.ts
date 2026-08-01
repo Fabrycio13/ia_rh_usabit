@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from '../_shared/rate-limit.ts';
 import { safeEdgeError } from '../_shared/safe-logger.ts'
+import { filterPublicJob } from '../_shared/public-contracts.ts'
 
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -72,7 +73,7 @@ serve(async (req) => {
     // 2. Busca Vagas abertas (is_active = true AND status = 'aberta')
     const { data: vagasData, error: vagasError } = await supabaseAdmin
       .from('vagas_white_label')
-      .select('id, title, public_hash, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name')
+      .select('id, title, public_hash, has_salary_range, salary_min, salary_max, contract_type, work_regime, is_pcd, has_location, location, work_model, created_at, category, company_name, company_logo, show_company_name')
       .eq('organization_id', orgId)
       .eq('status', 'aberta')
       .eq('is_active', true)
@@ -85,7 +86,7 @@ serve(async (req) => {
     // Montar a resposta
     const responsePayload = {
       orgInfo: orgData,
-      vagas: vagasData || []
+      vagas: (vagasData || []).map((job) => filterPublicJob(job))
     };
 
     return new Response(JSON.stringify(responsePayload), {

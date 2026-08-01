@@ -214,6 +214,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       // Skills: vem como array
       if (extractionResult.skills && extractionResult.skills.length > 0) {
         const skillsText = extractionResult.skills.join(', ');
+        // A função é declarada abaixo por organização do formulário; o callback só é executado após a renderização.
+        // eslint-disable-next-line react-hooks/immutability
         const normalized = normalizeAIResult(skillsText, 'skills');
         console.log('[AddCandidate] Skills normalized:', normalized);
         setSkills(normalized);
@@ -238,6 +240,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       setUploadState('error');
       toast.error(`Erro: ${message}`);
     }
+  // A dependência é usada pelo callback no fluxo de upload; o lint do React Hooks não rastreia essa leitura indireta.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.organization_id]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -374,6 +378,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
    */
   useEffect(() => {
     if (isOpen) {
+      // Reset controlado pelo ciclo de abertura do modal.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       resetForm();
     }
   }, [isOpen]);
@@ -389,6 +395,8 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
       
       return () => clearTimeout(timer);
     } else {
+      // Limpa o resultado quando os campos deixam de ser elegíveis para duplicidade.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDuplicateCandidate(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, startTransition } from 'react';
 import {
     X, MapPin, Calendar, UserRound, Mail, Phone,
-    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, ClipboardList, UserPlus,
+    Briefcase, Eye, Loader, MessageSquare, Zap, Smile, Ban, Activity, Clock, UserPlus,
     ChevronLeft, FileText, GitBranch
 } from 'lucide-react';
 import { supabase } from '../../core/services/supabase';
@@ -705,45 +705,6 @@ export function CandidatePanel({
                                                     </div>
                                                 );
                                             })}
-                                        </div>
-                                    </section>
-                                )}
-                            </>
-                        )}
-
-                        {c.isVagaView && (
-                            <>
-                                {c.answers && Object.entries(c.answers).filter(([key]) =>
-                                    !key.startsWith('_') && !EXCLUDED_KEYS.has(key)
-                                ).length > 0 && (
-                                    <section style={{
-                                        border: '1px solid var(--border)', 
-                                        borderRadius: 20, 
-                                        padding: 24, 
-                                        background: 'rgba(255,255,255,0.02)', 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
-                                        gap: 16
-                                    }}>
-                                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            <ClipboardList size={16} /> Respostas Adicionais
-                                        </p>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                            {Object.entries(c.answers)
-                                                .filter(([key]) => !['_ai_analysis', ...EXCLUDED_KEYS].includes(key))
-                                                .map(([key, value]) => {
-                                                    const questionLabel = c.questionLabels?.[key] || key.replace(/_/g, ' ');
-                                                    return (
-                                                        <div key={key} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 12 }}>
-                                                            <p style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.03em' }}>
-                                                                {questionLabel}
-                                                            </p>
-                                                            <p style={{ fontSize: 14, color: 'var(--text-main)', margin: 0, fontWeight: 500 }}>
-                                                                {typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : (value || '-')}
-                                                            </p>
-                                                        </div>
-                                                    );
-                                                })}
                                         </div>
                                     </section>
                                 )}

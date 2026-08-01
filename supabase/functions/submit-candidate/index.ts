@@ -1,8 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3"
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { stripHtml, sanitizeText, validateField } from "../_shared/validation.ts";
+import { stripHtml, sanitizeText, validateField, validateUploadedFile } from "../_shared/validation.ts";
 import { safeEdgeError } from '../_shared/safe-logger.ts'
+import {
+  buildSpontaneousCandidateInsert,
+  isResumePathForContext,
+  normalizeResumeStoragePath,
+} from '../_shared/public-contracts.ts'
 
 const ALLOWED_ORIGINS = ['https://rh.usabitspace.com', 'http://localhost:5173', 'http://localhost:4173'];
 
@@ -24,8 +29,8 @@ interface CandidatePayload {
   phone?: string | null
   location?: string | null
   linkedin?: string | null
-  resume_url?: string | null
-  resume_file_name?: string | null
+  resume_url: string
+  resume_file_name: string
   gender?: string | null
   age?: string | number | null
   address?: string | null
@@ -33,7 +38,6 @@ interface CandidatePayload {
   cep?: string | null
   address_number?: string | null
   complement?: string | null
-  vaga_id?: string | null
   // Campos internos (ignorados do cliente, definidos server-side):
   // status, source, skills, experience, analysis
 }
@@ -42,7 +46,7 @@ interface CandidatePayload {
 const ALLOWED_FIELDS = new Set([
   'email', 'organization_id', 'name', 'phone', 'location', 'linkedin',
   'resume_url', 'resume_file_name', 'gender', 'age', 'address',
-  'portfolio', 'cep', 'address_number', 'complement', 'vaga_id',
+  'portfolio', 'cep', 'address_number', 'complement',
 ])
 
 const RATE_LIMIT_MAX = 10
@@ -73,10 +77,10 @@ serve(async (req) => {
     const raw: Record<string, unknown> = await req.json()
     const body = Object.fromEntries(
       Object.entries(raw).filter(([key]) => ALLOWED_FIELDS.has(key))
-    ) as CandidatePayload
+    ) as unknown as CandidatePayload
 
-    if (!body.email || !body.organization_id || !body.name) {
-      return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name' }), {
+    if (!body.email || !body.organization_id || !body.name || !body.resume_url || !body.resume_file_name) {
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios: email, organization_id, name, resume_url, resume_file_name' }), {
         headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 400,
       })
@@ -92,9 +96,10 @@ serve(async (req) => {
     const errs = [
       validateField('name', body.name, TEXT_MAX),
       validateField('email', body.email, EMAIL_MAX),
-      validateField('phone', body.phone, 50),
-      validateField('location', body.location, 255),
-      validateField('linkedin', body.linkedin, 500),
+      body.phone ? validateField('phone', body.phone, 50) : null,
+      body.location ? validateField('location', body.location, 255) : null,
+      body.linkedin ? validateField('linkedin', body.linkedin, 500) : null,
+      validateField('resume_file_name', body.resume_file_name, 255),
     ].filter(Boolean)
     if (errs.length > 0) {
       return new Response(JSON.stringify({ error: errs[0] }), {
@@ -107,6 +112,7 @@ serve(async (req) => {
     if (body.phone) body.phone = sanitizeText(stripHtml(body.phone))
     if (body.location) body.location = sanitizeText(stripHtml(body.location))
     if (body.linkedin) body.linkedin = sanitizeText(stripHtml(body.linkedin))
+    body.resume_file_name = sanitizeText(stripHtml(body.resume_file_name))
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -146,32 +152,25 @@ serve(async (req) => {
       })
     }
 
-    // 3. Se informou vaga_id, validar que ela existe e pertence à org
-    if (body.vaga_id) {
-      const { data: vaga, error: vagaError } = await supabaseAdmin
-        .from('vagas_white_label')
-        .select('id, organization_id, is_active, status')
-        .eq('id', body.vaga_id)
-        .single();
+    // 3. Validar que o currículo pertence ao path espontâneo desta organização
+    const resumePath = normalizeResumeStoragePath(body.resume_url)
+    if (!resumePath || !isResumePathForContext(resumePath, { orgId: body.organization_id })) {
+      return new Response(JSON.stringify({ error: 'Arquivo não vinculado a esta organização' }), {
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
 
-      if (vagaError || !vaga) {
-        return new Response(JSON.stringify({ error: 'Vaga não encontrada' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
-          status: 404,
-        })
-      }
-      if (!vaga.is_active || vaga.status !== 'aberta') {
-        return new Response(JSON.stringify({ error: 'Vaga não está mais disponível' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
-          status: 400,
-        })
-      }
-      if (vaga.organization_id !== body.organization_id) {
-        return new Response(JSON.stringify({ error: 'Vaga não pertence à organização' }), {
-          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
-          status: 400,
-        })
-      }
+    const fileCheck = await validateUploadedFile(
+      supabaseAdmin,
+      'job-applications',
+      resumePath,
+    )
+    if (!fileCheck.valid) {
+      return new Response(JSON.stringify({ error: fileCheck.error }), {
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+        status: 400,
+      })
     }
 
     // 4. Idempotência — evitar candidaturas duplicadas
@@ -180,7 +179,7 @@ serve(async (req) => {
       .select('id')
       .eq('candidate_email', body.email)
       .eq('organization_id', body.organization_id)
-      .eq('vaga_id', body.vaga_id || null)
+      .is('vaga_id', null)
       .maybeSingle()
 
     if (existing) {
@@ -190,41 +189,18 @@ serve(async (req) => {
       })
     }
 
-    // 5. Insert na candidatura do Pool (vagas_candidaturas com vaga_id NULL se sponsored)
-    //    Usa apenas campos da allowlist — campos internos são setados server-side
-    const candidaturaData: Record<string, unknown> = {
-      vaga_id: body.vaga_id || null,
-      organization_id: body.organization_id,
-      candidate_name: body.name,
-      candidate_email: body.email,
-      candidate_phone: body.phone || null,
-      candidate_location: body.location || null,
-      candidate_linkedin: body.linkedin || null,
-      resume_url: body.resume_url || null,
-      resume_file_name: body.resume_file_name || null,
-      candidate_gender: body.gender || null,
-      candidate_age: body.age != null ? String(body.age) : null,
-      address: body.address || null,
-      portfolio: body.portfolio || null,
-      cep: body.cep || null,
-      address_number: body.address_number || null,
-      complement: body.complement || null,
-      // Campos internos (definidos server-side, ignorados do cliente)
-      status: 'pending',
-      source: 'spontaneous',
-      skills: null,
-      experience: null,
-      analysis: null,
-    };
-
+    // 5. Insert no Pool com payload autoritativo server-side e vaga_id sempre NULL
     const { data, error } = await supabaseAdmin
       .from('vagas_candidaturas')
-      .insert(candidaturaData)
+      .insert(buildSpontaneousCandidateInsert(
+        body as unknown as Record<string, unknown>,
+        body.organization_id,
+      ))
       .select('id')
       .single()
 
     if (error) {
-      safeEdgeError('Erro no upsert de candidato:', error)
+      safeEdgeError('submit-candidate', 'Erro no insert de candidato', error)
       return new Response(JSON.stringify({ error: 'Erro ao salvar candidato' }), {
         headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 500,
@@ -241,7 +217,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    safeEdgeError('Erro na função submit-candidate:', (error as Error).message)
+    safeEdgeError('submit-candidate', 'Erro não tratado', error)
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
       status: 500,

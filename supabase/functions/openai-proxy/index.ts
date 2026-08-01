@@ -50,7 +50,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 
 const ALLOWED_MODELS = new Set(['gpt-4o', 'gpt-4o-mini'])
 
-serve(async (req) => {
+async function handleRequest(req: Request): Promise<Response> {
   const origin = req.headers.get('Origin');
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: getCorsHeaders(origin) })
@@ -255,33 +255,75 @@ Mantenha a ORDEM dos candidatos.`;
       return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
     }
 
+    // DeepSeek (usado como fallback Zen) não suporta image_url — se houver
+    // imagens no request, retorna o erro da OpenAI em vez de falhar no Zen.
+    const hasImages = (openaiBody.messages as OpenAIMessage[])?.some(m => {
+      if (Array.isArray(m.content)) {
+        return m.content.some((p: Record<string, unknown>) => p.type === 'image_url')
+      }
+      return false
+    })
+    if (hasImages) {
+      console.warn('[openai-proxy] Request contém imagens, fallback Zen/DeepSeek ignorado (não suporta vision)')
+      return { response: openaiResp, provider: 'openai', model: String(openaiBody.model) }
+    }
+
     console.warn(`[openai-proxy] OpenAI ${openaiResp.status}, fallback para Zen (deepseek-v4-flash)`)
 
     // Mapeia modelo OpenAI para Zen equivalente
     const zenModel = String(openaiBody.model).startsWith('gpt-') ? 'deepseek-v4-flash-free' : String(openaiBody.model)
     const zenBody = { ...openaiBody, model: zenModel }
 
-    const zenResp = await fetch(`${ZEN_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ZEN_API_KEY}`,
-      },
-      signal: AbortSignal.timeout(30_000),
-      body: JSON.stringify(zenBody),
-    })
-    return { response: zenResp, provider: 'zen', model: zenModel }
+    try {
+      const zenResp = await fetch(`${ZEN_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ZEN_API_KEY}`,
+        },
+        signal: AbortSignal.timeout(30_000),
+        body: JSON.stringify(zenBody),
+      })
+      return { response: zenResp, provider: 'zen', model: zenModel }
+    } catch (error) {
+      console.error('[openai-proxy] Falha ao chamar o fallback Zen:', error instanceof Error ? error.message : 'unknown')
+      return {
+        response: new Response(JSON.stringify({ error: 'Provedor alternativo indisponível' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+        provider: 'zen',
+        model: zenModel,
+      }
+    }
   }
 
   const response = await callProvider(openaiBody)
+  const responseText = await response.response.text()
+  let data: Record<string, unknown>
 
-  const data = await response.response.json()
-  // Marca no response qual provider respondeu (útil pra debug)
-  ;(data as Record<string, unknown>)._provider = response.provider
-  ;(data as Record<string, unknown>)._model = response.model
+  try {
+    data = JSON.parse(responseText) as Record<string, unknown>
+  } catch {
+    data = { error: responseText || 'Resposta inválida do provedor de IA' }
+  }
+
+  // Marca na resposta qual provider respondeu (útil para diagnóstico)
+  data._provider = response.provider
+  data._model = response.model
 
   return new Response(JSON.stringify(data), {
     status: response.response.status,
     headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
+}
+
+serve(async (req) => {
+  const origin = req.headers.get('Origin')
+  try {
+    return await handleRequest(req)
+  } catch (error) {
+    console.error('[openai-proxy] Erro não tratado:', error instanceof Error ? error.name : 'unknown')
+    return jsonResponse(500, { error: 'Erro interno ao processar a análise de IA' }, origin)
+  }
 })

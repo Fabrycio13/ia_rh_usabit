@@ -33,7 +33,7 @@ interface UserProfile {
 const defaultProfile: UserProfile = {
     userId: '', userName: '', firstName: '', avatarUrl: '',
     plan: 'trial', email: '', initials: '', notificationsEnabled: false,
-    user_role: 'owner', status: 'active', account_type: 'trial', trial_ends_at: null,
+    user_role: 'convidado', status: 'pending', account_type: 'trial', trial_ends_at: null,
     organization_id: null, organization_name: null, brandName: '', brandColor: '', brandFont: '', onboarding_completed: false, loaded: false,
     isPremium: false,
 };
@@ -83,11 +83,26 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }));
 
         // Then enrich with Supabase profile data (avatarUrl, role etc.)
-        const { data } = await supabase
+        const { data, error: profileError } = await supabase
             .from('profiles')
             .select('name, avatar_url, notifications_enabled, user_role, status, account_type, trial_ends_at, organization_id, organization_name, brand_name, brand_color, brand_font, onboarding_completed, evolution_api_url, evolution_api_key, evolution_instance')
             .eq('id', user.id)
             .maybeSingle();
+
+        const isSetPasswordRoute = window.location.hash.includes('/set-password')
+            || window.location.pathname.endsWith('/set-password');
+
+        if (profileError || !data) {
+            if (!isSetPasswordRoute) await supabase.auth.signOut();
+            setProfile({ ...defaultProfile, loaded: true });
+            return;
+        }
+
+        if (data.status !== 'active' && !isSetPasswordRoute) {
+            await supabase.auth.signOut();
+            setProfile({ ...defaultProfile, loaded: true });
+            return;
+        }
 
         if (data) {
             const profileName = (data.name && !data.name.includes('@')) 
@@ -129,10 +144,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 loaded: true,
             } as UserProfile));
             
-        } else {
-            // Case where user exists in Auth but not yet in Profiles (trigger delay)
-            // Still set loaded to true so the app can continue, but with base data
-            setProfile(prev => ({ ...prev, loaded: true }));
         }
     };
     useEffect(() => {
@@ -159,8 +170,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         table: 'profiles',
                         filter: `id=eq.${profile.userId}`,
                     },
-                    () => {
-                        loadProfile();
+                    (payload) => {
+                        // Atualiza APENAS os campos que mudaram, sem refazer query
+                        if (payload.new) {
+                            setProfile(prev => ({ ...prev, ...payload.new as Partial<UserProfile> }));
+                        }
                     }
                 )
                 .subscribe()

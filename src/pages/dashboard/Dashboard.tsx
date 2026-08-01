@@ -165,7 +165,12 @@ export const Dashboard = () => {
 
   useEffect(() => {
     if (!profile.loaded) return;
-    if (!profile.userId) { setLoading(false); return; }
+    if (!profile.userId) {
+      // Estado de fallback quando a sessão carregada não possui usuário.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+      return;
+    }
     const t = setTimeout(() => setLoading(false), 8000);
     fetchDataRef.current = fetchData;
     fetchDataRef.current!().finally(() => clearTimeout(t));

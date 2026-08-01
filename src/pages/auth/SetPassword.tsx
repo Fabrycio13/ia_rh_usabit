@@ -10,27 +10,55 @@ export const SetPassword = () => {
     const [confirm, setConfirm] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [profileStatus, setProfileStatus] = useState<'active' | 'pending' | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session }, error }) => {
-            if (error || !session) {
-                toast.error('Link inválido ou expirado. Solicite um novo convite.');
+        let cancelled = false;
+
+        const validateAccess = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error || !session) {
+                    toast.error('Link inválido ou expirado. Solicite um novo convite.');
+                    navigate('/login', { replace: true });
+                    return;
+                }
+
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('status')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
+                const status = profile?.status;
+                if (profileError || (status !== 'active' && status !== 'pending')) {
+                    toast.error('Esta conta não está autorizada a definir uma nova senha.');
+                    await supabase.auth.signOut();
+                    navigate('/login', { replace: true });
+                    return;
+                }
+
+                if (!cancelled) {
+                    setProfileStatus(status);
+                    setLoading(false);
+                }
+            } catch {
+                await supabase.auth.signOut().catch(() => undefined);
                 navigate('/login', { replace: true });
-                return;
             }
-            setLoading(false);
-        }).catch(() => {
-            navigate('/login', { replace: true });
-        });
+        };
+
+        void validateAccess();
+        return () => { cancelled = true; };
     }, [navigate]);
 
     const handleSetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setMessage(null);
 
-        if (password.length < 6) {
-            setMessage({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
+        if (password.length < 12) {
+            setMessage({ type: 'error', text: 'A senha deve ter pelo menos 12 caracteres.' });
             return;
         }
         if (password !== confirm) {
@@ -39,29 +67,29 @@ export const SetPassword = () => {
         }
 
         setSaving(true);
-        const { error } = await supabase.auth.updateUser({ password });
-        setSaving(false);
-
-        if (error) {
-            safeAuthError('[SetPassword] updateUser', error);
-            setMessage({ type: 'error', text: 'Não foi possível definir a senha. Tente novamente ou solicite um novo convite.' });
-            return;
-        }
-
-        // Marcar perfil como ativo após criar/redefinir senha
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.id) {
-                const { error: updateError } = await supabase.from('profiles').update({ status: 'active' }).eq('id', session.user.id);
-                if (updateError) console.error('Erro ao ativar perfil:', updateError);
+            const { error } = await supabase.auth.updateUser({ password });
+            if (error) {
+                safeAuthError('[SetPassword] updateUser', error);
+                setMessage({ type: 'error', text: 'Não foi possível definir a senha. Tente novamente ou solicite um novo convite.' });
+                return;
             }
-        } catch (err) {
-            console.error('Erro ao ativar perfil:', err);
-        }
 
-        toast.success('Senha definida com sucesso!');
-        supabase.auth.signOut().catch(() => console.warn('signOut falhou no setPassword'));
-        navigate('/login', { replace: true });
+            if (profileStatus === 'pending') {
+                const { data: activated, error: activationError } = await supabase.rpc('activate_my_pending_profile');
+                if (activationError || activated !== true) {
+                    if (activationError) safeAuthError('[SetPassword] activate profile', activationError);
+                    setMessage({ type: 'error', text: 'Não foi possível ativar sua conta. Solicite um novo convite.' });
+                    return;
+                }
+            }
+
+            toast.success('Senha definida com sucesso!');
+            await supabase.auth.signOut().catch(() => undefined);
+            navigate('/login', { replace: true });
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) {
@@ -114,11 +142,11 @@ export const SetPassword = () => {
                                 </label>
                                 <input
                                     type="password"
-                                    placeholder="Mínimo 6 caracteres"
+                                    placeholder="Mínimo 12 caracteres"
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     required
-                                    minLength={6}
+                                    minLength={12}
                                     className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
@@ -134,7 +162,7 @@ export const SetPassword = () => {
                                     value={confirm}
                                     onChange={e => setConfirm(e.target.value)}
                                     required
-                                    minLength={6}
+                                    minLength={12}
                                     className="w-full bg-[#1c1d22] border border-[#2d2f36] rounded-xl px-4 py-3.5 text-white text-[14px] outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>

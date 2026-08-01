@@ -224,7 +224,7 @@ export const getVisibleTabs = (userRole: string): TabItem[] => {
 export function validatePassword(newPass: string, confirmPass: string): string | null {
     if (!newPass) return 'Digite a nova senha.';
     if (newPass !== confirmPass) return 'As senhas não coincidem.';
-    if (newPass.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    if (newPass.length < 12) return 'A senha deve ter pelo menos 12 caracteres.';
     return null;
 }
 
@@ -377,7 +377,12 @@ export const Configuracoes = () => {
 
     useEffect(() => {
         if (!profile.loaded || dataLoaded) return;
-        if (!userId) { setLoading(false); return; }
+        if (!userId) {
+            // Estado de fallback quando a sessão carregada não possui usuário.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setLoading(false);
+            return;
+        }
         const load = async () => {
             const { data: profileData } = await supabase.from('profiles').select('id, name, organization_name, brand_name, brand_color, brand_font, avatar_url, evolution_api_url, evolution_api_key, evolution_instance').eq('id', userId).single();
             if (profileData) {
@@ -463,6 +468,8 @@ export const Configuracoes = () => {
         const visibleTabs = getVisibleTabs(profile.user_role);
         const isTabVisible = visibleTabs.some(tab => tab.key === activeTab);
         if (!isTabVisible && profile.loaded) {
+            // Redirecionamento de segurança quando a permissão da aba muda.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveTab('perfil');
         }
     }, [activeTab, profile.user_role, profile.loaded]);
