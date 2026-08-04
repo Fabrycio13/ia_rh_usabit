@@ -149,3 +149,41 @@
 - **Evidence:** `npm run lint` geral: 14 → 7 erros de `set-state-in-effect`. `npm test`: 155/155. `npm run build`: OK.
 - **Supersedes:** none
 - **Verified:** 2026-07-31
+
+---
+
+## DEC-2026-08-04-005 — RLS hardening: TO authenticated + deny explícito pra anon em tabelas sensíveis
+
+- **Status:** accepted
+- **Domains:** security, rls, pii
+- **Keywords:** anon, RLS, IS NOT DISTINCT FROM, public, authenticated, candidates, organizations, vagas_white_label
+- **Decision:** Tabelas com PII (`candidates`, `organizations`, `vagas_white_label`) devem ter policies RLS **restritas a `authenticated`** (`TO authenticated`) + policy `deny all` explícita para `anon` (`USING (false) WITH CHECK (false)`). Combo garante que mesmo policies legítimas com `roles = {public}` não vazem.
+- **Rationale:** Audit dogfood 2026-08-04 descobriu que policies existentes tinham `roles = {public}` (válidas pra anon + authenticated + service_role). Policies com `USING (... IS NOT DISTINCT FROM get_my_org_id())` retornam `TRUE` quando comparadas contra `NULL` (porque `x IS NOT DISTINCT FROM NULL` é `FALSE` se x é UUID, e `NOT FALSE` é `TRUE`). Resultado: anon conseguia ler todas as linhas cujo `organization_id` era UUID não-NULL.
+- **Solução em 2 migrations:**
+  - **090**: drop policies `USING (true)` em `organizations`; criar deny explícito pra `anon` em `candidates` e `vagas_white_label`.
+  - **091**: re-criar policies legítimas com `TO authenticated` explícito (multitenancy, access_v4, convidado_select). Policies passam a não existir pra `anon` — combinadas com deny da 090, anon só vê deny = bloqueado.
+- **Não-quebra verificado:** Edge Functions usam `SUPABASE_SERVICE_ROLE_KEY` (bypassa RLS); portal público (`/carreiras/:orgId`) chama Edge Function; dashboard autenticado usa `authenticated` token. Login + inscrição + fluxo de candidato + admin continuam funcionando.
+- **Evidence:**
+  - `supabase/migrations/090_block_anon_sensitive_tables.sql`
+  - `supabase/migrations/091_restrict_policies_to_authenticated.sql`
+  - Probe pós-fix: `candidates=0`, `organizations=0`, `vagas_white_label=0`, `profiles=0`, `vagas_candidaturas=0` (todas via `SET ROLE anon`).
+  - Dogfood report: `dogfood-output/report.md`
+- **Supersedes:** none
+- **Verified:** 2026-08-04
+
+---
+
+## DEC-2026-08-04-006 — Limpeza de Storage órfão via Dashboard do Supabase (não Edge Function)
+
+- **Status:** superseded
+- **Domains:** security, storage, dashboard
+- **Keywords:** storage.objects, orphan, purge, dashboard, resumes bucket
+- **Decision:** Objetos órfãos do bucket `resumes` (deletado mas com objetos ainda hospedados) são limpos manualmente pelo Dashboard do Supabase: recriar bucket `resumes` (privado), entrar na pasta do user_id, deletar PDF, deletar bucket. **Edge Function dedicada não é necessária** — operação one-shot manual é mais simples e não requer deploy nem service_role key.
+- **Rationale:** Migration 092 zerou `candidates.resume_url` mas URLs diretas do Storage continuavam servindo 200 OK. DELETE direto via SQL falha com `42501: Direct deletion from storage tables is not allowed`. Edge Function `purge-orphan-resumes` foi deployada mas o usuário preferiu não usar curl (complexidade desnecessária pra operação pontual). Dashboard do Supabase tem UI pra deletar arquivos manualmente.
+- **Trade-offs:** Dashboard é manual e não escalável pra muitos arquivos. Edge Function seria o caminho pra centenas de arquivos. Como só tem 1 candidato de teste com currículo legado, manual é OK.
+- **Evidence:**
+  - Migration 092: zerou `candidates.resume_url`
+  - Edge Function `purge-orphan-resumes` deployada e depois deletada (cleanup manual via Dashboard escolhido)
+  - Migration 093 superseded (não funcionou — ver ERR-002)
+- **Supersedes:** none
+- **Verified:** 2026-08-04

@@ -146,3 +146,33 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Bloqueios antes de deploy:** não executar `supabase db push` indiscriminado (a migration `084` mantém INSERT de Storage aplicável a `PUBLIC`) e não implantar as funções locais antes de corrigir os 3 erros do `deno check`.
 - **Verificação:** `tsc` e build OK; 155/155 testes passaram; lint com 8 erros/1 warning; Deno com 3 erros; 0 candidatos a secret privado em arquivos rastreados e bundle.
 - **Verified:** 2026-07-31
+
+---
+
+## ERR-2026-08-04-001 — Análise inicial errada sobre por que RLS vazou PII
+
+- **Status:** verified
+- **Domains:** rls, security, pii, postgres
+- **Keywords:** RLS, IS NOT DISTINCT FROM, NULL comparison, anon, public, policy roles
+- **Error:** Afirmei inicialmente que policies sem `TO authenticated` explícito "deveriam bloquear `anon`" porque `get_my_role()` retorna NULL pra anon e NULL em OR lógico resulta em NULL = bloqueado. **Errado.** Policies sem `TO` aplicam a role `PUBLIC` (anon + authenticated + service_role). E policies com `(NOT (organization_id IS NOT DISTINCT FROM get_my_org_id()))` retornam `TRUE` quando `organization_id` é UUID e `get_my_org_id()` é NULL (porque `UUID IS NOT DISTINCT FROM NULL` é FALSE, e `NOT FALSE` é TRUE).
+- **Impact:** Migration 090 (drop policies USING true + deny anônimo) não resolveu completamente — apenas `organizations` zerou. `candidates` e `vagas_white_label` continuaram vazando porque as policies legítimas (`access_v4`, `multitenancy_policy`) aplicavam-se a `anon` e a segunda cláusula `IS NOT DISTINCT FROM NULL` retornava TRUE pra linhas com `organization_id` UUID.
+- **Fix correto:** Migration 091 re-criou policies com `TO authenticated` explícito. Combinado com deny da 090, anon não tem mais nenhuma policy permissiva — só a deny USING false.
+- **Lição:** Nunca confie em análise estática de SQL para RLS. Teste empírico (`SET ROLE anon` + `count(*)`) é a única fonte confiável. Em SQL, `x IS NOT DISTINCT FROM y` é FALSE quando x é UUID e y é NULL — pode parecer contraintuitivo.
+- **Evidence:** Probe `diag-all-policies.sql` mostrou `candidates_access_v4 = true` para anon antes da 091. Probe pós-fix zerou todas as tabelas.
+- **Supersedes:** none
+- **Verified:** 2026-08-04
+
+---
+
+## ERR-2026-08-04-002 — Migration 093 falhou: Supabase bloqueia DELETE direto em storage.objects
+
+- **Status:** verified
+- **Domains:** security, storage, migrations
+- **Keywords:** storage.objects, DELETE, protect_delete, supabase guard
+- **Error:** Migration `093_delete_orphaned_storage_resumes.sql` tentou `DELETE FROM storage.objects WHERE bucket_id = 'resumes'` e falhou com `42501: Direct deletion from storage tables is not allowed. Use the Storage API instead.` Função `storage.protect_delete()` levantou RAISE EXCEPTION.
+- **Causa:** Supabase tem trigger `protect_delete` em `storage.objects` que bloqueia DELETE direto via SQL pra prevenir perda acidental de dados órfãos. **Proteção correta do Supabase** — não deve ser desabilitada.
+- **Fix:** Migration 093 marcada como `superseded`. Cleanup via Edge Function `purge-orphan-resumes` usando `supabase.storage.from(bucket).remove(paths)` (Storage API suportada).
+- **Lição:** Nem tudo pode ser feito via SQL direto no Supabase. Storage API (HTTP) é a interface oficial pra manipular objetos. Edge Functions pontuais são a forma correta de fazer operações one-shot que a API REST expõe.
+- **Evidence:** Output do usuário ao aplicar 093 mostrou `ERROR: 42501: ... PL/pgSQL function storage.protect_delete() line 5 at RAISE`.
+- **Supersedes:** none
+- **Verified:** 2026-08-04

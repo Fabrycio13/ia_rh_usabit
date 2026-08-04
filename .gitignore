@@ -29,6 +29,7 @@ dist-ssr
 # Local agent/skill directories (not part of the repo)
 .agent/
 .agents/
+.vite/
 .idea/
 .vscode/
 
@@ -46,6 +47,8 @@ testsprite_tests/
 
 # Scratch files (one-off debug scripts e outputs temporários)
 scratch/
+dogfood-output/
+.hermes/
 
 # Project structure - Track these folders
 !docs/
