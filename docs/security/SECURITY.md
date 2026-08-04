@@ -7,10 +7,19 @@ Este documento centraliza todas as barreiras, defesas arquitetônicas e polític
 ## 1. Proteção de Dados e Arquivos (Armazenamento Seguro)
 
 ### 🔒 Buckets de Armazenamento Privados
-- **Prevenção de PII Leaks (Exposição de Dados Pessoais):** O bucket `job-applications` (onde os currículos dos candidatos ficam hospedados) está configurado com regras restritas no nível de banco de dados. Um Hacker não consegue varrer ou listar a URL base para baixar currículos alheios publicamente pela internet, resultando em bloqueio `HTTP 403 Forbidden`.
+- **Prevenção de PII Leaks (Exposição de Dados Pessoais):** O bucket `job-applications` (onde currículos de novos uploads ficam hospedados) está configurado com regras restritas no nível de banco de dados. Acesso anônimo retorna `HTTP 400 Bad Request`. Currículos só são acessíveis via **signed URL temporária** (60 min) gerada pelo backend após autenticação.
+- **Histórico (Issue #2 — 2026-08-04):** O bucket legado `resumes` foi deletado em momento anterior, mas objetos órfãos continuaram hospedados e acessíveis via URL pública (`HTTP 200 OK`). Migration `092_clear_legacy_resume_urls.sql` zerou o campo `candidates.resume_url` que apontava pra esses objetos. Objetos órfãos foram removidos manualmente via Dashboard do Supabase. **Vetor fechado.**
 
 ### ⏱️ O Padrão de Signed URLs (Acessos Criptografados Rotativos)
 - Quando o recrutador clica no botão "Visualizar Currículo" de dentro do painel logado, o sistema autentica a requisição criptografada no Supabase e gera uma **Signed URL Temporária**. Este link secreto só vive por 60 minutos. Mesmo que o Recrutador faça a besteira de enviar o link num grupo de WhatsApp, uma hora depois ele magicamente expira, trancando os recursos pessoais da plataforma inteiramente.
+
+### 🛡️ Row Level Security (RLS) — Hardening 2026-08-04
+- **Issue #1 (dogfood):** Em 2026-08-04 foi descoberto que policies RLS de tabelas sensíveis (`candidates`, `organizations`, `vagas_white_label`) tinham `roles = {public}` (válidas pra anon). Combinado com cláusulas `IS NOT DISTINCT FROM NULL` que retornam `TRUE` quando comparadas contra `organization_id` UUID, isso permitia que requisições REST anônimas lessem PII de candidatos via curl simples.
+- **Fix em 2 migrations:**
+  - `090_block_anon_sensitive_tables.sql` — drop policies `USING (true)` em `organizations`; criar policy `deny all` explícita pra `anon` em `candidates` e `vagas_white_label`.
+  - `091_restrict_policies_to_authenticated.sql` — re-criar policies legítimas (multitenancy, access_v4, convidado_select) com `TO authenticated` explícito. Policies passam a não existir fisicamente pra `anon`.
+- **Verificação:** `SET ROLE anon; SELECT count(*) FROM candidates;` retorna `0` (era 1 antes do fix). Mesmo teste pra `organizations` e `vagas_white_label` retorna `0`.
+- **Não-quebra:** Edge Functions usam `SUPABASE_SERVICE_ROLE_KEY` (bypassa RLS por design); portal público chama Edge Functions; dashboard autenticado usa JWT `authenticated`. Fluxos legítimos continuam funcionando.
 
 ### 🛡️ Vacina contra RCE (Vírus em Disfarce de Upload)
 - **Bloqueio de Spoofing File Extension:** Para evitar que Hackers joguem executáveis destrutivos disfarçados de candidaturas (tipo um arquivo enviado via terminal BurpSuite chamado inicialmente de `foto.exe` mas camuflado para enganar o Front-end), o Backend e Storage assumem sempre como Hostil. No momento do Upload o servidor retira a extensão do arquivo inserida pela pessoa de fora e chumba rigorosamente o nome `.pdf` no arquivo com Content-Type forçado e higienizado para `application/pdf`. Dessa forma, se a empresa efetuar o download, o Windows da empresa sempre tratará o vírus como Documento, corrompendo a execução de ransomwares pela raiz.
