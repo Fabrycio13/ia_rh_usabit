@@ -177,20 +177,6 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
 
       setUploadProgress(90);
 
-      // Log do resultado para debug
-      console.log('[AddCandidate] Extraction Result:', {
-        name: extractionResult.name,
-        skills: extractionResult.skills,
-        skillsIsArray: Array.isArray(extractionResult.skills),
-        skillsLength: extractionResult.skills?.length || 0,
-        experience: extractionResult.experience,
-        education: extractionResult.education,
-        email: extractionResult.email,
-        phone: extractionResult.phone,
-        location: extractionResult.location,
-        age: extractionResult.age,
-      });
-
       // Auto-fill form com dados extraídos
       if (extractionResult.name && extractionResult.name !== 'Não identificado') {
         setName(extractionResult.name);
@@ -217,7 +203,6 @@ export const AddCandidateModal = ({ isOpen, onClose, onSuccess, onViewCandidate 
         // A função é declarada abaixo por organização do formulário; o callback só é executado após a renderização.
         // eslint-disable-next-line react-hooks/immutability
         const normalized = normalizeAIResult(skillsText, 'skills');
-        console.log('[AddCandidate] Skills normalized:', normalized);
         setSkills(normalized);
       }
       
