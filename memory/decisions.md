@@ -187,3 +187,16 @@
   - Migration 093 superseded (não funcionou — ver ERR-002)
 - **Supersedes:** none
 - **Verified:** 2026-08-04
+
+---
+
+## DEC-2026-08-04-007 — Hardening de candidate_screening_logs sem organization_id local
+
+- **Status:** accepted
+- **Domains:** security, rls, audit-trail
+- **Keywords:** candidate_screening_logs, allow_all_screening, authenticated, anon, organization isolation
+- **Decision:** `candidate_screening_logs` deve usar somente policies `TO authenticated`. Administrador e supervisor são isolados pela organização do candidato relacionado (`candidate_screening_logs.candidate_id → candidates.organization_id`), pois a tabela de logs não possui coluna `organization_id`.
+- **Rationale:** A policy remota `allow_all_screening` (`roles={public}`, `USING (true)`, `WITH CHECK (true)`) expôs 43 registros para anon. A correção remove todas as policies antigas e recria acesso para owner, administrador, supervisor, RH e convidado.
+- **Evidence:** `supabase/migrations/093_harden_candidate_screening_logs.sql`; policies remotas passaram a `{authenticated}`; probe `SET ROLE anon` retornou `0`; REST anônimo retornou `[]` HTTP 200.
+- **Supersedes:** none
+- **Verified:** 2026-08-04

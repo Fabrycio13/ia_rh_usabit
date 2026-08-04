@@ -174,5 +174,18 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Fix:** Migration 093 marcada como `superseded`. Cleanup via Edge Function `purge-orphan-resumes` usando `supabase.storage.from(bucket).remove(paths)` (Storage API suportada).
 - **Lição:** Nem tudo pode ser feito via SQL direto no Supabase. Storage API (HTTP) é a interface oficial pra manipular objetos. Edge Functions pontuais são a forma correta de fazer operações one-shot que a API REST expõe.
 - **Evidence:** Output do usuário ao aplicar 093 mostrou `ERROR: 42501: ... PL/pgSQL function storage.protect_delete() line 5 at RAISE`.
-- **Supersedes:** none
+
+---
+
+## ERR-2026-08-04-003 — Falso positivo visual em header Bearer mascarado
+
+- **Status:** verified
+- **Domains:** edge-functions, verification, tooling
+- **Keywords:** Authorization, Bearer, RESEND_API_KEY, redaction, xxd
+- **Error:** Uma leitura textual exibiu `*** ${RESEND_API_KEY}` e foi interpretada como header inválido.
+- **Causa:** O visualizador mascarou o conteúdo sensível; os bytes reais continham `Authorization: Bearer ${RESEND_API_KEY}`.
+- **Correção:** Verificação com `xxd` confirmou o header correto; nenhum código foi alterado por esse falso positivo e o achado foi removido do relatório dogfood.
+- **Lição:** Em headers, tokens e secrets, nunca concluir a existência de bug por visualização mascarada. Confirmar com `xxd`/`od` antes de alterar ou reportar.
+- **Evidence:** `xxd` do offset do header em `supabase/functions/submit-candidate/index.ts` mostrou `3a 20 60 42 65 61 72 65 72` (`: Bearer`).
 - **Verified:** 2026-08-04
+- **Supersedes:** none
