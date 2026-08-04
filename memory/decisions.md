@@ -200,3 +200,17 @@
 - **Evidence:** `supabase/migrations/093_harden_candidate_screening_logs.sql`; policies remotas passaram a `{authenticated}`; probe `SET ROLE anon` retornou `0`; REST anônimo retornou `[]` HTTP 200.
 - **Supersedes:** none
 - **Verified:** 2026-08-04
+
+---
+
+## DEC-2026-08-04-008 — Hardening de job_code_counters (tabela de trigger sem RLS)
+
+- **Status:** accepted
+- **Domains:** security, rls, triggers
+- **Keywords:** job_code_counters, trigger, generate_vaga_job_code_persistent, anon, authenticated, organization isolation
+- **Decision:** `job_code_counters` deve ter RLS habilitada com policy `FOR ALL TO authenticated` restrita a `organization_id = get_my_org_id()` + deny explícito para `anon`. A policy `FOR ALL` (não só SELECT) é obrigatória para o trigger `generate_vaga_job_code_persistent()` continuar funcionando quando um usuário autenticado cria vaga via REST (INSERT/UPDATE passam pelo WITH CHECK; service_role das Edge Functions bypassa RLS).
+- **Rationale:** Dogfood round 3 (2026-08-04) encontrou `job_code_counters` exposta via REST anon. A migration 073 já havia habilitado RLS e criado policy deny-all, mas uma policy **manual** `allow_all_counters` (`roles={public}`, `USING (true)`) criada no Dashboard fora do repositório combinava por OR e liberava o acesso (4 linhas reais de `organization_id` + `last_value` de todas as orgs).
+- **Lição:** (1) Tabelas de suporte a triggers/sequências ficam fora das auditorias de tabelas de negócio — auditar TODAS as tabelas do schema via REST anon. (2) **Policies criadas manualmente no Dashboard não aparecem no repositório** — ao corrigir RLS, remover TODAS as policies da tabela (loop dinâmico sobre `pg_policies`, padrão 093), não só as conhecidas do repo.
+- **Evidence:** `supabase/migrations/094_harden_job_code_counters.sql`; pré-fix: REST anon 4 linhas HTTP 200; pós-fix: policies só `org scope`/`deny anon`, `SET ROLE anon` → 0, REST anon → `rows=0`; gates tsc/lint/test 169/169 OK.
+- **Supersedes:** none
+- **Verified:** 2026-08-04
