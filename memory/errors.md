@@ -189,3 +189,25 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Evidence:** `xxd` do offset do header em `supabase/functions/submit-candidate/index.ts` mostrou `3a 20 60 42 65 61 72 65 72` (`: Bearer`).
 - **Verified:** 2026-08-04
 - **Supersedes:** none
+
+---
+
+## ERR-2026-08-05-001 — `application_count` de vagas nunca decrementa ao excluir/tirar candidato da vaga
+
+- **Status:** verified (fix aplicado no banco ao vivo em 2026-08-05)
+- **Domains:** vagas, candidates, triggers, counter
+- **Keywords:** application_count, vagas_white_label, DELETE, trigger, counter desatualizado, decrement
+- **Symptom:** Ao excluir uma candidatura (`DELETE` em `vagas_candidaturas`), o candidato some da lista mas o header da vaga continua mostrando o número antigo de candidaturas (ex.: "2 candidaturas" após excluir os 2). O valor persiste mesmo após F5 porque vem do banco, não do estado local.
+- **Root cause:** O trigger `increment_vaga_app_count` (migration 081) só cobre `INSERT` e `UPDATE vaga_id NULL → NOT NULL` (Pool → Gestão). **Não existe trigger de DELETE nem de UPDATE `vaga_id NOT NULL → NULL`** (tirar da vaga → Pool). Portanto `vagas_white_label.application_count` só crescia, nunca decrescia.
+- **Fix (migration 095):**
+  1. Função `decrement_vaga_application_count()` + trigger `decrement_vaga_app_count` `AFTER DELETE ON vagas_candidaturas` — decrementa `GREATEST(0, application_count - 1)` quando `OLD.vaga_id` não é NULL.
+  2. `increment_vaga_application_count()` estendida (CREATE OR REPLACE): UPDATE `vaga_id NOT NULL → NULL` agora decrementa; UPDATE `NOT NULL → NOT NULL` (troca de vaga) continua não incrementando.
+  3. Backfill: `UPDATE vagas_white_label SET application_count = (SELECT COUNT(*) ...)` — corrige contadores já desatualizados.
+- **Lição:** Qualquer coluna contador mantida por trigger precisa de trigger simétrico (INSERT/UPDATE/DELETE). Ao auditar "contador não atualiza", verificar TODAS as operações que alteram a relação (não só INSERT). O trigger da 081 foi corrigido uma vez (cobria INSERT/UPDATE) mas o DELETE ficou de fora — auditar o par completo.
+- **Evidence:**
+  - `supabase/migrations/095_fix_application_count_on_delete.sql`
+  - Trigger ao vivo verificado: `decrement_vaga_app_count` + `increment_vaga_app_count` em `pg_trigger`
+  - Teste ao vivo: DELETE de candidato `e02a2dbf-...` → `application_count` da vaga Back-end caiu de 2 → 1, batendo com COUNT real
+  - Backfill: todas as vagas com `application_count = COUNT(*)` (verificado via SELECT)
+- **Nota:** o `confirmDelete` do `VagaCandidatos.tsx` também foi corrigido para checar `error` do DELETE (antes engolia e mostrava falso sucesso) — parte do mesmo sintoma (candidato "não sumia").
+- **Verified:** 2026-08-05

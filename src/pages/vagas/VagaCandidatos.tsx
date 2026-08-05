@@ -238,6 +238,12 @@ setCandidatos(candData || []);
             const { data: { session } } = await supabase.auth.getSession();
             const authToken = session?.access_token || anonKey;
 
+            // Análise completa (scoring): retorna score + summary + strengths + gaps.
+            // 'extraction' só devolvia skills/experience/education (feedback parcial).
+            const jobTitle = vaga?.title || '';
+            const { data: vagaFull } = await supabase.from('vagas_white_label').select('description').eq('id', id!).single();
+            const jobDesc = vagaFull?.description || '';
+
             const openaiRes = await fetch(`${supabaseUrl}/functions/v1/openai-proxy`, {
                 method: 'POST',
                 headers: {
@@ -245,7 +251,7 @@ setCandidatos(candData || []);
                     'apikey': anonKey,
                     'Authorization': `Bearer ${authToken}`,
                 },
-                body: JSON.stringify({ type: 'extraction', data: { fileText, images } }),
+                body: JSON.stringify({ type: 'scoring', data: { jobTitle, jobDescription: jobDesc, currentIndex: 1, totalCount: 1, fileText, images } }),
             });
 
             if (!openaiRes.ok) {
@@ -272,8 +278,19 @@ setCandidatos(candData || []);
             if (parsed.experience) analysis.experience = parsed.experience;
             if (parsed.education) analysis.education = parsed.education;
             if (skillsArr.length) analysis.skills = skillsArr;
+            // Campos completos do scoring — o CandidatePanel renderiza esses blocos
+            if (parsed.summary) analysis.summary = parsed.summary;
+            if (parsed.general_analysis) analysis.general_analysis = parsed.general_analysis;
+            if (parsed.feedback) analysis.feedback = parsed.feedback;
+            if (parsed.strengths) analysis.strengths = parsed.strengths;
+            if (parsed.gaps) analysis.gaps = parsed.gaps;
+            if (parsed.redFlags) analysis.redFlags = parsed.redFlags;
+            if (parsed.classification) analysis.classification = parsed.classification;
+            if (parsed.recommendation) analysis.recommendation = parsed.recommendation;
 
             const updates: Record<string, unknown> = { is_analyzed: true, analysis };
+            const scoreNum = Number(parsed.score);
+            if (Number.isFinite(scoreNum) && scoreNum > 0) updates.match_score = Math.round(Math.min(100, Math.max(0, scoreNum)));
             if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
             if (parsed.experience) updates.experience = parsed.experience;
             if (parsed.education) updates.education = parsed.education;
@@ -308,7 +325,12 @@ setCandidatos(candData || []);
         if (!candidate) return;
         setDeleteConfirm(null);
         try {
-            await supabase.from('vagas_candidaturas').delete().eq('id', candidate.id);
+            const { error: deleteErr } = await supabase.from('vagas_candidaturas').delete().eq('id', candidate.id);
+            if (deleteErr) {
+                console.error('Erro ao remover candidato:', deleteErr);
+                toast.error(`Não foi possível remover: ${deleteErr.message}`);
+                return;
+            }
             toast.success('Candidato removido');
             setCandidatos(prev => prev.filter(c => c.id !== candidate.id));
             setVaga(prev => prev ? { ...prev, application_count: Math.max(0, prev.application_count - 1) } : prev);
