@@ -267,6 +267,14 @@ export const CandidateBank = () => {
     if (!deleteConfirm) return;
     const c = deleteConfirm;
     setDeleteConfirm(null);
+    // Candidaturas vinculadas ao master voltam a ser candidaturas normais
+    // da vaga: reverter status de 'talent_bank' para 'reviewed' para que o
+    // botão "Mover para Banco de Talentos" reapareça no painel
+    // (CandidatePanel só mostra o botão quando status !== 'talent_bank').
+    await supabase
+      .from('vagas_candidaturas')
+      .update({ status: 'reviewed' })
+      .eq('candidate_id', c.id);
     // Excluir do Banco de Talentos remove APENAS o registro master.
     // A FK vagas_candidaturas.candidate_id é ON DELETE SET NULL — as
     // candidaturas nas vagas são desvinculadas automaticamente e
