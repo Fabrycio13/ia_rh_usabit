@@ -197,6 +197,19 @@ Abaixo estão ${candidates.length} candidato(s). Para cada um:
 3. Extraia skills, experiência, formação.
 4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
 
+▸ ISOLAMENTO TOTAL
+  Processe cada currículo de forma completamente INDEPENDENTE.
+  Nunca misture, contamine ou compartilhe dados entre candidatos.
+  NUNCA compare um candidato com outro no texto gerado — nem mencione
+  "candidato 1", "o outro", "comparado ao anterior", etc.
+  O summary deve explicar o score do candidato APENAS em relação à vaga
+  e ao próprio currículo, sem referências a outros candidatos do lote.
+
+▸ CONTROLE DE QUALIDADE DO INPUT
+  Se um currículo tiver menos de 80 palavras úteis → para ESSE candidato:
+  "status": "CURRICULO_INCOMPLETO", "score": 0 e summary explicando.
+  Não misture o status de um candidato com o dos outros.
+
 HOJE É: ${now}
 
 ## CANDIDATOS
