@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../../../core/services/supabase';
 import { useUser } from '../../../core/contexts/UserContext';
-import { extractTextAndData } from '../../../core/services/cvAnalyzer';
+import { extractTextAndData, analyzeResumeGeneral } from '../../../core/services/cvAnalyzer';
 import { uploadViaSignedUrl } from '../../../core/utils/storage';
 import { TagInput } from '../../../common/components/TagInput';
 import { X, Upload, Check, AlertCircle, Loader } from 'lucide-react';
@@ -125,6 +125,26 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
         setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'extracting' } : f));
         const { rawText, extractedData } = await extractTextAndData(entry.file);
 
+        // Pré-análise geral do currículo (sem vaga — não há dados de vaga aqui).
+        // Melhor esforço: se falhar (ex.: PDF ilegível), o candidato ainda é salvo
+        // com os dados extraídos; a análise completa pode ser feita depois na vaga.
+        let preAnalysis: Record<string, unknown> | null = null;
+        let preScore = 0;
+        try {
+          const resumeAnalysis = await analyzeResumeGeneral(entry.file, rawText);
+          preAnalysis = {
+            summary: resumeAnalysis.summary,
+            strengths: resumeAnalysis.strengths,
+            gaps: resumeAnalysis.gaps,
+            suggested_areas: resumeAnalysis.suggested_areas,
+            classification: resumeAnalysis.classification,
+            type: 'pre_analysis',
+          };
+          preScore = resumeAnalysis.score;
+        } catch (preErr) {
+          console.warn(`[PoolAdd] Pré-análise falhou para ${entry.file.name}:`, preErr);
+        }
+
         // Tags manuais do batch (definidas pelo usuário)
         const tags = batchTags;
 
@@ -139,7 +159,15 @@ export const PoolAddCandidate = ({ isOpen, onClose, onSuccess }: PoolAddCandidat
           is_analyzed: true,
           tags,
         };
-        if (extractedData.email) candidateData.candidate_email = extractedData.email;
+        if (preAnalysis) {
+          candidateData.analysis = preAnalysis;
+          candidateData.match_score = preScore;
+        }
+        // candidate_email é NOT NULL no banco — usa fallback único quando o
+        // currículo não tem email extraível (PDF escaneado, mal formatado).
+        candidateData.candidate_email = extractedData.email && extractedData.email !== 'Não informado'
+          ? extractedData.email
+          : `sem-email-${Date.now()}-${i}@pool.local`;
         if (extractedData.phone) candidateData.candidate_phone = extractedData.phone;
         if (extractedData.location) candidateData.candidate_location = extractedData.location;
         if (extractedData.age) candidateData.candidate_age = extractedData.age;

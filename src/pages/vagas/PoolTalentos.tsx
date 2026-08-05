@@ -423,9 +423,12 @@ export const PoolTalentos = () => {
             }
 
             // 3. Chamar openai-proxy (texto = barato, imagens = vision)
+            // Pré-análise geral do currículo (tipo 'resume'): sem vaga específica,
+            // retorna score + summary + strengths + gaps + suggested_areas.
+            // 'extraction' só devolvia skills/experience/education (sem análise).
             const { data: aiResult, error: aiError } = await supabase.functions.invoke('openai-proxy', {
                 body: {
-                    type: 'extraction',
+                    type: 'resume',
                     data: { fileText, images },
                 },
             });
@@ -447,18 +450,27 @@ export const PoolTalentos = () => {
                 return;
             }
 
-            // 5. Montar analysis JSONB
+            // 5. Montar analysis JSONB (pré-análise geral — tipo 'resume')
             const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : [];
-            const analysis: Record<string, unknown> = {};
+            const analysis: Record<string, unknown> = {
+                type: 'pre_analysis',
+            };
             if (parsed.experience) analysis.experience = parsed.experience;
             if (parsed.education) analysis.education = parsed.education;
             if (skillsArr.length) analysis.skills = skillsArr;
+            if (parsed.summary) analysis.summary = parsed.summary;
+            if (parsed.strengths) analysis.strengths = parsed.strengths;
+            if (parsed.gaps) analysis.gaps = parsed.gaps;
+            if (parsed.classification) analysis.classification = parsed.classification;
+            if (parsed.suggested_areas) analysis.suggested_areas = parsed.suggested_areas;
 
             // 6. Salvar em vagas_candidaturas
             const updates: Record<string, unknown> = {
                 is_analyzed: true,
                 analysis,
             };
+            const scoreNum = Number(parsed.score);
+            if (Number.isFinite(scoreNum) && scoreNum > 0) updates.match_score = Math.round(Math.min(100, Math.max(0, scoreNum)));
             if (skillsArr.length) {
                 updates.skills = skillsArr.join(', ');
                 updates.tags = skillsArr.map(s => s.toLowerCase());

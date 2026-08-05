@@ -228,6 +228,7 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
   - Salvar os campos que o painel lê: `analysis` completo (experience/education/skills/summary/strengths/gaps/classification/recommendation) + `is_analyzed: true` + `match_score` + `skills`/`tags`/`experience`/`education` (espelhando o fluxo individual `confirmAIAnalyze`).
   - Checar `error` de cada update e `throw` (vira toast de erro, não falso sucesso).
 - **Lição:** (1) Nunca confiar em IDs devolvidos por LLM para operações de escrita — casar por posição/índice ou validar o ID contra a fonte real. (2) `UPDATE` sem checar `error` + sem confirmar rows afetadas é bug silencioso clássico. (3) Ao corrigir análise de candidato, espelhar exatamente os campos que o painel renderiza (`analysis` no `Candidato`), não criar campo paralelo (`analysis_vs_vaga`) que ninguém lê.
+- **Extensão (2026-08-05):** sintoma adicional — análise em lote retornava "Não foi possível avaliar o candidato devido à falta de informações no currículo" (score 0%) enquanto o individual funcionava. **Causa raiz:** PDF escaneado (1 página, 0 chars de texto, 1 imagem — confirmado ao vivo baixando `Curriculo -- Fabrycio Bermudes.pdf` do bucket `job-applications/resumes/spontaneous/...`). O batch usava só `extractTextFromPDF` e mandava `rawText: ''`; o individual tinha fallback `pdfToImages` → visão da IA. **Fix:** extraída função compartilhada `analyzeSingleCandidate` (download → extractText → se ilegível `pdfToImages` → EF scoring com imagens → update). `confirmAIAnalyze` agora usa essa função (elimina duplicação de ~130 linhas). `handleBatchAnalyze` separa: currículos com texto legível (`isLegibleText`) vão ao lote; PDFs escaneados/sem currículo/erro de download caem no fluxo individual com imagem (um a um, com toast por candidato). Contador do toast = `analyzedCount` real.
 - **Evidence:** tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente no navegador (chamada real à IA).
 - **Verified:** 2026-08-05
 
@@ -253,4 +254,27 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Lição:** (1) Prompts de LLM não devem oferecer placeholder textual de "nada encontrado" para campos que o UI mostra como lista — usar array vazio e deixar a UI decidir. (2) Cadeias de fallback de campos (`a || b || c`) falham quando o primeiro campo é truthy mas sem valor real — normalizar/validar antes. (3) Alinhar contrato do prompt com o que a UI renderiza (mesma chave, mesmo tipo). (4) O contexto da vaga enviado à IA deve incluir TODOS os campos relevantes (requisitos/diferenciais/perguntas+respostas), não só a descrição — senão o score é calculado com informação incompleta.
 - **⚠️ Deploy necessário:** o fix do prompt está na Edge Function `openai-proxy` (Deno) — precisa `supabase functions deploy openai-proxy` para valer em produção. O fix do painel é frontend (build Amplify).
 - **Evidence:** tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente (chamada real à IA após deploy da EF).
+- **Verified:** 2026-08-05
+
+---
+
+## ERR-2026-08-05-004 — Pool de Talentos: 3 bugs (email NOT NULL, sem pré-análise, policy de storage nega download)
+
+- **Status:** verified (fix aplicado 2026-08-05)
+- **Domains:** pool, vagas_candidaturas, storage, pre-analysis, RLS
+- **Keywords:** manual_add, candidate_email NOT NULL, storage policy, job-applications, get-upload-url, pre_analysis, resume, querystring token
+- **Symptom (3 sintomas relatados pelo usuário no Pool):**
+  1. Anexar vários currículos → um falha com `null value in column "candidate_email" of relation "vagas_candidaturas" violates not-null constraint`
+  2. Os que entram ficam "como Vagas(1)" mas sem análise — só dados extraídos, sem summary/score
+  3. Forçar análise sem vaga → `{"statusCode":"400","error":"Error","message":"querystring must have required property 'token'","code":"InvalidRequest"}`
+- **Root causes (3):**
+  1. `PoolAddCandidate.tsx` só setava `candidate_email` `if (extractedData.email)` — coluna é NOT NULL no banco; currículo sem email extraível (escaneado/mal formatado) quebrava o INSERT.
+  2. `PoolAddCandidate` usava `extractTextAndData` (tipo `extraction` — só dados) e marcava `is_analyzed: true` sem análise; `confirmAIAnalyze` do PoolTalentos chamava `type: 'extraction'` (mesmo bug já corrigido na VagaCandidatos — ERR-001). Sem vaga não dá pra usar `scoring`; o correto é `type: 'resume'` (pré-análise geral).
+  3. **Policy de storage:** candidatos `manual_add` via `get-upload-url` sem jobId têm path `resumes/{orgId}/{file}` (seg2=`resumes`, seg3=orgId) — mas `storage: recruiter access` só liberava `resumes/manual/{org}/`, `resumes/spontaneous/{org}/` e `resumes/{vagaId}/` (com EXISTS na vaga). Path do pool NÃO casava → SELECT negado → `createSignedUrl` falha → erro `querystring must have required property 'token'` ao baixar currículo na análise.
+- **Fix:**
+  1. `PoolAddCandidate.tsx` — `candidate_email` sempre setado: email extraído ou fallback `sem-email-{Date.now()}-{i}@pool.local`.
+  2. `cvAnalyzer.ts` — nova função `analyzeResumeGeneral(file, preRawText?)` (tipo `resume` do proxy: score/summary/strengths/gaps/suggested_areas, aceita rawText pré-extraído p/ lote). `PoolAddCandidate` roda pré-análise best-effort após extraction e salva `analysis` (com `type: 'pre_analysis'`) + `match_score`. `confirmAIAnalyze` do PoolTalentos: `extraction` → `resume`, salvando campos completos + match_score.
+  3. Migration `098_fix_storage_policy_pool_uploads.sql` — policy SELECT e DELETE de `storage.objects` (bucket `job-applications`) agora incluem `split_part(name,'/',2) = public.get_my_org_id()::text` (path `resumes/{orgId}/...`). Aplicada ao vivo; 11 objetos do pool ficam legíveis.
+- **Lição:** (1) Colunas NOT NULL com dados derivados de extração de IA sempre precisam de fallback determinístico. (2) Análise SEM vaga = tipo `resume` (pré-análise); análise COM vaga = `scoring`/`job-matching` — usar o tipo certo conforme o contexto. (3) Ao mudar o gerador de paths de storage (`get-upload-url`), conferir a policy de acesso — paths novos invisíveis à policy = download quebrado com erros obscuros de token.
+- **Evidence:** migration 098 aplicada ao vivo (policy verificada via pg_policies); tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente no navegador.
 - **Verified:** 2026-08-05

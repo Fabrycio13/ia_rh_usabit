@@ -54,6 +54,65 @@ export interface BatchMatchResult {
   status: string;
 }
 
+export interface ResumeGeneralResult {
+  score: number;
+  classification: string;
+  skills: string[];
+  experience: string;
+  education: string;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  suggested_areas: string[];
+}
+
+/**
+ * Análise GERAL do currículo (sem vaga específica) — tipo 'resume' do proxy.
+ * Retorna score, summary, strengths, gaps e suggested_areas. Usada pelo
+ * Pool de Talentos para dar uma breve análise ao anexar currículos.
+ * @param file Arquivo do currículo
+ * @param preRawText Texto já extraído (evita re-extração em fluxos de lote)
+ */
+export async function analyzeResumeGeneral(file: File, preRawText?: string): Promise<ResumeGeneralResult> {
+  const startTime = Date.now();
+  try {
+    let rawText = preRawText ?? '';
+    let images: string[] | undefined;
+
+    if (!rawText) {
+      rawText = await extractTextFromPDF(file);
+    }
+    if (!rawText || rawText.length < 80) {
+      images = await pdfToImages(file);
+    }
+
+    const sanitizedText = rawText ? sanitizeAIInput(rawText) : undefined;
+    const data = await callOpenAI(
+      { type: 'resume', data: { fileText: sanitizedText, images } },
+      { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'resume' }
+    );
+    const parsed = parseJSON<Record<string, unknown>>(data.content);
+
+    const result: ResumeGeneralResult = {
+      score: typeof parsed.score === 'number' ? Math.round(Math.min(100, Math.max(0, parsed.score))) : 0,
+      classification: String(parsed.classification || ''),
+      skills: Array.isArray(parsed.skills) ? parsed.skills.map(String) : [],
+      experience: String(parsed.experience || ''),
+      education: String(parsed.education || ''),
+      summary: String(parsed.summary || ''),
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps.map(String) : [],
+      suggested_areas: Array.isArray(parsed.suggested_areas) ? parsed.suggested_areas.map(String) : [],
+    };
+
+    logAI({ operation: 'resume', success: true, latencyMs: Date.now() - startTime, model: 'gpt-4o' });
+    return result;
+  } catch (err: unknown) {
+    logAI({ operation: 'resume', success: false, latencyMs: Date.now() - startTime, error: (err as Error).message });
+    throw new Error(`Erro na análise: ${(err as Error).message}`);
+  }
+}
+
 export interface BatchMatchJobContext {
   responsibilities?: string;
   requirements?: string;
