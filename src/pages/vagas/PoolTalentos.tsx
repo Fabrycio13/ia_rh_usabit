@@ -1310,7 +1310,10 @@ export const PoolTalentos = () => {
                                         onMouseEnter={e => { if (batchVagaId !== vaga.id) e.currentTarget.style.background = 'var(--bg-main)'; }}
                                         onMouseLeave={e => { if (batchVagaId !== vaga.id) e.currentTarget.style.background = 'transparent'; }}>
                                         <div>
-                                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{vaga.title}</p>
+                                            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                {vaga.title}
+                                                {vaga.job_code && <span style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', padding: '1px 6px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{vaga.job_code}</span>}
+                                            </p>
                                             <span style={{ fontSize: 11, fontWeight: 600, marginTop: 4, display: 'inline-block', padding: '2px 8px', borderRadius: 6,
                                                 background: vaga.status === 'aberta' ? 'rgba(34,197,94,0.1)' : 'rgba(168,85,247,0.1)',
                                                 color: vaga.status === 'aberta' ? '#22c55e' : '#a855f7' }}>
