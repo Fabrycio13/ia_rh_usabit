@@ -324,3 +324,20 @@
   - Gates: tsc/lint/169 tests/build/memória OK
 - **Supersedes:** none
 - **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-007 — candidate_screening_logs append-only (pentest #2, N-1)
+
+- **Status:** accepted
+- **Domains:** security, rls, policies, audit-trail
+- **Keywords:** candidate_screening_logs, append-only, LGPD, triagem
+- **Decision:** `candidate_screening_logs` vira append-only — drop da policy ALL (`authenticated access`); policies `insert own` (user_id = auth.uid()) + `select` (owner tudo; admin/supervisor via EXISTS candidates da org; rh próprios). Sem UPDATE/DELETE.
+- **Rationale:** Pentest #2 (2026-08-05) encontrou o mesmo padrão do M-1 (activity_logs): log de triagem editável por owner/admin/supervisor/rh. LGPD exige imutabilidade. Frontend só faz INSERT (logger.ts) e SELECT (CandidatePanel aba Triagem).
+- **Trade-offs:** INSERT exige user_id = auth.uid() (logger.ts já faz). SELECT admin/supervisor replica a regra do activity_logs (EXISTS candidates por org).
+- **Evidence:**
+  - `supabase/migrations/105_screening_logs_append_only.sql` (aplicada ao vivo)
+  - Verificado ao vivo: policies restantes = convidado select + insert own + select (0 ALL)
+  - Gates: tsc/lint/169 tests/build/memória OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05
