@@ -779,17 +779,20 @@ export function CandidatePanel({
                                         </div>
                                     )}
 
-                                    {[c.analysis?.redFlags, c.analysis?.weaknesses, c.analysis?.cons, c.analysis?.negative_points, c.analysis?.gaps, c.analysis?.pontos_atencao].some(Boolean) && (
-                                        <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
-                                            <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
-                                            <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                                                {(() => {
-                                                    const val = c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao;
-                                                    return Array.isArray(val) ? val.join('\n') : String(val ?? '');
-                                                })()}
+                                    {(() => {
+                                        const negVal = c.analysis?.redFlags || c.analysis?.weaknesses || c.analysis?.cons || c.analysis?.negative_points || c.analysis?.gaps || c.analysis?.pontos_atencao;
+                                        // Ignora placeholder "Nenhuma identificada" — sem conteúdo real, não renderiza o bloco
+                                        const negText = Array.isArray(negVal) ? negVal.join('\n') : String(negVal ?? '');
+                                        const hasRealNeg = negText.trim() !== '' && !/nenhuma identificada/i.test(negText.trim()) && negText.trim() !== '[]';
+                                        return hasRealNeg ? (
+                                            <div style={{ borderTop: '1px solid rgba(239, 68, 68, 0.1)', paddingTop: 16 }}>
+                                                <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>Pontos de Atenção / Negativos</p>
+                                                <div style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                    {negText}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        ) : null;
+                                    })()}
                                 </section>
                             </>
                         )}

@@ -8,9 +8,32 @@ export function buildScoringMessages(
   currentIndex: number,
   totalCount: number,
   fileText?: string,
-  images?: string[]
+  images?: string[],
+  extras?: {
+    responsibilities?: string
+    requirements?: string
+    differentials?: string
+    additionalInfo?: string
+    candidateAnswers?: string
+  }
 ): OpenAIMessage[] {
   const now = new Date().toLocaleString('pt-BR');
+
+  const reqSection = extras?.requirements?.trim()
+    ? `\nRequisitos da Vaga:\n${extras.requirements.trim()}`
+    : '';
+  const respSection = extras?.responsibilities?.trim()
+    ? `\nResponsabilidades:\n${extras.responsibilities.trim()}`
+    : '';
+  const diffSection = extras?.differentials?.trim()
+    ? `\nDiferenciais (se houver):\n${extras.differentials.trim()}`
+    : '';
+  const addSection = extras?.additionalInfo?.trim()
+    ? `\nInformações Adicionais:\n${extras.additionalInfo.trim()}`
+    : '';
+  const answersSection = extras?.candidateAnswers?.trim()
+    ? `\n\n## RESPOSTAS DO CANDIDATO AO FORMULÁRIO DA VAGA\n${extras.candidateAnswers.trim()}\n\n▸ ATENÇÃO: Essas respostas são OFICIAIS do candidato. Se uma resposta mostra que ele NÃO atende um requisito (ex.: vaga pede Inglês Fluente e ele respondeu "Básico"), PENALIZE o score e cite isso em redFlags. Se o currículo não menciona algo mas a resposta do formulário confirma, use a resposta como verdade.`
+    : '';
 
   const basePrompt = `
 ## IDENTIDADE E FUNÇÃO
@@ -24,7 +47,7 @@ Seu objetivo é processar currículos, gerar um score fundamentado e extrair dad
 ## CONTEXTO DA VAGA
 
 Título da Vaga: ${jobTitle}
-Descrição da Vaga: ${jobDescription}
+Descrição da Vaga: ${jobDescription}${respSection}${reqSection}${diffSection}${addSection}${answersSection}
 
 ---
 
@@ -98,10 +121,10 @@ Retorne obrigatoriamente um objeto JSON com as seguintes chaves:
   "skills": ["Skill1", "Skill2"],
   "experience": "X anos e Y meses",
   "education": "Formação1 | Formação2 ou Não informado",
-  "redFlags": "lista ou Nenhuma identificada",
-  "summary": "parágrafo 3-5 linhas explicando o score",
+  "redFlags": ["motivo1", "motivo2"] — OBRIGATÓRIO listar os pontos de atenção que justificam o score. Se score < 70, SEMPRE haverá pontos (skills ausentes da vaga, alinhamento fraco, senioridade abaixo do pedido, formação diferente). Use array vazio [] SOMENTE se o currículo for impecável para a vaga (score ≥ 85). NUNCA use o texto "Nenhuma identificada" — preencha com os motivos reais ou array vazio [],
+  "summary": "parágrafo 3-5 linhas que EXPLICA o motivo do score: cite as dimensões do algoritmo (skills, experiência, formação, alinhamento), o que o candidato tem, o que falta para a vaga e por que o score ficou em X. Não descreva o perfil genericamente — sempre relacione com a vaga",
   "strengths": ["ponto1", "ponto2"],
-  "gaps": ["gap1", "gap2"],
+  "gaps": ["gap1", "gap2"] — OBRIGATÓRIO: lista das lacunas em relação à vaga (skills pedidas que faltam, experiência insuficiente, formação incompatível). Use array vazio [] SOMENTE se não houver lacunas,
   "recommendation": "Avançar / Manter em banco / Não recomendado",
   "status": "PROCESSADO / CURRICULO_INCOMPLETO / ERRO_LEITURA / SEM_DADOS_SUFICIENTES"
 }

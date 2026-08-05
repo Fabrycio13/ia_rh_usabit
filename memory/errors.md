@@ -211,3 +211,46 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
   - Backfill: todas as vagas com `application_count = COUNT(*)` (verificado via SELECT)
 - **Nota:** o `confirmDelete` do `VagaCandidatos.tsx` também foi corrigido para checar `error` do DELETE (antes engolia e mostrava falso sucesso) — parte do mesmo sintoma (candidato "não sumia").
 - **Verified:** 2026-08-05
+
+---
+
+## ERR-2026-08-05-002 — Análise em lote não persiste (update casa 0 linhas silenciosamente)
+
+- **Status:** verified (fix aplicado 2026-08-05)
+- **Domains:** vagas, candidates, batch-analysis, AI, updates
+- **Keywords:** batch-scoring, analysis_vs_vaga, candidateId, UUID, update silencioso, match_score
+- **Symptom:** O botão "Analisar em lote" de `VagaCandidatos` mostra toast de sucesso ("X candidato(s) analisado(s)!") mas o resultado some ao atualizar a página. A análise individual (CandidatePanel) funciona normalmente.
+- **Root cause (2 bugs):**
+  1. **Update dependia do `candidateId` devolvido pela IA** no JSON do `batch-scoring`. A IA (gpt-4o) trunca/formata UUIDs de forma diferente — `r.candidateId` não casava com o `id` real no banco → `UPDATE ... WHERE id = <uuid-errado>` afetava 0 linhas **sem erro**, e o código nem checava `error`. Toast de sucesso baseado em `results.length`, não no número real de updates.
+  2. **Salvava no campo errado:** só `match_score` + `analysis_vs_vaga`. O CandidatePanel renderiza `c.analysis` (com `skills`/`summary`/`strengths`/`gaps`) — o painel não lê `analysis_vs_vaga`, então mesmo salvando, não haveria feedback no painel.
+- **Fix (VagaCandidatos.tsx `handleBatchAnalyze`):**
+  - Casar por **posição** (`results[i]` ↔ `selected[i]`) — a IA é instruída a manter a ordem dos candidatos; o `realId` vem do array `selected` (id real do banco), nunca do JSON da IA.
+  - Salvar os campos que o painel lê: `analysis` completo (experience/education/skills/summary/strengths/gaps/classification/recommendation) + `is_analyzed: true` + `match_score` + `skills`/`tags`/`experience`/`education` (espelhando o fluxo individual `confirmAIAnalyze`).
+  - Checar `error` de cada update e `throw` (vira toast de erro, não falso sucesso).
+- **Lição:** (1) Nunca confiar em IDs devolvidos por LLM para operações de escrita — casar por posição/índice ou validar o ID contra a fonte real. (2) `UPDATE` sem checar `error` + sem confirmar rows afetadas é bug silencioso clássico. (3) Ao corrigir análise de candidato, espelhar exatamente os campos que o painel renderiza (`analysis` no `Candidato`), não criar campo paralelo (`analysis_vs_vaga`) que ninguém lê.
+- **Evidence:** tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente no navegador (chamada real à IA).
+- **Verified:** 2026-08-05
+
+---
+
+## ERR-2026-08-05-003 — Análise com score baixo retorna "Pontos de Atenção: Nenhuma identificada" e não explica o motivo do score
+
+- **Status:** verified (fix aplicado 2026-08-05)
+- **Domains:** AI, prompts, scoring, CandidatePanel
+- **Keywords:** redFlags, gaps, summary, Nenhuma identificada, placeholder, score baixo, justificativa
+- **Symptom:** Análise com score 39 (NÃO ADERENTE) mostrava "Pontos de Atenção / Negativos: Nenhuma identificada" e a "Análise da Nota" era um resumo genérico do perfil, sem explicar por que o score ficou baixo.
+- **Root cause (2 bugs combinados):**
+  1. **Prompt autorizava placeholder:** `scoring.ts` (prompt da Edge Function openai-proxy) definia `"redFlags": "lista ou Nenhuma identificada"` — a IA retornava essa string truthy quando não via red flags de penalidade explícitas, mesmo com score baixo. Os motivos reais do score baixo (skills ausentes, alinhamento fraco) iam para `gaps`, mas...
+  2. **Painel priorizava o placeholder:** `CandidatePanel.tsx` usava cadeia `redFlags || weaknesses || cons || negative_points || gaps || pontos_atencao` — "Nenhuma identificada" é truthy, então o fallback nunca chegava nos `gaps` reais. E o bloco renderizava porque a condição `[..].some(Boolean)` era satisfeita pelo placeholder.
+- **Fix (2 lados):**
+  1. `supabase/functions/openai-proxy/prompts/scoring.ts` — `redFlags` agora é array obrigatório: se score < 70 SEMPRE listar pontos reais; array vazio [] só para score ≥ 85; proibido o texto "Nenhuma identificada". `gaps` idem (lacunas vs vaga). `summary` agora deve EXPLICAR o motivo do score citando as dimensões (skills/experiência/formação/alinhamento), não descrever o perfil genericamente.
+  2. `src/features/analysis/CandidatePanel.tsx` — bloco de Pontos de Atenção não renderiza quando o conteúdo é placeholder "Nenhuma identificada" (regex) ou vazio/[]; só mostra se houver conteúdo real.
+- **Extensão do mesmo fix (contexto completo da vaga):** antes a IA só recebia `title + description` — responsabilidades, requisitos, diferenciais, informações adicionais e respostas do candidato ao formulário (ex.: nível de inglês) NUNCA iam pro prompt. Agora:
+  1. `supabase/functions/openai-proxy/prompts/scoring.ts` — aceita `extras` (responsibilities/requirements/differentials/additionalInfo/candidateAnswers) e injeta no CONTEXTO DA VAGA, com instrução de penalizar o score quando a resposta do formulário contradiz um requisito.
+  2. `supabase/functions/openai-proxy/index.ts` — repassa os campos novos no case `scoring` e injeta no prompt do `batch-scoring`.
+  3. `src/core/services/cvAnalyzer.ts` — `batchMatchToJob` aceita `BatchMatchJobContext` e repassa no payload.
+  4. `src/pages/vagas/VagaCandidatos.tsx` — individual (`confirmAIAnalyze`) e lote (`handleBatchAnalyze`) buscam `description, responsibilities, requirements, differentials, additional_info, custom_questions`; o individual monta `candidateAnswers` (label da pergunta + resposta do candidato) a partir de `custom_questions` + `answers`.
+- **Lição:** (1) Prompts de LLM não devem oferecer placeholder textual de "nada encontrado" para campos que o UI mostra como lista — usar array vazio e deixar a UI decidir. (2) Cadeias de fallback de campos (`a || b || c`) falham quando o primeiro campo é truthy mas sem valor real — normalizar/validar antes. (3) Alinhar contrato do prompt com o que a UI renderiza (mesma chave, mesmo tipo). (4) O contexto da vaga enviado à IA deve incluir TODOS os campos relevantes (requisitos/diferenciais/perguntas+respostas), não só a descrição — senão o score é calculado com informação incompleta.
+- **⚠️ Deploy necessário:** o fix do prompt está na Edge Function `openai-proxy` (Deno) — precisa `supabase functions deploy openai-proxy` para valer em produção. O fix do painel é frontend (build Amplify).
+- **Evidence:** tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente (chamada real à IA após deploy da EF).
+- **Verified:** 2026-08-05

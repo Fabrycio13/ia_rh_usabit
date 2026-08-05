@@ -241,8 +241,22 @@ setCandidatos(candData || []);
             // Análise completa (scoring): retorna score + summary + strengths + gaps.
             // 'extraction' só devolvia skills/experience/education (feedback parcial).
             const jobTitle = vaga?.title || '';
-            const { data: vagaFull } = await supabase.from('vagas_white_label').select('description').eq('id', id!).single();
+            const { data: vagaFull } = await supabase.from('vagas_white_label').select('description, responsibilities, requirements, differentials, additional_info, custom_questions').eq('id', id!).single();
             const jobDesc = vagaFull?.description || '';
+
+            // Monta bloco com as respostas do candidato às perguntas custom da vaga
+            let candidateAnswers = '';
+            try {
+                const ansRaw = (typeof aiCandidate.answers === 'string' ? JSON.parse(aiCandidate.answers) : aiCandidate.answers) ?? {};
+                const questions = Array.isArray(vagaFull?.custom_questions) ? vagaFull.custom_questions : [];
+                candidateAnswers = Object.entries(ansRaw as Record<string, unknown>)
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([k, v]) => {
+                        const q = (questions as Array<{ id: string; label: string }>).find(item => item.id === k);
+                        return `${q?.label || k}: ${String(v)}`;
+                    })
+                    .join('\n');
+            } catch { /* respostas opcionais */ }
 
             const openaiRes = await fetch(`${supabaseUrl}/functions/v1/openai-proxy`, {
                 method: 'POST',
@@ -251,7 +265,22 @@ setCandidatos(candData || []);
                     'apikey': anonKey,
                     'Authorization': `Bearer ${authToken}`,
                 },
-                body: JSON.stringify({ type: 'scoring', data: { jobTitle, jobDescription: jobDesc, currentIndex: 1, totalCount: 1, fileText, images } }),
+                body: JSON.stringify({
+                    type: 'scoring',
+                    data: {
+                        jobTitle,
+                        jobDescription: jobDesc,
+                        responsibilities: vagaFull?.responsibilities || '',
+                        requirements: vagaFull?.requirements || '',
+                        differentials: vagaFull?.differentials || '',
+                        additionalInfo: vagaFull?.additional_info || '',
+                        candidateAnswers,
+                        currentIndex: 1,
+                        totalCount: 1,
+                        fileText,
+                        images,
+                    },
+                }),
             });
 
             if (!openaiRes.ok) {
@@ -367,14 +396,43 @@ setCandidatos(candData || []);
                 candidatesForAI.push({ id: c.id, name: c.candidate_name, rawText });
             }
             const jobTitle = vaga?.title || '';
-            const { data: vagaFull } = await supabase.from('vagas_white_label').select('description').eq('id', id!).single();
+            const { data: vagaFull } = await supabase.from('vagas_white_label').select('description, responsibilities, requirements, differentials, additional_info, custom_questions').eq('id', id!).single();
             const jobDesc = vagaFull?.description || '';
-            const results = await batchMatchToJob(candidatesForAI, jobTitle, jobDesc);
-            for (const r of results) {
-                await supabase.from('vagas_candidaturas').update({
-                    match_score: r.score,
+            const results = await batchMatchToJob(candidatesForAI, jobTitle, jobDesc, {
+                responsibilities: vagaFull?.responsibilities || '',
+                requirements: vagaFull?.requirements || '',
+                differentials: vagaFull?.differentials || '',
+                additionalInfo: vagaFull?.additional_info || '',
+            });
+            // Casar por POSIÇÃO (a IA mantém a ordem dos candidatos): results[i] <-> selected[i].
+            // Não confiar no candidateId que a IA devolve — UUID truncado/formatação diferente
+            // fazia o update casar 0 linhas silenciosamente e o resultado "sumir" ao atualizar.
+            for (let i = 0; i < results.length && i < selected.length; i++) {
+                const r = results[i];
+                const realId = selected[i].id;
+                const skillsArr = Array.isArray(r.skills) ? r.skills as string[] : [];
+                const analysis: Record<string, unknown> = {};
+                if (r.experience) analysis.experience = r.experience;
+                if (r.education) analysis.education = r.education;
+                if (skillsArr.length) analysis.skills = skillsArr;
+                if (r.summary) analysis.summary = r.summary;
+                if (r.strengths) analysis.strengths = r.strengths;
+                if (r.gaps) analysis.gaps = r.gaps;
+                if (r.classification) analysis.classification = r.classification;
+                if (r.recommendation) analysis.recommendation = r.recommendation;
+
+                const updates: Record<string, unknown> = {
+                    is_analyzed: true,
+                    analysis,
                     analysis_vs_vaga: r as unknown as Record<string, unknown>,
-                }).eq('id', r.candidateId);
+                    match_score: Math.round(Math.min(100, Math.max(0, Number(r.score) || 0))),
+                };
+                if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
+                if (r.experience) updates.experience = r.experience;
+                if (r.education) updates.education = r.education;
+
+                const { error: updateErr } = await supabase.from('vagas_candidaturas').update(updates).eq('id', realId);
+                if (updateErr) throw new Error(updateErr.message);
             }
             // Refresh list
             const { data: refreshed } = await supabase.from('vagas_candidaturas')

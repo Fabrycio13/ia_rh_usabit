@@ -54,6 +54,14 @@ export interface BatchMatchResult {
   status: string;
 }
 
+export interface BatchMatchJobContext {
+  responsibilities?: string;
+  requirements?: string;
+  differentials?: string;
+  additionalInfo?: string;
+  candidateAnswers?: string;
+}
+
 /**
  * Avalia lote de candidatos contra uma vaga usando gpt-4o.
  * candidates: array com { id, name, rawText } (rawText truncado a 8k char cada)
@@ -62,7 +70,8 @@ export interface BatchMatchResult {
 export async function batchMatchToJob(
   candidates: Array<{ id: string; name: string; rawText: string }>,
   jobTitle: string,
-  jobDescription: string
+  jobDescription: string,
+  jobContext?: BatchMatchJobContext
 ): Promise<BatchMatchResult[]> {
   const startTime = Date.now();
   const batches: Array<typeof candidates> = [];
@@ -82,7 +91,7 @@ export async function batchMatchToJob(
         rawText: sanitizeAIInput(c.rawText).slice(0, 8000),
       }));
       const data = await callOpenAI(
-        { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription } },
+        { type: 'batch-scoring', data: { candidates: sanitizedBatch, jobTitle, jobDescription, ...(jobContext || {}) } },
         { model: 'gpt-4o', retries: 3, timeout: 60000, operation: 'batch-scoring' }
       );
       const parsed = parseJSON<BatchMatchResult[]>(data.content);

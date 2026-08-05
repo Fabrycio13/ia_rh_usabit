@@ -138,6 +138,13 @@ async function handleRequest(req: Request): Promise<Response> {
             (d.totalCount as number) ?? 1,
             d.fileText as string | undefined,
             d.images as string[] | undefined,
+            {
+              responsibilities: d.responsibilities as string | undefined,
+              requirements: d.requirements as string | undefined,
+              differentials: d.differentials as string | undefined,
+              additionalInfo: d.additionalInfo as string | undefined,
+              candidateAnswers: d.candidateAnswers as string | undefined,
+            },
           )
           break
         case 'job-matching':
@@ -167,6 +174,11 @@ async function handleRequest(req: Request): Promise<Response> {
           const jobDescription = d.jobDescription as string
           const now = new Date().toLocaleString('pt-BR')
 
+          const reqSection = d.requirements ? `\nRequisitos: ${d.requirements}` : ''
+          const respSection = d.responsibilities ? `\nResponsabilidades: ${d.responsibilities}` : ''
+          const diffSection = d.differentials ? `\nDiferenciais: ${d.differentials}` : ''
+          const addSection = d.additionalInfo ? `\nInformações Adicionais: ${d.additionalInfo}` : ''
+
           const candidateSection = candidates.map((c, i) => {
             return `## CANDIDATO ${i + 1}: ${c.name}\nID: ${c.id}\nCURRÍCULO:\n${c.rawText}`
           }).join('\n\n---\n\n')
@@ -175,13 +187,13 @@ async function handleRequest(req: Request): Promise<Response> {
 
 ## VAGA
 Título: ${jobTitle}
-Descrição: ${jobDescription}
+Descrição: ${jobDescription}${respSection}${reqSection}${diffSection}${addSection}
 
 ## INSTRUÇÕES
 Abaixo estão ${candidates.length} candidato(s). Para cada um:
 
 1. Leia o currículo.
-2. Avalie a aderência à vaga (0-100).
+2. Avalie a aderência à vaga (0-100), comparando com os requisitos, responsabilidades e diferenciais listados acima.
 3. Extraia skills, experiência, formação.
 4. Classifique: FORTE (≥70), MÉDIO (40-69), NÃO ADERENTE (<40).
 
