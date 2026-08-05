@@ -251,3 +251,20 @@
   - Gates: tsc/lint/test 169/169 OK
 - **Supersedes:** none
 - **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-003 — Identidade do candidato master: email normalizado + telefone fallback
+
+- **Status:** accepted
+- **Domains:** candidates, dedup, master, identidade, banco_talentos
+- **Keywords:** candidato master, dedup, email_normalizado, phone_normalizado, vagas_candidaturas, candidate_id
+- **Decision:** O parâmetro de identidade do candidato master (Banco de Talentos) é: **1º email normalizado** (lowercase + trim), **2º fallback telefone normalizado** (somente dígitos). Colunas geradas `email_normalizado`/`phone_normalizado` em `candidates` e `candidate_email_normalizado`/`candidate_phone_normalizado` em `vagas_candidaturas` (GENERATED ALWAYS ... STORED — nunca dessincronizam). Busca no `TalentTransferModal` usa `.limit(1).maybeSingle()` (não quebra com duplicatas legadas). Vínculo candidatura↔master usa email normalizado (fallback telefone).
+- **Rationale:** Email cru é case-sensitive no Postgres → mesmo candidato com `Joao@x` vs `joao@x` vira 2 masters (verificado: duplicata real "veronica.monteiro+TESTE1" vs "+teste1" com mesmo telefone). Currículo sem email extraível (PDF escaneado) precisa de fallback — telefone normalizado cobre. Excluir do banco NÃO apaga candidaturas (FK `vagas_candidaturas.candidate_id` é ON DELETE SET NULL; removido DELETE manual da linha 271 do CandidateBank) — reenvio da vaga cria cadastro novo quando master não existe.
+- **Trade-offs:** Índices NÃO-unique (duplicatas legadas impedem UNIQUE sem dedup manual). `maybeSingle()` com `.limit(1)` evita erro de múltiplas linhas. Sem email nem telefone: vínculo vira no-op seguro (`eq('id','-1')`). Duplicata de teste Verônica foi removida (2 masters, mesmo email+telefone; candidaturas desvinculadas via SET NULL, não apagadas).
+- **Evidence:**
+  - `supabase/migrations/099_candidate_identity_normalization.sql` (aplicada ao vivo)
+  - Verificado: 2 cols candidates + 2 cols vc + 4 índices; duplicata veronica zerada; `+55 (21) 98686-6460` → `5521986866460`
+  - Gates: tsc/lint/test 169/169/build OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05

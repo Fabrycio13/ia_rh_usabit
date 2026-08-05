@@ -242,25 +242,50 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 notes: candidate.notes
             };
 
-            // Verificar se já existe um candidato com este email
-            let existingQuery = supabase
-                .from('candidates')
-                .select('id, analysis')
-                .eq('email', candidate.email);
-            
-            if (profile.organization_id) {
-                existingQuery = existingQuery.eq('organization_id', profile.organization_id);
+            // Verificar se já existe um candidato com este email (normalizado) ou telefone
+            // Parâmetro de identidade do master: 1º email_normalizado (lowercase+trim),
+            // 2º fallback phone_normalizado (só dígitos) — cobre currículo sem email.
+            const emailNorm = (candidate.email || '').trim().toLowerCase();
+            const phoneNorm = (candidate.phone || '').replace(/\D/g, '');
+
+            let masterId: string | null = null;
+
+            if (emailNorm) {
+                let existingQuery = supabase
+                    .from('candidates')
+                    .select('id, analysis')
+                    .eq('email_normalizado', emailNorm);
+                if (profile.organization_id) {
+                    existingQuery = existingQuery.eq('organization_id', profile.organization_id);
+                }
+                const { data: byEmail } = await existingQuery.limit(1).maybeSingle();
+                masterId = byEmail?.id ?? null;
             }
 
-            const { data: existingByEmail } = await existingQuery.maybeSingle();
+            if (!masterId && phoneNorm) {
+                let phoneQuery = supabase
+                    .from('candidates')
+                    .select('id, analysis')
+                    .eq('phone_normalizado', phoneNorm);
+                if (profile.organization_id) {
+                    phoneQuery = phoneQuery.eq('organization_id', profile.organization_id);
+                }
+                const { data: byPhone } = await phoneQuery.limit(1).maybeSingle();
+                masterId = byPhone?.id ?? null;
+            }
 
             interface CandidateRecord { id: string; analysis?: { history?: Array<{ job_id: string }> }; resume_url?: string }
             let dbCandidate: CandidateRecord | null = null;
 
-            if (existingByEmail) {
+            if (masterId) {
                 // Candidato já existe -> mesclar histórico
-                const existingHistory = Array.isArray(existingByEmail.analysis?.history)
-                    ? existingByEmail.analysis.history
+                const { data: existingByEmail } = await supabase
+                    .from('candidates')
+                    .select('id, analysis')
+                    .eq('id', masterId)
+                    .single();
+                const existingHistory = Array.isArray(existingByEmail?.analysis?.history)
+                    ? existingByEmail!.analysis!.history!
                     : [];
                 
                 const mergedAnalysis = {
@@ -272,7 +297,7 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
                 const { data: updated, error: updateError } = await supabase
                     .from('candidates')
                     .update({ ...candidateRow, source: 'talent_bank', analysis: mergedAnalysis })
-                    .eq('id', existingByEmail.id)
+                    .eq('id', masterId)
                     .select()
                     .single();
 
@@ -300,12 +325,22 @@ export function TalentTransferModal({ candidate, job, onClose, onSuccess }: Tale
 
             // 1.5. Vincular candidatura existente ao perfil master no Banco de Talentos
             // No novo modelo, vagas_candidaturas já tem candidate_id FK.
-            // Apenas setamos o candidate_id na candidatura existente (match por email).
-            const { error: vcLinkError } = await supabase
+            // Match por email NORMALIZADO (cobre diferenças de case na digitação).
+            const vcLinkQuery = supabase
                 .from('vagas_candidaturas')
                 .update({ candidate_id: dbCandidate.id })
-                .eq('candidate_email', candidate.email)
                 .is('candidate_id', 'null');
+
+            if (emailNorm) {
+                vcLinkQuery.eq('candidate_email_normalizado', emailNorm);
+            } else if (phoneNorm) {
+                vcLinkQuery.eq('candidate_phone_normalizado', phoneNorm);
+            } else {
+                // Sem email nem telefone: não dá para vincular com segurança
+                vcLinkQuery.eq('id', '-1'); // no-op
+            }
+
+            const { error: vcLinkError } = await vcLinkQuery;
 
             if (vcLinkError) {
                 toast.error('Erro ao vincular candidatura ao banco: ' + vcLinkError.message);

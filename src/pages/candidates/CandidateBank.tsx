@@ -267,11 +267,15 @@ export const CandidateBank = () => {
     if (!deleteConfirm) return;
     const c = deleteConfirm;
     setDeleteConfirm(null);
+    // Excluir do Banco de Talentos remove APENAS o registro master.
+    // A FK vagas_candidaturas.candidate_id é ON DELETE SET NULL — as
+    // candidaturas nas vagas são desvinculadas automaticamente e
+    // PRESERVADAS (o candidato continua na vaga; pode voltar ao banco
+    // depois como cadastro novo).
     await supabase.from('candidates').delete().eq('id', c.id);
-    await supabase.from('vagas_candidaturas').delete().eq('candidate_id', c.id);
     setCandidates(prev => prev.filter(x => x.id !== c.id));
     setSelected(null);
-    toast.success('Candidato removido');
+    toast.success('Candidato removido do banco');
   };
 
   const handleSort = (col: SortKey) => {
