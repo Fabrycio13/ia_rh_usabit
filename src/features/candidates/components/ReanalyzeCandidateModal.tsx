@@ -145,15 +145,24 @@ export function ReanalyzeCandidateModal({ candidate, organizationId, userId, onC
             const newHistory = [...oldHistory];
             newHistory.push({
                 type: 'reanalysis',
-                vaga_id: vaga.id,
-                vaga_title: vaga.title,
+                // Padrão de campos do history (mesmo do TalentTransferModal):
+                // job_id / job_title / job_code / summary — o CandidateBank
+                // lê exatamente esses nomes (job_name || job_title; summary).
+                job_id: vaga.id,
+                job_title: vaga.title,
+                job_code: vaga.job_code || null,
                 date: new Date().toISOString(),
                 score: aiResult.score ?? null,
-                match_rationale: aiResult.summary || null,
-                skills: aiResult.skills,
+                summary: aiResult.summary || null,
                 experience: aiResult.experience,
+                education: aiResult.education,
+                skills: aiResult.skills,
                 strengths: aiResult.strengths,
-                gaps: aiResult.gaps
+                gaps: aiResult.gaps,
+                // Compatibilidade com leituras legadas
+                vaga_id: vaga.id,
+                vaga_title: vaga.title,
+                match_rationale: aiResult.summary || null
             });
 
             await supabase.from('candidates').update({

@@ -278,3 +278,13 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Lição:** (1) Colunas NOT NULL com dados derivados de extração de IA sempre precisam de fallback determinístico. (2) Análise SEM vaga = tipo `resume` (pré-análise); análise COM vaga = `scoring`/`job-matching` — usar o tipo certo conforme o contexto. (3) Ao mudar o gerador de paths de storage (`get-upload-url`), conferir a policy de acesso — paths novos invisíveis à policy = download quebrado com erros obscuros de token.
 - **Evidence:** migration 098 aplicada ao vivo (policy verificada via pg_policies); tsc 0 erros; eslint 0 erros; npm test 169/169. Teste funcional pendente no navegador.
 - **Verified:** 2026-08-05
+
+---
+
+## ERR-2026-08-05-005 — Reanálise do Banco: "Vaga Desconhecida" + "Análise da Nota: 3 anos"
+
+- **Sintoma:** Ao reanalisar candidato do Banco de Talentos para outra vaga, o history gravava `vaga_title`/`match_rationale` mas o CandidateBank lê `job_title`/`summary` → painel mostrava "Vaga Desconhecida" e "Análise da Nota: 3 anos" (o `experience` curto da IA aparecia como análise).
+- **Causa raiz:** `ReanalyzeCandidateModal.tsx` gravava o history com nomes de campos diferentes do padrão usado pelo `TalentTransferModal` e lido pelo `CandidateBank` (`job_id/job_title/job_code/summary` vs `vaga_id/vaga_title/match_rationale`). O summary completo da IA (`aiResult.summary`) ia para `match_rationale` (nunca lido) e o painel caía no `experience` ("3 anos").
+- **Fix:** Padronizado o push do history no `ReanalyzeCandidateModal` para `job_id/job_title/job_code/summary/experience/education/skills/strengths/gaps` + compatibilidade legada (`vaga_id/vaga_title/match_rationale`).
+- **Verificado:** tsc/lint/test 169/169/build OK. Dados reais do Rhenan confirmam: history da reanálise tinha `vaga_title: "Back-end"` e `match_rationale: <texto completo>` — agora será lido como "Back-end" + summary.
+- **Lição:** Todo writer de `candidates.analysis.history` deve usar o padrão de nomes do CandidateBank (job_id/job_title/job_code/summary/strengths/gaps) — nunca inventar nomes.
