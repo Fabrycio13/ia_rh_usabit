@@ -268,3 +268,59 @@
   - Gates: tsc/lint/test 169/169/build OK
 - **Supersedes:** none
 - **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-004 — Fechar escalada de privilégio em profiles (P0-1)
+
+- **Status:** accepted
+- **Domains:** security, profiles, rls, escalada, grants, rpc
+- **Keywords:** profiles, user_role, REVOKE UPDATE, GRANT coluna, activate_my_pending_profile, trigger anti-escalada
+- **Decision:** Revogar `UPDATE` table-level em `profiles` de `authenticated`/`anon`; conceder `UPDATE` apenas nas colunas seguras usadas pelo frontend (name, role, organization_name, phone, address, brand_*, avatar_url, notifications_enabled, onboarding_completed, evolution_*, updated_at); criar RPC `activate_my_pending_profile()` SECURITY DEFINER para ativação pending→active; trigger `prevent_profile_privilege_escalation` que bloqueia UPDATE de user_role/organization_id/status/account_type/id por qualquer caminho sem flag de sessão.
+- **Rationale:** A policy `profiles: own` (ALL) + GRANT UPDATE table-level permitia qualquer usuário logado (inclusive convidado) executar `PATCH /rest/v1/profiles?id=<seu_id>` com `{"user_role":"owner"}` → escalada máxima via `get_my_role()`. Confirmed no pentest 2026-08-05. A RPC também conserta o fluxo de convite: `SetPassword.tsx:79` já chamava `activate_my_pending_profile` mas a função NUNCA existiu no banco → convidado recebia "Não foi possível ativar sua conta". EFs usam service_role → não afetadas.
+- **Trade-offs:** Coluna `role` (legada, exibição, valores "Admin"/"Diretor", não usada em auth) mantida no GRANT porque o `Configuracoes.handleSave` a envia. `status` sai do GRANT → `Register.tsx:79` (código morto, sem rota, signup off) ficaria bloqueado se algum dia for reativado. Trigger usa flag `app.allow_profile_activation` setada pela RPC (SECURITY DEFINER roda como owner; `auth.role()` não seria `service_role`).
+- **Evidence:**
+  - `supabase/migrations/100_fix_profile_privilege_escalation.sql` (aplicada ao vivo)
+  - Verificado ao vivo: UPDATE table-level 0; 15 colunas seguras; user_role/org/status/account_type = 0 atualizáveis; RPC existe; trigger existe
+  - Testes: SET ROLE authenticated UPDATE user_role → `42501 permission denied`; UPDATE colunas seguras → OK; UPDATE real com escalada → `P0001 Alteração de colunas privilegiadas`; UPDATE com flag → OK; UPDATE Configuracoes (authenticated) → OK
+  - Gates: tsc/lint/169 tests/build/memória OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-005 — Privatizar bucket `resumes` (P0-2)
+
+- **Status:** accepted
+- **Domains:** security, storage, buckets, pii
+- **Keywords:** bucket, resumes, public, storage, PII, signed URL
+- **Decision:** `UPDATE storage.buckets SET public = false WHERE id = 'resumes'`. Bucket era `public: true` mas vazio (0 objetos) e sem referências (`resume_url` em vagas_candidaturas/candidates = 0). Currículos reais vivem em `job-applications` (privado).
+- **Rationale:** `public=true` expõe qualquer objeto via `/storage/v1/object/public/resumes/...` sem autenticação — vazamento de PII de candidatos ao escalar para várias empresas. Bucket legado morto: código só o referencia em `parseStorageUrl` (leitura de URL) e `public-contracts.ts` valida subpasta `resumes/` DENTRO de `job-applications` (não afetado).
+- **Trade-offs:** Policies `storage: org resumes select/delete`, `storage: owner resumes`, `storage_recruiters_*` mantidas — autenticados (org members/owner) seguem acessando via RLS/signed URL. Nenhum fluxo quebra (bucket vazio + 0 referências).
+- **Evidence:**
+  - `supabase/migrations/101_privatize_resumes_bucket.sql` (aplicada ao vivo)
+  - Verificado ao vivo: GET anon `object/public/resumes/teste.pdf` → `404 NoSuchBucket`; list anon → `[]`; `SELECT id, public FROM storage.buckets` → resumes=false
+  - Gates: tsc/lint/169 tests/build OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-006 — Hardening RLS: activity_logs append-only + drop access_v4 + gestor fantasma (M-1/M-2/M-3/M-4)
+
+- **Status:** accepted
+- **Domains:** security, rls, policies, activity_logs, candidates, roles
+- **Keywords:** append-only, activity_logs, access_v4, gestor, ALLOWED_ROLES, enrich-candidate
+- **Decision:**
+  - M-1: `activity_logs` vira append-only — drop da policy ALL; policies `insert own` (user_id = auth.uid()) + `select` (owner tudo / admin+supervisor org / rh próprios). Sem UPDATE/DELETE.
+  - M-2: drop `candidates_access_v4` e `vagas_access_v4` (migration 091 do pull) — davam ALL para qualquer authenticated (inclusive convidado) com org match, contornando a restrição de role. Sobra: anon deny + multitenancy_policy + convidado_select.
+  - M-3: remover `'gestor'` (role inexistente) dos ALLOWED_ROLES de openai-proxy e enrich-candidate + drop das 7 policies gestor/gestores do banco.
+  - M-4: `.eq('organization_id', callerOrgId)` no UPDATE do enrich-candidate (defesa em profundidade).
+- **Rationale:** Pentest 2026-08-05 confirmou: activity_logs editável viola LGPD; access_v4 dava UPDATE/DELETE a convidados; gestor é drift de contrato (hierarquia real: owner → administrador → supervisor → rh → convidado); UPDATE sem org é BOLA latente.
+- **Trade-offs:** INSERT de activity_logs exige user_id = auth.uid() (logger.ts já faz). checkDuplicate filtra user_id como dedup de negócio (não autorização) — não depende da access_v4. EFs usam service_role — não afetadas por grants.
+- **Evidence:**
+  - Migrations 102/103/104 (aplicadas ao vivo) + patches nas 2 EFs + redeploy
+  - Verificado: activity_logs UPDATE/DELETE bloqueado (linha intacta); policies access_v4 = 0; gestor = 0 no código e banco; SELECT candidates authenticated OK; EFs HTTP 401 (no ar)
+  - Gates: tsc/lint/169 tests/build/memória OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05

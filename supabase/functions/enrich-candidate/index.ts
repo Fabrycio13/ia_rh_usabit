@@ -23,7 +23,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || ''
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || ''
 
-const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'gestor', 'owner']
+const ALLOWED_ROLES = ['rh', 'supervisor', 'administrador', 'owner']
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -286,8 +286,11 @@ Use string vazia ("") se um campo não for identificável.`
     if (parsed.education && !existingEducation) updates.education = sanitizeText(parsed.education as string)
 
     // Update na tabela certa conforme source
+    // Filtro de organização repetido no UPDATE (defesa em profundidade —
+    // o SELECT acima já valida org; este filtro garante que o UPDATE nunca
+    // alcance linha de outra tenant mesmo se a ordem do código mudar)
     const tableName = source === 'pool' ? 'vagas_candidaturas' : 'candidates'
-    const { error: updateErr } = await supabaseAdmin.from(tableName).update(updates).eq('id', candidateId)
+    const { error: updateErr } = await supabaseAdmin.from(tableName).update(updates).eq('id', candidateId).eq('organization_id', callerOrgId)
     if (updateErr) {
       safeEdgeError('enrich-candidate', 'Erro update', updateErr.message)
       return json({ error: 'Erro ao processar candidato' }, 500)

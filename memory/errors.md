@@ -288,3 +288,14 @@ src/pages/vagas/components/CityAutocomplete.tsx  (linha 25)
 - **Fix:** Padronizado o push do history no `ReanalyzeCandidateModal` para `job_id/job_title/job_code/summary/experience/education/skills/strengths/gaps` + compatibilidade legada (`vaga_id/vaga_title/match_rationale`).
 - **Verificado:** tsc/lint/test 169/169/build OK. Dados reais do Rhenan confirmam: history da reanálise tinha `vaga_title: "Back-end"` e `match_rationale: <texto completo>` — agora será lido como "Back-end" + summary.
 - **Lição:** Todo writer de `candidates.analysis.history` deve usar o padrão de nomes do CandidateBank (job_id/job_title/job_code/summary/strengths/gaps) — nunca inventar nomes.
+
+---
+
+## ERR-2026-08-05-006 — Escalada de privilégio em profiles (P0-1, corrigido)
+
+- **Sintoma:** Qualquer usuário autenticado (inclusive `convidado`) podia se tornar `owner` com `PATCH /rest/v1/profiles?id=<seu_id> {"user_role":"owner"}` — escalada máxima confirmada ao vivo no pentest.
+- **Causa raiz:** Policy `profiles: own` = ALL (`auth.uid() = id`) combinada com GRANT UPDATE **table-level** para `authenticated` (colunas privilegiadas `user_role`, `organization_id`, `status`, `account_type` atualizáveis) e zero triggers de proteção.
+- **Correção:** Migration 100 — REVOKE UPDATE table-level; GRANT UPDATE por coluna segura (15 colunas); RPC `activate_my_pending_profile()` SECURITY DEFINER (ativação pending→active); trigger `prevent_profile_privilege_escalation` bloqueia UPDATE de colunas privilegiadas por caminhos sem flag.
+- **Bônus:** a RPC conserta fluxo de convite quebrado — `SetPassword.tsx:79` chamava `activate_my_pending_profile` que NUNCA existiu no banco (convidado não conseguia ativar a conta).
+- **Verificado:** escalada bloqueada (`42501`), colunas seguras funcionam, trigger bloqueia (`P0001`), flag permite, gates verdes.
+- **Lição:** grants table-level + policy ALL self-service = escalada; SEMPRE auditar column privileges ao revisar RLS (não só policies).
