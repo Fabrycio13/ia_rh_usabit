@@ -214,3 +214,21 @@
 - **Evidence:** `supabase/migrations/094_harden_job_code_counters.sql`; pré-fix: REST anon 4 linhas HTTP 200; pós-fix: policies só `org scope`/`deny anon`, `SET ROLE anon` → 0, REST anon → `rows=0`; gates tsc/lint/test 169/169 OK.
 - **Supersedes:** none
 - **Verified:** 2026-08-04
+
+---
+
+## DEC-2026-08-05-001 — Remover view legada `public_vagas` (drop, não revoke)
+
+- **Status:** accepted
+- **Domains:** security, public-portal, views, anon
+- **Keywords:** public_vagas, view legada, SECURITY DEFINER, anon, REST, vazamento multi-tenant
+- **Decision:** A view `public.public_vagas` (resquício da migration 007) deve ser **dropada** (`DROP VIEW IF EXISTS`), não apenas revogada. Ela é código morto + risco de vazamento multi-tenant.
+- **Rationale:** O Security Advisor do Supabase alertou que a view é `SECURITY DEFINER` (owner `postgres`, sem `security_invoker`) com `SELECT` grant para `anon` e filtro só de `is_active` — **sem filtro de organização**. Qualquer pessoa via `GET /rest/v1/public_vagas` enxergava vagas ativas de TODAS as organizações. Grep confirmou 0 usos: nem `src/`, nem Edge Functions (`public-jobs`/`public-job-detail` consultam `vagas_white_label` direto com service_role + `.eq('organization_id', orgId)`). Opção `security_invoker` descartada: com as migrations 090/091 (deny anon na tabela base), o anon veria 0 vagas — view ficaria inútil.
+- **Trade-offs:** Drop é irreversível se algo externo (fora do repo) consultasse a view — grep não achou nada; portal público verificado ao vivo após o drop (Edge Function `public-jobs` responde 200 com orgInfo + vagas).
+- **Evidence:**
+  - `supabase/migrations/096_drop_legacy_public_vagas_view.sql`
+  - Pré-fix: `pg_policies`/`pg_class` mostraram owner `postgres`, `reloptions NULL` (sem security_invoker), grants SELECT p/ `anon`+`authenticated`
+  - Pós-fix: `SELECT count(*) FROM pg_class WHERE relname='public_vagas'` → 0; `GET /rest/v1/public_vagas` → HTTP 404
+  - Portal: `GET /functions/v1/public-jobs?orgId=<id>` → 200 com orgInfo + vagas
+- **Supersedes:** none
+- **Verified:** 2026-08-05
