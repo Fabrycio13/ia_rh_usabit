@@ -232,3 +232,22 @@
   - Portal: `GET /functions/v1/public-jobs?orgId=<id>` → 200 com orgInfo + vagas
 - **Supersedes:** none
 - **Verified:** 2026-08-05
+
+---
+
+## DEC-2026-08-05-002 — Fixar search_path das funções públicas (hardening)
+
+- **Status:** accepted
+- **Domains:** security, functions, search_path
+- **Keywords:** search_path, Function Search Path Mutable, SECURITY DEFINER, hijacking, pg_temp
+- **Decision:** Todas as funções do schema `public` devem ter `SET search_path = public` explícito via `ALTER FUNCTION`. Usar `public` (e não `''` como recomenda o advisor do Supabase) porque várias funções referenciam tabelas sem qualificar schema (`SELECT 1 FROM candidates`, `DELETE FROM pipeline_cards`, `SELECT vaga_id FROM convidado_vaga_access`) — `search_path = ''` quebraria essas referências.
+- **Rationale:** O Security Advisor reportou "Function Search Path Mutable" para 17 funções com `proconfig = NULL` (search_path implícito herdado: `$user, public, pg_temp`). Risco de *search_path hijacking*: atacante cria objeto malicioso num schema do path (ex.: `pg_temp` ou schema de usuário) e a função SECURITY DEFINER executa código errado. `SET search_path = public` torna o path explícito/imutável e remove `pg_temp`/schemas de usuário, eliminando o vetor sem mudança de comportamento (todas as tabelas estão em `public`).
+- **Trade-offs:** `search_path = ''` seria o hardening máximo (exige qualificar TODOS os objetos no corpo — mudança ampla e arriscada, contrária à preferência do usuário por mudanças cirúrgicas). `public` resolve o aviso com risco zero de quebra. Funções já com `search_path = public`/`public, pg_temp` (check_rate_limit, get_my_role, etc.) não foram tocadas — pg_temp em check_rate_limit é intencional (rate limit usa temp).
+- **Evidence:**
+  - `supabase/migrations/097_fix_function_search_path.sql` (17 ALTER FUNCTION)
+  - Pré-fix: 17 funções com `proconfig IS NULL`
+  - Pós-fix: 0 com NULL / 23 com search_path explícito
+  - Smoke test em transação (ROLLBACK): INSERT vaga + INSERT candidatura (dispara `increment_vaga_application_count`) + DELETE (dispara `decrement_vaga_application_count`) → OK
+  - Gates: tsc/lint/test 169/169 OK
+- **Supersedes:** none
+- **Verified:** 2026-08-05
