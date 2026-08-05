@@ -79,6 +79,122 @@ const getStatusColor = (status: string) => {
     return colors[status] || { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748b' };
 };
 
+const isLegibleText = (text: string): boolean => {
+    if (!text || text.length < 50) return false;
+    const words = text.match(/[a-zA-Z]{3,}/g) || [];
+    return words.length >= 5;
+};
+
+interface JobAnalysisContext {
+    jobTitle: string;
+    jobDescription: string;
+    responsibilities?: string;
+    requirements?: string;
+    differentials?: string;
+    additionalInfo?: string;
+    candidateAnswers?: string;
+}
+
+/**
+ * Analisa UM candidato individualmente (com fallback de imagem para PDF escaneado).
+ * Usada pelo fluxo individual (confirmAIAnalyze) e pelo batch quando o currículo
+ * não tem camada de texto (PDF escaneado → pdfToImages → visão da IA).
+ */
+const analyzeSingleCandidate = async (candidate: Candidato, ctx: JobAnalysisContext): Promise<void> => {
+    if (!candidate.resume_url) {
+        throw new Error('Candidato sem currículo');
+    }
+
+    const file = await downloadResume(candidate.resume_url, candidate.resume_file_name || 'curriculo.pdf');
+
+    let fileText: string | undefined;
+    let images: string[] | undefined;
+
+    const extracted = await extractTextFromPDF(file);
+    if (isLegibleText(extracted)) {
+        fileText = extracted;
+        supabase.from('vagas_candidaturas').update({ raw_text: extracted }).eq('id', candidate.id).then(() => {}, () => {});
+    } else {
+        images = await pdfToImages(file);
+    }
+
+    if (!fileText && (!images || images.length === 0)) {
+        throw new Error('Não foi possível extrair texto ou imagens do PDF. O arquivo pode estar corrompido ou ser um PDF escaneado incompatível.');
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const { data: { session } } = await supabase.auth.getSession();
+    const authToken = session?.access_token || anonKey;
+
+    const openaiRes = await fetch(`${supabaseUrl}/functions/v1/openai-proxy`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey,
+            'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+            type: 'scoring',
+            data: {
+                jobTitle: ctx.jobTitle,
+                jobDescription: ctx.jobDescription,
+                responsibilities: ctx.responsibilities || '',
+                requirements: ctx.requirements || '',
+                differentials: ctx.differentials || '',
+                additionalInfo: ctx.additionalInfo || '',
+                candidateAnswers: ctx.candidateAnswers || '',
+                currentIndex: 1,
+                totalCount: 1,
+                fileText,
+                images,
+            },
+        }),
+    });
+
+    if (!openaiRes.ok) {
+        const errText = await openaiRes.text();
+        console.error('[VagaCandidatos] openai-proxy HTTP', openaiRes.status, errText);
+        throw new Error('Falha temporária no serviço de análise');
+    }
+
+    const aiResult = await openaiRes.json();
+    if (!aiResult?.choices?.[0]?.message?.content) throw new Error('Resposta vazia da IA');
+
+    let parsed: Record<string, unknown> = {};
+    try {
+        const content = aiResult.choices[0].message.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        parsed = JSON.parse(content);
+    } catch {
+        throw new Error('Erro ao processar resposta da IA');
+    }
+
+    const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : [];
+    const analysis: Record<string, unknown> = {};
+    if (parsed.experience) analysis.experience = parsed.experience;
+    if (parsed.education) analysis.education = parsed.education;
+    if (skillsArr.length) analysis.skills = skillsArr;
+    // Campos completos do scoring — o CandidatePanel renderiza esses blocos
+    if (parsed.summary) analysis.summary = parsed.summary;
+    if (parsed.general_analysis) analysis.general_analysis = parsed.general_analysis;
+    if (parsed.feedback) analysis.feedback = parsed.feedback;
+    if (parsed.strengths) analysis.strengths = parsed.strengths;
+    if (parsed.gaps) analysis.gaps = parsed.gaps;
+    if (parsed.redFlags) analysis.redFlags = parsed.redFlags;
+    if (parsed.classification) analysis.classification = parsed.classification;
+    if (parsed.recommendation) analysis.recommendation = parsed.recommendation;
+
+    const updates: Record<string, unknown> = { is_analyzed: true, analysis };
+    const scoreNum = Number(parsed.score);
+    if (Number.isFinite(scoreNum) && scoreNum > 0) updates.match_score = Math.round(Math.min(100, Math.max(0, scoreNum)));
+    if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
+    if (parsed.experience) updates.experience = parsed.experience;
+    if (parsed.education) updates.education = parsed.education;
+
+    const { error: updateErr } = await supabase.from('vagas_candidaturas').update(updates).eq('id', candidate.id);
+    if (updateErr) throw new Error(updateErr.message);
+};
+
 export const VagaCandidatos = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -202,49 +318,10 @@ setCandidatos(candData || []);
         setShowAIConfirm(false);
         setAiAnalyzing(true);
         try {
-            if (!aiCandidate.resume_url) {
-                toast.error('Candidato sem currículo');
-                setAiAnalyzing(false);
-                return;
-            }
-
-            const isLegibleText = (text: string): boolean => {
-                if (!text || text.length < 50) return false;
-                const words = text.match(/[a-zA-Z]{3,}/g) || [];
-                return words.length >= 5;
-            };
-
-            const file = await downloadResume(aiCandidate.resume_url, aiCandidate.resume_file_name || 'curriculo.pdf');
-
-            let fileText: string | undefined;
-            let images: string[] | undefined;
-
-            const extracted = await extractTextFromPDF(file);
-            if (isLegibleText(extracted)) {
-                fileText = extracted;
-                supabase.from('vagas_candidaturas').update({ raw_text: extracted }).eq('id', aiCandidate.id).then(() => {}, () => {});
-            } else {
-                images = await pdfToImages(file);
-            }
-
-            if (!fileText && (!images || images.length === 0)) {
-                toast.error('Não foi possível extrair texto ou imagens do PDF. O arquivo pode estar corrompido ou ser um PDF escaneado incompatível.');
-                setAiAnalyzing(false);
-                return;
-            }
-
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-            const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-            const { data: { session } } = await supabase.auth.getSession();
-            const authToken = session?.access_token || anonKey;
-
-            // Análise completa (scoring): retorna score + summary + strengths + gaps.
-            // 'extraction' só devolvia skills/experience/education (feedback parcial).
+            // Monta o contexto da vaga (mesmo bloco usado pelo batch)
             const jobTitle = vaga?.title || '';
             const { data: vagaFull } = await supabase.from('vagas_white_label').select('description, responsibilities, requirements, differentials, additional_info, custom_questions').eq('id', id!).single();
-            const jobDesc = vagaFull?.description || '';
 
-            // Monta bloco com as respostas do candidato às perguntas custom da vaga
             let candidateAnswers = '';
             try {
                 const ansRaw = (typeof aiCandidate.answers === 'string' ? JSON.parse(aiCandidate.answers) : aiCandidate.answers) ?? {};
@@ -258,74 +335,15 @@ setCandidatos(candData || []);
                     .join('\n');
             } catch { /* respostas opcionais */ }
 
-            const openaiRes = await fetch(`${supabaseUrl}/functions/v1/openai-proxy`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': anonKey,
-                    'Authorization': `Bearer ${authToken}`,
-                },
-                body: JSON.stringify({
-                    type: 'scoring',
-                    data: {
-                        jobTitle,
-                        jobDescription: jobDesc,
-                        responsibilities: vagaFull?.responsibilities || '',
-                        requirements: vagaFull?.requirements || '',
-                        differentials: vagaFull?.differentials || '',
-                        additionalInfo: vagaFull?.additional_info || '',
-                        candidateAnswers,
-                        currentIndex: 1,
-                        totalCount: 1,
-                        fileText,
-                        images,
-                    },
-                }),
+            await analyzeSingleCandidate(aiCandidate, {
+                jobTitle,
+                jobDescription: vagaFull?.description || '',
+                responsibilities: vagaFull?.responsibilities || '',
+                requirements: vagaFull?.requirements || '',
+                differentials: vagaFull?.differentials || '',
+                additionalInfo: vagaFull?.additional_info || '',
+                candidateAnswers,
             });
-
-            if (!openaiRes.ok) {
-                const errText = await openaiRes.text();
-                console.error('[VagaCandidatos] openai-proxy HTTP', openaiRes.status, errText);
-                throw new Error('Falha temporária no serviço de análise');
-            }
-
-            const aiResult = await openaiRes.json();
-            if (!aiResult?.choices?.[0]?.message?.content) throw new Error('Resposta vazia da IA');
-
-            let parsed: Record<string, unknown> = {};
-            try {
-                const content = aiResult.choices[0].message.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-                parsed = JSON.parse(content);
-            } catch {
-                toast.error('Erro ao processar resposta da IA');
-                setAiAnalyzing(false);
-                return;
-            }
-
-            const skillsArr = Array.isArray(parsed.skills) ? parsed.skills as string[] : [];
-            const analysis: Record<string, unknown> = {};
-            if (parsed.experience) analysis.experience = parsed.experience;
-            if (parsed.education) analysis.education = parsed.education;
-            if (skillsArr.length) analysis.skills = skillsArr;
-            // Campos completos do scoring — o CandidatePanel renderiza esses blocos
-            if (parsed.summary) analysis.summary = parsed.summary;
-            if (parsed.general_analysis) analysis.general_analysis = parsed.general_analysis;
-            if (parsed.feedback) analysis.feedback = parsed.feedback;
-            if (parsed.strengths) analysis.strengths = parsed.strengths;
-            if (parsed.gaps) analysis.gaps = parsed.gaps;
-            if (parsed.redFlags) analysis.redFlags = parsed.redFlags;
-            if (parsed.classification) analysis.classification = parsed.classification;
-            if (parsed.recommendation) analysis.recommendation = parsed.recommendation;
-
-            const updates: Record<string, unknown> = { is_analyzed: true, analysis };
-            const scoreNum = Number(parsed.score);
-            if (Number.isFinite(scoreNum) && scoreNum > 0) updates.match_score = Math.round(Math.min(100, Math.max(0, scoreNum)));
-            if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
-            if (parsed.experience) updates.experience = parsed.experience;
-            if (parsed.education) updates.education = parsed.education;
-
-            const { error: updateErr } = await supabase.from('vagas_candidaturas').update(updates).eq('id', aiCandidate.id);
-            if (updateErr) throw new Error(updateErr.message);
 
             setSelectedCandDetail(null);
             const { data: updated } = await supabase.from('vagas_candidaturas')
@@ -338,7 +356,7 @@ setCandidatos(candData || []);
             toast.success('Currículo analisado com sucesso!');
         } catch (e) {
             console.error('Erro ao analisar currículo:', e);
-            toast.error('Não foi possível concluir a análise agora. Tente novamente em instantes.');
+            toast.error((e as Error).message || 'Não foi possível concluir a análise agora. Tente novamente em instantes.');
         } finally {
             setAiAnalyzing(false);
             setAiCandidate(null);
@@ -384,62 +402,99 @@ setCandidatos(candData || []);
         setBatchLoading(true);
         try {
             const selected = candidatos.filter(c => batchSelectedIds.has(c.id));
-            const candidatesForAI: Array<{ id: string; name: string; rawText: string }> = [];
-            for (const c of selected) {
-                let rawText = '';
-                if (c.resume_url) {
-                    try {
-                        const file = await downloadResume(c.resume_url, c.resume_file_name || 'curriculo.pdf');
-                        rawText = await extractTextFromPDF(file);
-                    } catch { /* skip */ }
-                }
-                candidatesForAI.push({ id: c.id, name: c.candidate_name, rawText });
-            }
             const jobTitle = vaga?.title || '';
             const { data: vagaFull } = await supabase.from('vagas_white_label').select('description, responsibilities, requirements, differentials, additional_info, custom_questions').eq('id', id!).single();
             const jobDesc = vagaFull?.description || '';
-            const results = await batchMatchToJob(candidatesForAI, jobTitle, jobDesc, {
-                responsibilities: vagaFull?.responsibilities || '',
-                requirements: vagaFull?.requirements || '',
-                differentials: vagaFull?.differentials || '',
-                additionalInfo: vagaFull?.additional_info || '',
-            });
-            // Casar por POSIÇÃO (a IA mantém a ordem dos candidatos): results[i] <-> selected[i].
-            // Não confiar no candidateId que a IA devolve — UUID truncado/formatação diferente
-            // fazia o update casar 0 linhas silenciosamente e o resultado "sumir" ao atualizar.
-            for (let i = 0; i < results.length && i < selected.length; i++) {
-                const r = results[i];
-                const realId = selected[i].id;
-                const skillsArr = Array.isArray(r.skills) ? r.skills as string[] : [];
-                const analysis: Record<string, unknown> = {};
-                if (r.experience) analysis.experience = r.experience;
-                if (r.education) analysis.education = r.education;
-                if (skillsArr.length) analysis.skills = skillsArr;
-                if (r.summary) analysis.summary = r.summary;
-                if (r.strengths) analysis.strengths = r.strengths;
-                if (r.gaps) analysis.gaps = r.gaps;
-                if (r.classification) analysis.classification = r.classification;
-                if (r.recommendation) analysis.recommendation = r.recommendation;
 
-                const updates: Record<string, unknown> = {
-                    is_analyzed: true,
-                    analysis,
-                    analysis_vs_vaga: r as unknown as Record<string, unknown>,
-                    match_score: Math.round(Math.min(100, Math.max(0, Number(r.score) || 0))),
-                };
-                if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
-                if (r.experience) updates.experience = r.experience;
-                if (r.education) updates.education = r.education;
-
-                const { error: updateErr } = await supabase.from('vagas_candidaturas').update(updates).eq('id', realId);
-                if (updateErr) throw new Error(updateErr.message);
+            // Separa: currículos com texto legível vão pro lote; PDFs escaneados
+            // (sem camada de texto) precisam do fluxo individual com imagem.
+            const candidatesForAI: Array<{ id: string; name: string; rawText: string }> = [];
+            const scannedCandidates: Candidato[] = [];
+            for (const c of selected) {
+                if (!c.resume_url) {
+                    scannedCandidates.push(c); // sem currículo — individual reportará erro claro
+                    continue;
+                }
+                try {
+                    const file = await downloadResume(c.resume_url, c.resume_file_name || 'curriculo.pdf');
+                    const extracted = await extractTextFromPDF(file);
+                    if (isLegibleText(extracted)) {
+                        candidatesForAI.push({ id: c.id, name: c.candidate_name, rawText: extracted });
+                        supabase.from('vagas_candidaturas').update({ raw_text: extracted }).eq('id', c.id).then(() => {}, () => {});
+                    } else {
+                        scannedCandidates.push(c); // PDF escaneado → individual (imagem)
+                    }
+                } catch {
+                    scannedCandidates.push(c); // erro de download → individual reportará erro
+                }
             }
+
+            let analyzedCount = 0;
+            // 1. Lote (currículos com texto legível)
+            if (candidatesForAI.length > 0) {
+                const results = await batchMatchToJob(candidatesForAI, jobTitle, jobDesc, {
+                    responsibilities: vagaFull?.responsibilities || '',
+                    requirements: vagaFull?.requirements || '',
+                    differentials: vagaFull?.differentials || '',
+                    additionalInfo: vagaFull?.additional_info || '',
+                });
+                // Casar por POSIÇÃO (a IA mantém a ordem dos candidatos): results[i] <-> candidatesForAI[i].
+                // Não confiar no candidateId que a IA devolve — UUID truncado/formatação diferente
+                // fazia o update casar 0 linhas silenciosamente e o resultado "sumir" ao atualizar.
+                for (let i = 0; i < results.length && i < candidatesForAI.length; i++) {
+                    const r = results[i];
+                    const realId = candidatesForAI[i].id;
+                    const skillsArr = Array.isArray(r.skills) ? r.skills as string[] : [];
+                    const analysis: Record<string, unknown> = {};
+                    if (r.experience) analysis.experience = r.experience;
+                    if (r.education) analysis.education = r.education;
+                    if (skillsArr.length) analysis.skills = skillsArr;
+                    if (r.summary) analysis.summary = r.summary;
+                    if (r.strengths) analysis.strengths = r.strengths;
+                    if (r.gaps) analysis.gaps = r.gaps;
+                    if (r.classification) analysis.classification = r.classification;
+                    if (r.recommendation) analysis.recommendation = r.recommendation;
+
+                    const updates: Record<string, unknown> = {
+                        is_analyzed: true,
+                        analysis,
+                        analysis_vs_vaga: r as unknown as Record<string, unknown>,
+                        match_score: Math.round(Math.min(100, Math.max(0, Number(r.score) || 0))),
+                    };
+                    if (skillsArr.length) { updates.skills = skillsArr.join(', '); updates.tags = skillsArr.map(s => s.toLowerCase()); }
+                    if (r.experience) updates.experience = r.experience;
+                    if (r.education) updates.education = r.education;
+
+                    const { error: updateErr } = await supabase.from('vagas_candidaturas').update(updates).eq('id', realId);
+                    if (updateErr) throw new Error(updateErr.message);
+                    analyzedCount++;
+                }
+            }
+
+            // 2. PDFs escaneados / sem texto → análise individual (com imagem)
+            for (const c of scannedCandidates) {
+                try {
+                    await analyzeSingleCandidate(c, {
+                        jobTitle,
+                        jobDescription: jobDesc,
+                        responsibilities: vagaFull?.responsibilities || '',
+                        requirements: vagaFull?.requirements || '',
+                        differentials: vagaFull?.differentials || '',
+                        additionalInfo: vagaFull?.additional_info || '',
+                    });
+                    analyzedCount++;
+                } catch (e) {
+                    console.error('Erro na análise individual (lote):', e);
+                    toast.error(`${c.candidate_name}: ${(e as Error).message}`);
+                }
+            }
+
             // Refresh list
             const { data: refreshed } = await supabase.from('vagas_candidaturas')
                 .select('id, candidate_name, candidate_email, candidate_phone, candidate_location, candidate_linkedin, resume_url, resume_file_name, applied_at, status, match_score, candidate_gender, candidate_age, answers, internal_notes, analysis, analysis_vs_vaga')
                 .eq('vaga_id', id!).order('match_score', { ascending: false });
             if (refreshed) setCandidatos(refreshed);
-            toast.success(`${results.length} candidato(s) analisado(s)!`);
+            toast.success(`${analyzedCount} candidato(s) analisado(s)!`);
             setBatchSelectedIds(new Set());
         } catch (err) {
             console.error('Erro na análise em lote:', err);
